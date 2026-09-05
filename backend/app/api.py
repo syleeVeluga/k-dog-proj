@@ -1,0 +1,321 @@
+"""Local-first M1 API. All participant media is served through authorization."""
+
+import hashlib
+import os
+from pathlib import Path
+import secrets
+import sqlite3
+import time
+from typing import Annotated, Literal
+from urllib.parse import urlsplit
+
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+
+from app.auth import authenticate, check_password, create_user, password_hash, token_hash, user_view
+from app.domain.contracts import SurveyCatalog
+from app.input_models import (
+    AccessEdit, CaseCreate, CaseView, ImportCommit, ImportPreview, Key, Login, Message,
+    SessionEdit, SessionMetadata, StoredVideo, SurveyEdit, UserCreate, UserEdit, UserView,
+)
+from app.intake import create_case, new_session, preview, save_survey, selected_session, template
+from app.storage import REPO_ROOT, Store, require_consent, uid
+
+
+COOKIE = "kdog_session"
+DEFAULT_DATA = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "K-DOG" / "data"
+
+
+def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127.0.0.1:8000") -> FastAPI:
+    origin = urlsplit(public_origin)
+    if not origin.hostname or origin.scheme not in ("http", "https") or origin.path or origin.query or origin.fragment or origin.username:
+        raise ValueError("K-DOG origin에는 스킴·호스트·포트만 지정하세요.")
+    if origin.hostname not in ("127.0.0.1", "localhost", "::1") and origin.scheme != "https":
+        raise ValueError("내부망 접속은 HTTPS origin과 TLS 프록시가 필요합니다.")
+    store = Store(data_dir or DEFAULT_DATA)
+    catalog = SurveyCatalog.model_validate_json((REPO_ROOT / "resources/catalogs/survey-v1.json").read_bytes())
+    dummy_password = password_hash(secrets.token_urlsafe(32))
+    app = FastAPI(title="K-DOG M1", docs_url=None, redoc_url=None, openapi_url=None)
+    app.state.store = store
+
+    @app.middleware("http")
+    async def boundary(request: Request, call_next):
+        if request.headers.get("host") != origin.netloc:
+            return JSONResponse({"detail": "허용되지 않은 호스트입니다."}, status_code=400)
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            if request.headers.get("x-kdog-request") != "1" or request.headers.get("origin", public_origin) != public_origin:
+                return JSONResponse({"detail": "요청 출처를 확인할 수 없습니다."}, status_code=403)
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'"
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request, exc):
+        # Never echo submitted passwords or participant values in validation errors.
+        errors = [".".join(map(str, error["loc"])) + ": " + error["msg"] for error in exc.errors()]
+        return JSONResponse({"detail": "; ".join(errors)}, status_code=422)
+
+    @app.exception_handler(sqlite3.IntegrityError)
+    async def conflict(request, exc):
+        return JSONResponse({"detail": "중복 ID 또는 연결 충돌입니다. 입력을 확인하세요."}, status_code=409)
+
+    @app.exception_handler(OSError)
+    async def storage_error(request, exc):
+        return JSONResponse({"detail": "파일 저장소를 사용할 수 없습니다. 공간과 접근 권한을 확인하세요."}, status_code=503)
+
+    def current(request: Request):
+        with store.connect() as db:
+            return user_view(authenticate(db, request.cookies.get(COOKIE)))
+
+    def roles(*allowed):
+        def check(user: Annotated[UserView, Depends(current)]):
+            if user.role not in allowed:
+                raise HTTPException(403, "이 작업에 필요한 권한이 없습니다.")
+            return user
+        return check
+
+    reader = roles("operator", "reviewer", "admin")
+    writer = roles("operator", "admin")
+    administrator = roles("admin")
+    developer = roles("developer")
+
+    @app.post("/api/auth/login", response_model=UserView)
+    def login(value: Login, response: Response):
+        valid = False
+        with store.connect(write=True) as db:
+            row = db.execute("SELECT * FROM users WHERE username=?", (value.username,)).fetchone()
+            matches = check_password(value.password, row["password_hash"] if row else dummy_password)
+            if row and row["active"] and row["locked_until"] <= time.time():
+                valid = matches
+                if valid:
+                    token = secrets.token_urlsafe(32)
+                    db.execute("UPDATE users SET session_hash=?,session_expires=?,failed_logins=0,locked_until=0 WHERE username=?",
+                               (token_hash(token), time.time() + 8 * 3600, value.username))
+                else:
+                    count = row["failed_logins"] + 1
+                    db.execute("UPDATE users SET failed_logins=?,locked_until=? WHERE username=?",
+                               (count, time.time() + 60 if count >= 5 else 0, value.username))
+        if not valid:
+            raise HTTPException(401, "로그인 정보를 확인하세요. 반복 실패 시 잠시 후 다시 시도하세요.")
+        response.set_cookie(COOKIE, token, httponly=True, secure=origin.scheme == "https",
+                            samesite="strict", max_age=8 * 3600, path="/")
+        return user_view(row)
+
+    @app.get("/api/auth/me", response_model=UserView)
+    def me(user=Depends(current)):
+        return user
+
+    @app.post("/api/auth/logout", response_model=Message)
+    def logout(request: Request, response: Response, user=Depends(current)):
+        with store.connect(write=True) as db:
+            db.execute("UPDATE users SET session_hash=NULL,session_expires=NULL WHERE session_hash=?",
+                       (token_hash(request.cookies.get(COOKIE, "")),))
+        response.delete_cookie(COOKIE, path="/")
+        return Message(message="로그아웃되었습니다.")
+
+    @app.get("/api/admin/users", response_model=list[UserView])
+    def users(user=Depends(administrator)):
+        with store.connect() as db:
+            return [user_view(row) for row in db.execute("SELECT * FROM users WHERE role!='developer' ORDER BY username")]
+
+    @app.post("/api/admin/users", response_model=UserView, status_code=201)
+    def add_user(value: UserCreate, user=Depends(administrator)):
+        if value.role == "developer":
+            raise HTTPException(403, "개발자 계정은 별도 로컬 관리 경로로 발급합니다.")
+        with store.connect(write=True) as db:
+            create_user(db, value)
+            store.audit(db, user.username, value.username, "user.create", {"role": value.role})
+        return UserView(username=value.username, role=value.role, active=True)
+
+    @app.patch("/api/admin/users/{username}", response_model=UserView)
+    def edit_user(username: Key, value: UserEdit, user=Depends(administrator)):
+        with store.connect(write=True) as db:
+            row = db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+            if row is None:
+                raise HTTPException(404, "계정이 없습니다.")
+            if row["role"] == "developer" or value.role == "developer" or username == user.username:
+                raise HTTPException(403, "개발자 계정 또는 자신의 권한을 변경할 수 없습니다.")
+            db.execute("UPDATE users SET role=?,active=?,session_hash=NULL,session_expires=NULL WHERE username=?",
+                       (value.role, value.active, username))
+            store.audit(db, user.username, username, "user.update", value.model_dump())
+        return UserView(username=username, role=value.role, active=value.active)
+
+    @app.get("/api/developer/status", response_model=Message)
+    def developer_status(user=Depends(developer)):
+        return Message(message="개발자 인증 완료. 공급자 키·프롬프트 설정은 M2 이후 구현합니다.")
+
+    @app.get("/api/catalog/survey", response_model=SurveyCatalog)
+    def survey_catalog(user=Depends(reader)):
+        return catalog
+
+    @app.get("/api/cases", response_model=list[CaseView])
+    def cases(user=Depends(reader)):
+        with store.connect() as db:
+            return [store.view(row) for row in db.execute("SELECT * FROM cases WHERE deletion_requested=0 ORDER BY created_at DESC")]
+
+    @app.post("/api/cases", response_model=CaseView, status_code=201)
+    def add_case(value: CaseCreate, user=Depends(writer)):
+        with store.connect(write=True) as db:
+            case_id = create_case(store, db, value, user.username, catalog.version)
+            return store.view(store.case(db, case_id))
+
+    @app.get("/api/cases/{case_id}", response_model=CaseView)
+    def get_case(case_id: Key, user=Depends(reader)):
+        with store.connect() as db:
+            return store.view(store.case(db, case_id))
+
+    @app.put("/api/cases/{case_id}/survey", response_model=CaseView)
+    def survey(case_id: Key, value: SurveyEdit, user=Depends(writer)):
+        with store.connect(write=True) as db:
+            save_survey(store, db, case_id, value, user.username, catalog.version)
+            return store.view(store.case(db, case_id))
+
+    @app.put("/api/cases/{case_id}/access", response_model=Message)
+    def access(case_id: Key, value: AccessEdit, user=Depends(writer)):
+        with store.connect(write=True) as db:
+            row = store.case(db, case_id, expected=value.expected_revision)
+            manifest = store.manifest(row)
+            store.save(db, row, manifest, user.username, "access.update")
+            db.execute("UPDATE cases SET consent_json=?,deletion_requested=? WHERE case_id=?",
+                       (value.consent.model_dump_json(), value.deletion_requested, case_id))
+            store.audit(db, user.username, case_id, "access.state", value.model_dump(exclude={"expected_revision"}))
+        return Message(message="동의·삭제 상태를 저장했습니다.")
+
+    @app.post("/api/cases/{case_id}/sessions", response_model=CaseView)
+    def sessions(case_id: Key, value: SessionEdit, user=Depends(writer)):
+        with store.connect(write=True) as db:
+            row = store.case(db, case_id, expected=value.expected_revision)
+            manifest = store.manifest(row)
+            if value.session_id is None:
+                session = new_session(catalog.version, value.capture_mode, value.route_note)
+                manifest.sessions.append(session)
+                manifest.selected_session_id = session.session_id
+            else:
+                if value.session_id not in {item.session_id for item in manifest.sessions}:
+                    raise HTTPException(422, "이 참가자의 촬영 세션이 아닙니다.")
+                manifest.selected_session_id = value.session_id
+            store.save(db, row, manifest, user.username, "session.select")
+            return store.view(store.case(db, case_id))
+
+    @app.post("/api/cases/{case_id}/videos", response_model=CaseView, status_code=201)
+    async def upload_video(case_id: Key, request: Request,
+                           session_id: Key, camera_id: Key,
+                           filename: Annotated[str, Query(min_length=1, max_length=200)],
+                           expected_revision: Annotated[int, Query(ge=1)], user=Depends(writer)):
+        extension = Path(filename).suffix.lower()
+        if extension not in (".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm"):
+            raise HTTPException(422, "지원 영상 파일 확장자를 확인하세요.")
+        with store.connect() as db:
+            row = store.case(db, case_id, expected=expected_revision)
+            require_consent(row, "video_analysis")
+            selected_session(store.manifest(row), session_id)
+        video_id = uid()
+        key = f"videos/{video_id}{extension}"
+        path = store.path(key)
+        digest = hashlib.sha256()
+        size = 0
+        adopted = False
+        try:
+            with path.open("xb") as handle:
+                async for chunk in request.stream():
+                    size += len(chunk)
+                    handle.write(chunk)
+                    digest.update(chunk)
+                handle.flush()
+                os.fsync(handle.fileno())
+            if size == 0:
+                raise HTTPException(422, "빈 영상 파일은 등록할 수 없습니다.")
+            with store.connect(write=True) as db:
+                current_user = authenticate(db, request.cookies.get(COOKIE))
+                if current_user["role"] not in ("operator", "admin"):
+                    raise HTTPException(403, "업로드 권한이 변경되었습니다.")
+                row = store.case(db, case_id, expected=expected_revision)
+                require_consent(row, "video_analysis")
+                manifest = store.manifest(row)
+                session = selected_session(manifest, session_id)
+                if any(video.sha256 == digest.hexdigest() for video in session.videos):
+                    raise HTTPException(409, "이 촬영 세션에 동일한 파일이 이미 등록되어 있습니다.")
+                session.videos.append(StoredVideo(video_id=video_id, camera_id=camera_id,
+                                      original_name=filename, storage_ref=key,
+                                      sha256=digest.hexdigest(), size_bytes=size))
+                store.save(db, row, manifest, user.username, "video.register")
+                result = store.view(store.case(db, case_id))
+            adopted = True
+            return result
+        finally:
+            if not adopted:
+                path.unlink(missing_ok=True)
+
+    @app.get("/api/cases/{case_id}/videos/{video_id}")
+    def video_file(case_id: Key, video_id: Key, user=Depends(reader)):
+        with store.connect() as db:
+            row = store.case(db, case_id)
+            require_consent(row, "video_analysis")
+            videos = [video for session in store.manifest(row).sessions for video in session.videos]
+            video = next((item for item in videos if item.video_id == video_id), None)
+            if video is None:
+                raise HTTPException(404, "이 참가자의 영상이 아닙니다.")
+            path = store.path(video.storage_ref)
+            if not path.is_file() or path.stat().st_size != video.size_bytes:
+                raise HTTPException(409, "영상 파일이 없거나 크기가 변경되었습니다.")
+            with path.open("rb") as handle:
+                if hashlib.file_digest(handle, "sha256").hexdigest() != video.sha256:
+                    raise HTTPException(409, "영상 파일 해시가 일치하지 않습니다.")
+            # Hashing a large file can take time; refresh access immediately before serving.
+            require_consent(store.case(db, case_id), "video_analysis")
+            return FileResponse(path, filename=f"{video_id}{path.suffix}", content_disposition_type="inline")
+
+    @app.put("/api/cases/{case_id}/sessions/{session_id}", response_model=CaseView)
+    def session_metadata(case_id: Key, session_id: Key, value: SessionMetadata, user=Depends(writer)):
+        with store.connect(write=True) as db:
+            row = store.case(db, case_id, expected=value.expected_revision)
+            manifest = store.manifest(row)
+            session = selected_session(manifest, session_id)
+            session.capture_mode = value.capture_mode
+            session.route_note = value.route_note
+            store.save(db, row, manifest, user.username, "session.metadata")
+            return store.view(store.case(db, case_id))
+
+    @app.get("/api/templates/{kind}")
+    def input_template(kind: Literal["participants", "survey"], format: Literal["csv", "xlsx"] = "csv", user=Depends(writer)):
+        return Response(template(kind, format), media_type="application/octet-stream",
+                        headers={"Content-Disposition": f'attachment; filename="kdog-{kind}.{format}"'})
+
+    @app.post("/api/imports/preview", response_model=ImportPreview)
+    async def import_preview(request: Request, kind: Literal["participants", "survey"],
+                             format: Literal["csv", "xlsx"], user=Depends(writer)):
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > 8 * 1024 * 1024:
+                raise HTTPException(413, "표준 입력 파일은 8 MiB 이하로 나누어 등록하세요.")
+        with store.connect() as db:
+            return preview(store, db, bytes(data), kind, format, catalog.version)
+
+    @app.post("/api/imports/commit", response_model=Message)
+    def commit_import(value: ImportCommit, user=Depends(writer)):
+        with store.connect(write=True) as db:
+            for row in value.rows:
+                if row.participant is not None and row.survey is None and row.case_id is None:
+                    if (row.event_id, row.participant_id) != (row.participant.event_id, row.participant.participant_id):
+                        raise HTTPException(422, "미리보기 참가자 연결이 일치하지 않습니다.")
+                    create_case(store, db, row.participant, user.username, catalog.version)
+                elif row.participant is None and row.survey is not None and row.case_id is not None:
+                    current_case = store.case(db, row.case_id)
+                    if (row.event_id, row.participant_id) != (current_case["event_id"], current_case["participant_id"]):
+                        raise HTTPException(422, "미리보기 참가자 연결이 일치하지 않습니다.")
+                    save_survey(store, db, row.case_id, row.survey, user.username, catalog.version)
+                else:
+                    raise HTTPException(422, "참가자 또는 설문 행을 올바르게 지정하세요.")
+        return Message(message=f"{len(value.rows)}개 정상 행을 저장했습니다.")
+
+    build = REPO_ROOT / "frontend/dist"
+    if build.is_dir():
+        app.mount("/", StaticFiles(directory=build, html=True), name="ui")
+    return app

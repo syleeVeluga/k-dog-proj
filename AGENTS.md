@@ -2,18 +2,18 @@
 
 ## Project Structure & Module Organization
 
-K-DOG is an operator-facing dog/guardian assessment application at milestone M0 (domain contracts and catalog import). `docs/` contains:
+K-DOG is an operator-facing dog/guardian assessment application at milestone M1 (authenticated intake and persistent storage). `docs/` contains:
 
 - `K-DOG_PRD_v0.4_20260905.md`: product requirements and roles.
 - `K-DOG_바이브코딩_구현지시서_v1.0_20260905.md`: MVP scope, implementation contracts, and acceptance checks.
 - `K-DOG_AI_처리_파이프라인_v0.1_20260905.md`: AI stages and data contracts.
 - `K-DOG_문서검수_v1.0_20260905.md`: unresolved review findings F-01–F-05.
 
-`backend/app/domain/` contains validated Python contracts; `backend/app/import_catalogs.py` reads source Excel workbooks in `docs/`. Tests and synthetic fixtures live in `backend/tests/`; extracted catalogs and pending-rule records live in `resources/`. Frontend, API, database, and worker implementation are planned for later milestones. Create directories only when needed.
+`backend/app/domain/` contains validated Python contracts; `backend/app/import_catalogs.py` reads source Excel workbooks in `docs/`. `backend/app/api.py` provides the FastAPI intake API; `storage.py` manages SQLite and immutable input files. `frontend/` contains the React UI. Tests and synthetic fixtures live in `backend/tests/` and `frontend/tests/`; extracted catalogs and pending-rule records live in `resources/`. Worker implementation starts in M2. Create directories only when needed.
 
 ## Build, Test, and Development Commands
 
-From `backend/`, run `uv sync --locked` to install pinned dependencies, `uv run --locked python -X utf8 -m unittest discover -s tests -v` for tests, and `uv run --locked python -X utf8 -m app.import_catalogs --check` to verify catalogs against Excel. See `docs/DEVELOPMENT.md`. No application server/build command exists yet. Repository-root checks:
+From `backend/`, run `uv sync --locked` to install pinned dependencies, `uv run --locked python -X utf8 -m unittest discover -s tests -v` for tests, and `uv run --locked python -X utf8 -m app.import_catalogs --check` to verify catalogs against Excel. From `frontend/`, use `npm ci`, `npm run build`, and `npm run test:e2e`. Start the built app from `backend/` with `uv run --locked python -X utf8 -m app.manage serve`. See `docs/DEVELOPMENT.md` for initial account provisioning and browser installation. Repository-root checks:
 
 - `git status --short`: inspect pending changes.
 - `git diff --check`: detect whitespace errors in tracked changes.
