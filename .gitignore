@@ -1,0 +1,6 @@
+# Codebase memory / local cache
+.codebase-memory/
+
+# OS files
+.DS_Store
+Thumbs.db
