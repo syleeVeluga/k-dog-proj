@@ -82,3 +82,37 @@ test('developer session cannot read participant data and reviewer cannot write',
   await expect(page.getByRole('button', { name: '자료 가져오기', exact: true })).toHaveCount(0);
   expect((await page.request.post('/api/cases', { headers: { 'X-KDOG-Request': '1' }, data: {} })).status()).toBe(403);
 });
+
+test('M2: synthetic observation worker, persisted evidence, replay links and 360px', async ({ page }, testInfo) => {
+  await login(page);
+  const request = page.request;
+  const headers = { 'X-KDOG-Request': '1' };
+  let item = await (await request.post('/api/cases', { headers, data: { event_id: 'M2-BROWSER', participant_id: '0099', dog_name: '관찰 검증용 가상견' } })).json();
+  const base = `/api/cases/${item.case_id}`;
+  await request.put(`${base}/access`, { headers, data: { expected_revision: item.input_revision, deletion_requested: false,
+    consent: { video_analysis: true, external_ai: true, result_provision: true, text_version: 'synthetic-test-only', recorded_at: '2026-09-06T00:00:00+00:00' } } });
+  item = await (await request.get(base)).json();
+  for (const camera of [1, 2]) {
+    const params = new URLSearchParams({ expected_revision: String(item.input_revision), session_id: item.selected_session_id, camera_id: `CAM-${camera}`, filename: 'synthetic.mp4' });
+    item = await (await request.post(`${base}/videos?${params}`, { headers, data: Buffer.from(`synthetic fixture ${camera}`) })).json();
+  }
+  await page.reload();
+  await page.getByRole('button', { name: '0099 상세 열기' }).click();
+  await page.getByRole('button', { name: '관찰 시작', exact: true }).click();
+  await expect(page.getByText('관찰 근거 2개', { exact: true })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText('가상 관찰: 입장 시 이동', { exact: true })).toHaveCount(2);
+  await page.getByRole('button', { name: '원본 근거 재생' }).first().click();
+  await expect(page.locator('section[aria-label="영상 관찰"] video')).toHaveAttribute('src', /#t=1,2$/);
+  await page.getByRole('button', { name: '근거 재생 닫기' }).click();
+  await page.screenshot({ path: testInfo.outputPath('m2-observations-desktop.png'), fullPage: true, animations: 'disabled' });
+  await page.reload();
+  await page.getByRole('button', { name: '0099 상세 열기' }).click();
+  await expect(page.getByText('관찰 근거 2개', { exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 360, height: 800 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('m2-observations-mobile.png'), fullPage: true, animations: 'disabled' });
+  await page.getByLabel('외부 AI 전송', { exact: true }).uncheck();
+  await page.getByRole('button', { name: '동의 상태 저장' }).click();
+  await expect(page.getByRole('button', { name: '관찰 시작', exact: true })).toBeDisabled();
+  await expect(page.getByText('가상 관찰: 입장 시 이동', { exact: true })).toHaveCount(0);
+});

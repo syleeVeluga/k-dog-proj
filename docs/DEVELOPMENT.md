@@ -2,7 +2,7 @@
 
 ## 현재 실행 범위
 
-M1 인증·참가자 목록/상세·표준 CSV/XLSX 입력·영상 저장·재시작 조회까지 실행할 수 있다. React 빌드를 FastAPI에서 제공하며 SQLite를 사용한다. AI 호출·미디어 검사·worker는 M2 이후다. Python 3.14, Node.js 24, `uv`와 npm을 사용한다. 명령은 저장소 루트에서 시작한다.
+M2까지 인증·입력·영상 검사·Gemini 관찰·근거 조회를 실행할 수 있다. React 빌드를 FastAPI에서 제공하며 SQLite와 별도 worker를 사용한다. 실제 Gemini 호출·영상 품질은 샘플 제공 후 검증할 예정이다. Python 3.14, Node.js 24, `uv`와 npm, FFmpeg/ffprobe를 사용한다. 명령은 저장소 루트에서 시작한다.
 
 ## 앱 최초 실행
 
@@ -20,6 +20,8 @@ uv run --locked python -X utf8 -m app.manage serve
 `http://127.0.0.1:8000`에서 접속한다. 기본 계정은 없다. 운영 관리자로 직원 계정을 발급한다. 데이터는 기본 `%LOCALAPPDATA%/K-DOG/data`에 저장하며 코드 저장소 안의 데이터 경로는 거절한다. 서버를 종료해도 같은 데이터 폴더를 사용하면 다시 조회할 수 있다. 자세한 입력 순서·계정·다른 데이터 위치·개발 서버·제약은 [M1 구현 기록 및 운영 안내](K-DOG_M1_구현기록_v1.0_20260906.md)를 따른다.
 
 ## 검증
+
+M2는 서버와 별도로 `backend/`에서 `uv run --locked python -X utf8 -m app.manage worker`를 실행한다. 모델·키 환경 설정, FFmpeg 버전, 재시도·재사용·복구와 실 API 미검증 범위는 [M2 실행·검증 기록](K-DOG_M2_구현기록_v1.0_20260906.md)을 따른다. 키가 없을 때 가상 결과로 자동 전환하지 않는다.
 
 저장소 루트에서 시작한다.
 
@@ -40,7 +42,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-브라우저 테스트는 8765 포트에 임시 서버를 실행하고 저장소 밖 임시 폴더·가상 계정·가상 영상 바이트를 사용한다. 운영 데이터는 열지 않는다. 종료 후 서버는 정리하며 스크린샷은 무시되는 `frontend/test-results/`에 둔다. 실제 영상·AI 정확도 검증이 아니다.
+브라우저 테스트는 8765 포트에 임시 서버와 테스트 전용 가상 worker를 실행하고 저장소 밖 임시 폴더·가상 계정·가상 영상 바이트를 사용한다. 운영 데이터는 열지 않는다. 종료 후 서버는 정리하며 스크린샷은 무시되는 `frontend/test-results/`에 둔다. 실제 영상·AI 정확도 검증이 아니다. Python M2 테스트는 FFmpeg로 생성한 색상 영상·사인파의 실제 검사/변환과 가상 공급자 계약 시험을 구분한다.
 
 ## 원본 항목집 이관
 
@@ -61,6 +63,6 @@ uv run --locked python -X utf8 -m app.import_catalogs --source-dir "D:/reference
 
 `resolve_branch_scores()`는 확정 선택지의 점수 조회만 수행한다. 행동 자동 판정, 미정 경계 해결, 영역 평균/역채점/반올림 실행기는 M3에서 구현한다. q23 원응답은 보존하고 `resources/rules/pending-v1.json`의 미정 상태를 임의 계산으로 대체하지 않는다.
 
-RunInput의 `frozen`은 필드 재할당을 막지만 내부 dict까지 동결하지 않는다. M1 저장 계층은 검증 후 직렬화한 JSON을 불변 입력 파일로 저장하고 수정 시 새 revision을 만든다. M1의 `intake-1.0` manifest는 아직 미디어 검사가 안 된 영상을 보관하므로 RunInput과 분리했다. M2는 검사 후 RunInput을 생성해야 한다. 현재 근거 검증은 새 run 자체의 관찰만 허용한다. 이전 run 재사용은 F-03의 manifest 검증을 구현한 후 연결한다.
+RunInput의 `frozen`은 필드 재할당을 막지만 내부 dict까지 동결하지 않는다. 저장 계층은 검증 후 직렬화한 JSON을 불변 입력 파일로 저장하고 수정 시 새 revision을 만든다. M1의 `intake-1.0` manifest와 M2의 검사된 RunInput은 분리하며, 검사된 입력은 성공 prepare 산출물에 고정한다. 기본 도메인 검증은 새 run 자체의 관찰만 허용한다. `app.analysis`가 같은 참가자·세션·관련 입력/설정 해시와 명시적 reuse manifest를 확인한 경우에만 이전 관찰의 근거 ID를 연결한다.
 
 실제 데이터·영상·키·운영 로그는 저장소 밖에 둔다. 테스트 fixture는 가상 자료이며 실 AI 검증을 대체하지 않는다. 완료 범위와 남은 작업은 [진행 기록](IMPLEMENTATION_STATUS.md)을 확인한다.

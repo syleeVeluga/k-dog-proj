@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import { api } from './api';
+import { Observations, analysisNames } from './Observations';
 import type { Case, Catalog, Consent, Preview, Role, User } from './types';
 import './style.css';
 
@@ -88,12 +89,12 @@ function App() {
       {busy && <p className="working" role="status">처리 중입니다… 파일 업로드 중에는 이 화면을 유지하세요.</p>}
       <fieldset disabled={busy} className="workspace">
         {user.role === 'developer' ? <section><p className="eyebrow">개발자 전용</p><h1>개발 설정</h1>
-          <p>개발자 계정으로 접속했습니다. 공급자 연결과 설정 편집은 다음 구현 단계에서 제공됩니다.</p>
+          <p>Gemini 모델과 키는 서버 실행 환경에서 설정합니다. 설정 편집 화면은 후속 단계에서 제공됩니다.</p>
           <button onClick={() => void run(async () => setNotice((await api<{ message: string }>('/developer/status')).message))}>인증 상태 확인</button>
         </section> : page === 'import' ? <Importer run={run} catalogVersion={catalog?.version ?? ''} done={async message => { setNotice(message); await reload(); }} />
           : page === 'users' ? <Users run={run} />
           : selected && catalog ? <Detail key={`${selected.case_id}-${selected.input_revision}`} item={selected} catalog={catalog} writable={writable} run={run}
-            back={() => setSelected(null)} refresh={async () => { await reload(selected.case_id); setNotice('저장되었습니다.'); }} />
+            back={() => void run(async () => { setSelected(null); await reload(); })} refresh={async () => { await reload(selected.case_id); setNotice('저장되었습니다.'); }} />
             : <>
               <section className="page-heading"><div><p className="eyebrow">PARTICIPANT REGISTER</p><h1>참가자 자료</h1><p className="muted">ID를 기준으로 설문과 촬영 자료를 연결하세요.</p></div>
                 <div className="count"><strong>{cases.length.toString().padStart(2, '0')}</strong><span>등록된 참가자</span></div></section>
@@ -103,7 +104,7 @@ function App() {
               <div className="table-wrap"><table><thead><tr><th>참가자 / 행사</th><th>반려견</th><th>설문</th><th>영상</th><th>분석 상태</th><th>자료</th></tr></thead>
                 <tbody>{visible.map(c => { const s = sessionOf(c); const count = Object.values(s.survey).filter(v => v !== null).length;
                   return <tr key={c.case_id}><td><strong className="mono">{c.participant_id}</strong><small>{c.event_id}</small></td><td>{c.dog_name}</td>
-                    <td><span className={count === 30 ? 'tag green' : 'tag'}>{count}/30</span></td><td>{s.videos.length}개</td><td><span className="muted">미실행</span></td>
+                    <td><span className={count === 30 ? 'tag green' : 'tag'}>{count}/30</span></td><td>{s.videos.length}개</td><td><span className="muted">{analysisNames[c.analysis_status] ?? '미실행'}</span></td>
                     <td><button aria-label={`${c.participant_id} 상세 열기`} onClick={() => void run(async () => setSelected(await api<Case>(`/cases/${c.case_id}`)))}>열기 ↗</button></td></tr>;
                 })}</tbody></table>{!visible.length && <div className="empty"><h2>{cases.length ? '조건에 맞는 참가자가 없습니다.' : '첫 참가자를 등록하세요.'}</h2><p>행사와 참가자 ID를 먼저 확인한 뒤 자료를 연결합니다.</p></div>}</div>
               {writable && <details className="panel" open={!cases.length}><summary>참가자 등록</summary>
@@ -115,7 +116,7 @@ function App() {
                   <p className="fine">이름이 같아도 참가자 ID는 각각 등록합니다. ID 앞자리 0은 그대로 보존됩니다.</p><button className="primary">참가자 저장</button></form></details>}
             </>}
       </fieldset>
-      <footer>K-DOG · 현장 평가 자료 관리<span>입력 단계 · AI 분석은 아직 제공되지 않습니다.</span></footer>
+      <footer>K-DOG · 현장 평가 자료 관리<span>영상 관찰 · 항목 평가와 점수 계산은 준비 중입니다.</span></footer>
     </main>
   </>;
 }
@@ -163,7 +164,7 @@ function Detail({ item, catalog, writable, run, refresh, back }: {
     </div>
     <section className="panel"><div className="section-title"><h2>영상 자료</h2><span className="mono">{session.videos.length} FILES</span></div>
       {session.videos.length === 0 && <p className="muted">등록된 영상이 없습니다. 참가자·촬영 세션·카메라를 확인한 후 파일을 선택하세요.</p>}
-      {session.videos.map(v => <div className="video-row" key={v.video_id}><div><strong>{v.original_name}</strong><small>{v.camera_id} · {(v.size_bytes / 1048576).toFixed(2)} MiB · 미디어 검사 대기</small></div>
+      {session.videos.map(v => <div className="video-row" key={v.video_id}><div><strong>{v.original_name}</strong><small>{v.camera_id} · {(v.size_bytes / 1048576).toFixed(2)} MiB · 원본 등록됨</small></div>
         <button onClick={() => setPlaying(`/api/cases/${item.case_id}/videos/${v.video_id}`)} disabled={!item.consent?.video_analysis}>영상 열기</button></div>)}
       {playing && <div><video src={playing} controls preload="metadata" /><button onClick={() => setPlaying(null)}>재생 닫기</button></div>}
       {writable && <form onSubmit={e => { e.preventDefault(); if (!files) return; void run(async () => {
@@ -180,6 +181,7 @@ function Detail({ item, catalog, writable, run, refresh, back }: {
         <p className="fine">선택 파일은 모두 현재 카메라에 연결됩니다. 다른 카메라는 따로 등록하세요. 복사가 끝나야 저장됩니다.</p></fieldset>
         {!item.consent?.video_analysis && <p className="fine">영상·음성 분석 동의를 먼저 기록하세요.</p>}</form>}
     </section>
+    <Observations item={item} writable={writable} />
     <details className="panel"><summary>설문 원응답 <span className="tag">{Object.values(answers).filter(v => v !== null).length}/30</span></summary>
       <p>{catalog.response_instructions}</p><p className="fine">미응답은 빈칸으로 보존합니다. q23 환산과 영역 집계는 아직 제공하지 않습니다.</p>
       <form onSubmit={e => { e.preventDefault(); void run(async () => {

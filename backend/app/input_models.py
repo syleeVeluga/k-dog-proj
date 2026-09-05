@@ -122,6 +122,7 @@ class Manifest(Model):
 
 
 class CaseView(Model):
+    analysis_status: str = "not_started"
     case_id: str
     event_id: str
     participant_id: str

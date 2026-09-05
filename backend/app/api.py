@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.auth import authenticate, check_password, create_user, password_hash, token_hash, user_view
+from app.analysis import check_access, control, enqueue, step_payload, validated_prepared, view_analysis
 from app.domain.contracts import SurveyCatalog
 from app.input_models import (
     AccessEdit, CaseCreate, CaseView, ImportCommit, ImportPreview, Key, Login, Message,
@@ -22,6 +23,7 @@ from app.input_models import (
 )
 from app.intake import create_case, new_session, preview, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, require_consent, uid
+from app.observation_models import AnalysisRequest, AnalysisView
 
 
 COOKIE = "kdog_session"
@@ -37,7 +39,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     store = Store(data_dir or DEFAULT_DATA)
     catalog = SurveyCatalog.model_validate_json((REPO_ROOT / "resources/catalogs/survey-v1.json").read_bytes())
     dummy_password = password_hash(secrets.token_urlsafe(32))
-    app = FastAPI(title="K-DOG M1", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="K-DOG M2", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.store = store
 
     @app.middleware("http")
@@ -148,7 +150,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
 
     @app.get("/api/developer/status", response_model=Message)
     def developer_status(user=Depends(developer)):
-        return Message(message="개발자 인증 완료. 공급자 키·프롬프트 설정은 M2 이후 구현합니다.")
+        return Message(message="개발자 인증 완료. Gemini 모델·키는 서버 실행 환경에서 설정하세요. 설정 편집 UI는 M5 예정입니다.")
 
     @app.get("/api/catalog/survey", response_model=SurveyCatalog)
     def survey_catalog(user=Depends(reader)):
@@ -184,6 +186,9 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.save(db, row, manifest, user.username, "access.update")
             db.execute("UPDATE cases SET consent_json=?,deletion_requested=? WHERE case_id=?",
                        (value.consent.model_dump_json(), value.deletion_requested, case_id))
+            if value.deletion_requested or not value.consent.video_analysis or not value.consent.external_ai:
+                db.execute("UPDATE runs SET status='stopped',claim_token=NULL,lease_expires_at=NULL "
+                           "WHERE case_id=? AND status IN ('queued','running','retry_wait')", (case_id,))
             store.audit(db, user.username, case_id, "access.state", value.model_dump(exclude={"expected_revision"}))
         return Message(message="동의·삭제 상태를 저장했습니다.")
 
@@ -314,6 +319,41 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 else:
                     raise HTTPException(422, "참가자 또는 설문 행을 올바르게 지정하세요.")
         return Message(message=f"{len(value.rows)}개 정상 행을 저장했습니다.")
+
+    @app.get("/api/cases/{case_id}/analysis", response_model=AnalysisView)
+    def analysis_status(case_id: Key, user=Depends(reader)):
+        return view_analysis(store, case_id)
+
+    @app.post("/api/cases/{case_id}/analysis", response_model=AnalysisView, status_code=202)
+    def analysis_start(case_id: Key, value: AnalysisRequest, user=Depends(writer)):
+        enqueue(store, case_id, value, user.username)
+        return view_analysis(store, case_id)
+
+    @app.post("/api/cases/{case_id}/analysis/{run_id}/{action}", response_model=AnalysisView)
+    def analysis_control(case_id: Key, run_id: Key, action: Literal["retry", "cancel"], user=Depends(writer)):
+        control(store, case_id, run_id, user.username, action)
+        return view_analysis(store, case_id)
+
+    @app.get("/api/cases/{case_id}/analysis/{run_id}/videos/{video_id}")
+    def observation_video(case_id: Key, run_id: Key, video_id: Key, user=Depends(reader)):
+        with store.connect() as db:
+            row = db.execute("SELECT * FROM runs WHERE case_id=? AND run_id=?", (case_id, run_id)).fetchone()
+            if not row:
+                raise HTTPException(404, "이 참가자의 실행이 아닙니다.")
+            check_access(store, db, row)
+            step = db.execute("SELECT * FROM steps WHERE run_id=? AND stage='prepare' AND status='succeeded'", (run_id,)).fetchone()
+            if not step:
+                raise HTTPException(409, "미디어 검사가 완료되지 않았습니다.")
+            prepared = validated_prepared(row, step_payload(store, row, step))
+            media = next((m for m in prepared.media if m.video_id == video_id), None)
+            if not media:
+                raise HTTPException(404, "이 실행의 영상이 아닙니다.")
+            path = store.path(media.storage_ref)
+            with path.open("rb") as handle:
+                if hashlib.file_digest(handle, "sha256").hexdigest() != media.sha256:
+                    raise HTTPException(409, "재생 영상 해시가 일치하지 않습니다.")
+            check_access(store, db, row)
+            return FileResponse(path, media_type=media.mime_type, filename=f"{video_id}{path.suffix}", content_disposition_type="inline")
 
     build = REPO_ROOT / "frontend/dist"
     if build.is_dir():

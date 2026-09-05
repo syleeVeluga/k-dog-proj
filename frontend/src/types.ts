@@ -13,6 +13,7 @@ export type Session = {
   survey_version: string; survey: Record<string, number | null>; videos: Video[];
 };
 export type Case = {
+  analysis_status: string;
   case_id: string; event_id: string; participant_id: string; dog_name: string;
   reservation_at: string; input_revision: number; selected_session_id: string;
   consent: Consent | null; deletion_requested: boolean;

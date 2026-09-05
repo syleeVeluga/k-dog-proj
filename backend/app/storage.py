@@ -1,4 +1,4 @@
-"""SQLite references plus immutable managed input files. No worker is run in M1."""
+"""SQLite references plus immutable managed input and attempt files."""
 
 from contextlib import contextmanager
 import hashlib
@@ -146,7 +146,10 @@ class Store:
         return row
 
     def view(self, row) -> CaseView:
+        with self.connect() as db:
+            run = db.execute("SELECT status FROM runs WHERE run_id=?", (row["display_run_id"],)).fetchone()
         return CaseView(
+            analysis_status=run["status"] if run else "not_started",
             **{name: row[name] for name in (
                 "case_id", "event_id", "participant_id", "dog_name", "reservation_at",
                 "input_revision", "selected_session_id",

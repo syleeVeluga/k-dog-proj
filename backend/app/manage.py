@@ -27,7 +27,17 @@ def main():
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--public-origin")
+    worker = sub.add_parser("worker")
+    worker.add_argument("--once", action="store_true", help="대기 실행 하나를 처리한 뒤 종료")
     args = parser.parse_args()
+    if args.command == "worker":
+        from app.worker import Worker
+        worker = Worker(Store(args.data_dir))
+        try:
+            worker.once() if args.once else worker.run()
+        except KeyboardInterrupt:
+            pass
+        return
     if args.command == "serve":
         if args.host not in ("127.0.0.1", "localhost", "::1") and not args.public_origin:
             parser.error("내부망 접속에는 HTTPS --public-origin을 명시하세요.")
