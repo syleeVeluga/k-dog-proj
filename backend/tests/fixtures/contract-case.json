@@ -1,0 +1,39 @@
+{
+  "fixture_only": true,
+  "description": "가상 입력·관찰. 실제 참가자나 AI 분석 결과가 아님.",
+  "run": {
+    "run_id": "test-run-1", "case_id": "test-case-1", "event_id": "TEST",
+    "participant_id": "0001", "session_id": "test-session-1", "input_revision": 1,
+    "catalog_version": "catalog-20260904-v1", "pipeline_version": "test-pipeline-v1",
+    "scoring_rule_version": "pending-v1", "report_mapping_version": "pending-v1",
+    "prompt_version": "test-prompt-v1", "config_version": "test-config-v1",
+    "survey": {
+      "q01": 4, "q02": null, "q03": null, "q04": null, "q05": null,
+      "q06": null, "q07": null, "q08": null, "q09": null, "q10": null,
+      "q11": null, "q12": null, "q13": null, "q14": null, "q15": null,
+      "q16": null, "q17": null, "q18": null, "q19": null, "q20": null,
+      "q21": null, "q22": null, "q23": 3, "q24": null, "q25": null,
+      "q26": null, "q27": null, "q28": null, "q29": null, "q30": null
+    },
+    "videos": [{
+      "video_id": "test-v01", "camera_id": "test-cam01",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "storage_ref": "test-media/v01.mp4", "duration_sec": 30.0, "audio_status": "absent"
+    }]
+  },
+  "evidence": [{
+    "evidence_id": "test-ev01", "run_id": "test-run-1", "case_id": "test-case-1",
+    "session_id": "test-session-1", "video_id": "test-v01", "camera_id": "test-cam01",
+    "segment_id": "entry", "source_start_sec": 2.0, "source_end_sec": 5.0,
+    "subject": "dog", "modality": "video", "observation": "계약 시험용: 꼬리를 평소보다 낮게 내림",
+    "candidate_item_ids": ["BS-01"]
+  }],
+  "scored": {
+    "item_id": "BS-01", "status": "scored", "selected_option_id": "BS-01:S2",
+    "evidence_ids": ["test-ev01"], "reason": "원본 D5 선택지 조회 시험"
+  },
+  "missing": {
+    "item_id": "OWN-01", "status": "audio_unusable", "selected_option_id": null,
+    "evidence_ids": [], "reason": "시험 영상에 사용 가능한 오디오가 없음"
+  }
+}

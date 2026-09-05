@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "version": "pending-v1",
+  "rules": [
+    {"rule_id": "q23_conversion_c2", "status": "rule_pending", "affected_items": ["q23"], "reason": "원본 안내·수식의 환산/C-2 집계 충돌. 원응답은 보존하고 환산값은 null."},
+    {"rule_id": "four_domain_mapping", "status": "mapping_pending", "reason": "4영역 번호·통합·가중치 미정. 표시 자리만 유지하며 이름·그래프 값은 확정하지 않음."},
+    {"rule_id": "cross_type_2_4", "status": "type_rule_pending", "reason": "②④ 유형명·경계·명칭 미정. 유형값은 null."},
+    {"rule_id": "behavior_selection_boundaries", "status": "rule_pending", "affected_items": ["DOG-12", "OWN-14"], "reason": "예: DOG-12의 5초·15초 구간, OWN-14의 정확히 2초는 원문 구간이 중복됨. 해당 사례와 복수 행동 선택 규칙은 임의 판정하지 않음. 목록은 모든 애매한 사례를 열거한 것이 아님."}
+  ],
+  "policy": "미정 규칙이 영향을 주는 값만 null로 두고 사유를 저장한다. 관찰 부족과 구분한다. 초안 규칙은 명시적 test 모드에서만 사용하며 운영 결과에 혼합하지 않는다. 이 파일은 실행 가능한 계산 규칙이 아니다."
+}

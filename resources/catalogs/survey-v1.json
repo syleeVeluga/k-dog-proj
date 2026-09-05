@@ -1,0 +1,317 @@
+{
+  "schema_version": "1.0",
+  "version": "catalog-20260904-v1",
+  "source_filename": "큐브_통합설문_최종양식_20260904.xlsx",
+  "source_sha256": "e20c5093c8b9e038cb4753c72d274eb75a2f938dcf0bdedc5b412817812b669c",
+  "provenance": "excel_verified",
+  "response_instructions": "노란 칸에만 1~5를 입력하세요 (1=전혀 아니다 ~ 5=매우 그렇다). 역채점 문항도 응답값 그대로 넣으면 자동 처리됩니다. 번호는 행동 채점표의 1번~20번과 같은 아이입니다.",
+  "allowed_responses": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "items": [
+    {
+      "schema_version": "1.0",
+      "item_id": "q01",
+      "text": "무언가를 가르칠 때 단계적으로 시도한다",
+      "domain_label": "A",
+      "source_layer": "원",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 6
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q02",
+      "text": "문제행동이 있으면 그 원인을 파악하려 한다",
+      "domain_label": "A",
+      "source_layer": "원",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 7
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q03",
+      "text": "문제행동을 고칠 때 대신할 행동을 가르치려 한다",
+      "domain_label": "A",
+      "source_layer": "원",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 8
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q04",
+      "text": "책·영상 등으로 훈련 방법을 배우려 노력한다",
+      "domain_label": "A",
+      "source_layer": "원",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 9
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q05",
+      "text": "두려워하는 것에 천천히 적응할 시간을 준다",
+      "domain_label": "A",
+      "source_layer": "원",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 10
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q06",
+      "text": "두려운 것을 좋은 경험과 연결해 극복하도록 돕는다",
+      "domain_label": "A",
+      "source_layer": "원",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 11
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q07",
+      "text": "지시할 때 칭찬을 먼저 하고 간식은 그다음에 준다",
+      "domain_label": "A",
+      "source_layer": "영",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 12
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q08",
+      "text": "간식이 없어도 아는 지시(앉아 등)를 시킬 수 있다",
+      "domain_label": "A",
+      "source_layer": "영",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 13
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q09",
+      "text": "처음 가는 장소에서도 곧 편안해한다",
+      "domain_label": "B",
+      "source_layer": "C",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 14
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q10",
+      "text": "낯선 사람이 다가와도 편안하게 대한다",
+      "domain_label": "B",
+      "source_layer": "C",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 15
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q11",
+      "text": "낯선 개를 만나도 크게 긴장하지 않는다",
+      "domain_label": "B",
+      "source_layer": "C",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 16
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q12",
+      "text": "새로운 물건(우산·큰 가방 등)을 무서워하지 않는다",
+      "domain_label": "B",
+      "source_layer": "C",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 17
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q13",
+      "text": "갑작스러운 소리(천둥·공사음 등)에 크게 놀라지 않는다",
+      "domain_label": "B",
+      "source_layer": "C",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 18
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q14",
+      "text": "낯선 곳에서도 바닥 냄새를 맡으며 탐색한다",
+      "domain_label": "B",
+      "source_layer": "영",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 19
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q15",
+      "text": "반려견과 나는 서로 긍정적인 영향을 준다",
+      "domain_label": "C",
+      "source_layer": "원",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 20
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q16",
+      "text": "반려견과 자주 눈을 맞춘다",
+      "domain_label": "C",
+      "source_layer": "원",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 21
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q17",
+      "text": "함께 있는 것만으로 행복하다",
+      "domain_label": "C",
+      "source_layer": "원",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 22
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q18",
+      "text": "시간이 나면 함께 시간을 보내려 한다",
+      "domain_label": "C",
+      "source_layer": "원",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 23
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q19",
+      "text": "반려견과 나는 서로 의지한다",
+      "domain_label": "C",
+      "source_layer": "원",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 24
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q20",
+      "text": "자주 만지고 쓰다듬으며, 아이도 이를 즐긴다",
+      "domain_label": "C",
+      "source_layer": "원",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 25
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q21",
+      "text": "서로 사랑한다고 느낀다",
+      "domain_label": "C",
+      "source_layer": "원",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 26
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q22",
+      "text": "내가 잠깐 자리를 비우면 아이가 불안해한다",
+      "domain_label": "C",
+      "source_layer": "C",
+      "scoring_note": "역(R)",
+      "source_sheet": "데이터입력",
+      "source_row": 27
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q23",
+      "text": "내가 안 보이면 나를 찾아다닌다",
+      "domain_label": "C",
+      "source_layer": "C",
+      "scoring_note": "※중간이 정상",
+      "source_sheet": "데이터입력",
+      "source_row": 28
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q24",
+      "text": "내가 돌아오면 반갑게 맞이하고 금방 안정된다",
+      "domain_label": "C",
+      "source_layer": "C",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 29
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q25",
+      "text": "우리 아이는 나와 놀 때 서로 주고받는 흐름이 있다",
+      "domain_label": "C",
+      "source_layer": "영",
+      "scoring_note": "-",
+      "source_sheet": "데이터입력",
+      "source_row": 30
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q26",
+      "text": "내 기분에 따라 아이를 대하는 방식이 달라진다",
+      "domain_label": "D",
+      "source_layer": "원",
+      "scoring_note": "역(R)",
+      "source_sheet": "데이터입력",
+      "source_row": 31
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q27",
+      "text": "내 기분에 따라 더 심하게 혼내곤 한다",
+      "domain_label": "D",
+      "source_layer": "원",
+      "scoring_note": "역(R)",
+      "source_sheet": "데이터입력",
+      "source_row": 32
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q28",
+      "text": "반려견 때문에 자주 화가 난다",
+      "domain_label": "D",
+      "source_layer": "원",
+      "scoring_note": "역(R)",
+      "source_sheet": "데이터입력",
+      "source_row": 33
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q29",
+      "text": "훈련이 뜻대로 안 되면 짜증이 난다",
+      "domain_label": "D",
+      "source_layer": "영",
+      "scoring_note": "역(R)",
+      "source_sheet": "데이터입력",
+      "source_row": 34
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "q30",
+      "text": "아이가 흥분하면 나도 덩달아 목소리가 커진다",
+      "domain_label": "D",
+      "source_layer": "영",
+      "scoring_note": "역(R)",
+      "source_sheet": "데이터입력",
+      "source_row": 35
+    }
+  ]
+}

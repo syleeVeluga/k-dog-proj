@@ -4,3 +4,13 @@
 # OS files
 .DS_Store
 Thumbs.db
+
+# Python development environment
+.venv/
+__pycache__/
+*.py[cod]
+
+# Local secrets (runtime data belongs outside this repository)
+.env
+.env.*
+!.env.example

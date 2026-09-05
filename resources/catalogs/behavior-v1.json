@@ -1,0 +1,2454 @@
+{
+  "schema_version": "1.0",
+  "version": "catalog-20260904-v1",
+  "source_filename": "큐브_행동채점표_최종양식_55항목_20260904.xlsx",
+  "source_sha256": "bd79b9e9467ff3aa7b0b179108703776ad9c2b1ae3d8bc11db00e09c4215a079",
+  "provenance": "excel_verified",
+  "items": [
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-01",
+      "text": "꼬리",
+      "segment": "입장",
+      "domain": "SOC_E",
+      "source_sheet": "1_바디시그널",
+      "source_row": 5,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-01:S1",
+          "text": "중립 높이·이완되어 있음",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C5"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-01:S2",
+          "text": "평소보다 낮게 내림 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D5"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-01:S3",
+          "text": "높이 들고 경직·짧고 빠른 흔들림 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E5"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-01:S5",
+          "text": "다리 사이로 말아 넣음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G5"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-02",
+      "text": "자세·무게중심",
+      "segment": "입장",
+      "domain": "SOC_E",
+      "source_sheet": "1_바디시그널",
+      "source_row": 6,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-02:S1",
+          "text": "사지에 균등·중립",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C6"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-02:S3",
+          "text": "무게중심 뒤·뒷걸음 자세 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E6"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-02:S4",
+          "text": "무게중심 앞·몸을 앞으로 기울임 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F6"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-02:S5",
+          "text": "몸 낮춤·웅크림·배 노출 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G6"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-03",
+      "text": "이동",
+      "segment": "입장",
+      "domain": "SOC_E",
+      "source_sheet": "1_바디시그널",
+      "source_row": 7,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-03:S1",
+          "text": "자발적 접근 또는 중립 유지",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C7"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-03:S3",
+          "text": "회피·후퇴 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E7"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-03:S4",
+          "text": "자극 향해 돌진·리드줄 당김 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F7"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-03:S5",
+          "text": "프리징(2초 이상 정지)·보호자 뒤로 숨음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G7"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-04",
+      "text": "발성 ※전 구간 통틀어",
+      "segment": "입장",
+      "domain": "SOC_E",
+      "source_sheet": "1_바디시그널",
+      "source_row": 8,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-04:S1",
+          "text": "없음",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C8"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-04:S3",
+          "text": "낑낑·하울링 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E8"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-04:S4",
+          "text": "짖음 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F8"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-04:S5",
+          "text": "으르렁 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G8"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-05",
+      "text": "전위행동 (3종)",
+      "segment": "입장",
+      "domain": "SOC_E",
+      "source_sheet": "1_바디시그널",
+      "source_row": 9,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-05:S1",
+          "text": "없음",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C9"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-05:S2",
+          "text": "1종이 1~2회 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D9"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-05:S3",
+          "text": "2종 이상 또는 1종 지속 반복 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E9"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-05:S5",
+          "text": "3종 이상 지속 반복 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G9"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-06",
+      "text": "꼬리",
+      "segment": "분리",
+      "domain": "ATT",
+      "source_sheet": "1_바디시그널",
+      "source_row": 10,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-06:S1",
+          "text": "중립 높이·이완되어 있음",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C10"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-06:S2",
+          "text": "평소보다 낮게 내림 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D10"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-06:S3",
+          "text": "높이 들고 경직·짧고 빠른 흔들림 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E10"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-06:S5",
+          "text": "다리 사이로 말아 넣음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G10"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-07",
+      "text": "자세·무게중심",
+      "segment": "분리",
+      "domain": "ATT",
+      "source_sheet": "1_바디시그널",
+      "source_row": 11,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-07:S1",
+          "text": "사지에 균등·중립",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C11"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-07:S3",
+          "text": "무게중심 뒤·뒷걸음 자세 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E11"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-07:S4",
+          "text": "무게중심 앞·몸을 앞으로 기울임 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F11"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-07:S5",
+          "text": "몸 낮춤·웅크림·배 노출 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G11"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-08",
+      "text": "이동",
+      "segment": "분리",
+      "domain": "ATT",
+      "source_sheet": "1_바디시그널",
+      "source_row": 12,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-08:S1",
+          "text": "자발적 접근 또는 중립 유지",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C12"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-08:S3",
+          "text": "회피·후퇴 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E12"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-08:S4",
+          "text": "자극 향해 돌진·리드줄 당김 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F12"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-08:S5",
+          "text": "프리징(2초 이상 정지)·보호자 뒤로 숨음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G12"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-09",
+      "text": "꼬리",
+      "segment": "훈련",
+      "domain": "TRN",
+      "source_sheet": "1_바디시그널",
+      "source_row": 13,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-09:S1",
+          "text": "중립 높이·이완되어 있음",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C13"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-09:S2",
+          "text": "평소보다 낮게 내림 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D13"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-09:S3",
+          "text": "높이 들고 경직·짧고 빠른 흔들림 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E13"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-09:S5",
+          "text": "다리 사이로 말아 넣음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G13"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-10",
+      "text": "꼬리",
+      "segment": "놀이",
+      "domain": "ATT",
+      "source_sheet": "1_바디시그널",
+      "source_row": 14,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-10:S1",
+          "text": "중립 높이·이완되어 있음",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C14"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-10:S2",
+          "text": "평소보다 낮게 내림 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D14"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-10:S3",
+          "text": "높이 들고 경직·짧고 빠른 흔들림 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E14"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-10:S5",
+          "text": "다리 사이로 말아 넣음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G14"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-11",
+      "text": "자세·무게중심",
+      "segment": "놀이",
+      "domain": "ATT",
+      "source_sheet": "1_바디시그널",
+      "source_row": 15,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-11:S1",
+          "text": "사지에 균등·중립",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C15"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-11:S3",
+          "text": "무게중심 뒤·뒷걸음 자세 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E15"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-11:S4",
+          "text": "무게중심 앞·몸을 앞으로 기울임 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F15"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-11:S5",
+          "text": "몸 낮춤·웅크림·배 노출 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G15"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-12",
+      "text": "이동",
+      "segment": "놀이",
+      "domain": "ATT",
+      "source_sheet": "1_바디시그널",
+      "source_row": 16,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-12:S1",
+          "text": "자발적 접근 또는 중립 유지",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C16"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-12:S3",
+          "text": "회피·후퇴 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E16"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-12:S4",
+          "text": "자극 향해 돌진·리드줄 당김 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F16"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-12:S5",
+          "text": "프리징(2초 이상 정지)·보호자 뒤로 숨음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G16"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-13",
+      "text": "꼬리",
+      "segment": "퇴장",
+      "domain": null,
+      "source_sheet": "1_바디시그널",
+      "source_row": 17,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-13:S1",
+          "text": "중립 높이·이완되어 있음",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C17"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-13:S2",
+          "text": "평소보다 낮게 내림 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D17"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-13:S3",
+          "text": "높이 들고 경직·짧고 빠른 흔들림 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E17"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-13:S5",
+          "text": "다리 사이로 말아 넣음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G17"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-14",
+      "text": "자세·무게중심",
+      "segment": "퇴장",
+      "domain": null,
+      "source_sheet": "1_바디시그널",
+      "source_row": 18,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-14:S1",
+          "text": "사지에 균등·중립",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C18"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-14:S3",
+          "text": "무게중심 뒤·뒷걸음 자세 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E18"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-14:S4",
+          "text": "무게중심 앞·몸을 앞으로 기울임 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F18"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-14:S5",
+          "text": "몸 낮춤·웅크림·배 노출 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G18"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-15",
+      "text": "이동",
+      "segment": "퇴장",
+      "domain": null,
+      "source_sheet": "1_바디시그널",
+      "source_row": 19,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-15:S1",
+          "text": "자발적 접근 또는 중립 유지",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C19"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-15:S3",
+          "text": "회피·후퇴 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E19"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-15:S4",
+          "text": "자극 향해 돌진·리드줄 당김 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F19"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-15:S5",
+          "text": "프리징(2초 이상 정지)·보호자 뒤로 숨음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G19"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "BS-16",
+      "text": "전위행동 (3종)",
+      "segment": "퇴장",
+      "domain": null,
+      "source_sheet": "1_바디시그널",
+      "source_row": 20,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-16:S1",
+          "text": "없음",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C20"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-16:S2",
+          "text": "1종이 1~2회 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D20"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-16:S3",
+          "text": "2종 이상 또는 1종 지속 반복 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E20"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "BS-16:S5",
+          "text": "3종 이상 지속 반복 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G20"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-01",
+      "text": "골목 통과",
+      "segment": "입장",
+      "domain": "SOC_E",
+      "source_sheet": "2_개행동",
+      "source_row": 5,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-01:S1",
+          "text": "자발적 접근·탐색",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C5"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-01:S2",
+          "text": "주저했다 접근 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D5"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-01:S3",
+          "text": "우회·회피 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E5"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-01:S4",
+          "text": "돌진·과반응·짖음 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F5"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-01:S5",
+          "text": "거부·정지·얼어붙음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G5"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-02",
+      "text": "강아지 인형 반응 ※대리지표",
+      "segment": "입장",
+      "domain": "SOC_D",
+      "source_sheet": "2_개행동",
+      "source_row": 6,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-02:S1",
+          "text": "자발적 접근·탐색",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C6"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-02:S2",
+          "text": "주저했다 접근 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D6"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-02:S3",
+          "text": "우회·회피 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E6"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-02:S4",
+          "text": "돌진·과반응·짖음 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F6"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-02:S5",
+          "text": "거부·정지·얼어붙음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G6"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-03",
+      "text": "막대기 넘기",
+      "segment": "입장",
+      "domain": "SOC_E",
+      "source_sheet": "2_개행동",
+      "source_row": 7,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-03:S1",
+          "text": "자발적 접근·탐색",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C7"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-03:S2",
+          "text": "주저했다 접근 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D7"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-03:S3",
+          "text": "우회·회피 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E7"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-03:S4",
+          "text": "돌진·과반응·짖음 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F7"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-03:S5",
+          "text": "거부·정지·얼어붙음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G7"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-04",
+      "text": "여러 바닥 밟기",
+      "segment": "입장",
+      "domain": "SOC_E",
+      "source_sheet": "2_개행동",
+      "source_row": 8,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-04:S1",
+          "text": "자발적 접근·탐색",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C8"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-04:S2",
+          "text": "주저했다 접근 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D8"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-04:S3",
+          "text": "우회·회피 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E8"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-04:S4",
+          "text": "돌진·과반응·짖음 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F8"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-04:S5",
+          "text": "거부·정지·얼어붙음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G8"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-05",
+      "text": "매트 올라가기",
+      "segment": "입장",
+      "domain": "SOC_E",
+      "source_sheet": "2_개행동",
+      "source_row": 9,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-05:S1",
+          "text": "자발적 접근·탐색",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C9"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-05:S2",
+          "text": "주저했다 접근 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D9"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-05:S3",
+          "text": "우회·회피 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E9"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-05:S4",
+          "text": "돌진·과반응·짖음 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F9"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-05:S5",
+          "text": "거부·정지·얼어붙음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G9"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-06",
+      "text": "스태프(낯선 사람) 반응",
+      "segment": "입장",
+      "domain": "SOC_P",
+      "source_sheet": "2_개행동",
+      "source_row": 10,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-06:S1",
+          "text": "자발적 접근·탐색",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C10"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-06:S2",
+          "text": "주저했다 접근 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D10"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-06:S3",
+          "text": "우회·회피 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E10"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-06:S4",
+          "text": "돌진·과반응·짖음 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F10"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-06:S5",
+          "text": "거부·정지·얼어붙음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G10"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-07",
+      "text": "[무반응 10초] 함께 있을 때 ※기준선",
+      "segment": "분리",
+      "domain": null,
+      "source_sheet": "2_개행동",
+      "source_row": 11,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-07:S1",
+          "text": "스스로 곁에 머물며 이완·여유롭게 둘러봄",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C11"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-07:S2",
+          "text": "보호자를 자주 쳐다보며 서성임 [A]",
+          "score": 2.0,
+          "direction": "A",
+          "source_cell": "D11"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-07:S3",
+          "text": "보호자에 완전 무관심·딴 곳만 봄 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E11"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-07:S4",
+          "text": "앉지 못하고 계속 움직임 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F11"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-07:S5",
+          "text": "한시도 가만있지 못함·심하게 안절부절 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G11"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-08",
+      "text": "[분리] 블라인드(나간 쪽) 지향 ※핵심 애착지표",
+      "segment": "분리",
+      "domain": "ATT",
+      "source_sheet": "2_개행동",
+      "source_row": 12,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-08:S1",
+          "text": "잠깐 확인한 뒤 스스로 시간 보냄",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C12"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-08:S2",
+          "text": "가끔 쳐다봄 [A]",
+          "score": 2.0,
+          "direction": "A",
+          "source_cell": "D12"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-08:S3",
+          "text": "다가가 살핌 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E12"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-08:S4",
+          "text": "나간 것을 알아차린 기색이 전혀 없음 [B]",
+          "score": 4.0,
+          "direction": "B",
+          "source_cell": "F12"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-08:S5",
+          "text": "울타리에 계속 붙어 있음 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G12"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-09",
+      "text": "[분리] 발성",
+      "segment": "분리",
+      "domain": "ATT",
+      "source_sheet": "2_개행동",
+      "source_row": 13,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-09:S1",
+          "text": "없음",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C13"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-09:S2",
+          "text": "가끔 낑낑 [A]",
+          "score": 2.0,
+          "direction": "A",
+          "source_cell": "D13"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-09:S3",
+          "text": "자주 낑낑 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E13"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-09:S5",
+          "text": "지속적으로 낑낑·짖음 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G13"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-10",
+      "text": "[분리] 이동·행동",
+      "segment": "분리",
+      "domain": "ATT",
+      "source_sheet": "2_개행동",
+      "source_row": 14,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-10:S1",
+          "text": "안정적으로 머묾",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C14"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-10:S3",
+          "text": "왔다갔다 반복·안절부절 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E14"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-10:S4",
+          "text": "울타리 긁음·넘으려 함 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F14"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-10:S5",
+          "text": "패닉 반응 (즉시 중단) [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G14"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-11",
+      "text": "[재회] 반응 방식",
+      "segment": "분리",
+      "domain": "ATT",
+      "source_sheet": "2_개행동",
+      "source_row": 15,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-11:S1",
+          "text": "반갑게 맞이한 뒤 금방 안정",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C15"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-11:S2",
+          "text": "다가오나 머뭇거림 [A]",
+          "score": 2.0,
+          "direction": "A",
+          "source_cell": "D15"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-11:S3",
+          "text": "무덤덤·딴 곳으로 감 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E15"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-11:S4",
+          "text": "과흥분·점프·매달림 지속 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F15"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-11:S5",
+          "text": "본체만체·다가오지 않음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G15"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-12",
+      "text": "[재회] 진정에 걸린 시간",
+      "segment": "분리",
+      "domain": "ATT",
+      "source_sheet": "2_개행동",
+      "source_row": 16,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-12:S1",
+          "text": "5초 이내",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C16"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-12:S2",
+          "text": "5~15초 [A]",
+          "score": 2.0,
+          "direction": "A",
+          "source_cell": "D16"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-12:S3",
+          "text": "15~20초 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E16"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-12:S5",
+          "text": "20초 안에 안정 실패 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G16"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-13",
+      "text": "지시① 앉아",
+      "segment": "훈련",
+      "domain": "TRN",
+      "source_sheet": "2_개행동",
+      "source_row": 17,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-13:S1",
+          "text": "1회 지시로 수행",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C17"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-13:S2",
+          "text": "2~3회 지시 후 수행 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D17"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-13:S3",
+          "text": "4회 이상 지시해야 수행 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E17"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-13:S5",
+          "text": "미수행 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G17"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-14",
+      "text": "지시③ 엎드려",
+      "segment": "훈련",
+      "domain": "TRN",
+      "source_sheet": "2_개행동",
+      "source_row": 18,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-14:S1",
+          "text": "1회 지시로 수행",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C18"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-14:S2",
+          "text": "2~3회 지시 후 수행 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D18"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-14:S3",
+          "text": "4회 이상 지시해야 수행 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E18"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-14:S5",
+          "text": "미수행 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G18"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-15",
+      "text": "지시④ 앉아",
+      "segment": "훈련",
+      "domain": "TRN",
+      "source_sheet": "2_개행동",
+      "source_row": 19,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-15:S1",
+          "text": "1회 지시로 수행",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C19"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-15:S2",
+          "text": "2~3회 지시 후 수행 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D19"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-15:S3",
+          "text": "4회 이상 지시해야 수행 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E19"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-15:S5",
+          "text": "미수행 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G19"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-16",
+      "text": "훈련 중 집중 상태",
+      "segment": "훈련",
+      "domain": "TRN",
+      "source_sheet": "2_개행동",
+      "source_row": 20,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-16:S1",
+          "text": "보호자 방향 유지·차분히 기다림",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C20"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-16:S2",
+          "text": "시선이 자주 다른 곳으로 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D20"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-16:S3",
+          "text": "반응 없음·움직이지 않음 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E20"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-16:S4",
+          "text": "흥분해 뛰어오름·돌아다님 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F20"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-16:S5",
+          "text": "보호자에게서 멀어짐·피함 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G20"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-17",
+      "text": "훈련성 흡수 (지시①→④ 변화)",
+      "segment": "훈련",
+      "domain": "TRN",
+      "source_sheet": "2_개행동",
+      "source_row": 21,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-17:S1",
+          "text": "개선됨",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C21"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-17:S3",
+          "text": "동일 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E21"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-17:S5",
+          "text": "악화 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G21"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-18",
+      "text": "놀이 개시 주체",
+      "segment": "놀이",
+      "domain": "ATT",
+      "source_sheet": "2_개행동",
+      "source_row": 22,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-18:S1",
+          "text": "개가 먼저 요청 (플레이 바우 등)",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C22"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-18:S2",
+          "text": "보호자가 먼저 시작하면 응함",
+          "score": 2.0,
+          "direction": null,
+          "source_cell": "D22"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-18:S3",
+          "text": "유도해야 겨우 응함 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E22"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-18:S5",
+          "text": "아무도 시작하지 못함 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G22"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-19",
+      "text": "주고받기 흐름",
+      "segment": "놀이",
+      "domain": "ATT",
+      "source_sheet": "2_개행동",
+      "source_row": 23,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-19:S1",
+          "text": "3회 이상 왕복",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C23"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-19:S2",
+          "text": "1~2회 왕복 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D23"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-19:S3",
+          "text": "일방적 (한쪽만) [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E23"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-19:S5",
+          "text": "상호작용 없음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G23"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "DOG-20",
+      "text": "흥분 조절",
+      "segment": "놀이",
+      "domain": "ATT",
+      "source_sheet": "2_개행동",
+      "source_row": 24,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-20:S1",
+          "text": "신나되 보호자를 의식함",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C24"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-20:S2",
+          "text": "짧게 놀다 흥미 잃음 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D24"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-20:S3",
+          "text": "놀이에 관심 없음·구석으로 감 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E24"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-20:S4",
+          "text": "과흥분 통제 안 됨·보호자 무시 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F24"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "DOG-20:S5",
+          "text": "으르렁 지킴·마구 물어뜯음 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G24"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-01",
+      "text": "목소리 ※톤만 (말 없으면 빈칸)",
+      "segment": "입장",
+      "domain": "CON",
+      "source_sheet": "3_보호자행동",
+      "source_row": 5,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-01:S1",
+          "text": "평이하고 낮은 톤",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C5"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-01:S3",
+          "text": "높고 빠름 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E5"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-01:S5",
+          "text": "커지거나 날카로움·꾸짖음 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G5"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-02",
+      "text": "리드줄",
+      "segment": "입장",
+      "domain": "CON",
+      "source_sheet": "3_보호자행동",
+      "source_row": 6,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-02:S1",
+          "text": "느슨함 (U자 유지)",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C6"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-02:S3",
+          "text": "간헐적으로 팽팽해짐 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E6"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-02:S4",
+          "text": "방치 (개가 시야 밖으로 가도 무반응) [B]",
+          "score": 4.0,
+          "direction": "B",
+          "source_cell": "F6"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-02:S5",
+          "text": "지속적으로 팽팽·끌어당김 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G6"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-03",
+      "text": "지시·말 반복",
+      "segment": "입장",
+      "domain": "CON",
+      "source_sheet": "3_보호자행동",
+      "source_row": 7,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-03:S1",
+          "text": "1회만 말하고 기다림",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C7"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-03:S2",
+          "text": "2~3회 반복 [A]",
+          "score": 2.0,
+          "direction": "A",
+          "source_cell": "D7"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-03:S3",
+          "text": "4회 이상·지시어 뒤섞임 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E7"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-03:S4",
+          "text": "말 없음·방치 [B]",
+          "score": 4.0,
+          "direction": "B",
+          "source_cell": "F7"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-03:S5",
+          "text": "쉼 없이 연발·개가 반응할 틈이 없음 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G7"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-04",
+      "text": "개와의 거리",
+      "segment": "입장",
+      "domain": "CON",
+      "source_sheet": "3_보호자행동",
+      "source_row": 8,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-04:S1",
+          "text": "적정 거리에서 주의 유지",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C8"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-04:S3",
+          "text": "거리 유지·개에 관심 없음 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E8"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-04:S4",
+          "text": "계속 붙어 만짐·안아 올림 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F8"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-04:S5",
+          "text": "개를 완전히 놓침·다른 데 가 있음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G8"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-05",
+      "text": "시선",
+      "segment": "입장",
+      "domain": "CON",
+      "source_sheet": "3_보호자행동",
+      "source_row": 9,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-05:S1",
+          "text": "개를 보고 있음",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C9"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-05:S2",
+          "text": "가끔 다른 곳을 봄 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D9"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-05:S3",
+          "text": "휴대폰·타인·딴 곳 응시 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E9"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-05:S5",
+          "text": "촬영 내내 개를 보지 않음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G9"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-06",
+      "text": "[입장] 유도 방식",
+      "segment": "입장",
+      "domain": "CON",
+      "source_sheet": "3_보호자행동",
+      "source_row": 10,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-06:S1",
+          "text": "기다려주고 부드럽게 격려·먹이나 장난감으로 유도",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C10"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-06:S2",
+          "text": "가볍게 재촉·리드줄 살짝 당김 [A]",
+          "score": 2.0,
+          "direction": "A",
+          "source_cell": "D10"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-06:S3",
+          "text": "큰 소리로 재촉 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E10"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-06:S4",
+          "text": "개 두고 먼저 감·방치 [B]",
+          "score": 4.0,
+          "direction": "B",
+          "source_cell": "F10"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-06:S5",
+          "text": "리드줄 확 잡아챔·몸으로 밀어 넣음 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G10"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-07",
+      "text": "[분리] 퇴장 방식",
+      "segment": "분리",
+      "domain": "CON",
+      "source_sheet": "3_보호자행동",
+      "source_row": 11,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-07:S1",
+          "text": "차분히 나감",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C11"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-07:S2",
+          "text": "몰래 급히 나감 [A]",
+          "score": 2.0,
+          "direction": "A",
+          "source_cell": "D11"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-07:S3",
+          "text": "과하게 인사하고 나감 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E11"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-07:S5",
+          "text": "개를 달래다 못 나감·여러 번 되돌아옴 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G11"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-08",
+      "text": "[재회] 반응",
+      "segment": "분리",
+      "domain": "CON",
+      "source_sheet": "3_보호자행동",
+      "source_row": 12,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-08:S1",
+          "text": "담담히 앉아 개가 진정하도록 여유를 줌",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C12"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-08:S2",
+          "text": "가볍게 인사·약간 서두름 [A]",
+          "score": 2.0,
+          "direction": "A",
+          "source_cell": "D12"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-08:S3",
+          "text": "미안해하며 과하게 달램 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E12"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-08:S4",
+          "text": "나가고 들어옴에 무심·개를 안 봄 [B]",
+          "score": 4.0,
+          "direction": "B",
+          "source_cell": "F12"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-08:S5",
+          "text": "크게 호들갑·개를 흥분시킴 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G12"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-09",
+      "text": "목소리",
+      "segment": "훈련",
+      "domain": "EDU",
+      "source_sheet": "3_보호자행동",
+      "source_row": 13,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-09:S1",
+          "text": "평이하고 낮은 톤",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C13"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-09:S2",
+          "text": "거의 말이 없음·반응 없음 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D13"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-09:S3",
+          "text": "높고 빠름 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E13"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-09:S5",
+          "text": "커지거나 날카로움·꾸짖음 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G13"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-10",
+      "text": "손 사용",
+      "segment": "훈련",
+      "domain": "EDU",
+      "source_sheet": "3_보호자행동",
+      "source_row": 14,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-10:S1",
+          "text": "없음 또는 부드러운 접촉",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C14"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-10:S3",
+          "text": "밀기·누르기·자세 강제 교정 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E14"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-10:S5",
+          "text": "잡아채기·제압·억지로 안아 옮김 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G14"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-11",
+      "text": "지시·말 반복",
+      "segment": "훈련",
+      "domain": "EDU",
+      "source_sheet": "3_보호자행동",
+      "source_row": 15,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-11:S1",
+          "text": "1회만 말하고 기다림",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C15"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-11:S2",
+          "text": "2~3회 반복 [A]",
+          "score": 2.0,
+          "direction": "A",
+          "source_cell": "D15"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-11:S3",
+          "text": "4회 이상·지시어 뒤섞임 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E15"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-11:S4",
+          "text": "말 없음·방치 [B]",
+          "score": 4.0,
+          "direction": "B",
+          "source_cell": "F15"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-11:S5",
+          "text": "쉼 없이 연발·개가 반응할 틈이 없음 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G15"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-12",
+      "text": "개와의 거리",
+      "segment": "훈련",
+      "domain": "EDU",
+      "source_sheet": "3_보호자행동",
+      "source_row": 16,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-12:S1",
+          "text": "적정 거리에서 주의 유지",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C16"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-12:S3",
+          "text": "거리 유지·개에 관심 없음 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E16"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-12:S4",
+          "text": "계속 붙어 만짐·안아 올림 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F16"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-12:S5",
+          "text": "개를 완전히 놓침·다른 데 가 있음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G16"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-13",
+      "text": "[훈련] 지시 형태",
+      "segment": "훈련",
+      "domain": "EDU",
+      "source_sheet": "3_보호자행동",
+      "source_row": 17,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-13:S1",
+          "text": "말로만 지시·개 몸에 손대지 않음",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C17"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-13:S3",
+          "text": "손으로 유도 동작 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E17"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-13:S5",
+          "text": "손으로 눌러 앉힘·리드줄 위로 당김 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G17"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-14",
+      "text": "[훈련] 보상 타이밍",
+      "segment": "훈련",
+      "domain": "EDU",
+      "source_sheet": "3_보호자행동",
+      "source_row": 18,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-14:S1",
+          "text": "수행 직후 2초 이내 반응 (말·접촉)",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C18"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-14:S2",
+          "text": "반응이 2초 이상 늦음 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D18"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-14:S3",
+          "text": "수행하지 않았는데 반응함 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E18"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-14:S5",
+          "text": "반응 없음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G18"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-15",
+      "text": "[훈련] 실패했을 때 반응",
+      "segment": "훈련",
+      "domain": "EDU",
+      "source_sheet": "3_보호자행동",
+      "source_row": 19,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-15:S1",
+          "text": "태연·조건을 쉽게 바꿔 재시도",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C19"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-15:S3",
+          "text": "한 번 실패에 포기·흐지부지 넘김 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E19"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-15:S5",
+          "text": "짜증·화냄·몸으로 압박·반복 강요 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G19"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-16",
+      "text": "목소리",
+      "segment": "놀이",
+      "domain": "CON",
+      "source_sheet": "3_보호자행동",
+      "source_row": 20,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-16:S1",
+          "text": "평이하고 낮은 톤",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C20"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-16:S2",
+          "text": "거의 말이 없음·반응 없음 [B]",
+          "score": 2.0,
+          "direction": "B",
+          "source_cell": "D20"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-16:S3",
+          "text": "높고 빠름 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E20"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-16:S5",
+          "text": "커지거나 날카로움·꾸짖음 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G20"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-17",
+      "text": "손 사용",
+      "segment": "놀이",
+      "domain": "CON",
+      "source_sheet": "3_보호자행동",
+      "source_row": 21,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-17:S1",
+          "text": "없음 또는 부드러운 접촉",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C21"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-17:S3",
+          "text": "밀기·누르기·자세 강제 교정 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E21"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-17:S5",
+          "text": "잡아채기·제압·억지로 안아 옮김 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G21"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-18",
+      "text": "지시·말 반복",
+      "segment": "놀이",
+      "domain": "CON",
+      "source_sheet": "3_보호자행동",
+      "source_row": 22,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-18:S1",
+          "text": "1회만 말하고 기다림",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C22"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-18:S2",
+          "text": "2~3회 반복 [A]",
+          "score": 2.0,
+          "direction": "A",
+          "source_cell": "D22"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-18:S3",
+          "text": "4회 이상·지시어 뒤섞임 [A]",
+          "score": 3.0,
+          "direction": "A",
+          "source_cell": "E22"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-18:S4",
+          "text": "말 없음·방치 [B]",
+          "score": 4.0,
+          "direction": "B",
+          "source_cell": "F22"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-18:S5",
+          "text": "쉼 없이 연발·개가 반응할 틈이 없음 [A]",
+          "score": 5.0,
+          "direction": "A",
+          "source_cell": "G22"
+        }
+      ]
+    },
+    {
+      "schema_version": "1.0",
+      "item_id": "OWN-19",
+      "text": "개와의 거리",
+      "segment": "놀이",
+      "domain": "CON",
+      "source_sheet": "3_보호자행동",
+      "source_row": 23,
+      "options": [
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-19:S1",
+          "text": "적정 거리에서 주의 유지",
+          "score": 1.0,
+          "direction": null,
+          "source_cell": "C23"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-19:S3",
+          "text": "거리 유지·개에 관심 없음 [B]",
+          "score": 3.0,
+          "direction": "B",
+          "source_cell": "E23"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-19:S4",
+          "text": "계속 붙어 만짐·안아 올림 [A]",
+          "score": 4.0,
+          "direction": "A",
+          "source_cell": "F23"
+        },
+        {
+          "schema_version": "1.0",
+          "option_id": "OWN-19:S5",
+          "text": "개를 완전히 놓침·다른 데 가 있음 [B]",
+          "score": 5.0,
+          "direction": "B",
+          "source_cell": "G23"
+        }
+      ]
+    }
+  ]
+}
