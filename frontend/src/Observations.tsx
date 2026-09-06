@@ -1,3 +1,4 @@
+import { Notification } from './Notification';
 import { useEffect, useState } from 'react';
 import { api } from './api';
 import type { Case } from './types';
@@ -63,7 +64,7 @@ export function Observations({ item, writable }: { item: Case; writable: boolean
   return <section className="panel" aria-label="영상 관찰">
     <div className="section-title"><h2>영상 관찰·행동 평가</h2><span className="tag">{current ? analysisNames[current.status] : '실행 전'}</span></div>
     <p className="fine">{data?.message ?? '분석 상태 확인 중…'} 화면을 닫아도 백그라운드 처리는 계속됩니다. 완료된 분기부터 점수를 확인할 수 있습니다.</p>
-    {error && <p role="alert" className="error">{error}</p>}
+    <Notification message={error} kind="error" onClose={() => setError('')} />
     {writable && <fieldset disabled={busy}><div className="toolbar">
       <button className="primary"
         onClick={() => void act(base, { expected_revision: item.input_revision, reuse_run_id: reuse && current ? current.run_id : null })}>분석 시작</button>

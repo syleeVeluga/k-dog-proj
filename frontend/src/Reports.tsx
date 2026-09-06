@@ -1,3 +1,4 @@
+import { Notification } from './Notification';
 import { useEffect, useState } from 'react';
 import { api } from './api';
 import { Scores } from './Scores';
@@ -41,7 +42,7 @@ export function Exports({ caseId, runId }: { caseId?: string; runId?: string }) 
     <fieldset disabled={busy}><div className="toolbar"><label>파일 형식<select aria-label="파일 형식" value={format} onChange={e => setFormat(e.target.value)}><option value="pdf">PDF</option><option value="xlsx">Excel · XLSX</option><option value="csv">CSV 묶음</option></select></label>
       <button onClick={() => void generate()}>현재 버전으로 파일 생성</button></div></fieldset>
     {busy && <p role="status">파일 생성 중… 점수 조회는 계속할 수 있습니다.</p>}
-    {error && <p className="error" role="alert">{error}</p>}
+    <Notification message={error} kind="error" onClose={() => setError('')} />
     {list.map(e => <div className="video-row" key={e.export_id}><div><strong>{e.format.toUpperCase()} · {e.count}명</strong><p>{new Date(e.created_at).toLocaleString()} · {e.export_id.slice(0, 8)}</p></div>
       {e.status === 'ready' ? <a href={`/api/exports/${e.export_id}/file`} download>파일 다운로드</a> : <button disabled={busy} onClick={() => void generate(e.export_id)}>고정 버전 파일 생성 재시도</button>}</div>)}
   </details>;
@@ -74,7 +75,7 @@ export function Reports({ caseId, runId, play }: { caseId: string; runId: string
   const choices = data?.result.behavior_items.find(i => i.item_id === itemId);
   const current = data?.result.evaluations.flatMap(a => a.evaluation.items).find(i => i.item_id === itemId);
   return <div aria-label="리포트 검토">
-    {error && <p role="alert" className="error">{error}</p>}{message && <p role="status" className="notice">{message}</p>}
+    <Notification message={error} kind="error" onClose={() => setError('')} /><Notification message={message} onClose={() => setMessage('')} />
     {data && <>
       <Scores run={data.result} play={play} />
       <h3>점수 검토·수정</h3><p className="fine">AI 원결과를 보존하며 수정 사유를 기록합니다. 현재 수정 버전 {data.revision}</p>
@@ -125,10 +126,11 @@ export function Reports({ caseId, runId, play }: { caseId: string; runId: string
 export function ReportSettings() {
   type Settings = { version: string; selection: { provider: string; model: string }; key_available: boolean };
   const [data, setData] = useState<Settings | null>(null); const [message, setMessage] = useState('');
-  useEffect(() => { void api<Settings>('/developer/report').then(setData).catch(e => setMessage(e.message)); }, []);
-  return <section className="panel"><h2>리포트 설명 공급자</h2>{data && <form onSubmit={e => { e.preventDefault();
-    void api<Settings>('/developer/report', 'PUT', { expected_version: data.version, selection: data.selection }).then(v => { setData(v); setMessage('새 실행에 설명 설정을 적용했습니다.'); }).catch(e => setMessage(e.message));
+  const [error, setError] = useState('');
+  useEffect(() => { void api<Settings>('/developer/report').then(setData).catch(e => setError(e.message)); }, []);
+  return <section className="panel"><h2>리포트 설명 공급자</h2>{data && <form onSubmit={e => { e.preventDefault(); setMessage(''); setError('');
+    void api<Settings>('/developer/report', 'PUT', { expected_version: data.version, selection: data.selection }).then(v => { setData(v); setMessage('새 실행에 설명 설정을 적용했습니다.'); }).catch(e => setError(e.message));
   }}><label>설명 공급자<select aria-label="설명 공급자" value={data.selection.provider} onChange={e => setData({ ...data, selection: { provider: e.target.value, model: '' } })}><option value="gemini">Gemini</option><option value="openai">GPT · OpenAI</option><option value="anthropic">Claude · Anthropic</option></select></label>
     <label>설명 모델 ID<input value={data.selection.model} maxLength={150} onChange={e => setData({ ...data, selection: { ...data.selection, model: e.target.value } })} /></label>
-    <p className="fine">키 {data.key_available ? '등록됨' : '개발자 설정 필요'} · 신규 실행부터 고정합니다.</p><button>새 실행에 설명 설정 적용</button></form>}{message && <p role="status">{message}</p>}</section>;
+    <p className="fine">키 {data.key_available ? '등록됨' : '개발자 설정 필요'} · 신규 실행부터 고정합니다.</p><button>새 실행에 설명 설정 적용</button></form>}<Notification message={error} kind="error" onClose={() => setError('')} /><Notification message={message} onClose={() => setMessage('')} /></section>;
 }

@@ -80,6 +80,11 @@ video { width: 100%; max-height: 420px; margin: 20px 0; background: #292c29; }
 .error { background: #fdebec; color: #9f2f2d; }
 .notice { background: #edf3ec; color: #346538; }
 .working { background: #fbf3db; color: #745317; }
+#notifications { position: fixed; z-index: 1000; top: max(112px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); width: min(440px, calc(100% - 32px)); max-height: calc(100dvh - 128px); display: flex; flex-direction: column; gap: 12px; overflow-y: auto; pointer-events: none; }
+.notification { display: flex; align-items: start; gap: 12px; margin: 0; border: 1px solid currentColor; box-shadow: 0 4px 16px #292c2920; pointer-events: auto; flex-shrink: 0; }
+.notification-content { flex: 1; min-width: 0; max-height: 30dvh; overflow-y: auto; }
+.notification-content p { margin: 4px 0 0; }
+.notification-close { flex-shrink: 0; min-width: 42px; padding: 4px 8px; color: inherit; background: transparent; border-color: currentColor; font-size: 20px; line-height: 1; }
 .back { margin-top: 28px; font-size: 13px; }
 .user-row { padding-bottom: 20px; border-bottom: 1px solid #eaeaea; }
 .user-row > strong { align-self: center; min-width: 120px; }

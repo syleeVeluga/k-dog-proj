@@ -1,3 +1,4 @@
+import { Notification } from './Notification';
 import { useEffect, useState } from 'react';
 import { api } from './api';
 
@@ -45,7 +46,7 @@ export function DeveloperSettings({ onVersionModeChange }: { onVersionModeChange
   }
   return <section className="panel developer-settings"><h2>프롬프트·파이프라인 버전</h2>
     <p className="fine">현재 버전을 복제하여 편집합니다. 초안 저장과 시험은 참가자 결과에 영향을 주지 않습니다. 운영 적용·복원은 새 분석부터 사용합니다.</p>
-    {error && <p className="error" role="alert">{error}</p>}{message && <p className="notice" role="status">{message}</p>}
+    <Notification message={error} kind="error" onClose={() => setError('')} /><Notification message={message} onClose={() => setMessage('')} />
     {data && config && <fieldset disabled={busy}>
       <p className="fine">운영 버전 <span className="mono">{data.active_version}</span></p>
       <div className="form-grid"><label>저장 버전<select value={version} onChange={e => { const id = e.target.value; if (id) void work(() => selectVersion(id)); }}>
@@ -97,13 +98,15 @@ export function DeveloperSettings({ onVersionModeChange }: { onVersionModeChange
 export function Recovery() {
   const [status, setStatus] = useState<{ message: string; free_bytes: number; deletion_requests: number; runs: Record<string, number>; last_backup: { path: string } | null } | null>(null);
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  useEffect(() => { void api<typeof status>('/admin/recovery').then(setStatus).catch(e => setMessage(e.message)); }, []);
+  useEffect(() => { void api<typeof status>('/admin/recovery').then(setStatus).catch(e => setError(e.message)); }, []);
   return <details className="panel"><summary>자료 백업·복구</summary>
     {status && <><p>{status.message}</p><p>남은 공간 {(status.free_bytes / 1024 ** 3).toFixed(1)} GB · 삭제 요청 {status.deletion_requests}건</p>
       <p className="fine">최근 백업: {status.last_backup?.path ?? '없음'}</p></>}
-    <button disabled={busy} onClick={() => { setBusy(true); void api<{ path: string }>('/admin/backups', 'POST')
-      .then(v => setMessage(`검증된 백업 저장 완료: ${v.path}`)).catch(e => setMessage(e.message)).finally(() => setBusy(false)); }}>{busy ? '파일 검증·백업 중…' : '자료 백업 생성 · 키 제외'}</button>
-    {message && <p role="status" className="fine">{message}</p>}
+    <button disabled={busy} onClick={() => { setBusy(true); setMessage(''); setError(''); void api<{ path: string }>('/admin/backups', 'POST')
+      .then(v => setMessage(`검증된 백업 저장 완료: ${v.path}`)).catch(e => setError(e.message)).finally(() => setBusy(false)); }}>{busy ? '파일 검증·백업 중…' : '자료 백업 생성 · 키 제외'}</button>
+    <Notification message={error} kind="error" onClose={() => setError('')} />
+    <Notification message={message} onClose={() => setMessage('')} />
   </details>;
 }

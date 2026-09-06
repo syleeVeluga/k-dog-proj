@@ -1,3 +1,4 @@
+import { Notification } from './Notification';
 import { useEffect, useState } from 'react';
 import { api } from './api';
 
@@ -12,7 +13,7 @@ export function EvaluationSettings() {
     .catch(e => { if (active) setError(e.message); }); return () => { active = false; }; }, []);
   return <section className="panel"><h2>분기별 평가 공급자</h2>
     <p className="fine">기본 공급자는 Gemini입니다. 선택한 공급자의 구조화 출력을 지원하는 모델 ID를 입력하세요. 적용한 설정은 새 실행부터 사용합니다.</p>
-    {error && <p className="error" role="alert">{error}</p>}{message && <p className="notice" role="status">{message}</p>}
+    <Notification message={error} kind="error" onClose={() => setError('')} /><Notification message={message} onClose={() => setMessage('')} />
     {data && <form onSubmit={e => { e.preventDefault(); setBusy(true); setMessage(''); setError('');
       void api<Settings>('/developer/evaluation', 'PUT', { expected_version: data.version, branches: data.branches }).then(result => {
         setData(result); setMessage('새 실행에 적용했습니다. 기존 실행 설정은 보존됩니다.');

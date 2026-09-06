@@ -1,3 +1,4 @@
+import { Notification } from './Notification';
 import { useEffect, useState } from 'react';
 import { EvaluationSettings } from './EvaluationSettings';
 import { DeveloperSettings, Recovery } from './DeveloperSettings';
@@ -68,7 +69,7 @@ function App() {
       <fieldset disabled={busy}><label>계정<input name="username" autoComplete="username" required /></label>
         <label>비밀번호<input name="password" type="password" autoComplete="current-password" required /></label>
         <button className="primary" type="submit">{busy ? '접속 중…' : '로그인'}</button></fieldset>
-    </form>{error && <p role="alert" className="error">{error}</p>}
+    </form><Notification message={error} kind="error" onClose={() => setError('')} />
     <p className="fine">직원 전용 · 계정은 운영 관리자에게 문의하세요.</p>
   </main>;
 
@@ -83,9 +84,9 @@ function App() {
         {writable && <button aria-current={page === 'import' ? 'page' : undefined} onClick={() => setPage('import')}>자료 가져오기</button>}
         {user.role === 'admin' && <button aria-current={page === 'users' ? 'page' : undefined} onClick={() => setPage('users')}>직원 계정</button>}
       </nav>}
-      {error && <p className="error" role="alert">{error}</p>}
-      {notice && <p className="notice" role="status">{notice}</p>}
-      {busy && <p className="working" role="status">처리 중입니다… 파일 업로드 중에는 이 화면을 유지하세요.</p>}
+      <Notification message={error} kind="error" onClose={() => setError('')} />
+      <Notification message={notice} onClose={() => setNotice('')} />
+      {busy && <Notification kind="working" message="처리 중입니다… 파일 업로드 중에는 이 화면을 유지하세요." />}
       <fieldset disabled={busy} className="workspace">
         {user.role === 'developer' ? <section><p className="eyebrow">개발자 전용</p><h1>개발 설정</h1>
           <DeveloperSettings onVersionModeChange={setVersionedSettings} />
