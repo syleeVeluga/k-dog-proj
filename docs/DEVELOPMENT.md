@@ -4,6 +4,8 @@
 
 ## 현재 실행 범위
 
+M6는 API·worker를 함께 시작하는 `app.launcher`, Windows 온라인 설치 패키지, 사용량 집계와 합성 부하 도구를 추가했다. 사용자 PC 설치·백업·복원은 [운영 안내](PILOT_OPERATIONS.md), 빌드·새 환경 검증 명령과 측정 결과는 [M6 기록](K-DOG_M6_구현기록_v1.0_20260906.md)을 따른다. `app.launcher`를 쓸 때는 worker를 별도로 시작하지 않는다. 아래 단계별 설명은 기존 기능과 수동 실행 안내다.
+
 M5까지 인증·입력·영상 검사·Gemini 관찰·반려견/보호자 병렬 평가·점수 집계·근거 조회·리포트 설명·사람 수정·대표 프레임·PDF/XLSX/CSV 내보내기·개발자 설정 버전·키 저장소·자료 복구를 실행할 수 있다. React 빌드를 FastAPI에서 제공하며 SQLite와 별도 worker를 사용한다. 실제 공급자 호출·관찰/평가/설명 품질은 샘플 제공 후 검증할 예정이다. Python 3.14, Node.js 24, `uv`와 npm, FFmpeg/ffprobe를 사용한다. 명령은 저장소 루트에서 시작한다.
 
 ## 앱 최초 실행
@@ -16,7 +18,7 @@ cd ../backend
 uv sync --locked
 # 처음 한 번만 실행한다. 비밀번호는 숨김 프롬프트로 두 번 입력한다.
 uv run --locked python -X utf8 -m app.manage create-user manager --role admin
-uv run --locked python -X utf8 -m app.manage serve
+uv run --locked python -X utf8 -m app.launcher
 ```
 
 `http://127.0.0.1:8000`에서 접속한다. 기본 계정은 없다. 운영 관리자로 직원 계정을 발급한다. 데이터는 기본 `%LOCALAPPDATA%/K-DOG/data`에 저장하며 코드 저장소 안의 데이터 경로는 거절한다. 서버를 종료해도 같은 데이터 폴더를 사용하면 다시 조회할 수 있다. 자세한 입력 순서·계정·다른 데이터 위치·개발 서버·제약은 [M1 구현 기록 및 운영 안내](K-DOG_M1_구현기록_v1.0_20260906.md)를 따른다.

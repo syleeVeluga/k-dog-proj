@@ -108,7 +108,8 @@ class Evaluator:
             if provider == "gemini":
                 raw = interaction_text(result, "evaluation_incomplete", usage)
             else:
-                usage.update({k: v for k, v in result.get("usage", {}).items() if "tokens" in k and type(v) is int})
+                from app.usage import token_meters
+                usage.update(token_meters(result.get("usage", {})))
                 usage.update(model=str(result.get("model", model)), response_id=str(result.get("id", "")))
                 usage["request_id"] = str(headers.get("x-request-id", headers.get("request-id", "")))
                 if provider == "openai":

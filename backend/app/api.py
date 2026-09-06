@@ -59,8 +59,12 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         with runtime_lock(store, "api"):
             yield
 
-    app = FastAPI(title="K-DOG M5", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+    app = FastAPI(title="K-DOG", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.store = store
+
+    @app.get("/api/health")
+    def health():
+        return {"service": "K-DOG", "instance": os.environ.get("KDOG_INSTANCE", "")}
 
     @app.middleware("http")
     async def boundary(request: Request, call_next):

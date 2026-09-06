@@ -15,6 +15,8 @@ from app.storage import Store
 
 
 def main():
+    from app.launcher import watch_supervisor
+    watch_supervisor()
     parser = argparse.ArgumentParser(description="K-DOG 로컬 실행·계정 관리")
     parser.add_argument("--data-dir", type=Path, default=Path(os.environ.get("KDOG_DATA_DIR", DEFAULT_DATA)))
     sub = parser.add_subparsers(dest="command", required=True)
@@ -38,7 +40,21 @@ def main():
     clean = sub.add_parser("clean", help="API·worker 종료 후 미참조 파일 정리")
     clean.add_argument("--purge-deleted", action="store_true", help="삭제 요청된 참가자 DB·파일도 영구 삭제")
     sub.add_parser("recovery-status")
+    usage = sub.add_parser("usage-report", help="행사·참가자·시도별 사용량과 명시한 단가 추정 JSON")
+    usage.add_argument("--event-id")
+    usage.add_argument("--prices", type=Path, help="통화·출처·모델별 계량 단가 JSON")
     args = parser.parse_args()
+    if args.command == "usage-report":
+        import json
+        from app.usage import summarize
+        if not (args.data_dir / "kdog.sqlite3").is_file():
+            parser.error("현재 데이터 DB가 필요합니다.")
+        try:
+            prices = json.loads(args.prices.read_text(encoding="utf-8-sig")) if args.prices else None
+            print(json.dumps(summarize(Store(args.data_dir), event_id=args.event_id, prices=prices), ensure_ascii=False, indent=2))
+        except (OSError, ValueError):
+            parser.error("사용량 조회 실패: 데이터 경로와 단가 형식을 확인하세요.")
+        return
     if args.command in ("backup", "restore", "clean", "recovery-status"):
         from app import maintenance
         from fastapi import HTTPException
@@ -69,6 +85,8 @@ def main():
         worker = Worker(Store(args.data_dir))
         try:
             with runtime_lock(worker.store, "worker"):
+                if os.environ.get("KDOG_SUPERVISED") == "1":
+                    Path(os.environ["KDOG_WORKER_READY"]).write_text("ready", encoding="utf-8")
                 worker.once() if args.once else worker.run()
         except KeyboardInterrupt:
             pass

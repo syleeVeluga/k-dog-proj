@@ -365,7 +365,7 @@ class AdapterTests(unittest.TestCase):
             responses = {
                 "gemini": {"status": "completed", "steps": [{"type": "model_output", "content": [
                     {"type": "text", "text": empty}]}], "usage": {"total_tokens": 13}},
-                "openai": {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": empty}]}], "usage": {"input_tokens": 13}},
+                "openai": {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": empty}]}], "usage": {"input_tokens": 13, "input_tokens_details": {"cached_tokens": 5}}},
                 "anthropic": {"stop_reason": "end_turn", "content": [{"type": "text", "text": empty}], "usage": {"input_tokens": 13}},
             }
             guarded = []
@@ -388,6 +388,8 @@ class AdapterTests(unittest.TestCase):
                     self.assertEqual(body["response_format"]["mime_type"], "application/json")
                     self.assertEqual(body["generation_config"]["max_output_tokens"], 65536)
                 self.assertEqual(usage["provider"], provider)
+                if provider == "openai":
+                    self.assertEqual(usage["input_tokens_details.cached_tokens"], 5)
                 transport.side_effect = ProviderError("developer_settings_required")
                 with self.assertRaises(ProviderError):
                     Evaluator().evaluate(config, context, lambda: None)
