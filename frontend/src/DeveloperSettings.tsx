@@ -56,7 +56,7 @@ export function DeveloperSettings({ onVersionModeChange }: { onVersionModeChange
       <div className="form-grid"><label>단계 공급자<select value={config[stage].provider} onChange={e => edit({ provider: e.target.value, model: '' })} disabled={stage === 'observe'}>
         <option value="gemini">Gemini</option><option value="openai">GPT · OpenAI</option><option value="anthropic">Claude · Anthropic</option>
       </select></label><label>단계 모델 ID<input value={config[stage].model} maxLength={150} onChange={e => edit({ model: e.target.value })} /></label>
-      <label>최대 출력 토큰<input type="number" min={256} max={16384} value={config[stage].max_output_tokens} onChange={e => edit({ max_output_tokens: Number(e.target.value) })} /></label></div>
+      <label>최대 출력 토큰<input type="number" min={256} max={65536} value={config[stage].max_output_tokens} onChange={e => edit({ max_output_tokens: Number(e.target.value) })} /></label></div>
       <label>단계 프롬프트<textarea rows={12} maxLength={24000} value={config[stage].prompt} onChange={e => edit({ prompt: e.target.value })} /></label>
       <div className="form-grid"><label>관찰 FPS<input type="number" min={0.1} max={10} step={0.1} value={config.fps} onChange={e => limits({ fps: Number(e.target.value) })} /></label>
         <label>최대 시도 수<input type="number" min={1} max={3} value={config.max_attempts} onChange={e => limits({ max_attempts: Number(e.target.value) })} /></label>

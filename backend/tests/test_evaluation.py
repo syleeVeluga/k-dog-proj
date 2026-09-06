@@ -362,7 +362,7 @@ class AdapterTests(unittest.TestCase):
                     self.assertTrue(transport.call_args.args[1].endswith("/v1beta/interactions"))
                     self.assertFalse(body["store"])
                     self.assertEqual(body["response_format"]["mime_type"], "application/json")
-                    self.assertEqual(body["generation_config"]["max_output_tokens"], 16384)
+                    self.assertEqual(body["generation_config"]["max_output_tokens"], 65536)
                 self.assertEqual(usage["provider"], provider)
                 transport.side_effect = ProviderError("developer_settings_required")
                 with self.assertRaises(ProviderError):

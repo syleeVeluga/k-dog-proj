@@ -33,7 +33,7 @@ comments에는 매핑 보류와 관찰 한계를 설명한다. 설문과 행동�
 def active_report_configuration(db, observation_model):
     provider = os.environ.get("KDOG_REPORT_PROVIDER", "gemini")
     config = {"provider": provider, "model": os.environ.get("KDOG_REPORT_MODEL", observation_model if provider == "gemini" else ""),
-              "prompt": PROMPT, "prompt_version": "report-1.0", "max_output_tokens": 8192}
+              "prompt": PROMPT, "prompt_version": "report-1.0", "max_output_tokens": 65536}
     row = db.execute("SELECT detail_json FROM changes WHERE action='report.configure' ORDER BY rowid DESC LIMIT 1").fetchone()
     version = "environment"
     if row:

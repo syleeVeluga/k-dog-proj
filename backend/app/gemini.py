@@ -93,7 +93,7 @@ def configuration() -> dict:
         model = ""
     return {"pipeline_version": "observe-1.0", "prompt_version": "observe-1.0",
             "config_version": "observe-1.0", "model": model, "prompt": PROMPT,
-            "fps": 1.0, "max_output_tokens": 16384, "max_attempts": 3}
+            "fps": 1.0, "max_output_tokens": 65536, "max_attempts": 3}
 
 
 def configured() -> bool:

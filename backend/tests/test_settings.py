@@ -120,6 +120,14 @@ class SettingsTests(unittest.TestCase):
 
     def test_config_rejects_unknown_fields_provider_options_and_nonfinite_limits(self):
         data = self.config()
+        for stage in ("observe", "dog", "owner", "report"):
+            data["config"][stage]["max_output_tokens"] = 65536
+        self.assertEqual(self.client.post("/api/developer/settings/drafts", json={
+            "expected_active": "legacy", "config": data["config"]}).status_code, 201)
+        data["config"]["dog"]["max_output_tokens"] = 65537
+        self.assertEqual(self.client.post("/api/developer/settings/drafts", json={
+            "expected_active": "legacy", "config": data["config"]}).status_code, 422)
+        data = self.config()
         for field, value in [("max_attempts", 4), ("max_ai_calls", 0), ("evaluation_concurrency", 3), ("fps", 0), ("catalog", [])]:
             response = self.client.post("/api/developer/settings/drafts", json={"expected_active": "legacy", "config": {**data["config"], field: value}})
             self.assertEqual(response.status_code, 422, response.text)

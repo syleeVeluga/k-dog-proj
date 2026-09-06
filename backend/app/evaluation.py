@@ -34,7 +34,7 @@ def configuration(observation_model):
         if provider not in KEYS or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._-]{0,149}", model):
             model = ""
         result[branch] = {"provider": provider, "model": model, "prompt": PROMPT,
-                          "prompt_version": "evaluate-1.0", "max_output_tokens": 16384}
+                          "prompt_version": "evaluate-1.0", "max_output_tokens": 65536}
     return result
 
 

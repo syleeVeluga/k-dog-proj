@@ -417,7 +417,7 @@ class GeminiTests(unittest.TestCase):
         self.assertFalse(body["store"])
         self.assertEqual(body["input"][0]["processing"], {"type": "static", "fps": 1.0})
         self.assertEqual(body["response_format"]["mime_type"], "application/json")
-        self.assertEqual(body["generation_config"]["max_output_tokens"], 16384)
+        self.assertEqual(body["generation_config"]["max_output_tokens"], 65536)
 
 
 if __name__ == "__main__":

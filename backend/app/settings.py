@@ -20,7 +20,7 @@ class StageConfig(Model):
     provider: Literal["gemini", "openai", "anthropic"]
     model: Annotated[str, Field(max_length=150, pattern=r"^([a-zA-Z0-9][a-zA-Z0-9._-]*)?$")]
     prompt: Annotated[str, Field(min_length=1, max_length=24000)]
-    max_output_tokens: Annotated[int, Field(ge=256, le=16384)]
+    max_output_tokens: Annotated[int, Field(ge=256, le=65536)]
 
 
 class Pipeline(Model):
