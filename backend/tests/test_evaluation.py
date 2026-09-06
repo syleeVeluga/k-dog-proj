@@ -110,6 +110,31 @@ class ScoringTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 make_evaluation(bad, {}, self.run, branch, self.catalog, (evidence,))
 
+    def test_unrelated_evidence_is_removed_without_failing_the_branch(self):
+        from app.evaluation_models import EvaluationResponse
+
+        item = next(item for item in self.catalog.items if item.item_id == "OWN-15")
+        response = EvaluationResponse(branch="owner", items=list(self.branch("owner", {
+            item.item_id: item.options[0].option_id,
+        }).items))
+        unrelated = self.evidence.model_copy(update={
+            "evidence_id": "ev-unrelated",
+            "candidate_item_ids": ("OWN-14",),
+        })
+        response = response.model_copy(update={"items": [
+            value.model_copy(update={"evidence_ids": (unrelated.evidence_id,)})
+            if value.item_id == item.item_id else value
+            for value in response.items
+        ]})
+
+        artifact = make_evaluation(response, {}, self.run, "owner", self.catalog, (self.evidence, unrelated))
+        result = next(value for value in artifact.evaluation.items if value.item_id == item.item_id)
+        score = next(value for value in artifact.scores.items if value.item_id == item.item_id)
+        self.assertEqual((result.status, result.selected_option_id, result.evidence_ids),
+                         ("insufficient_evidence", None, ()))
+        self.assertIn("채점을 보류", result.reason)
+        self.assertEqual((score.status, score.raw_score), ("insufficient_evidence", None))
+
 
 class EvaluationTests(unittest.TestCase):
     setUp = observation.ObservationTests.setUp

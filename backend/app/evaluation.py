@@ -152,10 +152,22 @@ def make_evaluation(response, usage, run, branch, catalog, evidence):
     if response.branch != branch:
         raise ValueError("evaluation branch mismatch")
     rebound = tuple(e.model_copy(update={"run_id": run.run_id}) for e in evidence)
-    original = BranchEvaluation(run_id=run.run_id, branch=branch, items=tuple(response.items))
+    allowed = {item.evidence_id: item for item in rebound}
+    normalized = []
+    for item in response.items:
+        related = tuple(evidence_id for evidence_id in item.evidence_ids
+                        if evidence_id in allowed and item.item_id in allowed[evidence_id].candidate_item_ids)
+        if related != item.evidence_ids:
+            update = {"evidence_ids": related}
+            if item.status == "scored" and not related:
+                update.update(status="insufficient_evidence", selected_option_id=None,
+                              reason="모델이 선택한 근거가 이 항목에 연결되지 않아 채점을 보류했습니다.")
+            item = item.model_copy(update=update)
+        normalized.append(item)
+    original = BranchEvaluation(run_id=run.run_id, branch=branch, items=tuple(normalized))
     resolve_branch_scores(run, original, catalog, rebound)
     items = []
-    for item in response.items:
+    for item in normalized:
         # S2 has no structured duration/selection metric yet: these known overlapping
         # rules cannot be resolved safely from a model's prose alone (F-05).
         if item.status == "scored" and item.item_id in ("DOG-12", "OWN-14"):
