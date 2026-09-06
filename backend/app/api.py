@@ -30,7 +30,7 @@ from app.observation_models import AnalysisRequest, AnalysisView
 from app.evaluation import active_configuration
 from app.evaluation_models import SettingsEdit, SettingsView
 from app.gemini import configuration as observation_configuration
-from app.report_models import DeliveryRecord, ExportRequest, ExportView, FrameEdit, ReportSettingsEdit, ReportSettingsView, ReportView, ReviewEdit
+from app.report_models import ExportRequest, ExportView, FrameEdit, ReportSettingsEdit, ReportSettingsView, ReportView, ReviewEdit
 from app import exports, reporting, settings
 from app import secrets as vault
 from app.input_models import Model
@@ -231,10 +231,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def preview_export(value: ExportRequest, user=Depends(reader)):
         return exports.export_view(exports.capture(store, value, user.username, persist=False), "preview")
 
-    @app.post("/api/exports/{export_id}/deliveries", response_model=ExportView)
-    def record_delivery(export_id: Key, value: DeliveryRecord, user=Depends(writer)):
-        return exports.record_delivery(store, export_id, value, user.username)
-
     @app.get("/api/exports", response_model=list[ExportView])
     def list_exports(case_id: Key | None = None, user=Depends(reader)):
         result = []
@@ -249,7 +245,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 if case_id and (not snapshot["individual"] or snapshot["members"][0]["case_id"] != case_id):
                     continue
                 ready = db.execute("SELECT 1 FROM changes WHERE target=? AND action='export.file'", (row["target"],)).fetchone()
-                result.append(exports.export_view(snapshot, "ready" if ready else "snapshot", store=store, db=db))
+                result.append(exports.export_view(snapshot, "ready" if ready else "snapshot"))
         return result
 
     @app.post("/api/exports/{export_id}/generate", response_model=Message)

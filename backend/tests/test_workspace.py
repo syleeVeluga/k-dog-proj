@@ -42,26 +42,18 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(self.client.post('/api/exports', json={**value, 'event_id': 'OTHER'}).status_code, 422)
         self.assertEqual(self.client.post('/api/exports', json={**value, 'case_ids': value['case_ids'] * 2}).status_code, 422)
 
-    def test_delivery_requires_generated_member_and_marks_correction_without_changing_file(self):
+    def test_generated_file_keeps_frozen_version_after_result_edit(self):
         self.prepare()
         export_id = self.snapshot()
-        delivery = {'case_id': self.item['case_id'], 'channel': 'email', 'note': '합성 전달 기록'}
-        url = f'/api/exports/{export_id}/deliveries'
-        self.assertEqual(self.client.post(url, json=delivery).status_code, 409)
         original = self.download(export_id)
-        self.assertEqual(self.client.post(url, json={**delivery, 'case_id': 'unrelated'}).status_code, 422)
-        saved = self.client.post(url, json=delivery)
-        self.assertEqual(saved.status_code, 200, saved.text)
-        self.assertFalse(saved.json()['members'][0]['correction_needed'])
         self.assertEqual(self.edit().status_code, 200)
         listed = self.client.get('/api/exports').json()
-        self.assertTrue(next(e for e in listed if e['export_id'] == export_id)['members'][0]['correction_needed'])
+        entry = next(e for e in listed if e['export_id'] == export_id)
+        self.assertEqual(entry['status'], 'ready')
+        self.assertNotIn('deliveries', entry['members'][0])
         self.assertEqual(self.download(export_id), original)
-        self.login('reviewer')
-        self.assertEqual(self.client.post(url, json=delivery).status_code, 403)
-        self.login('operator')
-        self.delete_case()
-        self.assertEqual(self.client.post(url, json=delivery).status_code, 403)
+        self.assertFalse([r for r in self.client.app.routes if getattr(r, 'path', '').endswith('/deliveries')])
+        self.assertNotIn(self.client.post(f'/api/exports/{export_id}/deliveries', json={'case_id': self.item['case_id']}).status_code, range(200, 300))
 
     def test_custom_headers_and_horizontal_original_require_explicit_connections(self):
         mapped = {'columns': {'event_id': '행사', 'participant_id': '번호', 'dog_name': '이름'}}

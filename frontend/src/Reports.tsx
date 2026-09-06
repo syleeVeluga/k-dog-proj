@@ -103,7 +103,7 @@ function FrameEditor({ data, videos, base, save, busy }: { data: View; videos: V
   </fieldset></form></details>;
 }
 
-export function Reports({ caseId, runId, play, videos = [], canRecord = false }: { caseId: string; runId: string; play: (id: string) => void; videos?: Video[]; canRecord?: boolean }) {
+export function Reports({ caseId, runId, play, videos = [] }: { caseId: string; runId: string; play: (id: string) => void; videos?: Video[] }) {
   const [data, setData] = useState<View | null>(null);
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [message, setMessage] = useState('');
   const [itemId, setItemId] = useState('BS-01');
@@ -146,7 +146,7 @@ export function Reports({ caseId, runId, play, videos = [], canRecord = false }:
       <details><summary>수정 이력 · {data.history.length}건</summary>{data.history.map(h => <section key={h.revision}><p>수정 {h.revision} · {h.actor} · {new Date(h.at).toLocaleString()} · {h.reason}</p>
         {(h.before !== undefined || h.after !== undefined) && <div className="history-comparison"><div><strong>수정 전</strong><HistoryValue value={h.before} kind={h.kind} result={data.result} /></div><div><strong>수정 후</strong><HistoryValue value={h.after} kind={h.kind} result={data.result} /></div></div>}
       </section>)}</details>
-      <Exports caseId={caseId} runId={runId} canRecord={canRecord} />
+      <Exports caseId={caseId} runId={runId} />
     </>}
   </div>;
 }

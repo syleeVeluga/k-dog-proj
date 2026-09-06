@@ -123,7 +123,7 @@ function App() {
           : selected && catalog ? <Detail key={selected.case_id} item={selected} catalog={catalog} writable={writable} run={run}
             back={() => { if (mayLeave()) void run(async () => { setSelected(null); await reload(); }); }} refresh={async message => { await reload(selected.case_id); if (message) setNotice(message); }} />
             : <>
-              <section className="page-heading"><div><p className="eyebrow">PARTICIPANT REGISTER</p><h1>참가자 자료</h1><p className="muted">{user.role === 'reviewer' ? '결과와 근거를 대조하고 필요한 수정을 기록하세요.' : '행사·예약과 자료 보완, 분석 진행, 결과 전달을 확인하세요.'}</p></div>
+              <section className="page-heading"><div><p className="eyebrow">PARTICIPANT REGISTER</p><h1>참가자 자료</h1><p className="muted">{user.role === 'reviewer' ? '결과와 근거를 대조하고 필요한 수정을 기록하세요.' : '행사·예약과 자료 보완, 분석 진행, 결과 내보내기를 확인하세요.'}</p></div>
                 <div className="count"><strong>{cases.length.toString().padStart(2, '0')}</strong><span>등록된 참가자</span></div></section>
               <div className="toolbar"><label>검색<input type="search" placeholder="참가자 ID, 반려견 이름, 행사" value={search} onChange={e => setSearch(e.target.value)} /></label>
                 <label>자료 상태<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">전체</option><option value="ready">자료 등록 완료</option><option value="missing">자료 보완 필요</option><option value="waiting">분석 미실행</option><option value="running">분석 대기·진행</option><option value="failed">실패 조치 필요</option><option value="results">결과 준비됨</option></select></label>
@@ -132,7 +132,7 @@ function App() {
                 <button onClick={() => void run(() => reload())}>새로고침</button></div>
               <p className="fine" role="status">{connectionError || `3초마다 자동 갱신 · 마지막 조회 ${updatedAt}`} · 표시 {visible.length}명 / 선택 {validSelection.length}명</p>
               <div className="toolbar"><button disabled={!visible.length} onClick={() => setSelectedIds([...new Set([...validSelection, ...visible.map(c => c.case_id)])])}>현재 목록 {visible.length}명 선택</button><button disabled={!validSelection.length} onClick={() => setSelectedIds([])}>선택 해제</button></div>
-              <Exports cases={cases} selectedIds={validSelection} canRecord={writable} />
+              <Exports cases={cases} selectedIds={validSelection} />
               <div className="table-wrap"><table><thead><tr><th>선택</th><th>참가자 / 행사</th><th>반려견 / 예약</th><th>설문</th><th>영상</th><th>분석 상태</th><th>자료</th></tr></thead>
                 <tbody>{visible.map(c => { const s = sessionOf(c); const count = Object.values(s.survey).filter(v => v !== null).length;
                   return <tr key={c.case_id}><td data-label="선택"><label className="check"><input type="checkbox" aria-label={`${c.participant_id} 내보내기 선택`} checked={validSelection.includes(c.case_id)} onChange={e => setSelectedIds(e.target.checked ? [...validSelection, c.case_id] : validSelection.filter(id => id !== c.case_id))} /></label></td><td data-label="참가자 / 행사"><strong className="mono">{c.participant_id}</strong><small>{c.event_id}</small></td><td data-label="반려견 / 예약">{c.dog_name}<small>{c.reservation_at.replace('T', ' ') || '예약 없음'}</small></td>

@@ -93,7 +93,7 @@ export function Observations({ item, writable }: { item: Case; writable: boolean
         {s.usage.code && ` · ${errorNames[String(s.usage.code)] ?? s.usage.code}`}{s.retry_at && ` · 재시도 ${new Date(s.retry_at).toLocaleString()}`}
         {s.usage.billing_uncertain === true && ' · 중복 과금 가능'}{s.usage.remote_cleanup_pending === true && ' · 원격 파일 삭제 확인 필요'}</p>)}
       </details>
-      {(current.survey_scores || current.evaluations.length > 0) && <Reports key={current.run_id} videos={item.manifest.sessions.flatMap(s => s.videos)} canRecord={writable} caseId={item.case_id} runId={current.run_id} play={id => setPlaying(current.evidence.find(e => e.evidence_id === id) ?? null)} />}
+      {(current.survey_scores || current.evaluations.length > 0) && <Reports key={current.run_id} videos={item.manifest.sessions.flatMap(s => s.videos)} caseId={item.case_id} runId={current.run_id} play={id => setPlaying(current.evidence.find(e => e.evidence_id === id) ?? null)} />}
       <p>관찰 근거 {current.evidence.length}개</p>
       {current.unconfirmed_conditions.map((flag, i) => <p className="fine" key={i}>{flag}</p>)}
       {current.evidence.map(e => <div className="video-row" key={e.evidence_id}><div><strong>{item.manifest.sessions.flatMap(s => s.videos).find(v => v.video_id === e.video_id)?.original_name} · {e.camera_id} · {e.source_start_sec.toFixed(2)}–{e.source_end_sec.toFixed(2)}초</strong>

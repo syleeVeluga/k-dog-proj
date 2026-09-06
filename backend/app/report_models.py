@@ -64,17 +64,6 @@ class ExportRequest(Model):
     expected_preview_hash: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")] | None = None
 
 
-class DeliveryRecord(Model):
-    case_id: Key
-    channel: Literal["email", "messenger", "other"]
-    note: Annotated[str, Field(max_length=1000)] = ""
-
-
-class DeliveryView(DeliveryRecord):
-    actor: str
-    at: str
-
-
 class ExportMember(Model):
     case_id: str
     event_id: str
@@ -85,8 +74,6 @@ class ExportMember(Model):
     run_id: str | None
     status: str
     explanation_status: str
-    deliveries: list[DeliveryView]
-    correction_needed: bool
 
 
 class ExportView(Model):

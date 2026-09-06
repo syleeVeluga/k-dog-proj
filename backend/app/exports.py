@@ -98,37 +98,12 @@ def load_snapshot(store, db, export_id):
     return snapshot
 
 
-def export_view(snapshot, status="snapshot", *, store=None, db=None):
-    members = []
-    deliveries = [] if db is None else [
-        {"actor": r["actor"], "at": r["happened_at"], **json.loads(r["detail_json"])} for r in db.execute(
-            "SELECT * FROM changes WHERE target=? AND action='export.delivery' ORDER BY rowid", (snapshot["export_id"],))]
-    for member in snapshot["members"]:
-        summary = {k: member.get(k) for k in ("case_id", "event_id", "participant_id", "dog_name", "input_revision", "revision", "run_id", "status", "explanation_status")}
-        summary.update(deliveries=[d for d in deliveries if d["case_id"] == member["case_id"]], correction_needed=False)
-        if summary["deliveries"]:
-            case = store.case(db, member["case_id"])
-            changed = (case["input_revision"], case["display_run_id"]) != (member["input_revision"], member["run_id"])
-            if not changed and member["run_id"]:
-                current = report_view(store, db, run_row(store, db, member["case_id"], member["run_id"]))
-                changed = (current.revision != member["revision"] or current.status != member["explanation_status"]
-                           or (current.report.model_dump(mode="json") if current.report else None) != member["report"])
-            summary["correction_needed"] = bool(summary["deliveries"] and changed)
-        members.append(summary)
+def export_view(snapshot, status="snapshot"):
+    members = [{k: member.get(k) for k in ("case_id", "event_id", "participant_id", "dog_name", "input_revision", "revision", "run_id", "status", "explanation_status")}
+               for member in snapshot["members"]]
     return {"export_id": snapshot["export_id"], "format": snapshot["format"], "created_at": snapshot["created_at"],
             "actor": snapshot["actor"], "count": len(snapshot["members"]), "status": status,
             "preview_hash": snapshot.get("preview_hash", ""), "members": members}
-
-
-def record_delivery(store, export_id, value, actor):
-    with store.connect(write=True) as db:
-        snapshot = load_snapshot(store, db, export_id)
-        if not any(m["case_id"] == value.case_id for m in snapshot["members"]):
-            raise HTTPException(422, "이 파일에 포함된 참가자의 전달만 기록할 수 있습니다.")
-        if not db.execute("SELECT 1 FROM changes WHERE target=? AND action='export.file'", (export_id,)).fetchone():
-            raise HTTPException(409, "파일 생성 후 전달을 기록하세요.")
-        store.audit(db, actor, export_id, "export.delivery", value.model_dump())
-        return export_view(snapshot, "ready", store=store, db=db)
 
 
 def tabular(snapshot):

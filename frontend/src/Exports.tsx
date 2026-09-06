@@ -4,13 +4,11 @@ import { Notification } from './Notification';
 import type { Case } from './types';
 
 type Member = { case_id: string; event_id: string; participant_id: string; dog_name: string; input_revision: number;
-  revision: number | null; run_id: string | null; status: string; explanation_status: string; correction_needed: boolean;
-  deliveries: { actor: string; at: string; channel: string; note: string }[] };
+  revision: number | null; run_id: string | null; status: string; explanation_status: string };
 type Export = { export_id: string; format: string; status: string; count: number; created_at: string; preview_hash: string; members: Member[] };
-const channels: Record<string, string> = { email: '이메일', messenger: '메신저', other: '기타' };
 
-export function Exports({ caseId, runId, cases = [], selectedIds = [], canRecord = false }: {
-  caseId?: string; runId?: string; cases?: Case[]; selectedIds?: string[]; canRecord?: boolean;
+export function Exports({ caseId, runId, cases = [], selectedIds = [] }: {
+  caseId?: string; runId?: string; cases?: Case[]; selectedIds?: string[];
 }) {
   const [list, setList] = useState<Export[]>([]);
   const [preview, setPreview] = useState<Export | null>(null);
@@ -77,15 +75,8 @@ export function Exports({ caseId, runId, cases = [], selectedIds = [], canRecord
     <Notification message={error} kind="error" onClose={() => setError('')} />
     {list.map(e => <section className="export-entry" key={e.export_id}><div className="video-row"><div><strong>{e.format.toUpperCase()} · {e.count}명</strong><p>{new Date(e.created_at).toLocaleString()} · {e.export_id.slice(0, 8)}</p></div>
       {e.status === 'ready' ? <a href={`/api/exports/${e.export_id}/file`} download>파일 다운로드</a> : <button disabled={busy} onClick={() => void generate(e.export_id)}>고정 버전 파일 생성 재시도</button>}</div>
-      <details><summary>대상·버전·전달 이력</summary>{e.members.map(m => <div key={m.case_id}>
+      <details><summary>대상·버전</summary>{e.members.map(m => <div key={m.case_id}>
         <p><strong>{m.event_id} / {m.participant_id} · {m.dog_name}</strong> · 입력 {m.input_revision} / 수정 {m.revision ?? '없음'}</p>
-        <p className={m.correction_needed ? 'warning' : 'fine'}>{m.correction_needed ? '전달 이후 변경 · 이 파일은 최신 결과와 다릅니다. 최신 파일의 재전달 이력을 확인하세요.' : m.deliveries.length ? '전달 기록됨 · 배달/읽음 확인 아님' : '미전달'}</p>
-        {m.deliveries.map((d, i) => <p className="fine" key={i}>{new Date(d.at).toLocaleString()} · {d.actor} · {channels[d.channel]} · {d.note}</p>)}
-        {canRecord && e.status === 'ready' && <form onSubmit={event => { event.preventDefault(); const form = event.currentTarget; const f = new FormData(form); setBusy(true); setError('');
-          void api(`/exports/${e.export_id}/deliveries`, 'POST', { case_id: m.case_id, channel: f.get('channel'), note: f.get('note') })
-            .then(async () => { form.reset(); await reload(); }).catch(err => setError(err.message)).finally(() => setBusy(false));
-        }}><fieldset disabled={busy}><div className="toolbar"><label>전달 방법<select name="channel">{Object.entries(channels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-          <label>전달 메모<input name="note" maxLength={1000} placeholder="수동 전달 내용" /></label><button>수동 전달 기록</button></div></fieldset></form>}
       </div>)}</details>
     </section>)}
   </details>;
