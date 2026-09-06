@@ -1,3 +1,9 @@
+export class ApiError extends Error {
+  constructor(message: string, public status: number) { super(message); }
+}
+
+export const accessLost = (error: unknown) => error instanceof ApiError && [401, 403, 404].includes(error.status);
+
 export async function api<T>(path: string, method = 'GET', data?: unknown): Promise<T> {
   const response = await fetch(`/api${path}`, {
     method, credentials: 'same-origin',
@@ -7,7 +13,7 @@ export async function api<T>(path: string, method = 'GET', data?: unknown): Prom
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: '서버에 연결할 수 없습니다.' }));
     if (response.status === 401 && path !== '/auth/login') window.dispatchEvent(new Event('kdog-session-expired'));
-    throw new Error(typeof error.detail === 'string' ? error.detail : '입력 형식을 확인하세요.');
+    throw new ApiError(typeof error.detail === 'string' ? error.detail : '입력 형식을 확인하세요.', response.status);
   }
   return response.json();
 }

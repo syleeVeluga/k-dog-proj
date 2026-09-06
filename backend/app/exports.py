@@ -32,13 +32,18 @@ def guard_snapshot(store, db, snapshot):
             run_row(store, db, case["case_id"], member["run_id"])
 
 
-def capture(store, value, actor):
+def capture(store, value, actor, *, persist=True):
     if value.run_id and not value.case_id:
         raise HTTPException(422, "개별 실행에는 참가자를 지정하세요.")
-    with store.connect(write=True) as db:
-        rows = [store.case(db, value.case_id)] if value.case_id else db.execute(
-            "SELECT * FROM cases WHERE deletion_requested=0 AND (? IS NULL OR event_id=?) ORDER BY event_id,participant_id",
-            (value.event_id, value.event_id)).fetchall()
+    if value.case_ids is not None and (value.case_id or value.event_id or len(set(value.case_ids)) != len(value.case_ids)):
+        raise HTTPException(422, "선택 참가자 목록은 중복 없이 개별/행사 범위와 구분해 지정하세요.")
+    with store.connect(write=persist) as db:
+        if value.case_ids is not None:
+            rows = [store.case(db, case_id) for case_id in sorted(value.case_ids)]
+        else:
+            rows = [store.case(db, value.case_id)] if value.case_id else db.execute(
+                "SELECT * FROM cases WHERE deletion_requested=0 AND (? IS NULL OR event_id=?) ORDER BY event_id,participant_id",
+                (value.event_id, value.event_id)).fetchall()
         if not rows:
             raise HTTPException(422, "내보낼 참가자가 없습니다.")
         members = []
@@ -73,8 +78,12 @@ def capture(store, value, actor):
                     "catalog": json.loads((REPO_ROOT / "resources/catalogs/behavior-v1.json").read_text(encoding="utf-8")),
                     "survey_catalog": json.loads((REPO_ROOT / "resources/catalogs/survey-v1.json").read_text(encoding="utf-8")),
                     "rules": {"notice": NOTICE, "mapping": PENDING, "cross": CROSS_PENDING, "pending": "q23/C-2·DOG-12·OWN-14 계산 보류"}}
-        link = write_json(store, f"exports/{snapshot['export_id']}", snapshot)
-        store.audit(db, actor, snapshot["export_id"], "export.snapshot", link)
+        snapshot["preview_hash"] = hashlib.sha256(encode({"format": value.format, "individual": snapshot["individual"], "members": members}).encode()).hexdigest()
+        if persist:
+            if value.expected_preview_hash and snapshot["preview_hash"] != value.expected_preview_hash:
+                raise HTTPException(409, "미리보기 이후 대상 또는 결과가 변경되었습니다. 대상을 다시 확인하세요.")
+            link = write_json(store, f"exports/{snapshot['export_id']}", snapshot)
+            store.audit(db, actor, snapshot["export_id"], "export.snapshot", link)
     return snapshot
 
 
@@ -89,9 +98,37 @@ def load_snapshot(store, db, export_id):
     return snapshot
 
 
-def export_view(snapshot, status="snapshot"):
+def export_view(snapshot, status="snapshot", *, store=None, db=None):
+    members = []
+    deliveries = [] if db is None else [
+        {"actor": r["actor"], "at": r["happened_at"], **json.loads(r["detail_json"])} for r in db.execute(
+            "SELECT * FROM changes WHERE target=? AND action='export.delivery' ORDER BY rowid", (snapshot["export_id"],))]
+    for member in snapshot["members"]:
+        summary = {k: member.get(k) for k in ("case_id", "event_id", "participant_id", "dog_name", "input_revision", "revision", "run_id", "status", "explanation_status")}
+        summary.update(deliveries=[d for d in deliveries if d["case_id"] == member["case_id"]], correction_needed=False)
+        if summary["deliveries"]:
+            case = store.case(db, member["case_id"])
+            changed = (case["input_revision"], case["display_run_id"]) != (member["input_revision"], member["run_id"])
+            if not changed and member["run_id"]:
+                current = report_view(store, db, run_row(store, db, member["case_id"], member["run_id"]))
+                changed = (current.revision != member["revision"] or current.status != member["explanation_status"]
+                           or (current.report.model_dump(mode="json") if current.report else None) != member["report"])
+            summary["correction_needed"] = bool(summary["deliveries"] and changed)
+        members.append(summary)
     return {"export_id": snapshot["export_id"], "format": snapshot["format"], "created_at": snapshot["created_at"],
-            "actor": snapshot["actor"], "count": len(snapshot["members"]), "status": status}
+            "actor": snapshot["actor"], "count": len(snapshot["members"]), "status": status,
+            "preview_hash": snapshot.get("preview_hash", ""), "members": members}
+
+
+def record_delivery(store, export_id, value, actor):
+    with store.connect(write=True) as db:
+        snapshot = load_snapshot(store, db, export_id)
+        if not any(m["case_id"] == value.case_id for m in snapshot["members"]):
+            raise HTTPException(422, "이 파일에 포함된 참가자의 전달만 기록할 수 있습니다.")
+        if not db.execute("SELECT 1 FROM changes WHERE target=? AND action='export.file'", (export_id,)).fetchone():
+            raise HTTPException(409, "파일 생성 후 전달을 기록하세요.")
+        store.audit(db, actor, export_id, "export.delivery", value.model_dump())
+        return export_view(snapshot, "ready", store=store, db=db)
 
 
 def tabular(snapshot):

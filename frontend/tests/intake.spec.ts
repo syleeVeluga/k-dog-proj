@@ -19,7 +19,7 @@ test('desktop: registration without consent, two cameras, survey, refresh and re
   await page.getByRole('button', { name: '참가자 저장' }).click();
   await expect(page.getByRole('heading', { name: '검증용 가상견' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '자료 사용 동의' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '영상 등록', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '영상 등록', exact: true })).toBeDisabled();
   await expect(page.getByText('입력 버전 1', { exact: true })).toBeVisible();
   for (const camera of [1, 2]) {
     await page.getByLabel('카메라 ID').fill(`CAM-${camera}`);
@@ -104,8 +104,8 @@ test('M3: persisted evaluations, survey scores, evidence links and 360px', async
   await page.getByRole('button', { name: '분석 시작', exact: true }).click();
   await expect(page.getByText('관찰 근거 2개', { exact: true })).toBeVisible({ timeout: 15000 });
   await expect(page.locator('.video-row').getByText('가상 관찰: 입장 시 이동', { exact: true })).toHaveCount(2);
-  await expect(page.getByText('반려견 평가 완료', { exact: true })).toBeVisible();
-  await expect(page.getByText('보호자 평가 완료', { exact: true })).toBeVisible();
+  await expect(page.getByText(/반려견 처리 완료 · 유효/)).toBeVisible();
+  await expect(page.getByText(/보호자 처리 완료 · 유효/)).toBeVisible();
   await expect(page.getByText('원 척도 참고 전체값 3.00', { exact: true })).toBeVisible();
   await page.getByText('설문 30문항 원응답·환산값', { exact: true }).click();
   await expect(page.getByText('q23 · C · 원응답 3 → 규칙 미정', { exact: true })).toBeVisible();
@@ -117,7 +117,7 @@ test('M3: persisted evaluations, survey scores, evidence links and 360px', async
   await page.reload();
   await page.getByRole('button', { name: '0099 상세 열기' }).click();
   await expect(page.getByText('관찰 근거 2개', { exact: true })).toBeVisible();
-  await expect(page.getByText('반려견 평가 완료', { exact: true })).toBeVisible();
+  await expect(page.getByText(/반려견 처리 완료 · 유효/)).toBeVisible();
   await page.setViewportSize({ width: 360, height: 800 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('m3-scores-mobile.png'), fullPage: true, animations: 'disabled' });

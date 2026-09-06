@@ -106,9 +106,11 @@ def make_report(narration, row, revision, evidence_ids):
     return ReportResult.model_validate_json(encode({"run_id": row["run_id"], "report_mapping_version": "pending-v1",
         "result_revision": revision, "cover": narration.cover.model_dump(mode="json"),
         "domains": [{"slot": index, "status": "mapping_pending", "label": None, "value": None,
-                     "comment": PENDING + " " + part.text, "evidence_ids": list(part.evidence_ids)} for index, part in enumerate(narration.comments, 1)],
+                     "comment": part.text if part.text.startswith(PENDING) else PENDING + " " + part.text,
+                     "evidence_ids": list(part.evidence_ids)} for index, part in enumerate(narration.comments, 1)],
         "cross_type": {"status": "type_rule_pending", "rule_id": None, "type_name": None,
-                       "explanation": CROSS_PENDING + " " + narration.cross.text, "evidence_ids": list(narration.cross.evidence_ids)},
+                       "explanation": narration.cross.text if narration.cross.text.startswith(CROSS_PENDING) else CROSS_PENDING + " " + narration.cross.text,
+                       "evidence_ids": list(narration.cross.evidence_ids)},
         "tips": [part.model_dump(mode="json") for part in narration.tips], "notice": NOTICE}))
 
 
@@ -171,12 +173,14 @@ def edit_review(store, case_id, run_id, value, actor):
             state["overrides"][item.item_id] = item.model_dump(mode="json")
             detail = {"kind": "score", "before": old, "after": state["overrides"][item.item_id]}
         else:
+            previous_report = report_view(store, db, row).report
             try:
                 report = make_report(value.narration, row, state["revision"] + 1, {e["evidence_id"] for e in data["evidence"]})
             except ValueError:
                 raise HTTPException(422, "설명 길이와 근거 ID를 확인하세요.") from None
             state["manual"] = {"source_hash": source_hash, "report": report.model_dump(mode="json")}
-            detail = {"kind": "text"}
+            detail = {"kind": "text", "before": previous_report.model_dump(mode="json") if previous_report else None,
+                      "after": report.model_dump(mode="json")}
         save_revision(store, db, row, state, actor, value.reason, detail)
         return report_view(store, db, row)
 

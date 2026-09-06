@@ -7,6 +7,7 @@ export type Video = {
 export type Session = {
   session_id: string; capture_mode: string; route_note: string;
   survey_version: string; survey: Record<string, number | null>; videos: Video[];
+  checklist?: Record<string, string>;
 };
 export type Case = {
   analysis_status: string;
@@ -20,7 +21,7 @@ export type Catalog = {
   items: { item_id: string; text: string; domain_label: string }[];
 };
 export type ImportRow = {
-  row_number: number;
+  row_number: number; source_location: string; session_label: string; changed_questions: string[];
   event_id: string; participant_id: string;
   participant: { event_id: string; participant_id: string; dog_name: string } | null;
   case_id: string | null;

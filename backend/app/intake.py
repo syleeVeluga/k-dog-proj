@@ -79,7 +79,7 @@ def template(kind, format):
     return output.getvalue()
 
 
-def read_rows(data: bytes, format: str):
+def read_rows(data: bytes, format: str, sheet_name=None):
     if format == "csv":
         try:
             return list(csv.reader(StringIO(data.decode("utf-8-sig")), strict=True))
@@ -93,7 +93,7 @@ def read_rows(data: bytes, format: str):
                 raise ValueError("expanded workbook too large")
         workbook = load_workbook(BytesIO(data), read_only=True, data_only=False)
         try:
-            sheet = workbook.active
+            sheet = workbook[sheet_name] if sheet_name else workbook.active
             if (sheet.max_row or 0) > 10001 or (sheet.max_column or 0) > 100:
                 raise ValueError("too many cells")
             return [list(row) for row in sheet.iter_rows(values_only=True)]
@@ -103,8 +103,47 @@ def read_rows(data: bytes, format: str):
         raise HTTPException(422, "표준 XLSX 파일을 확인하세요. 수식 대신 원응답을 입력하세요.") from exc
 
 
-def preview(store, db, data, kind, format, version):
-    rows = read_rows(data, format)
+def mapped_rows(store, db, rows, kind, version, mapping):
+    if mapping.horizontal:
+        from openpyxl.utils.cell import column_index_from_string
+        from app.storage import REPO_ROOT
+        import json
+        if kind != "survey" or mapping.columns or len(rows) < 35:
+            raise HTTPException(422, "원본 가로 설문 양식과 참가자 열 연결을 확인하세요.")
+        catalog = json.loads((REPO_ROOT / "resources/catalogs/survey-v1.json").read_text(encoding="utf-8"))
+        for i, item in enumerate(catalog["items"]):
+            if len(rows[5 + i]) < 4 or rows[5 + i][0] != i + 1 or rows[5 + i][3] != item["text"]:
+                raise HTTPException(422, "원본 30문항 번호·원문이 확정 항목집과 다릅니다.")
+        output = [headers(kind)]
+        for column, case_id in mapping.horizontal.items():
+            try:
+                index = column_index_from_string(column) - 1
+                if index < 5 or index >= len(rows[4]):
+                    raise ValueError()
+            except ValueError:
+                raise HTTPException(422, "설문 응답 열은 F열 이후의 실제 열로 지정하세요.") from None
+            case = store.case(db, case_id)
+            output.append([case["event_id"], case["participant_id"], version, *[row[index] if index < len(row) else None for row in rows[5:35]]])
+        return output
+    if mapping.columns:
+        expected = headers(kind)
+        if set(mapping.columns) - set(expected):
+            raise HTTPException(422, "알 수 없는 표준 열 연결입니다.")
+        source = list(mapping.columns.values())
+        if len(source) != len(set(source)) or any(rows[0].count(name) != 1 for name in source):
+            raise HTTPException(422, "각 원본 열을 중복 없이 연결하세요.")
+        required = set(expected) - {"survey_version", "reservation_at"}
+        if not required.issubset(mapping.columns):
+            raise HTTPException(422, "모든 필수 열과 30문항을 연결하세요.")
+        return [expected, *[[row[rows[0].index(mapping.columns[name])] if name in mapping.columns and rows[0].index(mapping.columns[name]) < len(row)
+                            else version if name == "survey_version" else "" for name in expected] for row in rows[1:]]]
+    return rows
+
+
+def preview(store, db, data, kind, format, version, mapping=None):
+    rows = read_rows(data, format, mapping.sheet if mapping else None)
+    if rows and mapping:
+        rows = mapped_rows(store, db, rows, kind, version, mapping)
     if not rows or len(rows) > 10001:
         raise HTTPException(422, "헤더와 최대 10,000개 입력 행이 필요합니다.")
     columns = rows[0]
@@ -113,6 +152,10 @@ def preview(store, db, data, kind, format, version):
     result = ImportPreview(rows=[], errors=[])
     seen = set()
     for number, values in enumerate(rows[1:], 2):
+        location = f"{number}행"
+        if mapping and mapping.horizontal:
+            column = list(mapping.horizontal)[number - 2]
+            location = f"{mapping.sheet or '활성 시트'} {column}6:{column}35"
         if all(value is None or value == "" for value in values):
             continue
         try:
@@ -131,7 +174,7 @@ def preview(store, db, data, kind, format, version):
                 if existing:
                     raise ValueError("이미 등록된 참가자 ID입니다.")
                 value["reservation_at"] = value.get("reservation_at") or ""
-                result.rows.append(ImportRow(row_number=number, event_id=pair[0], participant_id=pair[1],
+                result.rows.append(ImportRow(row_number=number, source_location=location, event_id=pair[0], participant_id=pair[1],
                                              participant=CaseCreate.model_validate(value)))
             else:
                 if existing is None or existing["deletion_requested"]:
@@ -150,12 +193,15 @@ def preview(store, db, data, kind, format, version):
                 survey = SurveyEdit(expected_revision=existing["input_revision"],
                                     session_id=existing["selected_session_id"],
                                     survey_version=version, answers=answers)
-                result.rows.append(ImportRow(row_number=number, event_id=pair[0], participant_id=pair[1],
-                                             case_id=existing["case_id"], survey=survey))
+                manifest = store.manifest(existing)
+                index = next(i for i, s in enumerate(manifest.sessions) if s.session_id == existing["selected_session_id"])
+                result.rows.append(ImportRow(row_number=number, source_location=location, event_id=pair[0], participant_id=pair[1],
+                    case_id=existing["case_id"], survey=survey, session_label=f"{index + 1}차 촬영",
+                    changed_questions=[q for q in SURVEY_IDS if manifest.sessions[index].survey[q] != answers[q]]))
         except (ValueError, ValidationError) as exc:
             if isinstance(exc, ValidationError):
                 explanation = "; ".join(".".join(map(str, e["loc"])) + ": " + e["msg"] for e in exc.errors())
             else:
                 explanation = str(exc)
-            result.errors.append(f"{number}행: {explanation}")
+            result.errors.append(f"{location}: {explanation}")
     return result

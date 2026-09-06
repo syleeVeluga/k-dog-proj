@@ -21,16 +21,16 @@ from app.auth import authenticate, check_password, create_user, password_hash, t
 from app.analysis import check_access, control, enqueue, step_payload, validated_prepared, view_analysis
 from app.domain.contracts import SurveyCatalog
 from app.input_models import (
-    CaseCreate, CaseView, ImportCommit, ImportPreview, Key, Login, Message, Revision,
+    CaseCreate, CaseEdit, CaseView, ImportColumns, ImportCommit, ImportMapping, ImportPreview, Key, Login, Message, Revision,
     SessionEdit, SessionMetadata, StoredVideo, SurveyEdit, UserCreate, UserEdit, UserView,
 )
-from app.intake import create_case, new_session, preview, save_survey, selected_session, template
+from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
 from app.observation_models import AnalysisRequest, AnalysisView
 from app.evaluation import active_configuration
 from app.evaluation_models import SettingsEdit, SettingsView
 from app.gemini import configuration as observation_configuration
-from app.report_models import ExportRequest, ExportView, FrameEdit, ReportSettingsEdit, ReportSettingsView, ReportView, ReviewEdit
+from app.report_models import DeliveryRecord, ExportRequest, ExportView, FrameEdit, ReportSettingsEdit, ReportSettingsView, ReportView, ReviewEdit
 from app import exports, reporting, settings
 from app import secrets as vault
 from app.input_models import Model
@@ -227,6 +227,14 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def create_export(value: ExportRequest, user=Depends(reader)):
         return exports.export_view(exports.capture(store, value, user.username))
 
+    @app.post("/api/exports/preview", response_model=ExportView)
+    def preview_export(value: ExportRequest, user=Depends(reader)):
+        return exports.export_view(exports.capture(store, value, user.username, persist=False), "preview")
+
+    @app.post("/api/exports/{export_id}/deliveries", response_model=ExportView)
+    def record_delivery(export_id: Key, value: DeliveryRecord, user=Depends(writer)):
+        return exports.record_delivery(store, export_id, value, user.username)
+
     @app.get("/api/exports", response_model=list[ExportView])
     def list_exports(case_id: Key | None = None, user=Depends(reader)):
         result = []
@@ -241,7 +249,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 if case_id and (not snapshot["individual"] or snapshot["members"][0]["case_id"] != case_id):
                     continue
                 ready = db.execute("SELECT 1 FROM changes WHERE target=? AND action='export.file'", (row["target"],)).fetchone()
-                result.append(exports.export_view(snapshot, "ready" if ready else "snapshot"))
+                result.append(exports.export_view(snapshot, "ready" if ready else "snapshot", store=store, db=db))
         return result
 
     @app.post("/api/exports/{export_id}/generate", response_model=Message)
@@ -375,6 +383,19 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         with store.connect() as db:
             return store.view(store.case(db, case_id))
 
+    @app.put("/api/cases/{case_id}", response_model=CaseView)
+    def edit_case(case_id: Key, value: CaseEdit, user=Depends(writer)):
+        with store.connect(write=True) as db:
+            row = store.case(db, case_id, expected=value.expected_revision)
+            manifest = store.manifest(row)
+            manifest.participant_id = value.participant_id
+            store.save(db, row, manifest, user.username, "case.update")
+            db.execute("UPDATE cases SET participant_id=?,dog_name=?,reservation_at=? WHERE case_id=?",
+                       (value.participant_id, value.dog_name, value.reservation_at, case_id))
+            store.audit(db, user.username, case_id, "case.identity", {"before": {k: row[k] for k in ("participant_id", "dog_name", "reservation_at")},
+                "after": value.model_dump(exclude={"expected_revision"})})
+            return store.view(store.case(db, case_id))
+
     @app.put("/api/cases/{case_id}/survey", response_model=CaseView)
     def survey(case_id: Key, value: SurveyEdit, user=Depends(writer)):
         with store.connect(write=True) as db:
@@ -480,6 +501,8 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             session = selected_session(manifest, session_id)
             session.capture_mode = value.capture_mode
             session.route_note = value.route_note
+            if value.checklist is not None:
+                session.checklist = value.checklist
             store.save(db, row, manifest, user.username, "session.metadata")
             return store.view(store.case(db, case_id))
 
@@ -490,14 +513,36 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
 
     @app.post("/api/imports/preview", response_model=ImportPreview)
     async def import_preview(request: Request, kind: Literal["participants", "survey"],
-                             format: Literal["csv", "xlsx"], user=Depends(writer)):
+                             format: Literal["csv", "xlsx"], mapping: Annotated[str | None, Query(max_length=20000)] = None, user=Depends(writer)):
         data = bytearray()
         async for chunk in request.stream():
             data.extend(chunk)
             if len(data) > 8 * 1024 * 1024:
                 raise HTTPException(413, "표준 입력 파일은 8 MiB 이하로 나누어 등록하세요.")
         with store.connect() as db:
-            return preview(store, db, bytes(data), kind, format, catalog.version)
+            from pydantic import ValidationError
+            try:
+                layout = ImportMapping.model_validate_json(mapping) if mapping else None
+            except ValidationError:
+                raise HTTPException(422, "열 연결 형식을 확인하세요.") from None
+            return preview(store, db, bytes(data), kind, format, catalog.version, layout)
+
+    @app.post("/api/imports/columns", response_model=ImportColumns)
+    async def import_columns(request: Request, format: Literal["csv", "xlsx"], sheet: str | None = None,
+                             horizontal: bool = False, user=Depends(writer)):
+        from openpyxl.utils.cell import get_column_letter
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > 8 * 1024 * 1024:
+                raise HTTPException(413, "입력 파일은 8 MiB 이하로 나누어 등록하세요.")
+        rows = read_rows(bytes(data), format, sheet)
+        if horizontal:
+            if len(rows) < 35:
+                raise HTTPException(422, "원본 설문 데이터입력 시트를 확인하세요.")
+            return {"columns": [{"key": get_column_letter(i + 1), "label": str(rows[4][i] or "이름 없음")} for i in range(5, len(rows[4]))
+                if any(i < len(row) and row[i] not in (None, "") for row in rows[5:35])]}
+        return {"columns": [{"key": str(value), "label": str(value)} for value in (rows[0] if rows else []) if value is not None]}
 
     @app.post("/api/imports/commit", response_model=Message)
     def commit_import(value: ImportCommit, user=Depends(writer)):

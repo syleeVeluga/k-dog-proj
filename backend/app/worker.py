@@ -180,7 +180,7 @@ class Worker:
             if hashlib.file_digest(handle, "sha256").hexdigest() != info.sha256:
                 raise MediaError("분석용 영상 해시가 변경되었습니다.")
         context = {"items": config["catalog_items"], "route_note": session.route_note,
-                   "capture_mode": session.capture_mode, "duration_sec": info.duration_sec,
+                   "capture_mode": session.capture_mode, "checklist": session.checklist, "duration_sec": info.duration_sec,
                    "audio_status": info.audio_status, "sampling_fps": config["fps"]}
         self.reserve_call(row, step)
         response, usage = self.observer.observe(path, info, config, context, lambda: self.check(row))

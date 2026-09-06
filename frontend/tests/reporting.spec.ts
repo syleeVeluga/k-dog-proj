@@ -25,7 +25,7 @@ test('M4: reviewer edits, stale narration, original frame and frozen downloads a
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await page.getByRole('button', { name: '0401 상세 열기' }).click();
   await expect(page.getByText('설명 준비됨', { exact: true })).toBeVisible();
-  await page.getByText('항목 선택지·미관찰 상태 수정', { exact: true }).click();
+  await expect(page.getByLabel('허용 선택지', { exact: true })).toBeVisible();
   await page.getByLabel('허용 선택지', { exact: true }).selectOption({ index: 1 });
   await page.getByLabel('점수 수정 사유', { exact: true }).fill('원본 입장 장면 대조 후 수정');
   await page.getByRole('button', { name: '점수 수정 저장', exact: true }).click();
@@ -41,6 +41,7 @@ test('M4: reviewer edits, stale narration, original frame and frozen downloads a
   await page.locator('.report-preview').screenshot({ path: testInfo.outputPath('m4-report-mobile.png') });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByText('개별 파일 내보내기', { exact: true }).click();
+  await page.getByRole('button', { name: '내보낼 대상 확인', exact: true }).click();
   await page.getByRole('button', { name: '현재 버전으로 파일 생성', exact: true }).click();
   const downloadLink = page.getByRole('link', { name: '파일 다운로드', exact: true });
   await expect(downloadLink).toBeVisible();

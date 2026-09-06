@@ -60,6 +60,33 @@ class ExportRequest(Model):
     case_id: Key | None = None
     run_id: Key | None = None
     event_id: Key | None = None
+    case_ids: Annotated[list[Key], Field(min_length=1, max_length=10000)] | None = None
+    expected_preview_hash: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")] | None = None
+
+
+class DeliveryRecord(Model):
+    case_id: Key
+    channel: Literal["email", "messenger", "other"]
+    note: Annotated[str, Field(max_length=1000)] = ""
+
+
+class DeliveryView(DeliveryRecord):
+    actor: str
+    at: str
+
+
+class ExportMember(Model):
+    case_id: str
+    event_id: str
+    participant_id: str
+    dog_name: str
+    input_revision: int
+    revision: int | None
+    run_id: str | None
+    status: str
+    explanation_status: str
+    deliveries: list[DeliveryView]
+    correction_needed: bool
 
 
 class ExportView(Model):
@@ -69,6 +96,8 @@ class ExportView(Model):
     actor: str
     count: int
     status: str
+    preview_hash: str = ""
+    members: list[ExportMember] = Field(default_factory=list)
 
 
 class ReportView(Model):

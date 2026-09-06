@@ -42,6 +42,7 @@ def related_input(row):
     return {"case_id": manifest.case_id, "session_id": session.session_id,
             "videos": [video.model_dump() for video in session.videos],
             "capture_mode": session.capture_mode, "route_note": session.route_note,
+            **({"checklist": session.checklist} if session.checklist else {}),
             "config": {key: value for key, value in json.loads(row["config_snapshot_json"]).items()
                        if key not in ("evaluation", "report", "behavior_catalog", "survey_catalog", "scoring_rules",
                                       "settings_version", "evaluation_concurrency", "max_ai_calls", "max_attempts")}}

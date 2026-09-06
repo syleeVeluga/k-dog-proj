@@ -46,6 +46,15 @@ class Revision(Model):
     expected_revision: Annotated[int, Field(ge=1)]
 
 
+class CaseEdit(Revision):
+    participant_id: Key
+    dog_name: Text
+    reservation_at: str = ""
+
+
+Checklist = dict[Literal["entry", "separation", "training", "play", "exit"], Literal["unknown", "performed", "skipped", "retake"]]
+
+
 class SurveyEdit(Revision):
     session_id: Key
     survey_version: Text
@@ -67,6 +76,7 @@ class SessionEdit(Revision):
 class SessionMetadata(Revision):
     capture_mode: Literal["simultaneous", "sequential", "unknown"]
     route_note: Annotated[str, Field(max_length=2000)]
+    checklist: Checklist | None = None
 
 
 class StoredVideo(Model):
@@ -86,6 +96,7 @@ class Session(Model):
     survey_version: str
     survey: dict[str, int | None]
     videos: list[StoredVideo]
+    checklist: Checklist = Field(default_factory=dict)
 
 
 class Manifest(Model):
@@ -119,6 +130,24 @@ class ImportRow(Model):
     participant: CaseCreate | None = None
     case_id: Key | None = None
     survey: SurveyEdit | None = None
+    session_label: str = ""
+    source_location: str = ""
+    changed_questions: list[str] = Field(default_factory=list)
+
+
+class ImportMapping(Model):
+    sheet: Annotated[str, Field(max_length=100)] | None = None
+    columns: dict[str, str] = Field(default_factory=dict)
+    horizontal: dict[str, Key] = Field(default_factory=dict)
+
+
+class ImportColumn(Model):
+    key: str
+    label: str
+
+
+class ImportColumns(Model):
+    columns: list[ImportColumn]
 
 
 class ImportPreview(Model):
