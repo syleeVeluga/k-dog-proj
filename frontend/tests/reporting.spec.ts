@@ -12,9 +12,6 @@ test('M4: reviewer edits, stale narration, original frame and frozen downloads a
   const headers = { 'X-KDOG-Request': '1' };
   let item = await (await page.request.post('/api/cases', { headers, data: { event_id: 'M4-BROWSER', participant_id: '0401', dog_name: '리포트 시험 가상견' } })).json();
   const base = `/api/cases/${item.case_id}`;
-  await page.request.put(`${base}/access`, { headers, data: { expected_revision: 1, deletion_requested: false,
-    consent: { video_analysis: true, external_ai: true, result_provision: true, text_version: 'synthetic', recorded_at: '2026-09-06T00:00:00+00:00' } } });
-  item = await (await page.request.get(base)).json();
   const video = execFileSync('ffmpeg', ['-v', 'error', '-nostdin', '-f', 'lavfi', '-i', 'color=c=teal:s=320x240:d=4', '-c:v', 'libx264', '-movflags', 'frag_keyframe+empty_moov', '-f', 'mp4', 'pipe:1'], { windowsHide: true });
   item = await (await page.request.post(`${base}/videos`, { headers, data: video, params: { session_id: item.selected_session_id, camera_id: 'CAM-1', filename: 'synthetic-frame.mp4', expected_revision: item.input_revision } })).json();
   const started = await (await page.request.post(`${base}/analysis`, { headers, data: { expected_revision: item.input_revision } })).json();
@@ -57,8 +54,7 @@ test('M4: reviewer edits, stale narration, original frame and frozen downloads a
   const external = await page.context().browser()!.newContext({ baseURL: 'http://127.0.0.1:8765' });
   await external.request.post('/api/auth/login', { headers, data: { username: 'operator', password: 'Browser-test-only-42' } });
   item = await (await external.request.get(base)).json();
-  await external.request.put(`${base}/access`, { headers, data: { expected_revision: item.input_revision, deletion_requested: false,
-    consent: { ...item.consent, external_ai: false } } });
+  expect((await external.request.post(`${base}/deletion`, { headers, data: { expected_revision: item.input_revision } })).status()).toBe(200);
   await expect(page.getByRole('img', { name: '대표 프레임 · 원본 1.00초' })).toHaveCount(0);
   await expect(page.getByLabel('리포트 미리보기', { exact: true })).toHaveCount(0);
   expect((await page.request.get(`/api/exports/${snapshot.export_id}/file`)).status()).toBe(403);

@@ -28,7 +28,7 @@ from tests.report_fixtures import FakeReporter
 
 class SettingsTests(unittest.TestCase):
     login = observation.ObservationTests.login
-    access = observation.ObservationTests.access
+    delete_case = observation.ObservationTests.delete_case
     start = observation.ObservationTests.start
     view = observation.ObservationTests.view
 
@@ -217,7 +217,7 @@ class SettingsTests(unittest.TestCase):
             self.addCleanup(client.close)
             client.post("/api/auth/login", json={"username": "operator", "password": "Synthetic-test-only-42"})
             self.assertEqual(client.get(f"/api/exports/{exported['export_id']}/file").status_code, 200)
-            self.access(delete=True)
+            self.delete_case()
             maintenance.clean(self.store, purge_deleted=True)
             self.assertNotIn("가상견".encode(), (self.store.root / "kdog.sqlite3").read_bytes())
             self.assertEqual(maintenance.deletion_records(self.store), {("M2", "0001")})
@@ -228,6 +228,39 @@ class SettingsTests(unittest.TestCase):
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM runs").fetchone()[0], 0)
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='export.snapshot'").fetchone()[0], 0)
             self.assertFalse(any((recovered.root / "videos").glob("*")))
+
+    def test_legacy_backup_migrates_without_rewriting_results_or_restarting_stopped_runs(self):
+        run_id = self.start()
+        self.worker.once()
+        exported = self.client.post("/api/exports", json={"format": "xlsx", "case_id": self.item["case_id"], "run_id": run_id}).json()
+        self.assertEqual(self.client.post(f"/api/exports/{exported['export_id']}/generate").status_code, 200)
+        with self.store.connect(write=True) as db:
+            db.execute("ALTER TABLE cases ADD COLUMN consent_json TEXT")
+            db.execute("UPDATE cases SET consent_json=?", ('{"external_ai":false}',))
+            db.execute("UPDATE runs SET status='stopped'")
+            db.execute("PRAGMA user_version=2")
+            self.store.audit(db, "operator", self.item["case_id"], "access.state", {"consent": {"external_ai": False}, "deletion_requested": False})
+            runs = [dict(r) for r in db.execute("SELECT * FROM runs")]
+            steps = [dict(r) for r in db.execute("SELECT * FROM steps")]
+            refs = maintenance.references(self.store, db)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            maintenance.backup(self.store, root / "backup", "admin")
+            maintenance.restore(self.store, root / "backup", root / "restored")
+            restored = Store(root / "restored")
+            with restored.connect() as db:
+                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 3)
+                self.assertEqual([dict(r) for r in db.execute("SELECT * FROM runs")], runs)
+                self.assertEqual([dict(r) for r in db.execute("SELECT * FROM steps")], steps)
+                self.assertEqual(maintenance.references(restored, db), refs)
+                self.assertNotIn("consent_json", {r[1] for r in db.execute("PRAGMA table_info(cases)")})
+            client = TestClient(create_app(restored.root), base_url="http://127.0.0.1:8000", headers={"X-KDOG-Request": "1"})
+            self.addCleanup(client.close)
+            client.post("/api/auth/login", json={"username": "operator", "password": "Synthetic-test-only-42"})
+            self.assertEqual(client.get(f"/api/exports/{exported['export_id']}/file").status_code, 200)
+            result = client.get(self.base + "/analysis").json()["runs"][0]
+            self.assertEqual(result["status"], "stopped")
+            self.assertIsNotNone(result["scores"])
 
     def test_backup_corruption_and_path_traversal_rejected_before_destination_creation(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -22,13 +22,12 @@ from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Table, Table
 
 from app.analysis import session_snapshot
 from app.reporting import NOTICE, PENDING, CROSS_PENDING, read_saved, report_view, run_row, write_json
-from app.storage import REPO_ROOT, encode, now, require_consent, uid
+from app.storage import REPO_ROOT, encode, now, uid
 
 
 def guard_snapshot(store, db, snapshot):
     for member in snapshot["members"]:
         case = store.case(db, member["case_id"])
-        require_consent(case, "result_provision")
         if member["run_id"]:
             run_row(store, db, case["case_id"], member["run_id"])
 
@@ -44,7 +43,6 @@ def capture(store, value, actor):
             raise HTTPException(422, "내보낼 참가자가 없습니다.")
         members = []
         for case in rows:
-            require_consent(case, "result_provision")
             run_id = value.run_id or case["display_run_id"]
             member = {k: case[k] for k in ("case_id", "event_id", "participant_id", "dog_name", "input_revision", "selected_session_id")}
             member.update(run_id=run_id, status="not_started", revision=None, report=None, image=None, result=None, history=[], explanation_status="not_started")

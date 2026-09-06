@@ -232,7 +232,7 @@ class GeminiObserver:
         except (KeyError, TypeError, ValueError):
             raise ProviderError("provider_response_invalid", uncertain=True, usage=usage) from None
         finally:
-            # Deletion sends no participant content and remains allowed after withdrawal.
+            # Deletion sends no participant content and remains allowed after a deletion request.
             if name:
                 try:
                     request("DELETE", BASE + "/v1beta/" + name, key)

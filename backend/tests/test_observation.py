@@ -72,7 +72,6 @@ class ObservationTests(unittest.TestCase):
         self.login("operator")
         self.item = self.client.post("/api/cases", json={"event_id": "M2", "participant_id": "0001", "dog_name": "가상견"}).json()
         self.base = f"/api/cases/{self.item['case_id']}"
-        self.access()
         for index in range(2):
             result = self.client.post(self.base + "/videos", content=f"synthetic {index}".encode(), params={
                 "session_id": self.item["selected_session_id"], "camera_id": f"CAM-{index}", "filename": f"camera{index}.mp4",
@@ -85,13 +84,9 @@ class ObservationTests(unittest.TestCase):
     def login(self, role):
         self.assertEqual(self.client.post("/api/auth/login", json={"username": role, "password": "Synthetic-test-only-42"}).status_code, 200)
 
-    def access(self, granted=True, delete=False):
-        result = self.client.put(self.base + "/access", json={"expected_revision": self.item["input_revision"],
-            "deletion_requested": delete, "consent": {"video_analysis": granted, "external_ai": granted,
-                "result_provision": granted, "text_version": "synthetic", "recorded_at": "2026-09-06T00:00:00+00:00"}})
+    def delete_case(self):
+        result = self.client.post(self.base + "/deletion", json={"expected_revision": self.item["input_revision"]})
         self.assertEqual(result.status_code, 200, result.text)
-        if not delete:
-            self.item = self.client.get(self.base).json()
 
     def start(self, **kwargs):
         result = self.client.post(self.base + "/analysis", json={"expected_revision": self.item["input_revision"], **kwargs})
@@ -169,20 +164,23 @@ class ObservationTests(unittest.TestCase):
         self.worker.once()
         self.assertEqual(self.view()["status"], "scored")
 
-    def test_queued_withdrawal_and_inflight_deletion_fence_late_results(self):
+    def test_queued_deletion_prevents_provider_calls(self):
         self.start()
-        self.access(False)
+        self.delete_case()
         self.assertFalse(self.worker.once())
         self.assertEqual(len(self.observer.calls), 0)
-        self.access()
-        self.start()
+        self.assertEqual(self.client.post(self.base + "/analysis", json={"expected_revision": self.item["input_revision"]}).status_code, 403)
+
+    def test_inflight_deletion_fences_late_results(self):
+        run_id = self.start()
         def delete_inflight(media, guard):
-            self.access(delete=True)
+            self.delete_case()
             return response(), {}
         self.observer.callback = delete_inflight
         self.worker.once()
         self.assertEqual(len(self.observer.calls), 1)
         self.assertEqual(self.client.get(self.base + "/analysis").status_code, 403)
+        self.assertEqual(self.client.post(self.base + f"/analysis/{run_id}/retry").status_code, 403)
         with self.store.connect() as db:
             self.assertEqual(db.execute("SELECT count(*) FROM steps WHERE stage='observe' AND status='succeeded'").fetchone()[0], 0)
 
@@ -199,14 +197,14 @@ class ObservationTests(unittest.TestCase):
         self.assertEqual(self.client.get(self.base + "/analysis").status_code, 403)
         self.assertNotIn("synthetic-secret-only", self.store.path("kdog.sqlite3").read_bytes().decode("utf-8", errors="ignore"))
 
-    def test_evidence_video_uses_checked_run_and_blocks_withdrawal(self):
+    def test_evidence_video_uses_checked_run_and_blocks_deletion(self):
         run_id = self.start()
         self.worker.once()
         video_id = self.view()["evidence"][0]["video_id"]
         url = self.base + f"/analysis/{run_id}/videos/{video_id}"
         self.assertEqual(self.client.get(url).status_code, 200)
         self.assertEqual(self.client.get(self.base + f"/analysis/{run_id}/videos/unknown").status_code, 404)
-        self.access(False)
+        self.delete_case()
         self.assertEqual(self.client.get(url).status_code, 403)
 
     def test_survey_only_explicit_reuse_and_wrong_video_session_rejected(self):

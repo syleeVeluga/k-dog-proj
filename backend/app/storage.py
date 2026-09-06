@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS cases (
     input_revision INTEGER NOT NULL CHECK(input_revision > 0),
     selected_session_id TEXT NOT NULL, display_run_id TEXT,
     manifest_ref TEXT NOT NULL UNIQUE, manifest_hash TEXT NOT NULL,
-    consent_json TEXT, deletion_requested INTEGER NOT NULL DEFAULT 0,
+    deletion_requested INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
     UNIQUE(event_id, participant_id),
     FOREIGN KEY(display_run_id) REFERENCES runs(run_id)
@@ -90,7 +90,15 @@ class Store:
             db.executescript(SCHEMA)
             if "call_reserved" not in {r[1] for r in db.execute("PRAGMA table_info(steps)")}:
                 db.execute("ALTER TABLE steps ADD COLUMN call_reserved INTEGER NOT NULL DEFAULT 0")
-            db.execute("PRAGMA user_version=2")
+            db.execute("BEGIN IMMEDIATE")
+            if "consent_json" in {r[1] for r in db.execute("PRAGMA table_info(cases)")}:
+                db.execute("ALTER TABLE cases DROP COLUMN consent_json")
+                for row in db.execute("SELECT change_id,detail_json FROM changes WHERE action='access.state'").fetchall():
+                    detail = json.loads(row["detail_json"])
+                    detail.pop("consent", None)
+                    db.execute("UPDATE changes SET detail_json=? WHERE change_id=?",
+                               (encode(detail), row["change_id"]))
+            db.execute("PRAGMA user_version=3")
 
     @contextmanager
     def connect(self, *, write=False):
@@ -156,7 +164,6 @@ class Store:
                 "case_id", "event_id", "participant_id", "dog_name", "reservation_at",
                 "input_revision", "selected_session_id",
             )},
-            consent=json.loads(row["consent_json"]) if row["consent_json"] else None,
             deletion_requested=bool(row["deletion_requested"]), manifest=self.manifest(row),
         )
 
@@ -174,9 +181,3 @@ class Store:
     def audit(self, db, actor, target, action, detail):
         db.execute("INSERT INTO changes VALUES (?,?,?,?,?,?)",
                    (uid(), actor, now(), target, action, encode(detail)))
-
-
-def require_consent(row, permission: str):
-    consent = json.loads(row["consent_json"]) if row["consent_json"] else {}
-    if row["deletion_requested"] or not consent.get(permission):
-        raise HTTPException(403, "현재 동의 상태에서 이 작업을 수행할 수 없습니다.")

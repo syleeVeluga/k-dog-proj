@@ -65,14 +65,14 @@ export function Observations({ item, writable }: { item: Case; writable: boolean
     <p className="fine">{data?.message ?? '분석 상태 확인 중…'} 화면을 닫아도 백그라운드 처리는 계속됩니다. 완료된 분기부터 점수를 확인할 수 있습니다.</p>
     {error && <p role="alert" className="error">{error}</p>}
     {writable && <fieldset disabled={busy}><div className="toolbar">
-      <button className="primary" disabled={!item.consent?.video_analysis || !item.consent?.external_ai}
+      <button className="primary"
         onClick={() => void act(base, { expected_revision: item.input_revision, reuse_run_id: reuse && current ? current.run_id : null })}>분석 시작</button>
       {current && <label className="check"><input type="checkbox" checked={reuse} disabled={active || !current.steps.some(s => s.stage === 'observe' && s.status === 'succeeded')}
         onChange={e => setReuse(e.target.checked)} />선택 실행의 호환되는 관찰·평가 재사용</label>}
       {active && <button onClick={() => void act(`${base}/${current.run_id}/cancel`)}>분석 중지</button>}
       {current && ['failed', 'partial_failed', 'settings_required'].includes(current.status) &&
         <button onClick={() => void act(`${base}/${current.run_id}/retry`)}>실패 단계 재시도</button>}
-    </div><p className="fine">외부 AI 전송 동의가 필요합니다. 실제 실행 시 사용 요금이 발생합니다. 중지해도 이미 전송한 요청의 취소·환불은 보장되지 않습니다.</p></fieldset>}
+    </div><p className="fine">실제 실행 시 사용 요금이 발생합니다. 중지해도 이미 전송한 요청의 취소·환불은 보장되지 않습니다.</p></fieldset>}
     {data && data.runs.length > 0 && <label>관찰 실행 이력<select value={current?.run_id ?? ''} onChange={e => { setSelected(e.target.value); setPlaying(null); setReuse(false); }}>
       {data.runs.map(r => <option value={r.run_id} key={r.run_id}>입력 {r.input_revision} · {analysisNames[r.status]} · {r.run_id.slice(0, 8)}{r.is_current ? ' · 현재 표시' : ' · 이전 실행'}</option>)}
     </select></label>}

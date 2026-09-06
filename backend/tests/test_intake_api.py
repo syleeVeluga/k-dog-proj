@@ -63,15 +63,11 @@ class IntakeTests(unittest.TestCase):
     def get_case(self, item):
         return self.client.get(f"/api/cases/{item['case_id']}").json()
 
-    def access(self, item, *, granted=True, delete=False):
-        response = self.client.put(f"/api/cases/{item['case_id']}/access", json={
-            "expected_revision": item["input_revision"], "deletion_requested": delete,
-            "consent": {"video_analysis": granted, "external_ai": granted,
-                        "result_provision": granted, "text_version": "synthetic-v1",
-                        "recorded_at": "2026-09-06T10:00:00+09:00"},
+    def delete_case(self, item):
+        response = self.client.post(f"/api/cases/{item['case_id']}/deletion", json={
+            "expected_revision": item["input_revision"],
         })
         self.assertEqual(response.status_code, 200, response.text)
-        return self.get_case(item) if not delete else item
 
     def upload(self, item, data=b"synthetic-video-one", camera="CAM-1", name="source.mp4"):
         return self.client.post(f"/api/cases/{item['case_id']}/videos", content=data, params={
@@ -84,7 +80,7 @@ class IntakeTests(unittest.TestCase):
                 "survey_version": self.version, "answers": {f"q{i:02}": value for i in range(1, 31)}}
 
     def test_m1_restart_preserves_one_case_two_files_and_survey(self):
-        item = self.access(self.make_case())
+        item = self.make_case()
         with tempfile.TemporaryDirectory(prefix="kdog-source-") as source_dir:
             for i in range(1, 3):
                 source = Path(source_dir) / f"camera{i}.mp4"
@@ -114,18 +110,17 @@ class IntakeTests(unittest.TestCase):
             self.assertEqual(video["media_status"], "pending_probe")
 
     def test_ids_duplicate_names_and_cross_case_video_access(self):
-        first = self.access(self.make_case())
+        first = self.make_case()
         second = self.make_case("0002")
         self.make_case("0001", "OTHER")
         self.assertEqual(self.client.post("/api/cases", json={"event_id": "TEST", "participant_id": "0001", "dog_name": "다른견"}).status_code, 409)
         self.assertEqual(self.client.post("/api/cases", json={"event_id": "TEST", "participant_id": 1, "dog_name": "다른견"}).status_code, 422)
         uploaded = self.upload(first).json()
         video = uploaded["manifest"]["sessions"][0]["videos"][0]
-        second = self.access(second)
         self.assertEqual(self.client.get(f"/api/cases/{second['case_id']}/videos/{video['video_id']}").status_code, 404)
 
     def test_retake_and_old_revision_are_isolated(self):
-        first = self.access(self.make_case())
+        first = self.make_case()
         first = self.upload(first).json()
         with self.store.connect() as db:
             row = self.store.case(db, first["case_id"])
@@ -203,37 +198,81 @@ class IntakeTests(unittest.TestCase):
         invalid = client.post("/api/auth/login", json={"username": "operator", "password": {"secret": PASSWORD}})
         self.assertNotIn(PASSWORD, invalid.text)
 
-    def test_consent_withdrawal_and_deletion_block_files_after_restart(self):
+    def test_registration_without_consent_and_deletion_block_files_after_restart(self):
         item = self.make_case()
-        self.assertEqual(self.upload(item).status_code, 403)
-        item = self.access(item)
+        self.assertNotIn("consent", item)
         item = self.upload(item).json()
         video = item["manifest"]["sessions"][0]["videos"][0]
         path = f"/api/cases/{item['case_id']}/videos/{video['video_id']}"
-        item = self.access(item, granted=False)
-        self.assertEqual(self.client.get(path).status_code, 403)
-        self.assertEqual(self.upload(item, b"new video").status_code, 403)
-        item = self.access(item)
-        self.access(item, delete=True)
+        self.assertEqual(self.client.get(path).status_code, 200)
+        self.delete_case(item)
         self.app = create_app(self.root)
         self.client = self.client_for("operator")
         self.assertEqual(self.client.get(path).status_code, 403)
+        self.assertEqual(self.upload(item).status_code, 403)
         self.assertEqual(self.client.get("/api/cases").json(), [])
         self.assertEqual(self.client.get(f"/api/cases/{item['case_id']}").status_code, 403)
 
-    def test_upload_rechecks_consent_at_commit(self):
-        item = self.access(self.make_case())
-        # A second connection changes current access while the request body is streaming.
+    def test_upload_rechecks_deletion_at_commit(self):
+        item = self.make_case()
         def body():
             yield b"synthetic prefix"
-            with self.store.connect(write=True) as db:
-                db.execute("UPDATE cases SET consent_json=NULL WHERE case_id=?", (item["case_id"],))
+            self.delete_case(item)
             yield b"synthetic suffix"
         self.assertEqual(self.upload(item, body()).status_code, 403)
         self.assertEqual(list((self.root / "videos").iterdir()), [])
 
+    def test_deletion_requires_writer_current_revision_and_has_no_consent_contract(self):
+        item = self.make_case()
+        path = f"/api/cases/{item['case_id']}/deletion"
+        for role in ("reviewer", "developer"):
+            self.assertEqual(self.client_for(role).post(path, json={"expected_revision": 1}).status_code, 403)
+        self.assertEqual(self.client.post(path, json={"expected_revision": 2}).status_code, 409)
+        self.assertEqual(self.client.post(path, json={"expected_revision": 1, "consent": {}}).status_code, 422)
+        schema = self.app.openapi()
+        self.assertNotIn("Consent", schema["components"]["schemas"])
+        self.assertNotIn("/api/cases/{case_id}/access", schema["paths"])
+        self.assertNotIn("consent", schema["components"]["schemas"]["CaseView"]["properties"])
+        self.delete_case(item)
+        self.assertEqual(self.client.post(path, json={"expected_revision": 1}).status_code, 403)
+
+    def test_legacy_migration_removes_consent_preserves_inputs_and_rolls_back_on_failure(self):
+        items = [self.make_case(participant_id=f"{i:04}") for i in range(3)]
+        with self.store.connect(write=True) as db:
+            before = [dict(row) for row in db.execute("SELECT * FROM cases ORDER BY participant_id")]
+            db.execute("ALTER TABLE cases ADD COLUMN consent_json TEXT")
+            for index, (item, value) in enumerate(zip(items, (None, {"video_analysis": False}, {"video_analysis": True}))):
+                db.execute("UPDATE cases SET consent_json=? WHERE case_id=?", (json.dumps(value) if value else None, item["case_id"]))
+                self.store.audit(db, "operator", item["case_id"], "access.state", {"consent": value, "deletion_requested": index == 2})
+            db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (items[2]["case_id"],))
+            db.execute("PRAGMA user_version=2")
+            db.execute("CREATE TRIGGER fail_migration BEFORE UPDATE ON changes BEGIN SELECT RAISE(ABORT,'synthetic migration failure'); END")
+        with self.assertRaises(sqlite3.IntegrityError):
+            Store(self.root)
+        with self.store.connect(write=True) as db:
+            self.assertIn("consent_json", {r[1] for r in db.execute("PRAGMA table_info(cases)")})
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 2)
+            db.execute("DROP TRIGGER fail_migration")
+        for _ in range(2):
+            migrated = Store(self.root)
+            with migrated.connect() as db:
+                self.assertNotIn("consent_json", {r[1] for r in db.execute("PRAGMA table_info(cases)")})
+                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 3)
+                after = [dict(row) for row in db.execute("SELECT * FROM cases ORDER BY participant_id")]
+                before[2]["deletion_requested"] = 1
+                self.assertEqual(after, before)
+                details = [json.loads(r[0]) for r in db.execute("SELECT detail_json FROM changes WHERE action='access.state'")]
+                self.assertEqual(details, [{"deletion_requested": i == 2} for i in range(3)])
+                self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+                self.assertEqual(db.execute("PRAGMA foreign_key_check").fetchall(), [])
+            for item in items[:2]:
+                self.assertNotIn("consent", self.get_case(item))
+            self.assertEqual(self.client.get(f"/api/cases/{items[2]['case_id']}").status_code, 403)
+        for item in items[:2]:
+            self.assertEqual(self.upload(item).status_code, 201)
+
     def test_empty_duplicate_and_failed_upload_never_register(self):
-        item = self.access(self.make_case())
+        item = self.make_case()
         self.assertEqual(self.upload(item, b"").status_code, 422)
         self.assertEqual(self.upload(item, name="bad.html").status_code, 422)
         item = self.upload(item, name="../../source.mp4").json()
@@ -320,7 +359,7 @@ class IntakeTests(unittest.TestCase):
         self.assertEqual(len(self.client.get("/api/cases").json()), 21)
 
     def test_video_same_size_corruption_and_session_metadata(self):
-        item = self.access(self.make_case())
+        item = self.make_case()
         response = self.client.put(f"/api/cases/{item['case_id']}/sessions/{item['selected_session_id']}", json={
             "expected_revision": item["input_revision"], "capture_mode": "simultaneous", "route_note": "가상 동선 기록",
         })
@@ -369,7 +408,7 @@ class IntakeTests(unittest.TestCase):
         try:
             with server() as client:
                 self.client = client
-                item = self.access(self.make_case())
+                item = self.make_case()
                 for camera in (1, 2):
                     response = self.upload(item, f"process synthetic {camera}".encode(), f"CAM-{camera}")
                     self.assertEqual(response.status_code, 201, response.text)

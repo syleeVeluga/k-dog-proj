@@ -25,7 +25,7 @@ from tests import test_observation as observation
 class ReportingTests(unittest.TestCase):
     setUp = observation.ObservationTests.setUp
     login = observation.ObservationTests.login
-    access = observation.ObservationTests.access
+    delete_case = observation.ObservationTests.delete_case
     start = observation.ObservationTests.start
     view = observation.ObservationTests.view
     ready_retries = observation.ObservationTests.ready_retries
@@ -158,9 +158,8 @@ class ReportingTests(unittest.TestCase):
 
     def test_all_exports_include_unprocessed_participant_without_cross_case_leak(self):
         self.prepare()
-        other = self.client.post("/api/cases", json={"event_id": "M2", "participant_id": "0002", "dog_name": "타참가자고유이름"}).json()
-        consent = self.item["consent"]
-        self.assertEqual(self.client.put(f"/api/cases/{other['case_id']}/access", json={"expected_revision": 1, "consent": consent, "deletion_requested": False}).status_code, 200)
+        created = self.client.post("/api/cases", json={"event_id": "M2", "participant_id": "0002", "dog_name": "타참가자고유이름"})
+        self.assertEqual(created.status_code, 201, created.text)
         individual = self.download(self.snapshot())
         wb = load_workbook(BytesIO(individual))
         self.assertNotIn("타참가자고유이름", str([list(ws.values) for ws in wb]))
@@ -191,7 +190,7 @@ class ReportingTests(unittest.TestCase):
         self.assertEqual(len(archive.namelist()), 9)
         self.assertIn("'=HYPERLINK", archive.read("전체요약.csv").decode("utf-8-sig"))
 
-    def test_permission_and_consent_checks_cover_snapshot_generation_and_download(self):
+    def test_permission_and_deletion_checks_cover_snapshot_generation_and_download(self):
         self.prepare()
         export_id = self.snapshot()
         self.download(export_id)
@@ -200,21 +199,28 @@ class ReportingTests(unittest.TestCase):
             self.assertEqual(self.client.get(path).status_code, 403)
         self.assertEqual(self.client.post(f"/api/exports/{export_id}/generate").status_code, 403)
         self.login("operator")
-        self.access(False)
+        with self.store.connect() as db:
+            before = dict(self.store.case(db, self.item["case_id"]))
+        self.delete_case()
+        with self.store.connect() as db:
+            after = dict(self.store.case(db, self.item["case_id"], accessible=False))
+            for key in ("input_revision", "manifest_ref", "manifest_hash", "display_run_id"):
+                self.assertEqual(after[key], before[key])
+        self.assertEqual(self.client.post("/api/exports", json={"format": "xlsx", "case_id": self.item["case_id"]}).status_code, 403)
         self.assertEqual(self.client.get(self.report_base).status_code, 403)
         self.assertEqual(self.client.post(f"/api/exports/{export_id}/generate").status_code, 403)
         self.assertEqual(self.client.get(f"/api/exports/{export_id}/file").status_code, 403)
         self.assertEqual(self.client.get("/api/exports").json(), [])
 
-    def test_withdrawal_during_render_does_not_adopt_file(self):
+    def test_deletion_during_render_does_not_adopt_file(self):
         self.prepare()
         export_id = self.snapshot()
         original = exports.render
-        def revoked(snapshot):
+        def deleted(snapshot):
             raw = original(snapshot)
-            self.access(False)
+            self.delete_case()
             return raw
-        with patch("app.exports.render", side_effect=revoked):
+        with patch("app.exports.render", side_effect=deleted):
             self.assertEqual(self.client.post(f"/api/exports/{export_id}/generate").status_code, 403)
         with self.store.connect() as db:
             self.assertIsNone(db.execute("SELECT 1 FROM changes WHERE target=? AND action='export.file'", (export_id,)).fetchone())
@@ -233,7 +239,7 @@ class ReportingTests(unittest.TestCase):
         wb = load_workbook(BytesIO(self.download(export_id)))
         self.assertEqual(wb["전체요약"]["F2"].value, 1)
 
-    def test_report_failure_retry_and_revoked_late_response_preserve_scores(self):
+    def test_report_failure_retry_and_deleted_late_response_preserve_scores(self):
         self.worker.reporter.callback = lambda *a: (_ for _ in ()).throw(ProviderError("developer_settings_required"))
         self.prepare()
         self.assertEqual(self.view()["status"], "scored")
@@ -244,16 +250,19 @@ class ReportingTests(unittest.TestCase):
         self.assertEqual(self.report()["status"], "ready")
         self.edit()
         reporter = self.worker.reporter
-        def revoked(config, context, guard):
+        def deleted(config, context, guard):
             reporter.callback = None
             response = reporter.write(config, context, guard)
-            self.access(False)
+            self.delete_case()
             return response
-        reporter.callback = revoked
+        reporter.callback = deleted
         self.client.post(self.report_base + "/generate")
         self.worker.once()
-        self.assertEqual(self.view()["scores"], None)
-        self.assertEqual(self.view()["status"], "stopped")
+        self.assertEqual(self.client.get(self.base + "/analysis").status_code, 403)
+        with self.store.connect() as db:
+            self.assertEqual(db.execute("SELECT status FROM runs WHERE run_id=?", (self.run_id,)).fetchone()[0], "stopped")
+            self.assertEqual(db.execute("SELECT count(*) FROM steps WHERE stage='evaluate' AND status='succeeded'").fetchone()[0], 2)
+            self.assertEqual(db.execute("SELECT count(*) FROM steps WHERE stage='report' AND status='succeeded'").fetchone()[0], 1)
 
     def test_report_schema_repair_limit_and_older_retry_does_not_loop_new_revision(self):
         reporter = self.worker.reporter

@@ -1,9 +1,8 @@
 """M1 intake contracts; media properties remain unknown until M2 probing."""
 
 from typing import Annotated, Literal, Self
-from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 Key = Annotated[str, Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")]
@@ -36,22 +35,6 @@ class UserView(Model):
     active: bool
 
 
-class Consent(Model):
-    video_analysis: bool = False
-    external_ai: bool = False
-    result_provision: bool = False
-    text_version: Text
-    recorded_at: Text
-
-    @field_validator("recorded_at")
-    @classmethod
-    def timestamp(cls, value: str) -> str:
-        parsed = datetime.fromisoformat(value)
-        if parsed.tzinfo is None:
-            raise ValueError("동의 기록 시각에는 시간대를 포함하세요.")
-        return value
-
-
 class CaseCreate(Model):
     event_id: Key
     participant_id: Key
@@ -73,11 +56,6 @@ class SurveyEdit(Revision):
         if set(self.answers) != set(SURVEY_IDS):
             raise ValueError("q01~q30을 모두 포함하고 미응답은 null로 입력하세요.")
         return self
-
-
-class AccessEdit(Revision):
-    consent: Consent
-    deletion_requested: bool
 
 
 class SessionEdit(Revision):
@@ -130,7 +108,6 @@ class CaseView(Model):
     reservation_at: str
     input_revision: int
     selected_session_id: str
-    consent: Consent | None
     deletion_requested: bool
     manifest: Manifest
 

@@ -21,11 +21,11 @@ from app.auth import authenticate, check_password, create_user, password_hash, t
 from app.analysis import check_access, control, enqueue, step_payload, validated_prepared, view_analysis
 from app.domain.contracts import SurveyCatalog
 from app.input_models import (
-    AccessEdit, CaseCreate, CaseView, ImportCommit, ImportPreview, Key, Login, Message,
+    CaseCreate, CaseView, ImportCommit, ImportPreview, Key, Login, Message, Revision,
     SessionEdit, SessionMetadata, StoredVideo, SurveyEdit, UserCreate, UserEdit, UserView,
 )
 from app.intake import create_case, new_session, preview, save_survey, selected_session, template
-from app.storage import REPO_ROOT, Store, require_consent, uid
+from app.storage import REPO_ROOT, Store, now, uid
 from app.observation_models import AnalysisRequest, AnalysisView
 from app.evaluation import active_configuration
 from app.evaluation_models import SettingsEdit, SettingsView
@@ -377,19 +377,15 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             save_survey(store, db, case_id, value, user.username, catalog.version)
             return store.view(store.case(db, case_id))
 
-    @app.put("/api/cases/{case_id}/access", response_model=Message)
-    def access(case_id: Key, value: AccessEdit, user=Depends(writer)):
+    @app.post("/api/cases/{case_id}/deletion", response_model=Message)
+    def request_deletion(case_id: Key, value: Revision, user=Depends(writer)):
         with store.connect(write=True) as db:
-            row = store.case(db, case_id, expected=value.expected_revision)
-            manifest = store.manifest(row)
-            store.save(db, row, manifest, user.username, "access.update")
-            db.execute("UPDATE cases SET consent_json=?,deletion_requested=? WHERE case_id=?",
-                       (value.consent.model_dump_json(), value.deletion_requested, case_id))
-            if value.deletion_requested or not value.consent.video_analysis or not value.consent.external_ai:
-                db.execute("UPDATE runs SET status='stopped',claim_token=NULL,lease_expires_at=NULL "
-                           "WHERE case_id=? AND status IN ('queued','running','retry_wait')", (case_id,))
-            store.audit(db, user.username, case_id, "access.state", value.model_dump(exclude={"expected_revision"}))
-        return Message(message="동의·삭제 상태를 저장했습니다.")
+            store.case(db, case_id, expected=value.expected_revision)
+            db.execute("UPDATE cases SET deletion_requested=1,updated_at=? WHERE case_id=?", (now(), case_id))
+            db.execute("UPDATE runs SET status='stopped',claim_token=NULL,lease_expires_at=NULL "
+                       "WHERE case_id=? AND status IN ('queued','running','retry_wait')", (case_id,))
+            store.audit(db, user.username, case_id, "deletion.request", {})
+        return Message(message="삭제 요청을 접수했습니다.")
 
     @app.post("/api/cases/{case_id}/sessions", response_model=CaseView)
     def sessions(case_id: Key, value: SessionEdit, user=Depends(writer)):
@@ -417,7 +413,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             raise HTTPException(422, "지원 영상 파일 확장자를 확인하세요.")
         with store.connect() as db:
             row = store.case(db, case_id, expected=expected_revision)
-            require_consent(row, "video_analysis")
             selected_session(store.manifest(row), session_id)
         video_id = uid()
         key = f"videos/{video_id}{extension}"
@@ -440,7 +435,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 if current_user["role"] not in ("operator", "admin"):
                     raise HTTPException(403, "업로드 권한이 변경되었습니다.")
                 row = store.case(db, case_id, expected=expected_revision)
-                require_consent(row, "video_analysis")
                 manifest = store.manifest(row)
                 session = selected_session(manifest, session_id)
                 if any(video.sha256 == digest.hexdigest() for video in session.videos):
@@ -460,7 +454,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def video_file(case_id: Key, video_id: Key, user=Depends(reader)):
         with store.connect() as db:
             row = store.case(db, case_id)
-            require_consent(row, "video_analysis")
             videos = [video for session in store.manifest(row).sessions for video in session.videos]
             video = next((item for item in videos if item.video_id == video_id), None)
             if video is None:
@@ -472,7 +465,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 if hashlib.file_digest(handle, "sha256").hexdigest() != video.sha256:
                     raise HTTPException(409, "영상 파일 해시가 일치하지 않습니다.")
             # Hashing a large file can take time; refresh access immediately before serving.
-            require_consent(store.case(db, case_id), "video_analysis")
+            store.case(db, case_id)
             return FileResponse(path, filename=f"{video_id}{path.suffix}", content_disposition_type="inline")
 
     @app.put("/api/cases/{case_id}/sessions/{session_id}", response_model=CaseView)

@@ -139,7 +139,7 @@ class ScoringTests(unittest.TestCase):
 class EvaluationTests(unittest.TestCase):
     setUp = observation.ObservationTests.setUp
     login = observation.ObservationTests.login
-    access = observation.ObservationTests.access
+    delete_case = observation.ObservationTests.delete_case
     start = observation.ObservationTests.start
     view = observation.ObservationTests.view
     ready_retries = observation.ObservationTests.ready_retries
@@ -275,7 +275,7 @@ class EvaluationTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()["branches"], branches)
 
-    def test_withdrawal_while_two_requests_inflight_rejects_both_results(self):
+    def test_deletion_while_two_requests_inflight_rejects_both_results(self):
         entered = threading.Barrier(3, timeout=8)
         release = threading.Event()
         def delayed(config, context, guard):
@@ -288,12 +288,11 @@ class EvaluationTests(unittest.TestCase):
             future = executor.submit(self.worker.once)
             try:
                 entered.wait()
-                self.access(False)
+                self.delete_case()
             finally:
                 release.set()
             future.result(timeout=10)
-        self.assertEqual(self.view()["evaluations"], [])
-        self.assertIsNone(self.view()["scores"])
+        self.assertEqual(self.client.get(self.base + "/analysis").status_code, 403)
         with self.store.connect() as db:
             self.assertEqual(db.execute("SELECT count(*) FROM steps WHERE stage='evaluate' AND status='succeeded'").fetchone()[0], 0)
 

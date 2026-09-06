@@ -1,9 +1,5 @@
 export type Role = 'operator' | 'reviewer' | 'admin' | 'developer';
 export type User = { username: string; role: Role; active: boolean };
-export type Consent = {
-  video_analysis: boolean; external_ai: boolean; result_provision: boolean;
-  text_version: string; recorded_at: string;
-};
 export type Video = {
   video_id: string; camera_id: string; original_name: string;
   size_bytes: number; sha256: string; media_status: 'pending_probe';
@@ -16,7 +12,7 @@ export type Case = {
   analysis_status: string;
   case_id: string; event_id: string; participant_id: string; dog_name: string;
   reservation_at: string; input_revision: number; selected_session_id: string;
-  consent: Consent | null; deletion_requested: boolean;
+  deletion_requested: boolean;
   manifest: { sessions: Session[]; display_run_id: string | null };
 };
 export type Catalog = {

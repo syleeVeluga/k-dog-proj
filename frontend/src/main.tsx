@@ -6,17 +6,12 @@ import type { FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import { api } from './api';
 import { Observations, analysisNames } from './Observations';
-import type { Case, Catalog, Consent, Preview, Role, User } from './types';
+import type { Case, Catalog, Preview, Role, User } from './types';
 import './style.css';
 
 const roleNames: Record<Role, string> = { operator: '운영자', reviewer: '교수 / 검토자', admin: '운영 관리자', developer: '개발자' };
 const sessionOf = (item: Case) => item.manifest.sessions.find(s => s.session_id === item.selected_session_id)!;
 const fields = (event: FormEvent<HTMLFormElement>) => Object.fromEntries(new FormData(event.currentTarget));
-const localTime = (value: string) => {
-  if (!value) return '';
-  const time = new Date(value);
-  return new Date(time.getTime() - time.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-};
 type Run = (work: () => Promise<void>) => Promise<void>;
 
 function App() {
@@ -135,10 +130,6 @@ function Detail({ item, catalog, writable, run, refresh, back }: {
   const [answers, setAnswers] = useState(session.survey);
   const [files, setFiles] = useState<FileList | null>(null);
   const [camera, setCamera] = useState('CAM-1');
-  const [consent, setConsent] = useState<Consent>(item.consent ? { ...item.consent, recorded_at: localTime(item.consent.recorded_at) } : {
-    video_analysis: false, external_ai: false, result_provision: false, text_version: '', recorded_at: '',
-  });
-  const [remove, setRemove] = useState(false);
   const [playing, setPlaying] = useState<string | null>(null);
   return <>
     <button className="plain back" onClick={back}>← 참가자 목록</button>
@@ -158,21 +149,18 @@ function Detail({ item, catalog, writable, run, refresh, back }: {
         }); }}><label>촬영 방식<select name="capture_mode"><option value="unknown">미확인</option><option value="simultaneous">동시 촬영</option><option value="sequential">순차 촬영</option></select></label>
           <label>동선 메모<textarea name="route_note" maxLength={2000} /></label><p className="fine">이전 촬영은 보존됩니다. 새 세션에는 설문과 영상을 따로 연결하세요.</p><button>새 촬영 시작</button></form></details>}
       </section>
-      <section className="panel"><h2>자료 사용 동의</h2><p className="fine">실제로 받은 동의의 문구 버전과 기록 시각을 입력하세요.</p>
-        <form onSubmit={e => { e.preventDefault(); void run(async () => {
-          await api(`/cases/${item.case_id}/access`, 'PUT', { expected_revision: item.input_revision, consent: { ...consent, recorded_at: new Date(consent.recorded_at).toISOString() }, deletion_requested: remove }); await refresh();
-        }); }}><fieldset disabled={!writable}>
-          {(['video_analysis', 'external_ai', 'result_provision'] as const).map((key, i) => <label className="check" key={key}><input type="checkbox" checked={consent[key]} onChange={e => setConsent({ ...consent, [key]: e.target.checked })} />{['영상·음성 분석', '외부 AI 전송', '결과 제공'][i]}</label>)}
-          <div className="form-grid"><label>동의 문구 버전<input required value={consent.text_version} onChange={e => setConsent({ ...consent, text_version: e.target.value })} /></label>
-            <label>동의 기록 시각<input type="datetime-local" required value={consent.recorded_at} onChange={e => setConsent({ ...consent, recorded_at: e.target.value })} /></label></div>
-          {writable && <><details><summary>삭제 요청 접수</summary><label className="check"><input type="checkbox" checked={remove} onChange={e => setRemove(e.target.checked)} />삭제 요청됨</label><p className="fine">저장하면 목록과 파일 접근이 차단됩니다. 실제 파일 폐기는 보관 정책에 따라 별도 처리합니다.</p></details><button>동의 상태 저장</button></>}
-        </fieldset></form>
-      </section>
+      {writable && <section className="panel"><h2>자료 관리</h2>
+        <details><summary>삭제 요청 접수</summary><form onSubmit={e => { e.preventDefault(); void run(async () => {
+          await api(`/cases/${item.case_id}/deletion`, 'POST', { expected_revision: item.input_revision }); await refresh();
+        }); }}><label className="check"><input type="checkbox" required />삭제 요청됨</label>
+          <p className="fine">저장하면 목록과 파일 접근이 차단되고 진행 중인 분석이 중지됩니다. 실제 파일 폐기는 보관 정책에 따라 별도 처리합니다.</p>
+          <button>삭제 요청 저장</button></form></details>
+      </section>}
     </div>
     <section className="panel"><div className="section-title"><h2>영상 자료</h2><span className="mono">{session.videos.length} FILES</span></div>
       {session.videos.length === 0 && <p className="muted">등록된 영상이 없습니다. 참가자·촬영 세션·카메라를 확인한 후 파일을 선택하세요.</p>}
       {session.videos.map(v => <div className="video-row" key={v.video_id}><div><strong>{v.original_name}</strong><small>{v.camera_id} · {(v.size_bytes / 1048576).toFixed(2)} MiB · 원본 등록됨</small></div>
-        <button onClick={() => setPlaying(`/api/cases/${item.case_id}/videos/${v.video_id}`)} disabled={!item.consent?.video_analysis}>영상 열기</button></div>)}
+        <button onClick={() => setPlaying(`/api/cases/${item.case_id}/videos/${v.video_id}`)}>영상 열기</button></div>)}
       {playing && <div><video src={playing} controls preload="metadata" /><button onClick={() => setPlaying(null)}>재생 닫기</button></div>}
       {writable && <form onSubmit={e => { e.preventDefault(); if (!files) return; void run(async () => {
         let revision = item.input_revision;
@@ -182,11 +170,11 @@ function Detail({ item, catalog, writable, run, refresh, back }: {
             const updated = await api<Case>(`/cases/${item.case_id}/videos?${query}`, 'POST', file); revision = updated.input_revision;
           }
         } finally { await refresh(); }
-      }); }}><fieldset disabled={!item.consent?.video_analysis}>
+      }); }}><fieldset>
         <div className="toolbar"><label>카메라 ID<input value={camera} pattern="[A-Za-z0-9_-]+" required onChange={e => setCamera(e.target.value)} /></label>
           <label>영상 파일<input type="file" accept=".mp4,.mov,.m4v,.avi,.mkv,.webm" multiple required onChange={e => setFiles(e.target.files)} /></label><button className="primary">영상 등록</button></div>
         <p className="fine">선택 파일은 모두 현재 카메라에 연결됩니다. 다른 카메라는 따로 등록하세요. 복사가 끝나야 저장됩니다.</p></fieldset>
-        {!item.consent?.video_analysis && <p className="fine">영상·음성 분석 동의를 먼저 기록하세요.</p>}</form>}
+        </form>}
     </section>
     <Observations item={item} writable={writable} />
     <details className="panel"><summary>설문 원응답 <span className="tag">{Object.values(answers).filter(v => v !== null).length}/30</span></summary>

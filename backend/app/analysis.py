@@ -17,7 +17,7 @@ from app.intake import selected_session
 from app.observation_models import (
     AnalysisView, ObservationArtifact, PreparedInput, RunView, StepView,
 )
-from app.storage import REPO_ROOT, Store, encode, now, require_consent, uid
+from app.storage import REPO_ROOT, Store, encode, now, uid
 
 
 LEASE_SECONDS = 180
@@ -133,8 +133,6 @@ def enqueue(store: Store, case_id, value, actor):
         from app.settings import apply_snapshot
         apply_snapshot(store, db, config)
         case = store.case(db, case_id, expected=value.expected_revision)
-        require_consent(case, "video_analysis")
-        require_consent(case, "external_ai")
         manifest = store.manifest(case)
         session = selected_session(manifest, manifest.selected_session_id)
         if not session.videos:
@@ -191,9 +189,7 @@ def enqueue(store: Store, case_id, value, actor):
 
 
 def check_access(store, db, row):
-    case = store.case(db, row["case_id"])
-    require_consent(case, "video_analysis")
-    require_consent(case, "external_ai")
+    store.case(db, row["case_id"])
 
 
 def guard(store, run_id, token, *, renew=True):
@@ -313,13 +309,12 @@ def view_analysis(store, case_id):
     result = []
     with store.connect() as db:
         case = store.case(db, case_id)
-        allowed = json.loads(case["consent_json"] or "{}")
         for row in db.execute("SELECT * FROM runs WHERE case_id=? ORDER BY created_at DESC", (case_id,)):
             steps = db.execute("SELECT * FROM steps WHERE run_id=? ORDER BY created_at", (row["run_id"],)).fetchall()
             ready = next((step for step in steps if step["stage"] == "prepare" and step["status"] == "succeeded"), None)
             prepared, artifacts, evaluations, scores, survey = None, [], [], None, None
             config = json.loads(row["config_snapshot_json"])
-            if allowed.get("video_analysis") and allowed.get("external_ai") and "evaluation" in config:
+            if "evaluation" in config:
                 if config["scoring_rules"] != RULES:
                     raise HTTPException(409, "이 실행의 계산 규칙 버전을 현재 코드에서 지원하지 않습니다.")
                 survey_step = next((s for s in steps if s["stage"] == "survey" and s["status"] == "succeeded"), None)
@@ -328,7 +323,7 @@ def view_analysis(store, case_id):
                     survey = survey_scores(row["run_id"], session.survey, SurveyCatalog.model_validate_json(encode(config["survey_catalog"])))
                     if step_payload(store, row, survey_step) != survey.model_dump(mode="json"):
                         raise HTTPException(409, "설문 계산 산출물이 일치하지 않습니다.")
-            if allowed.get("video_analysis") and allowed.get("external_ai") and ready:
+            if ready:
                 prepared = validated_prepared(row, step_payload(store, row, ready))
                 artifacts = observations(store, db, row, prepared)
                 evidence = tuple(e for artifact in artifacts for e in artifact.evidence)

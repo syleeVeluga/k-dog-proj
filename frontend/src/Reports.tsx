@@ -36,7 +36,7 @@ export function Exports({ caseId, runId }: { caseId?: string; runId?: string }) 
     finally { setBusy(false); }
   }
   return <details className="panel" aria-label="파일 내보내기"><summary>{caseId ? '개별 파일 내보내기' : '전체 내보내기 · 운영자·교수용'}</summary>
-    <p className="fine">결과 제공 동의가 필요합니다. 현재 버전을 고정하며 이전 파일은 수정되지 않습니다. CSV와 전체 PDF는 ZIP 묶음입니다.</p>
+    <p className="fine">현재 버전을 고정하며 이전 파일은 수정되지 않습니다. CSV와 전체 PDF는 ZIP 묶음입니다.</p>
     {!caseId && <label>내보낼 행사 ID (비우면 모든 행사)<input value={eventId} onChange={e => setEventId(e.target.value)} /></label>}
     <fieldset disabled={busy}><div className="toolbar"><label>파일 형식<select aria-label="파일 형식" value={format} onChange={e => setFormat(e.target.value)}><option value="pdf">PDF</option><option value="xlsx">Excel · XLSX</option><option value="csv">CSV 묶음</option></select></label>
       <button onClick={() => void generate()}>현재 버전으로 파일 생성</button></div></fieldset>

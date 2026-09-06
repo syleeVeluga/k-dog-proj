@@ -208,7 +208,7 @@ def restore(store, source, destination):
                 raise HTTPException(409, "잘못된 백업 경로입니다.")
             if file_hash(path) != expected:
                 raise HTTPException(409, "백업 파일 해시가 일치하지 않습니다.")
-        # Reapply the current deletion ledger, even when restoring a backup from before withdrawal.
+        # Reapply the current deletion ledger, even when restoring a backup from before the deletion request.
         deleted = deletion_records(store)
         destination.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix="kdog-restore-", dir=destination.parent) as staging:
