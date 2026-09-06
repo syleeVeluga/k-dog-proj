@@ -25,7 +25,7 @@ def run_sample(store, pipeline, stage):
         "prompt_version": "synthetic-v1", "config_version": "synthetic-v1",
         "survey": {f"q{i:02}": None for i in range(1, 31)}, "videos": [{"video_id": "synthetic-video", "camera_id": "CAM-1",
         "storage_ref": "synthetic/video.mp4", "sha256": "0" * 64, "duration_sec": 2.0, "audio_status": "absent"}]}))
-    if stage == "observe":
+    if stage in ("observe", "video"):
         with tempfile.TemporaryDirectory(prefix="kdog-developer-sample-") as directory:
             path = Path(directory) / "sample.mp4"
             try:
@@ -35,10 +35,20 @@ def run_sample(store, pipeline, stage):
                 raise ValueError("synthetic media unavailable") from None
             info = MediaInfo(video_id="synthetic-video", storage_ref="synthetic/video.mp4", sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
                 size_bytes=path.stat().st_size, duration_sec=2.0, codec="h264", width=320, height=240, audio_status="absent", mime_type="video/mp4", quality_flags=["audio_absent"])
-            response, usage = GeminiObserver(store).observe(path, info, {**config, "fps": pipeline.fps},
-                {"sample": "synthetic gray frame; no dog, guardian or audio", "items": [{"item_id": i.item_id, "text": i.text} for i in catalog.items]}, lambda: None)
+            from app.video_evaluation import context
+            from app.input_models import Session
+            sample_context = context(catalog, Session(session_id="synthetic-session", capture_mode="unknown", route_note="",
+                survey_version=catalog.version, survey=dict(run.survey), videos=[]), info, pipeline.fps)
+            sample_context["sample"] = "synthetic gray frame; no dog, guardian or audio"
+            response, usage = GeminiObserver(store).observe(path, info, {**config, "fps": pipeline.fps, "direct_video": stage == "video"},
+                sample_context, lambda: None)
             if response.observations:
                 raise ProviderError("observation_schema_invalid", usage=usage)
+            if stage == "video":
+                from app.video_evaluation import decisions, validate_items
+                from app.observation_models import ObservationArtifact
+                validate_items(ObservationArtifact(run_id=run.run_id, video_id=info.video_id, evidence=[],
+                    unconfirmed_conditions=response.unconfirmed_conditions, usage=usage, video_items=decisions(response, [], catalog, info.duration_sec)), run, catalog)
             return response.model_dump(mode="json"), usage
     bundle = {"evidence": [], "quality_flags": [], "unconfirmed_conditions": ["synthetic empty evidence"]}
     if stage in ("dog", "owner"):

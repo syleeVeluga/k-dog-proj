@@ -6,6 +6,7 @@ import { mayLeave } from './Editing';
 import type { Case } from './types';
 import { Reports } from './Reports';
 import type { ScoreData } from './Scores';
+import { VideoAssessments, type VideoAssessment } from './VideoAssessments';
 
 export const analysisNames: Record<string, string> = {
   queued: '대기', running: '분석 중', retry_wait: '재시도 대기', observed: '관찰 완료', scored: '점수 준비됨',
@@ -21,6 +22,7 @@ const errorNames: Record<string, string> = {
 type Evidence = { evidence_id: string; video_id: string; camera_id: string; source_start_sec: number;
   source_end_sec: number; observation: string; candidate_item_ids: string[]; quality_flags: string[] };
 type ObservationRun = ScoreData & { run_id: string; session_id: string; created_at: string; input_revision: number; status: string; is_current: boolean;
+  evaluation_mode: string; video_assessments: VideoAssessment[];
   evidence: Evidence[]; media_errors: Record<string, string>; unconfirmed_conditions: string[]; reused_from: string[];
   media: { video_id: string; duration_sec: number; codec: string; width: number; height: number; audio_status: string }[];
   steps: { stage: string; branch_key: string; attempt: number; status: string; retry_at: string | null; usage: Record<string, string | number | boolean> }[] };
@@ -85,14 +87,18 @@ export function Observations({ item, writable }: { item: Case; writable: boolean
       {data.runs.map(r => <option value={r.run_id} key={r.run_id}>{item.manifest.sessions.findIndex(s => s.session_id === r.session_id) + 1}차 촬영 · {new Date(r.created_at).toLocaleString()} · 입력 {r.input_revision} · {analysisNames[r.status]}{r.is_current ? ' · 현재 표시' : ' · 이전 실행'}</option>)}
     </select></label>}
     {current && <>
+      <p className="fine">{current.evaluation_mode === 'per_video' ? '영상별 직접 평가 → 항목별 결과 병합' : '기존 관찰 요약 → 분기별 평가'}</p>
       {!current.is_current && <p className="warning">이전 실행 결과입니다. 현재 입력과 다를 수 있습니다.</p>}
       {current.reused_from.length > 0 && <p className="fine">기존 성공 관찰 재사용 · 원본 근거 ID 보존</p>}
       <details><summary>미디어 검사·단계별 처리 이력</summary>{current.media.map(m => <p className="fine" key={m.video_id}>{item.manifest.sessions.flatMap(s => s.videos).find(v => v.video_id === m.video_id)?.camera_id} · {m.duration_sec.toFixed(1)}초 · {m.width}×{m.height} · {m.codec} · {m.audio_status === 'present' ? '오디오 트랙 있음' : '오디오 없음'}</p>)}
       {Object.entries(current.media_errors).map(([id, message]) => <p className="error" key={id}>{message}</p>)}
-      {current.steps.map((s, i) => <p className="fine" key={i}>{s.stage === 'prepare' ? '미디어 검사' : s.stage === 'integrate' ? '근거 통합' : s.stage === 'survey' ? '설문 계산' : s.stage === 'report' ? '리포트 설명' : s.stage === 'evaluate' ? `${s.branch_key === 'dog' ? '반려견' : '보호자'} 평가` : '카메라 관찰'} · 시도 {s.attempt} · {({ succeeded: '완료', running: '처리 중', failed: '실패', retry_wait: '재시도 대기', abandoned: '중단' } as Record<string, string>)[s.status] ?? s.status}
+      {current.steps.map((s, i) => <p className="fine" key={i}>{s.stage === 'prepare' ? '미디어 검사' : s.stage === 'integrate' ? '항목별 근거 정리' : s.stage === 'survey' ? '설문 계산' : s.stage === 'report' ? '리포트 설명' : s.stage === 'review_video' ? '불일치 항목 영상 재검토' : s.stage === 'evaluate' ? `${s.branch_key === 'dog' ? '반려견' : '보호자'} ${current.evaluation_mode === 'per_video' ? '결과 병합' : '평가'}` : current.evaluation_mode === 'per_video' ? '영상별 직접 평가' : '카메라 관찰'} · 시도 {s.attempt} · {({ succeeded: '완료', running: '처리 중', failed: '실패', retry_wait: '재시도 대기', abandoned: '중단' } as Record<string, string>)[s.status] ?? s.status}
         {s.usage.code && ` · ${errorNames[String(s.usage.code)] ?? s.usage.code}`}{s.retry_at && ` · 재시도 ${new Date(s.retry_at).toLocaleString()}`}
         {s.usage.billing_uncertain === true && ' · 중복 과금 가능'}{s.usage.remote_cleanup_pending === true && ' · 원격 파일 삭제 확인 필요'}</p>)}
       </details>
+      {current.video_assessments?.length > 0 && <VideoAssessments assessments={current.video_assessments} catalog={current.behavior_items}
+        name={id => item.manifest.sessions.flatMap(s => s.videos).find(v => v.video_id === id)?.original_name ?? id}
+        play={id => setPlaying(current.evidence.find(e => e.evidence_id === id) ?? null)} />}
       {(current.survey_scores || current.evaluations.length > 0) && <Reports key={current.run_id} videos={item.manifest.sessions.flatMap(s => s.videos)} caseId={item.case_id} runId={current.run_id} play={id => setPlaying(current.evidence.find(e => e.evidence_id === id) ?? null)} />}
       <p>관찰 근거 {current.evidence.length}개</p>
       {current.unconfirmed_conditions.map((flag, i) => <p className="fine" key={i}>{flag}</p>)}

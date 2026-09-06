@@ -52,11 +52,23 @@ class FakeObserver:
         self.calls.append(media.video_id)
         if self.callback:
             return self.callback(media, guard)
+        if config.get("direct_video"):
+            from tests.video_fixtures import video_response
+            return video_response(context), {"model": "synthetic-test-only", "totalTokenCount": 10}
         return response(), {"model": "synthetic-test-only", "totalTokenCount": 10}
 
 
 class ObservationTests(unittest.TestCase):
     def setUp(self):
+        # These existing M2-M6 scenarios exercise frozen legacy runs. New-mode tests opt in.
+        from app import settings
+        original_current = settings.current
+        def selected_mode(store, db):
+            version, config = original_current(store, db)
+            return version, config.model_copy(update={"evaluation_mode": getattr(self, "pipeline_mode", "legacy")})
+        mode_patch = patch("app.settings.current", side_effect=selected_mode)
+        mode_patch.start()
+        self.addCleanup(mode_patch.stop)
         self.temp = tempfile.TemporaryDirectory(prefix="kdog-m2-test-")
         self.addCleanup(self.temp.cleanup)
         self.env = patch.dict(os.environ, {"KDOG_GEMINI_MODEL": "gemini-test-only", "GEMINI_API_KEY": "synthetic-secret-only"})

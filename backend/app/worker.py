@@ -90,7 +90,7 @@ class Worker:
                 self.check(row)
                 with self.store.connect(write=True) as db:
                     db.execute("UPDATE steps SET status='abandoned',usage_json=?,updated_at=? WHERE step_id=? AND status='running'",
-                               (encode({"code": "worker_interrupted", "billing_uncertain": stage in ("observe", "evaluate", "report")}), now(), previous["step_id"]))
+                               (encode({"code": "worker_interrupted", "billing_uncertain": stage in ("observe", "review_video", "evaluate", "report")}), now(), previous["step_id"]))
         attempt = previous["attempt"] + 1 if previous else 1
         maximum = json.loads(row["config_snapshot_json"]).get("max_attempts", 3)
         if attempt > maximum:
@@ -99,7 +99,7 @@ class Worker:
             return None
         # Schema repair has its own one-repair cap inside the shared three-attempt budget.
         schema_code = "evaluation_schema_invalid" if stage in ("evaluate", "report") else "observation_schema_invalid"
-        if stage in ("observe", "evaluate", "report"):
+        if stage in ("observe", "review_video", "evaluate", "report"):
             with self.store.connect() as db:
                 history = [json.loads(s[0]) for s in db.execute(
                     "SELECT usage_json FROM steps WHERE run_id=? AND stage=? AND branch_key=?", (row["run_id"], stage, branch))]
@@ -219,7 +219,9 @@ class Worker:
             self.stage(row, "survey", "session", validate_survey, lambda step: survey_payload)
         prepared = self.stage(row, "prepare", "session", lambda p: validated_prepared(row, p),
                               lambda step: self.prepare(row, step))
-        if prepared:
+        if prepared and config.get("direct_video"):
+            report_source = self.process_videos(row, prepared, config)
+        elif prepared:
             reused = {entry["video_id"] for entry in json.loads(row["reuse_manifest_json"]) if entry.get("stage", "observe") == "observe"}
             with self.store.connect() as db:
                 observations(self.store, db, row, prepared)
@@ -315,6 +317,110 @@ class Worker:
         except ValueError:
             raise ProviderError("evaluation_schema_invalid", retryable=True, usage=usage) from None
         return artifact.model_dump(mode="json")
+
+    def assess_video(self, row, step, prepared, info, catalog, review_ids=None, focus=None):
+        from app.domain.contracts import BEHAVIOR_IDS
+        from app.video_evaluation import context, decisions
+        from app.observation_models import VideoResponse
+        _, session = session_snapshot(row)
+        config = json.loads(row["config_snapshot_json"])
+        path = self.store.path(info.storage_ref)
+        with path.open("rb") as handle:
+            if hashlib.file_digest(handle, "sha256").hexdigest() != info.sha256:
+                raise MediaError("분석용 영상 해시가 변경되었습니다.")
+        prompt_input = context(catalog, session, info, config["fps"], review_ids or BEHAVIOR_IDS, focus)
+        if step["attempt"] > 1:
+            prompt_input["repair"] = "필수 항목·선택지·관찰 순번(1부터)·시간·coverage·측정 근거를 스키마와 대조하여 수정하세요."
+            with self.store.connect() as db:
+                failures = db.execute("SELECT usage_json FROM steps WHERE run_id=? AND stage=? AND branch_key=? ORDER BY attempt DESC",
+                    (row["run_id"], "review_video" if review_ids else "observe", info.video_id)).fetchall()
+            prompt_input["validation_errors"] = [json.loads(s[0])["validation_error"] for s in failures
+                                                  if "validation_error" in json.loads(s[0])]
+        self.reserve_call(row, step)
+        response, usage = self.observer.observe(path, info, config, prompt_input, lambda: self.check(row))
+        try:
+            response = VideoResponse.model_validate_json(response.model_dump_json())
+            video = next(v for v in prepared.run_input.videos if v.video_id == info.video_id)
+            evidence = [Evidence(evidence_id=f"ev-{step['step_id']}-{i:04}", run_id=row["run_id"],
+                case_id=row["case_id"], session_id=row["session_id"], video_id=video.video_id, camera_id=video.camera_id,
+                segment_id=x.segment_id, source_start_sec=x.start_sec, source_end_sec=x.end_sec,
+                subject=x.subject, modality=x.modality, observation=x.observation,
+                # Item->observation references are authoritative; derive the reverse tags.
+                candidate_item_ids=tuple(dict.fromkeys(x.candidate_item_ids + [item.item_id for item in response.items
+                                                                              if i in item.observation_indices])),
+                quality_flags=tuple(dict.fromkeys(x.quality_flags + info.quality_flags + [f"sampling_{config['fps']:g}fps"])))
+                for i, x in enumerate(response.observations, 1)]
+            artifact = ObservationArtifact(run_id=row["run_id"], video_id=video.video_id, evidence=evidence,
+                unconfirmed_conditions=response.unconfirmed_conditions, usage=usage,
+                video_items=decisions(response, evidence, catalog, info.duration_sec), review_item_ids=review_ids or [])
+            validated_observation(artifact.model_dump(mode="json"), prepared.run_input, video.video_id,
+                                  catalog=catalog, expected_items=review_ids)
+        except ValueError as exc:
+            usage["validation_error"] = str(exc).splitlines()[0][:300]
+            raise ProviderError("observation_schema_invalid", retryable=True, usage=usage) from None
+        return artifact.model_dump(mode="json")
+
+    def process_videos(self, row, prepared, config):
+        from app.video_evaluation import conflicts, merge
+        catalog = BehaviorCatalog.model_validate_json(encode(config["behavior_catalog"]))
+        with self.store.connect() as db:
+            loaded = observations(self.store, db, row, prepared)
+        initial = [a for a in loaded if not a.review_item_ids]
+        done = {a.video_id for a in initial}
+        for info in prepared.media:
+            if info.video_id in done:
+                continue
+            artifact = self.stage(row, "observe", info.video_id,
+                lambda p, vid=info.video_id: validated_observation(p, prepared.run_input, vid, catalog=catalog),
+                lambda step, info=info: self.assess_video(row, step, prepared, info, catalog))
+            if artifact:
+                initial.append(artifact)
+            else:
+                with self.store.connect() as db:
+                    last = db.execute("SELECT usage_json FROM steps WHERE run_id=? AND stage='observe' AND branch_key=? ORDER BY attempt DESC LIMIT 1",
+                                      (row["run_id"], info.video_id)).fetchone()
+                if last and json.loads(last[0]).get("code") == "developer_settings_required":
+                    return None
+        if {a.video_id for a in initial} != {m.video_id for m in prepared.media}:
+            return None
+        initial.sort(key=lambda a: a.video_id)
+        review_ids = conflicts(initial)
+        reviews = []
+        if review_ids:
+            for info in prepared.media:
+                source = next(a for a in initial if a.video_id == info.video_id)
+                focus = [{"start_sec": e.source_start_sec, "end_sec": e.source_end_sec,
+                          "item_ids": [i for i in e.candidate_item_ids if i in review_ids]}
+                         for e in source.evidence if set(e.candidate_item_ids) & set(review_ids)]
+                reviewed = self.stage(row, "review_video", info.video_id,
+                    lambda p, vid=info.video_id: validated_observation(p, prepared.run_input, vid, catalog=catalog, expected_items=review_ids),
+                    lambda step, info=info, focus=focus: self.assess_video(row, step, prepared, info, catalog, review_ids, focus))
+                if reviewed:
+                    reviews.append(reviewed)
+            with self.store.connect() as db:
+                latest = db.execute("SELECT * FROM steps WHERE run_id=? AND stage='review_video' ORDER BY attempt", (row["run_id"],)).fetchall()
+            if any(s["status"] == "retry_wait" for s in {s["branch_key"]: s for s in latest}.values()):
+                return None
+            if len(reviews) != len(prepared.media):
+                return None
+        reviews.sort(key=lambda a: a.video_id)
+        evidence = [e.model_dump(mode="json") for a in [*initial, *reviews] for e in a.evidence]
+        bundle = {"run_id": row["run_id"], "evidence": evidence,
+                  "review_item_ids": review_ids, "quality_flags": ["per_video_evaluation", "no_cross_camera_count_aggregation"],
+                  "unconfirmed_conditions": [{"video_id": a.video_id, "conditions": a.unconfirmed_conditions} for a in initial]}
+        def exact(expected):
+            def validate(payload):
+                if payload != expected:
+                    raise ValueError("merged result mismatch")
+                return payload
+            return validate
+        self.stage(row, "integrate", "session", exact(bundle), lambda step: bundle)
+        merged = merge(prepared.run_input, catalog, initial, reviews)
+        for branch, value in merged.items():
+            payload = value.model_dump(mode="json")
+            self.stage(row, "evaluate", branch, exact(payload), lambda step, payload=payload: payload)
+        from app.reporting import generate_report
+        return generate_report(self, row)
 
     def once(self):
         row = claim(self.store)

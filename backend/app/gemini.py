@@ -12,7 +12,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from app.observation_models import ObservationResponse
+from app.observation_models import ObservationResponse, VideoResponse
 
 
 BASE = "https://generativelanguage.googleapis.com"
@@ -44,6 +44,29 @@ def observation_schema() -> dict:
     result = {"observations": {"type": "array", "items": item},
               "unconfirmed_conditions": {"type": "array", "items": {"type": "string"}, "maxItems": 100}}
     return {"type": "object", "properties": result, "required": list(result), "additionalProperties": False}
+
+
+def video_schema(duration=None) -> dict:
+    # Use the same REST-supported subset as observations; enforce full constraints locally.
+    from typing import get_args
+    from app.domain.contracts import Status
+    result = observation_schema()
+    measurement = {"kind": {"type": "string", "enum": ["command_count", "behavior_count", "duration_sec", "latency_sec"]},
+                   **{key: {"type": "number", "minimum": 0} for key in ("value", "start_sec", "end_sec")}}
+    properties = {"item_id": {"type": "string"}, "status": {"type": "string", "enum": list(get_args(Status))},
+        "selected_option_id": {"type": ["string", "null"]},
+        "observation_indices": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+        "reason": {"type": "string"}, "coverage": {"type": "string", "enum": ["sufficient", "partial", "none"]},
+        "coverage_reason": {"type": "string"}, "measurements": {"type": "array", "items": {
+            "type": "object", "properties": measurement, "required": list(measurement), "additionalProperties": False}}}
+    result["properties"]["items"] = {"type": "array", "items": {"type": "object", "properties": properties,
+        "required": list(properties), "additionalProperties": False}}
+    result["required"].append("items")
+    if duration is not None:
+        for key in ("start_sec", "end_sec"):
+            result["properties"]["observations"]["items"]["properties"][key]["maximum"] = duration
+            measurement[key]["maximum"] = duration
+    return result
 
 
 class ProviderError(Exception):
@@ -218,10 +241,10 @@ class GeminiObserver:
                     {"type": "video", "uri": remote["uri"], "mime_type": media.mime_type,
                      "processing": {"type": "static", "fps": config["fps"]}},
                     {"type": "text", "text": json.dumps(context, ensure_ascii=False)}],
-                observation_schema(), config["max_output_tokens"]))
+                video_schema(media.duration_sec) if config.get("direct_video") else observation_schema(), config["max_output_tokens"]))
             raw = interaction_text(result, "observation_incomplete", usage)
             try:
-                parsed = ObservationResponse.model_validate_json(raw)
+                parsed = (VideoResponse if config.get("direct_video") else ObservationResponse).model_validate_json(raw)
             except ValueError:
                 raise ProviderError("observation_schema_invalid", retryable=True, usage=usage) from None
             return parsed, usage

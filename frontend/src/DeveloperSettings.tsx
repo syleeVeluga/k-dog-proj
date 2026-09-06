@@ -2,18 +2,18 @@ import { Notification } from './Notification';
 import { useEffect, useState } from 'react';
 import { api } from './api';
 
-type Stage = 'observe' | 'dog' | 'owner' | 'report';
+type Stage = 'observe' | 'dog' | 'owner' | 'report' | 'video';
 type StageConfig = { provider: string; model: string; prompt: string; max_output_tokens: number };
-type Pipeline = Record<Stage, StageConfig> & { fps: number; max_attempts: number; evaluation_concurrency: number; max_ai_calls: number };
+type Pipeline = Record<Stage, StageConfig> & { evaluation_mode: 'per_video' | 'legacy'; fps: number; max_attempts: number; evaluation_concurrency: number; max_ai_calls: number };
 type Trial = { trial_id: string; stage: Stage; mode: string; status: string; output?: unknown; usage: unknown };
 type Settings = { active_version: string; config: Pipeline; versions: { version: string; created_at: string; actor: string }[];
   trials: Trial[]; keys: { provider: string; available: boolean; reference: string }[] };
-const stages: Record<Stage, string> = { observe: 'Gemini 관찰', dog: '반려견 평가', owner: '보호자 평가', report: '리포트 설명' };
+const stages: Record<Stage, string> = { video: '영상별 직접 평가', observe: '기존 방식 · Gemini 관찰', dog: '기존 방식 · 반려견 평가', owner: '기존 방식 · 보호자 평가', report: '리포트 설명' };
 
 export function DeveloperSettings({ onVersionModeChange }: { onVersionModeChange: (active: boolean) => void }) {
   const [data, setData] = useState<Settings | null>(null);
   const [config, setConfig] = useState<Pipeline | null>(null);
-  const [stage, setStage] = useState<Stage>('observe');
+  const [stage, setStage] = useState<Stage>('video');
   const [version, setVersion] = useState('');
   const [diff, setDiff] = useState('');
   const [trial, setTrial] = useState<Trial | null>(null);
@@ -49,12 +49,16 @@ export function DeveloperSettings({ onVersionModeChange }: { onVersionModeChange
     <Notification message={error} kind="error" onClose={() => setError('')} /><Notification message={message} onClose={() => setMessage('')} />
     {data && config && <fieldset disabled={busy}>
       <p className="fine">운영 버전 <span className="mono">{data.active_version}</span></p>
+      <label>신규 분석 방식<select value={config.evaluation_mode} onChange={e => limits({ evaluation_mode: e.target.value as Pipeline['evaluation_mode'] })}>
+        <option value="per_video">영상별 직접 평가 → 항목별 결과 병합</option><option value="legacy">기존 관찰 요약 → 분기별 평가 (비교용)</option>
+      </select></label>
+      <p className="fine">영상별 방식은 각 영상에 전체 평가표를 제공합니다. 선택지가 다른 항목만 영상별 한 차례 재검토하며, 해결되지 않으면 보류합니다. 기존 방식 단계의 설정은 영상별 평가에 사용하지 않습니다.</p>
       <div className="form-grid"><label>저장 버전<select value={version} onChange={e => { const id = e.target.value; if (id) void work(() => selectVersion(id)); }}>
         <option value="">편집 중인 새 초안</option>{data.versions.map(v => <option key={v.version} value={v.version}>{v.created_at.slice(0, 19)} · {v.version.slice(0, 8)} · {v.actor}</option>)}
       </select></label><label>편집 단계<select value={stage} onChange={e => setStage(e.target.value as Stage)}>
         {Object.entries(stages).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
       </select></label></div>
-      <div className="form-grid"><label>단계 공급자<select value={config[stage].provider} onChange={e => edit({ provider: e.target.value, model: '' })} disabled={stage === 'observe'}>
+      <div className="form-grid"><label>단계 공급자<select value={config[stage].provider} onChange={e => edit({ provider: e.target.value, model: '' })} disabled={stage === 'observe' || stage === 'video'}>
         <option value="gemini">Gemini</option><option value="openai">GPT · OpenAI</option><option value="anthropic">Claude · Anthropic</option>
       </select></label><label>단계 모델 ID<input value={config[stage].model} maxLength={150} onChange={e => edit({ model: e.target.value })} /></label>
       <label>최대 출력 토큰<input type="number" min={256} max={65536} value={config[stage].max_output_tokens} onChange={e => edit({ max_output_tokens: Number(e.target.value) })} /></label></div>

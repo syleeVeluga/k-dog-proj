@@ -69,7 +69,9 @@ def summarize(store, *, event_id=None, prices=None):
         records = []
         config = json.loads(run["config_snapshot_json"])
         for step in by_run[run["run_id"]]:
-            if step["stage"] not in ("observe", "evaluate", "report"):
+            if step["stage"] not in ("observe", "review_video", "evaluate", "report"):
+                continue
+            if json.loads(step["usage_json"]).get("program_merge"):
                 continue
             if not step["call_reserved"]:
                 if json.loads(step["usage_json"]).get("reused"):
@@ -79,10 +81,10 @@ def summarize(store, *, event_id=None, prices=None):
                 continue  # Reused artifacts retain source usage; never charge it twice.
             reserved_count += 1
             usage = json.loads(step["usage_json"])
-            selected = config if step["stage"] == "observe" else (
+            selected = config if step["stage"] in ("observe", "review_video") else (
                 config.get("report", {}) if step["stage"] == "report" else
                 config.get("evaluation", {}).get(step["branch_key"], {}))
-            provider = usage.get("provider", selected.get("provider", "gemini" if step["stage"] == "observe" else "unknown"))
+            provider = usage.get("provider", selected.get("provider", "gemini" if step["stage"] in ("observe", "review_video") else "unknown"))
             model = usage.get("model", selected.get("model", "unknown"))
             meters = token_meters(usage)
             uncertain = bool(usage.get("billing_uncertain")) or step["status"] in ("running", "abandoned")

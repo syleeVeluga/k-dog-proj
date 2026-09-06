@@ -39,11 +39,14 @@ def session_snapshot(row):
 
 def related_input(row):
     manifest, session = session_snapshot(row)
+    config = json.loads(row["config_snapshot_json"])
+    if config.get("evaluation_mode") == "legacy":
+        config.pop("evaluation_mode")
     return {"case_id": manifest.case_id, "session_id": session.session_id,
             "videos": [video.model_dump() for video in session.videos],
             "capture_mode": session.capture_mode, "route_note": session.route_note,
             **({"checklist": session.checklist} if session.checklist else {}),
-            "config": {key: value for key, value in json.loads(row["config_snapshot_json"]).items()
+            "config": {key: value for key, value in config.items()
                        if key not in ("evaluation", "report", "behavior_catalog", "survey_catalog", "scoring_rules",
                                       "settings_version", "evaluation_concurrency", "max_ai_calls", "max_attempts")}}
 
@@ -75,7 +78,7 @@ def step_payload(store, row, step, *, recover=False):
     return result["payload"]
 
 
-def validated_observation(payload, run_input, video_id, source_run_id=None):
+def validated_observation(payload, run_input, video_id, source_run_id=None, *, catalog=None, expected_items=None):
     artifact = ObservationArtifact.model_validate_json(encode(payload))
     origin = source_run_id or run_input.run_id
     if artifact.run_id != origin or artifact.video_id != video_id:
@@ -86,6 +89,15 @@ def validated_observation(payload, run_input, video_id, source_run_id=None):
     # Only an already checked, explicit manifest entry may use another source run.
     rebound = tuple(item.model_copy(update={"run_id": run_input.run_id}) for item in artifact.evidence)
     validate_evidence(run_input, rebound)
+    from app.video_evaluation import VERSION, validate_items
+    if run_input.pipeline_version == VERSION:
+        from app.domain.contracts import BEHAVIOR_IDS
+        if catalog is None:
+            raise ValueError("video assessment requires frozen catalog")
+        expected = BEHAVIOR_IDS if expected_items is None else expected_items
+        if set(artifact.review_item_ids) != (set() if expected_items is None else set(expected_items)):
+            raise ValueError("video review scope mismatch")
+        validate_items(artifact, run_input, catalog, expected)
     return artifact
 
 
@@ -158,14 +170,15 @@ def enqueue(store: Store, case_id, value, actor):
                 raise HTTPException(409, "재사용할 미디어 검사 결과가 없습니다.")
             prepared = validated_prepared(source, step_payload(store, source, prepared_step))
             for step in db.execute("SELECT * FROM steps WHERE run_id=? AND stage='observe' AND status='succeeded'", (source["run_id"],)):
-                validated_observation(step_payload(store, source, step), prepared.run_input, step["branch_key"])
+                validated_observation(step_payload(store, source, step), prepared.run_input, step["branch_key"],
+                                      catalog=BehaviorCatalog.model_validate_json(encode(config["behavior_catalog"])))
                 reuse.append({"source_run_id": source["run_id"], "step_id": step["step_id"],
                               "video_id": step["branch_key"], "output_ref": step["output_ref"],
                               "output_hash": step["output_hash"], "related_hash": digest(related_input(source))})
             if not reuse:
                 raise HTTPException(409, "재사용할 성공 관찰이 없습니다.")
             # Reuse evaluation only when every camera observation is directly reusable.
-            if {entry["video_id"] for entry in reuse} == {m.video_id for m in prepared.media}:
+            if config.get("evaluation_mode") != "per_video" and {entry["video_id"] for entry in reuse} == {m.video_id for m in prepared.media}:
                 source_evidence = tuple(e for artifact in observations(store, db, source, prepared) for e in artifact.evidence)
                 source_config = json.loads(source["config_snapshot_json"])
                 for step in db.execute("SELECT * FROM steps WHERE run_id=? AND stage='evaluate' AND status='succeeded'", (source["run_id"],)):
@@ -263,6 +276,8 @@ def adopt(store, row, step, ref, output_hash, usage):
 
 def observations(store, db, row, prepared):
     output = []
+    config = json.loads(row["config_snapshot_json"])
+    catalog = BehaviorCatalog.model_validate_json(encode(config["behavior_catalog"])) if config.get("direct_video") else None
     for entry in json.loads(row["reuse_manifest_json"]):
         if entry.get("stage", "observe") != "observe":
             continue
@@ -275,9 +290,15 @@ def observations(store, db, row, prepared):
         if not source or not step or (step["output_ref"], step["output_hash"]) != (entry["output_ref"], entry["output_hash"]):
             raise HTTPException(409, "재사용 산출물 연결이 일치하지 않습니다.")
         output.append(validated_observation(step_payload(store, source, step), prepared.run_input,
-                                            entry["video_id"], entry["source_run_id"]))
+                                            entry["video_id"], entry["source_run_id"], catalog=catalog))
     for step in db.execute("SELECT * FROM steps WHERE run_id=? AND stage='observe' AND status='succeeded' ORDER BY branch_key", (row["run_id"],)):
-        output.append(validated_observation(step_payload(store, row, step), prepared.run_input, step["branch_key"]))
+        output.append(validated_observation(step_payload(store, row, step), prepared.run_input, step["branch_key"], catalog=catalog))
+    if config.get("direct_video"):
+        from app.video_evaluation import conflicts
+        review_ids = conflicts(output)
+        for step in db.execute("SELECT * FROM steps WHERE run_id=? AND stage='review_video' AND status='succeeded' ORDER BY branch_key", (row["run_id"],)):
+            output.append(validated_observation(step_payload(store, row, step), prepared.run_input, step["branch_key"],
+                                                catalog=catalog, expected_items=review_ids))
     ids = [item.evidence_id for artifact in output for item in artifact.evidence]
     if len(ids) != len(set(ids)):
         raise ValueError("duplicate evidence")
@@ -315,6 +336,8 @@ def view_analysis(store, case_id):
             ready = next((step for step in steps if step["stage"] == "prepare" and step["status"] == "succeeded"), None)
             prepared, artifacts, evaluations, scores, survey = None, [], [], None, None
             config = json.loads(row["config_snapshot_json"])
+            _, run_session = session_snapshot(row)
+            video_names = {v.video_id: v.original_name for v in run_session.videos}
             if "evaluation" in config:
                 if config["scoring_rules"] != RULES:
                     raise HTTPException(409, "이 실행의 계산 규칙 버전을 현재 코드에서 지원하지 않습니다.")
@@ -344,20 +367,23 @@ def view_analysis(store, case_id):
                                 retry_at=s["retry_at"], usage=json.loads(s["usage_json"])) for s in steps],
                 evidence=[item for artifact in artifacts for item in artifact.evidence],
                 media=prepared.media if prepared else [], media_errors=prepared.errors if prepared else {},
-                unconfirmed_conditions=[flag for artifact in artifacts for flag in artifact.unconfirmed_conditions],
+                unconfirmed_conditions=[(f"{video_names[artifact.video_id]}: {flag}" if config.get("direct_video") else flag)
+                                        for artifact in artifacts for flag in artifact.unconfirmed_conditions],
                 evaluations=evaluations, scores=scores, survey_scores=survey,
-                behavior_items=list(catalog.items) if evaluations else [],
+                behavior_items=list(catalog.items) if ready and "evaluation" in config else [],
+                evaluation_mode=config.get("evaluation_mode", "legacy"),
+                video_assessments=[a for a in artifacts if a.video_items],
                 reused_from=sorted({entry["source_run_id"] for entry in json.loads(row["reuse_manifest_json"])})))
     from app.settings import current
     from app.secrets import available
     try:
         with store.connect() as db:
             _, selected = current(store, db)
-        ready = bool(selected.observe.model and available(store, "gemini"))
+        ready = bool((selected.video if selected.evaluation_mode == "per_video" else selected.observe).model and available(store, "gemini"))
     except (HTTPException, OSError, ValueError):
         # Broken current settings must not hide already validated historical results.
         ready = False
-    return AnalysisView(configured=ready, message="관찰 설정 준비됨 · 평가 공급자 연결은 각 분기 실행 시 확인합니다." if ready
+    return AnalysisView(configured=ready, message="영상 분석 설정 준비됨 · 실행별 평가 방식과 연결 설정을 사용합니다." if ready
                         else "개발자 설정 필요 · Gemini 모델과 키를 설정한 worker가 필요합니다.", runs=result)
 
 

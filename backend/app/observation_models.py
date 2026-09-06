@@ -8,6 +8,7 @@ from app.domain.contracts import BehaviorId, Evidence, RunInput
 from app.input_models import Key, Model, Revision
 from app.domain.contracts import CatalogItem, ScoreResult
 from app.evaluation_models import EvaluationArtifact, SurveyResult
+from app.video_models import VideoDecision, VideoItem
 
 
 SEGMENTS = ("entry", "separation", "reunion", "training", "play", "exit", "unknown")
@@ -32,6 +33,10 @@ class Observation(Model):
 class ObservationResponse(Model):
     observations: Annotated[list[Observation], Field(max_length=2000)]
     unconfirmed_conditions: Annotated[list[str], Field(max_length=100)]
+
+
+class VideoResponse(ObservationResponse):
+    items: Annotated[list[VideoDecision], Field(min_length=1, max_length=55)]
 
 
 class MediaInfo(Model):
@@ -60,6 +65,8 @@ class ObservationArtifact(Model):
     evidence: list[Evidence]
     unconfirmed_conditions: list[str]
     usage: dict[str, int | str | bool]
+    video_items: list[VideoItem] = []
+    review_item_ids: list[BehaviorId] = []
 
 
 class StepView(Model):
@@ -88,6 +95,8 @@ class RunView(Model):
     scores: ScoreResult | None = None
     survey_scores: SurveyResult | None = None
     behavior_items: list[CatalogItem] = []
+    evaluation_mode: str = "legacy"
+    video_assessments: list[ObservationArtifact] = []
 
 
 class AnalysisView(Model):

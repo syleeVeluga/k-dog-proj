@@ -13,7 +13,7 @@ from app.input_models import Model
 from app.storage import encode, now, uid
 
 
-Stage = Literal["observe", "dog", "owner", "report"]
+Stage = Literal["observe", "dog", "owner", "report", "video"]
 
 
 class StageConfig(Model):
@@ -28,6 +28,8 @@ class Pipeline(Model):
     dog: StageConfig
     owner: StageConfig
     report: StageConfig
+    video: StageConfig | None = None
+    evaluation_mode: Literal["per_video", "legacy"] = "per_video"
     fps: Annotated[float, Field(gt=0, le=10)] = 1.0
     max_attempts: Annotated[int, Field(ge=1, le=3)] = 3
     evaluation_concurrency: Literal[1, 2] = 2
@@ -37,6 +39,12 @@ class Pipeline(Model):
     def observation_provider(self):
         if self.observe.provider != "gemini" or self.observe.model and not self.observe.model.startswith("gemini-"):
             raise ValueError("관찰은 Gemini 모델만 지원합니다.")
+        if self.video is None:
+            from app.video_evaluation import PROMPT
+            self.video = StageConfig(provider="gemini", model=self.observe.model, prompt=PROMPT,
+                                     max_output_tokens=self.observe.max_output_tokens)
+        if self.video.provider != "gemini" or self.video.model and not self.video.model.startswith("gemini-"):
+            raise ValueError("영상별 직접 평가는 Gemini 모델만 지원합니다.")
         return self
 
 
@@ -177,16 +185,18 @@ def activate(store, version, value, actor):
         if previous != value.expected_active:
             raise HTTPException(409, "운영 버전이 변경되었습니다. 새로 조회하세요.")
         config = load(store, db, version)
-        if any(not getattr(config, stage).model for stage in ("observe", "dog", "owner", "report")):
+        stages = ("video", "report") if config.evaluation_mode == "per_video" else ("observe", "dog", "owner", "report")
+        if any(not getattr(config, stage).model for stage in stages):
             raise HTTPException(422, "각 단계 모델을 지정하세요.")
         store.audit(db, actor, version, "settings.activate", {"version": version, "previous": previous})
     return {"active_version": version}
 
 
 def apply_snapshot(store, db, snapshot):
-    if active(db) == "legacy":
-        return
     version, config = current(store, db)
+    snapshot["evaluation_mode"] = config.evaluation_mode
+    if config.evaluation_mode == "legacy" and version == "legacy":
+        return
     # Hash only the relevant stage contents so unrelated edits do not invalidate reuse.
     def stage(value):
         data = value.model_dump()
@@ -199,6 +209,11 @@ def apply_snapshot(store, db, snapshot):
                     evaluation_concurrency=config.evaluation_concurrency, max_ai_calls=config.max_ai_calls)
     snapshot["evaluation"] = {branch: stage(getattr(config, branch)) for branch in ("dog", "owner")}
     snapshot["report"] = stage(config.report)
+    if config.evaluation_mode == "per_video":
+        from app.video_evaluation import VERSION
+        video = stage(config.video)
+        snapshot.update(video)
+        snapshot.update(pipeline_version=VERSION, config_version=video["prompt_version"], direct_video=True)
 
 
 def trial(store, version, value, actor):
