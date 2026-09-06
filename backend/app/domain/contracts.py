@@ -246,6 +246,9 @@ class DomainScore(Contract):
     maximum: float | None
     valid_count: Annotated[int, Field(ge=0)]
     target_count: Annotated[int, Field(gt=0)]
+    direction: Direction = None
+    direction_a_sum: float = 0.0
+    direction_b_sum: float = 0.0
 
     @model_validator(mode="after")
     def valid_denominator(self) -> Self:

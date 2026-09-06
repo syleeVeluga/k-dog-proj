@@ -65,6 +65,13 @@ details details { border-top: 1px solid #eaeaea; padding-top: 12px; }
 .video-row { padding: 16px 0; border-bottom: 1px solid #eaeaea; }
 .video-row strong { overflow-wrap: anywhere; }
 video { width: 100%; max-height: 420px; margin: 20px 0; background: #292c29; }
+.scores { border-top: 1px solid #eaeaea; margin-top: 24px; padding-top: 16px; }
+.score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 18px 0; }
+.score-card { padding: 16px; background: #f5f6f2; font-size: 13px; }
+.score-card p { margin: 10px 0; }
+.score-card small { line-height: 1.6; }
+.score-item { padding: 12px 0; overflow-wrap: anywhere; }
+.survey-values { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); font-size: 13px; }
 .questions { margin-bottom: 28px; }
 .questions label { display: grid; grid-template-columns: 1fr 110px; align-items: center; padding: 16px 0; border-bottom: 1px solid #eaeaea; gap: 24px; font-weight: 400; }
 .questions b { font-size: 11px; color: #6c7167; margin-right: 12px; }

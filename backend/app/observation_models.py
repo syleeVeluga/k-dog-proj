@@ -6,6 +6,8 @@ from pydantic import Field
 
 from app.domain.contracts import BehaviorId, Evidence, RunInput
 from app.input_models import Key, Model, Revision
+from app.domain.contracts import CatalogItem, ScoreResult
+from app.evaluation_models import EvaluationArtifact, SurveyResult
 
 
 SEGMENTS = ("entry", "separation", "reunion", "training", "play", "exit", "unknown")
@@ -82,6 +84,10 @@ class RunView(Model):
     media_errors: dict[str, str]
     unconfirmed_conditions: list[str]
     reused_from: list[str]
+    evaluations: list[EvaluationArtifact] = []
+    scores: ScoreResult | None = None
+    survey_scores: SurveyResult | None = None
+    behavior_items: list[CatalogItem] = []
 
 
 class AnalysisView(Model):

@@ -1,6 +1,7 @@
 """Single DB-backed worker; requests only enqueue, browser lifetime is irrelevant."""
 
 from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import threading
@@ -10,9 +11,11 @@ from fastapi import HTTPException
 
 from app.analysis import (
     adopt, check_access, claim, guard, later, observations, session_snapshot,
-    step_payload, validated_observation, validated_prepared, write_output,
+    step_payload, validated_observation, validated_prepared, write_output, evaluation_reuse,
 )
-from app.domain.contracts import Evidence, RunInput, VideoReference
+from app.domain.contracts import BehaviorCatalog, Evidence, RunInput, SurveyCatalog, VideoReference
+from app.evaluation import Evaluator, evaluation_context, make_evaluation, validated_evaluation
+from app.scoring import RULES, survey_scores
 from app.gemini import GeminiObserver, ProviderError
 from app.media import MediaError, inspect_media
 from app.observation_models import ObservationArtifact, PreparedInput
@@ -40,11 +43,12 @@ def heartbeat(store, row):
 
 
 class Worker:
-    def __init__(self, store, *, observer=None, probe=inspect_media):
+    def __init__(self, store, *, observer=None, evaluator=None, probe=inspect_media):
         self.store = store
         # Injection is only a Python test seam; CLI/API never offer a fake provider.
         self.observer = observer if observer is not None else GeminiObserver()
         self.probe = probe
+        self.evaluator = evaluator if evaluator is not None else Evaluator()
 
     def check(self, row):
         return guard(self.store, row["run_id"], row["claim_token"])
@@ -71,18 +75,19 @@ class Worker:
                 self.check(row)
                 with self.store.connect(write=True) as db:
                     db.execute("UPDATE steps SET status='abandoned',usage_json=?,updated_at=? WHERE step_id=? AND status='running'",
-                               (encode({"code": "worker_interrupted", "billing_uncertain": stage == "observe"}), now(), previous["step_id"]))
+                               (encode({"code": "worker_interrupted", "billing_uncertain": stage in ("observe", "evaluate")}), now(), previous["step_id"]))
         attempt = previous["attempt"] + 1 if previous else 1
         if attempt > 3:
             return None
         if previous and previous["status"] == "retry_wait" and previous["retry_at"] > now():
             return None
         # Schema repair has its own one-repair cap inside the shared three-attempt budget.
-        if stage == "observe":
+        schema_code = "evaluation_schema_invalid" if stage == "evaluate" else "observation_schema_invalid"
+        if stage in ("observe", "evaluate"):
             with self.store.connect() as db:
                 history = [json.loads(s[0]) for s in db.execute(
                     "SELECT usage_json FROM steps WHERE run_id=? AND stage=? AND branch_key=?", (row["run_id"], stage, branch))]
-            if sum(s.get("code") == "observation_schema_invalid" for s in history) >= 2:
+            if sum(s.get("code") == schema_code for s in history) >= 2:
                 return None
         with self.store.connect(write=True) as db:
             current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
@@ -103,9 +108,9 @@ class Worker:
         except ProviderError as exc:
             usage = {**exc.usage, "code": exc.code, "billing_uncertain": exc.uncertain}
             with self.store.connect() as db:
-                schema_failures = sum(json.loads(s[0]).get("code") == "observation_schema_invalid" for s in db.execute(
+                schema_failures = sum(json.loads(s[0]).get("code") == schema_code for s in db.execute(
                     "SELECT usage_json FROM steps WHERE run_id=? AND stage=? AND branch_key=?", (row["run_id"], stage, branch)))
-            retry = exc.retryable and attempt < 3 and not (exc.code == "observation_schema_invalid" and schema_failures >= 1)
+            retry = exc.retryable and attempt < 3 and not (exc.code == schema_code and schema_failures >= 1)
             self.fail(row, step, "retry_wait" if retry else "failed", usage,
                       later(max(exc.delay, 10 * 2 ** (attempt - 1))) if retry else None)
         except MediaError as exc:
@@ -146,7 +151,7 @@ class Worker:
                        participant_id=manifest.participant_id, session_id=row["session_id"],
                        input_revision=row["input_revision"], catalog_version=config["catalog_version"],
                        pipeline_version=config["pipeline_version"], prompt_version=config["prompt_version"],
-                       config_version=config["config_version"], scoring_rule_version="pending-v1",
+                       config_version=config["config_version"], scoring_rule_version=config.get("scoring_rules", {}).get("version", "pending-v1"),
                        report_mapping_version="pending-v1", survey=session.survey, videos=tuple(videos))
         return PreparedInput(run_input=run, media=media, errors=errors).model_dump(mode="json")
 
@@ -180,10 +185,24 @@ class Worker:
         return artifact.model_dump(mode="json")
 
     def process(self, row):
+        config = json.loads(row["config_snapshot_json"])
+        if "evaluation" in config:
+            if config["scoring_rules"] != RULES:
+                raise ValueError("unsupported scoring rules snapshot")
+            _, session = session_snapshot(row)
+            survey = survey_scores(row["run_id"], session.survey, SurveyCatalog.model_validate_json(encode(config["survey_catalog"])))
+            survey_payload = survey.model_dump(mode="json")
+
+            def validate_survey(payload):
+                if payload != survey_payload:
+                    raise ValueError("survey result mismatch")
+                return survey
+
+            self.stage(row, "survey", "session", validate_survey, lambda step: survey_payload)
         prepared = self.stage(row, "prepare", "session", lambda p: validated_prepared(row, p),
                               lambda step: self.prepare(row, step))
         if prepared:
-            reused = {entry["video_id"] for entry in json.loads(row["reuse_manifest_json"])}
+            reused = {entry["video_id"] for entry in json.loads(row["reuse_manifest_json"]) if entry.get("stage", "observe") == "observe"}
             with self.store.connect() as db:
                 observations(self.store, db, row, prepared)
             for info in prepared.media:
@@ -215,7 +234,21 @@ class Worker:
                         raise ValueError("evidence bundle does not match adopted observations")
                     return payload
 
-                self.stage(row, "integrate", "session", validate_bundle, lambda step: bundle)
+                integrated = self.stage(row, "integrate", "session", validate_bundle, lambda step: bundle)
+                if integrated and "evaluation" in config:
+                    catalog = BehaviorCatalog.model_validate_json(encode(config["behavior_catalog"]))
+                    allowed = tuple(e for a in artifacts for e in a.evidence)
+
+                    def evaluate_branch(branch):
+                        return self.stage(row, "evaluate", branch,
+                            lambda p: validated_evaluation(p, prepared.run_input, branch, catalog, allowed),
+                            lambda step: self.evaluate(row, step, prepared.run_input, branch, catalog, allowed, bundle))
+
+                    # Each task adopts its own output before the other future is awaited.
+                    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="kdog-evaluate") as executor:
+                        futures = [executor.submit(evaluate_branch, branch) for branch in ("dog", "owner")]
+                        for future in futures:
+                            future.result()
         self.check(row)
         with self.store.connect(write=True) as db:
             current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
@@ -234,12 +267,31 @@ class Worker:
             elif prepared.errors or any(s["status"] != "succeeded" for s in latest.values()):
                 status = "partial_failed"
             else:
-                status = "observed"
+                status = "scored" if "evaluation" in config else "observed"
             # Never change cases.display_run_id at completion (F-04).
             integrated = latest.get(("integrate", "session"))
             db.execute("UPDATE runs SET status=?,result_ref=?,result_hash=?,claim_token=NULL,lease_expires_at=NULL,updated_at=? WHERE run_id=? AND claim_token=?",
                        (status, integrated["output_ref"] if integrated else None, integrated["output_hash"] if integrated else None,
                         now(), row["run_id"], row["claim_token"]))
+
+    def evaluate(self, row, step, run, branch, catalog, evidence, bundle):
+        reused = evaluation_reuse(self.store, row, branch, run, catalog, evidence)
+        if reused:
+            return reused.model_dump(mode="json")
+        config = json.loads(row["config_snapshot_json"])["evaluation"][branch]
+        context = evaluation_context(branch, catalog, bundle)
+        with self.store.connect() as db:
+            failures = [json.loads(s[0]) for s in db.execute("SELECT usage_json FROM steps WHERE run_id=? AND stage='evaluate' AND branch_key=? ORDER BY attempt",
+                                                           (row["run_id"], branch))]
+        if any(f.get("code") == "evaluation_schema_invalid" for f in failures):
+            context["repair"] = "이전 응답의 항목 집합·선택지·근거·상태 연결 검증에 실패했습니다. 제공된 ID와 스키마만 사용해 전체 분기를 다시 반환하세요."
+        response, usage = self.evaluator.evaluate(config, context, lambda: self.check(row))
+        try:
+            artifact = make_evaluation(response, usage, run, branch, catalog, evidence)
+            validated_evaluation(artifact.model_dump(mode="json"), run, branch, catalog, evidence)
+        except ValueError:
+            raise ProviderError("evaluation_schema_invalid", retryable=True, usage=usage) from None
+        return artifact.model_dump(mode="json")
 
     def once(self):
         row = claim(self.store)

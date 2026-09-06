@@ -55,12 +55,15 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def request(method, url, key, *, data=None, headers=None):
+def request(method, url, key, *, data=None, headers=None, provider="gemini"):
     # Upload URLs are credentials too. Accept only the fixed provider origin.
     parsed = urlsplit(url)
-    if parsed.scheme != "https" or parsed.netloc != "generativelanguage.googleapis.com":
+    hosts = {"gemini": "generativelanguage.googleapis.com", "openai": "api.openai.com", "anthropic": "api.anthropic.com"}
+    if parsed.scheme != "https" or parsed.netloc != hosts.get(provider):
         raise ProviderError("provider_response_invalid")
-    outgoing = {"x-goog-api-key": key, **(headers or {})}
+    authentication = {"gemini": {"x-goog-api-key": key}, "openai": {"Authorization": f"Bearer {key}"},
+                      "anthropic": {"x-api-key": key, "anthropic-version": "2023-06-01"}}
+    outgoing = {**authentication[provider], **(headers or {})}
     if isinstance(data, dict):
         data = json.dumps(data, ensure_ascii=False).encode("utf-8")
         outgoing["Content-Type"] = "application/json"

@@ -2,7 +2,7 @@
 
 ## 현재 실행 범위
 
-M2까지 인증·입력·영상 검사·Gemini 관찰·근거 조회를 실행할 수 있다. React 빌드를 FastAPI에서 제공하며 SQLite와 별도 worker를 사용한다. 실제 Gemini 호출·영상 품질은 샘플 제공 후 검증할 예정이다. Python 3.14, Node.js 24, `uv`와 npm, FFmpeg/ffprobe를 사용한다. 명령은 저장소 루트에서 시작한다.
+M3까지 인증·입력·영상 검사·Gemini 관찰·반려견/보호자 병렬 평가·프로그램 점수 집계·근거 조회를 실행할 수 있다. React 빌드를 FastAPI에서 제공하며 SQLite와 별도 worker를 사용한다. 실제 공급자 호출·관찰/평가 품질은 샘플 제공 후 검증할 예정이다. Python 3.14, Node.js 24, `uv`와 npm, FFmpeg/ffprobe를 사용한다. 명령은 저장소 루트에서 시작한다.
 
 ## 앱 최초 실행
 
@@ -22,6 +22,8 @@ uv run --locked python -X utf8 -m app.manage serve
 ## 검증
 
 M2는 서버와 별도로 `backend/`에서 `uv run --locked python -X utf8 -m app.manage worker`를 실행한다. 모델·키 환경 설정, FFmpeg 버전, 재시도·재사용·복구와 실 API 미검증 범위는 [M2 실행·검증 기록](K-DOG_M2_구현기록_v1.0_20260906.md)을 따른다. 키가 없을 때 가상 결과로 자동 전환하지 않는다.
+
+M3는 같은 worker에서 두 평가 분기를 병렬 실행한다. 개발자 화면의 **분기별 평가 공급자**에서 Gemini/GPT/Claude와 모델을 선택한다. 설정은 신규 run부터 고정하며, 키는 선택 공급자의 worker 환경 변수에서 읽는다. 계산 규칙·부분 결과·평가 재사용·보수적 보류 항목은 [M3 실행·검증 기록](K-DOG_M3_구현기록_v1.0_20260906.md)을 따른다.
 
 저장소 루트에서 시작한다.
 
@@ -61,7 +63,7 @@ uv run --locked python -X utf8 -m app.import_catalogs --source-dir "D:/reference
 
 `app.domain.contracts`의 `model_validate_json()`으로 요청·저장 파일을 검증한 뒤 `app.domain.validation`의 문맥 검증을 호출한다. 구조 검사만으로 영상 소속·시간·근거 참조를 검증했다고 간주하지 않는다. 카탈로그는 서버가 제공하는 신뢰된 파일만 사용하며 사용자 업로드를 `excel_verified`로 받아들이지 않는다.
 
-`resolve_branch_scores()`는 확정 선택지의 점수 조회만 수행한다. 행동 자동 판정, 미정 경계 해결, 영역 평균/역채점/반올림 실행기는 M3에서 구현한다. q23 원응답은 보존하고 `resources/rules/pending-v1.json`의 미정 상태를 임의 계산으로 대체하지 않는다.
+`resolve_branch_scores()`는 확정 선택지의 점수 조회만 수행한다. M3 `app.evaluation`은 관찰 근거의 선택지 평가, `app.scoring`은 `resources/rules/scoring-v1.json`에 따른 영역 평균/역채점/반올림을 수행한다. q23 원응답은 보존하고 `resources/rules/pending-v1.json`의 미정 상태를 임의 계산으로 대체하지 않는다. DOG-12·OWN-14는 현재 선택 시간 계약의 한계로 채점을 보류한다.
 
 RunInput의 `frozen`은 필드 재할당을 막지만 내부 dict까지 동결하지 않는다. 저장 계층은 검증 후 직렬화한 JSON을 불변 입력 파일로 저장하고 수정 시 새 revision을 만든다. M1의 `intake-1.0` manifest와 M2의 검사된 RunInput은 분리하며, 검사된 입력은 성공 prepare 산출물에 고정한다. 기본 도메인 검증은 새 run 자체의 관찰만 허용한다. `app.analysis`가 같은 참가자·세션·관련 입력/설정 해시와 명시적 reuse manifest를 확인한 경우에만 이전 관찰의 근거 ID를 연결한다.
 

@@ -24,6 +24,7 @@ from app.media import MediaError, inspect_media
 from app.observation_models import MediaInfo, ObservationResponse
 from app.storage import Store, encode, now, uid
 from app.worker import Worker
+from tests.evaluation_fixtures import FakeEvaluator
 
 
 def fake_probe(path, video, prepared_path, prepared_ref):
@@ -77,7 +78,7 @@ class ObservationTests(unittest.TestCase):
             self.assertEqual(result.status_code, 201, result.text)
             self.item = result.json()
         self.observer = FakeObserver()
-        self.worker = Worker(self.store, observer=self.observer, probe=fake_probe)
+        self.worker = Worker(self.store, observer=self.observer, evaluator=FakeEvaluator(), probe=fake_probe)
 
     def login(self, role):
         self.assertEqual(self.client.post("/api/auth/login", json={"username": role, "password": "Synthetic-test-only-42"}).status_code, 200)
@@ -113,14 +114,14 @@ class ObservationTests(unittest.TestCase):
             return response(), {"model": "synthetic-test-only"}
         self.observer.callback = inspect_partial
         self.assertTrue(self.worker.once())
-        self.assertEqual(self.view()["status"], "observed")
+        self.assertEqual(self.view()["status"], "scored")
         evidence = self.view()["evidence"]
         self.assertEqual(len(evidence), 2)
         self.assertEqual(len({e["evidence_id"] for e in evidence}), 2)
         self.assertTrue(all(e["event_group_id"] is None for e in evidence))
         self.assertFalse(Worker(Store(self.store.root), observer=self.observer, probe=fake_probe).once())
         self.assertEqual(len(self.observer.calls), 2)
-        self.assertEqual(self.client.get(self.base).json()["analysis_status"], "observed")
+        self.assertEqual(self.client.get(self.base).json()["analysis_status"], "scored")
 
     def test_invalid_time_and_silent_audio_have_one_repair_and_three_total_limit(self):
         self.start()
@@ -147,7 +148,7 @@ class ObservationTests(unittest.TestCase):
         self.ready_retries()
         self.observer.callback = None
         self.worker.once()
-        self.assertEqual(self.view()["status"], "observed")
+        self.assertEqual(self.view()["status"], "scored")
         self.assertEqual(len(self.observer.calls), 3)
 
     def test_other_camera_retry_does_not_repeat_permanent_failure(self):
@@ -164,7 +165,7 @@ class ObservationTests(unittest.TestCase):
         self.assertEqual(self.view()["status"], "partial_failed")
         self.assertEqual(self.client.post(self.base + f"/analysis/{run_id}/retry").status_code, 200)
         self.worker.once()
-        self.assertEqual(self.view()["status"], "observed")
+        self.assertEqual(self.view()["status"], "scored")
 
     def test_queued_withdrawal_and_inflight_deletion_fence_late_results(self):
         self.start()
@@ -217,7 +218,7 @@ class ObservationTests(unittest.TestCase):
         self.item = saved.json()
         self.start(reuse_run_id=run_id)
         self.worker.once()
-        self.assertEqual(self.view()["status"], "observed")
+        self.assertEqual(self.view()["status"], "scored")
         self.assertEqual(self.view()["evidence"], evidence)
         self.assertEqual(len(self.observer.calls), 2)
         self.assertEqual(self.view()["reused_from"], [run_id])
@@ -239,13 +240,13 @@ class ObservationTests(unittest.TestCase):
         with self.store.connect(write=True) as db:
             db.execute("UPDATE runs SET lease_expires_at=? WHERE run_id=?", (later(-1), run_id))
         self.worker.once()
-        self.assertEqual(self.view()["status"], "observed")
+        self.assertEqual(self.view()["status"], "scored")
         self.assertEqual(len([s for s in self.view()["steps"] if s["stage"] == "prepare"]), 1)
         with self.assertRaises(HTTPException):
             adopt(self.store, old, step, ref, sha, {})
         with self.assertRaises(FileExistsError):
             write_output(self.store, old, step, {"tampered": True})
-        self.assertEqual(self.view()["status"], "observed")
+        self.assertEqual(self.view()["status"], "scored")
 
     def test_corrupt_success_never_reused_or_recalled_implicitly(self):
         self.start()
@@ -271,7 +272,7 @@ class ObservationTests(unittest.TestCase):
             db.execute("UPDATE runs SET lease_expires_at=? WHERE run_id=?", (later(-1), run_id))
         self.worker.once()
         before = self.view()
-        self.assertEqual(before["status"], "observed")
+        self.assertEqual(before["status"], "scored")
         ref, sha = write_output(self.store, old, step, delayed)
         with self.assertRaises(HTTPException):
             adopt(self.store, old, step, ref, sha, {})

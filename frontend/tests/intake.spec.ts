@@ -83,7 +83,7 @@ test('developer session cannot read participant data and reviewer cannot write',
   expect((await page.request.post('/api/cases', { headers: { 'X-KDOG-Request': '1' }, data: {} })).status()).toBe(403);
 });
 
-test('M2: synthetic observation worker, persisted evidence, replay links and 360px', async ({ page }, testInfo) => {
+test('M3: persisted evaluations, survey scores, evidence links and 360px', async ({ page }, testInfo) => {
   await login(page);
   const request = page.request;
   const headers = { 'X-KDOG-Request': '1' };
@@ -96,23 +96,61 @@ test('M2: synthetic observation worker, persisted evidence, replay links and 360
     const params = new URLSearchParams({ expected_revision: String(item.input_revision), session_id: item.selected_session_id, camera_id: `CAM-${camera}`, filename: 'synthetic.mp4' });
     item = await (await request.post(`${base}/videos?${params}`, { headers, data: Buffer.from(`synthetic fixture ${camera}`) })).json();
   }
+  const session = item.manifest.sessions[0];
+  item = await (await request.put(`${base}/survey`, { headers, data: { expected_revision: item.input_revision,
+    session_id: session.session_id, survey_version: session.survey_version, answers: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`q${String(i + 1).padStart(2, '0')}`, 3])) } })).json();
   await page.reload();
   await page.getByRole('button', { name: '0099 상세 열기' }).click();
-  await page.getByRole('button', { name: '관찰 시작', exact: true }).click();
+  await page.getByRole('button', { name: '분석 시작', exact: true }).click();
   await expect(page.getByText('관찰 근거 2개', { exact: true })).toBeVisible({ timeout: 15000 });
   await expect(page.getByText('가상 관찰: 입장 시 이동', { exact: true })).toHaveCount(2);
+  await expect(page.getByText('반려견 평가 완료', { exact: true })).toBeVisible();
+  await expect(page.getByText('보호자 평가 완료', { exact: true })).toBeVisible();
+  await expect(page.getByText('원 척도 참고 전체값 3.00', { exact: true })).toBeVisible();
+  await page.getByText('설문 30문항 원응답·환산값', { exact: true }).click();
+  await expect(page.getByText('q23 · C · 원응답 3 → 규칙 미정', { exact: true })).toBeVisible();
+  await page.getByText('설문 30문항 원응답·환산값', { exact: true }).click();
   await page.getByRole('button', { name: '원본 근거 재생' }).first().click();
   await expect(page.locator('section[aria-label="영상 관찰"] video')).toHaveAttribute('src', /#t=1,2$/);
   await page.getByRole('button', { name: '근거 재생 닫기' }).click();
-  await page.screenshot({ path: testInfo.outputPath('m2-observations-desktop.png'), fullPage: true, animations: 'disabled' });
+  await page.screenshot({ path: testInfo.outputPath('m3-scores-desktop.png'), fullPage: true, animations: 'disabled' });
   await page.reload();
   await page.getByRole('button', { name: '0099 상세 열기' }).click();
   await expect(page.getByText('관찰 근거 2개', { exact: true })).toBeVisible();
+  await expect(page.getByText('반려견 평가 완료', { exact: true })).toBeVisible();
   await page.setViewportSize({ width: 360, height: 800 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath('m2-observations-mobile.png'), fullPage: true, animations: 'disabled' });
-  await page.getByLabel('외부 AI 전송', { exact: true }).uncheck();
-  await page.getByRole('button', { name: '동의 상태 저장' }).click();
-  await expect(page.getByRole('button', { name: '관찰 시작', exact: true })).toBeDisabled();
+  await page.screenshot({ path: testInfo.outputPath('m3-scores-mobile.png'), fullPage: true, animations: 'disabled' });
+  await page.getByRole('button', { name: '원본 근거 재생' }).first().click();
+  await expect(page.locator('section[aria-label="영상 관찰"] video')).toHaveCount(1);
+  // A different session withdraws consent while this tab keeps a player open.
+  const latest = await (await request.get(base)).json();
+  const withdrawn = await request.put(`${base}/access`, { headers, data: {
+    expected_revision: latest.input_revision, deletion_requested: false,
+    consent: { ...latest.consent, external_ai: false },
+  } });
+  expect(withdrawn.status()).toBe(200);
   await expect(page.getByText('가상 관찰: 입장 시 이동', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('평가·점수 결과', { exact: true })).toHaveCount(0);
+  await expect(page.locator('section[aria-label="영상 관찰"] video')).toHaveCount(0);
+});
+
+test('M3: developer selects independent providers and settings survive reload', async ({ page }, testInfo) => {
+  await login(page, 'developer');
+  await page.getByLabel('반려견 평가 공급자', { exact: true }).selectOption('openai');
+  await page.getByLabel('반려견 평가 모델', { exact: true }).fill('gpt-fixture-only');
+  await page.getByLabel('보호자 평가 공급자', { exact: true }).selectOption('anthropic');
+  await page.getByLabel('보호자 평가 모델', { exact: true }).fill('claude-fixture-only');
+  await page.getByRole('button', { name: '새 실행에 평가 설정 적용' }).click();
+  await expect(page.getByText('새 실행에 적용했습니다. 기존 실행 설정은 보존됩니다.', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel('반려견 평가 공급자', { exact: true })).toHaveValue('openai');
+  await expect(page.getByLabel('보호자 평가 모델', { exact: true })).toHaveValue('claude-fixture-only');
+  await page.screenshot({ path: testInfo.outputPath('m3-developer-settings.png'), fullPage: true, animations: 'disabled' });
+  for (const branch of ['반려견', '보호자']) {
+    await page.getByLabel(`${branch} 평가 공급자`, { exact: true }).selectOption('gemini');
+    await page.getByLabel(`${branch} 평가 모델`, { exact: true }).fill('gemini-test-only');
+  }
+  await page.getByRole('button', { name: '새 실행에 평가 설정 적용' }).click();
+  await expect(page.getByText('새 실행에 적용했습니다. 기존 실행 설정은 보존됩니다.', { exact: true })).toBeVisible();
 });

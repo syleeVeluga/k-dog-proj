@@ -1,0 +1,12 @@
+{
+  "version": "scoring-v1",
+  "source": "K-DOG_AI_처리_파이프라인_v0.1_20260905.md S5 초기 집계안",
+  "behavior": {"mean": "valid_items_only", "maximum": "valid_items_only", "reference_items": "excluded", "direction": "compare_A_B_score_sums_tie_null"},
+  "survey_groups": {"A": ["q01", "q02", "q03", "q04", "q05", "q06"], "C-1": ["q15", "q16", "q17", "q18", "q19", "q20", "q21"], "D": ["q26", "q27", "q28"], "B": ["q09", "q10", "q11", "q12", "q13"]},
+  "reverse_items": ["q22", "q26", "q27", "q28", "q29", "q30"],
+  "comparison_items": ["q07", "q08", "q14", "q25", "q29", "q30"],
+  "overall_groups": ["A", "C-1", "D"],
+  "missing_policy": "required_survey_answer_missing_means_null",
+  "rounding": {"decimal_places": 2, "mode": "ROUND_HALF_UP", "intermediate": "none; round only final displayed values"},
+  "pending": ["q23_conversion_c2", "four_domain_mapping", "cross_type_2_4", "behavior_selection_boundaries"]
+}

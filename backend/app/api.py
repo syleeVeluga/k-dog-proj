@@ -24,6 +24,9 @@ from app.input_models import (
 from app.intake import create_case, new_session, preview, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, require_consent, uid
 from app.observation_models import AnalysisRequest, AnalysisView
+from app.evaluation import KEYS, active_configuration
+from app.evaluation_models import SettingsEdit, SettingsView
+from app.gemini import configuration as observation_configuration
 
 
 COOKIE = "kdog_session"
@@ -39,7 +42,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     store = Store(data_dir or DEFAULT_DATA)
     catalog = SurveyCatalog.model_validate_json((REPO_ROOT / "resources/catalogs/survey-v1.json").read_bytes())
     dummy_password = password_hash(secrets.token_urlsafe(32))
-    app = FastAPI(title="K-DOG M2", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="K-DOG M3", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.store = store
 
     @app.middleware("http")
@@ -86,6 +89,26 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     writer = roles("operator", "admin")
     administrator = roles("admin")
     developer = roles("developer")
+
+    def settings_view(db):
+        version, config = active_configuration(db, observation_configuration()["model"])
+        return SettingsView(version=version, branches={branch: {"provider": c["provider"], "model": c["model"]}
+            for branch, c in config.items()}, key_available={branch: bool(os.environ.get(KEYS.get(c["provider"], ""))) for branch, c in config.items()})
+
+    @app.get("/api/developer/evaluation", response_model=SettingsView)
+    def evaluation_settings(user=Depends(developer)):
+        with store.connect() as db:
+            return settings_view(db)
+
+    @app.put("/api/developer/evaluation", response_model=SettingsView)
+    def save_evaluation_settings(value: SettingsEdit, user=Depends(developer)):
+        with store.connect(write=True) as db:
+            current = settings_view(db)
+            if value.expected_version != current.version:
+                raise HTTPException(409, "평가 설정이 변경되었습니다. 새로고침 후 다시 적용하세요.")
+            version = uid()
+            store.audit(db, user.username, version, "evaluation.configure", {"version": version, "branches": value.branches.model_dump()})
+            return settings_view(db)
 
     @app.post("/api/auth/login", response_model=UserView)
     def login(value: Login, response: Response):
