@@ -103,7 +103,7 @@ test('M3: persisted evaluations, survey scores, evidence links and 360px', async
   await page.getByRole('button', { name: '0099 상세 열기' }).click();
   await page.getByRole('button', { name: '분석 시작', exact: true }).click();
   await expect(page.getByText('관찰 근거 2개', { exact: true })).toBeVisible({ timeout: 15000 });
-  await expect(page.getByText('가상 관찰: 입장 시 이동', { exact: true })).toHaveCount(2);
+  await expect(page.locator('.video-row').getByText('가상 관찰: 입장 시 이동', { exact: true })).toHaveCount(2);
   await expect(page.getByText('반려견 평가 완료', { exact: true })).toBeVisible();
   await expect(page.getByText('보호자 평가 완료', { exact: true })).toBeVisible();
   await expect(page.getByText('원 척도 참고 전체값 3.00', { exact: true })).toBeVisible();

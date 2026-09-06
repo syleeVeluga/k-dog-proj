@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { EvaluationSettings } from './EvaluationSettings';
+import { Exports, ReportSettings } from './Reports';
 import type { FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import { api } from './api';
@@ -91,6 +92,7 @@ function App() {
       <fieldset disabled={busy} className="workspace">
         {user.role === 'developer' ? <section><p className="eyebrow">개발자 전용</p><h1>개발 설정</h1>
           <EvaluationSettings />
+          <ReportSettings />
           <button onClick={() => void run(async () => setNotice((await api<{ message: string }>('/developer/status')).message))}>인증 상태 확인</button>
         </section> : page === 'import' ? <Importer run={run} catalogVersion={catalog?.version ?? ''} done={async message => { setNotice(message); await reload(); }} />
           : page === 'users' ? <Users run={run} />
@@ -102,6 +104,7 @@ function App() {
               <div className="toolbar"><label>검색<input type="search" placeholder="참가자 ID, 반려견 이름, 행사" value={search} onChange={e => setSearch(e.target.value)} /></label>
                 <label>자료 상태<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">전체</option><option value="ready">자료 등록 완료</option><option value="missing">자료 보완 필요</option></select></label>
                 <button onClick={() => void run(() => reload())}>새로고침</button></div>
+              <Exports />
               <div className="table-wrap"><table><thead><tr><th>참가자 / 행사</th><th>반려견</th><th>설문</th><th>영상</th><th>분석 상태</th><th>자료</th></tr></thead>
                 <tbody>{visible.map(c => { const s = sessionOf(c); const count = Object.values(s.survey).filter(v => v !== null).length;
                   return <tr key={c.case_id}><td><strong className="mono">{c.participant_id}</strong><small>{c.event_id}</small></td><td>{c.dog_name}</td>

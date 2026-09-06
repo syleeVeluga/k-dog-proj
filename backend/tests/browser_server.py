@@ -12,6 +12,7 @@ from app.auth import create_user
 from app.input_models import UserCreate
 from app.worker import Worker
 from tests.evaluation_fixtures import FakeEvaluator
+from tests.report_fixtures import FakeReporter
 from tests.test_observation import FakeObserver, fake_probe
 
 
@@ -24,7 +25,7 @@ if __name__ == "__main__":
             for role in ("operator", "reviewer", "developer", "admin"):
                 create_user(db, UserCreate(username=role, password="Browser-test-only-42", role=role))
         stop = threading.Event()
-        worker = Worker(app.state.store, observer=FakeObserver(), evaluator=FakeEvaluator(), probe=fake_probe)
+        worker = Worker(app.state.store, observer=FakeObserver(), evaluator=FakeEvaluator(), reporter=FakeReporter(), probe=fake_probe)
 
         def process_fixtures():
             while not stop.wait(0.1):

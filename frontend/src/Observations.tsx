@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
 import type { Case } from './types';
-import { Scores } from './Scores';
+import { Reports } from './Reports';
 import type { ScoreData } from './Scores';
 
 export const analysisNames: Record<string, string> = {
@@ -81,10 +81,10 @@ export function Observations({ item, writable }: { item: Case; writable: boolean
       {current.reused_from.length > 0 && <p className="fine">기존 성공 관찰 재사용 · 원본 근거 ID 보존</p>}
       {current.media.map(m => <p className="fine" key={m.video_id}>{item.manifest.sessions.flatMap(s => s.videos).find(v => v.video_id === m.video_id)?.camera_id} · {m.duration_sec.toFixed(1)}초 · {m.width}×{m.height} · {m.codec} · {m.audio_status === 'present' ? '오디오 트랙 있음' : '오디오 없음'}</p>)}
       {Object.entries(current.media_errors).map(([id, message]) => <p className="error" key={id}>{message}</p>)}
-      {current.steps.map((s, i) => <p className="fine" key={i}>{s.stage === 'prepare' ? '미디어 검사' : s.stage === 'integrate' ? '근거 통합' : s.stage === 'survey' ? '설문 계산' : s.stage === 'evaluate' ? `${s.branch_key === 'dog' ? '반려견' : '보호자'} 평가` : '카메라 관찰'} · 시도 {s.attempt} · {({ succeeded: '완료', running: '처리 중', failed: '실패', retry_wait: '재시도 대기', abandoned: '중단' } as Record<string, string>)[s.status] ?? s.status}
+      {current.steps.map((s, i) => <p className="fine" key={i}>{s.stage === 'prepare' ? '미디어 검사' : s.stage === 'integrate' ? '근거 통합' : s.stage === 'survey' ? '설문 계산' : s.stage === 'report' ? '리포트 설명' : s.stage === 'evaluate' ? `${s.branch_key === 'dog' ? '반려견' : '보호자'} 평가` : '카메라 관찰'} · 시도 {s.attempt} · {({ succeeded: '완료', running: '처리 중', failed: '실패', retry_wait: '재시도 대기', abandoned: '중단' } as Record<string, string>)[s.status] ?? s.status}
         {s.usage.code && ` · ${errorNames[String(s.usage.code)] ?? s.usage.code}`}{s.retry_at && ` · 재시도 ${new Date(s.retry_at).toLocaleString()}`}
         {s.usage.billing_uncertain === true && ' · 중복 과금 가능'}{s.usage.remote_cleanup_pending === true && ' · 원격 파일 삭제 확인 필요'}</p>)}
-      {(current.survey_scores || current.evaluations.length > 0) && <Scores run={current} play={id => setPlaying(current.evidence.find(e => e.evidence_id === id) ?? null)} />}
+      {(current.survey_scores || current.evaluations.length > 0) && <Reports key={current.run_id} caseId={item.case_id} runId={current.run_id} play={id => setPlaying(current.evidence.find(e => e.evidence_id === id) ?? null)} />}
       <p>관찰 근거 {current.evidence.length}개</p>
       {current.unconfirmed_conditions.map((flag, i) => <p className="fine" key={i}>{flag}</p>)}
       {current.evidence.map(e => <div className="video-row" key={e.evidence_id}><div><strong>{e.camera_id} · {e.source_start_sec.toFixed(2)}–{e.source_end_sec.toFixed(2)}초</strong>

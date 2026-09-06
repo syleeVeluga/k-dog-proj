@@ -1,6 +1,7 @@
 """Local-first M1 API. All participant media is served through authorization."""
 
 import hashlib
+import json
 import os
 from pathlib import Path
 import secrets
@@ -27,6 +28,8 @@ from app.observation_models import AnalysisRequest, AnalysisView
 from app.evaluation import KEYS, active_configuration
 from app.evaluation_models import SettingsEdit, SettingsView
 from app.gemini import configuration as observation_configuration
+from app.report_models import ExportRequest, ExportView, FrameEdit, ReportSettingsEdit, ReportSettingsView, ReportView, ReviewEdit
+from app import exports, reporting
 
 
 COOKIE = "kdog_session"
@@ -42,7 +45,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     store = Store(data_dir or DEFAULT_DATA)
     catalog = SurveyCatalog.model_validate_json((REPO_ROOT / "resources/catalogs/survey-v1.json").read_bytes())
     dummy_password = password_hash(secrets.token_urlsafe(32))
-    app = FastAPI(title="K-DOG M3", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="K-DOG M4", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.store = store
 
     @app.middleware("http")
@@ -89,6 +92,113 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     writer = roles("operator", "admin")
     administrator = roles("admin")
     developer = roles("developer")
+
+    def report_settings_view(db):
+        version, config = reporting.active_report_configuration(db, observation_configuration()["model"])
+        return ReportSettingsView(version=version, selection={"provider": config["provider"], "model": config["model"]},
+            key_available=bool(os.environ.get(KEYS.get(config["provider"], ""))))
+
+    @app.get("/api/developer/report", response_model=ReportSettingsView)
+    def report_settings(user=Depends(developer)):
+        with store.connect() as db:
+            return report_settings_view(db)
+
+    @app.put("/api/developer/report", response_model=ReportSettingsView)
+    def save_report_settings(value: ReportSettingsEdit, user=Depends(developer)):
+        with store.connect(write=True) as db:
+            if report_settings_view(db).version != value.expected_version:
+                raise HTTPException(409, "설명 설정이 변경되었습니다. 새로 조회하세요.")
+            version = uid()
+            store.audit(db, user.username, version, "report.configure", {"version": version, "selection": value.selection.model_dump()})
+            return report_settings_view(db)
+
+    @app.get("/api/cases/{case_id}/reports/{run_id}", response_model=ReportView)
+    def get_report(case_id: Key, run_id: Key, user=Depends(reader)):
+        with store.connect(write=True) as db:
+            return reporting.report_view(store, db, reporting.run_row(store, db, case_id, run_id))
+
+    @app.put("/api/cases/{case_id}/reports/{run_id}", response_model=ReportView)
+    def edit_report(case_id: Key, run_id: Key, value: ReviewEdit, user=Depends(reader)):
+        return reporting.edit_review(store, case_id, run_id, value, user.username)
+
+    @app.post("/api/cases/{case_id}/reports/{run_id}/generate", response_model=Message)
+    def request_report(case_id: Key, run_id: Key, user=Depends(reader)):
+        with store.connect(write=True) as db:
+            row = reporting.run_row(store, db, case_id, run_id)
+            if "report" not in json.loads(row["config_snapshot_json"]):
+                raise HTTPException(409, "M4 설명 설정이 없는 이전 실행입니다. 관찰·평가를 재사용한 새 분석을 시작하세요.")
+            view = reporting.report_view(store, db, row)
+            if len(view.result["evaluations"]) != 2:
+                raise HTTPException(409, "두 평가 분기가 준비된 후 설명을 생성하세요.")
+            if row["status"] in ("queued", "running", "retry_wait"):
+                return Message(message="실행이 처리 중입니다.")
+            if view.status in ("ready", "manual"):
+                return Message(message="현재 점수에 맞는 설명이 준비되어 있습니다.")
+            steps = db.execute("SELECT * FROM steps WHERE run_id=? AND stage='report' AND branch_key=?", (run_id, view.source_hash)).fetchall()
+            if len(steps) >= 3 or sum(json.loads(s["usage_json"]).get("code") == "evaluation_schema_invalid" for s in steps) >= 2:
+                raise HTTPException(409, "설명 시도 한도에 도달했습니다. 수동 설명 수정 또는 새 실행을 사용하세요.")
+            db.execute("UPDATE runs SET status='queued',claim_token=NULL,lease_expires_at=NULL WHERE run_id=?", (run_id,))
+            store.audit(db, user.username, run_id, "report.request", {"source_hash": view.source_hash})
+        return Message(message="설명 생성을 접수했습니다. 점수는 계속 조회할 수 있습니다.")
+
+    @app.put("/api/cases/{case_id}/reports/{run_id}/image", response_model=ReportView)
+    def choose_frame(case_id: Key, run_id: Key, value: FrameEdit, user=Depends(reader)):
+        return reporting.save_frame(store, case_id, run_id, value, user.username)
+
+    @app.get("/api/cases/{case_id}/reports/{run_id}/image")
+    def report_image(case_id: Key, run_id: Key, user=Depends(reader)):
+        with store.connect() as db:
+            reporting.run_row(store, db, case_id, run_id)
+            selected = reporting.revision_state(store, db, run_id)["image"]
+            if not selected:
+                raise HTTPException(404, "대표 이미지가 없습니다.")
+            raw = store.path(selected["ref"]).read_bytes()
+            if hashlib.sha256(raw).hexdigest() != selected["hash"]:
+                raise HTTPException(409, "대표 이미지 해시가 일치하지 않습니다.")
+            reporting.run_row(store, db, case_id, run_id)
+            return Response(raw, media_type="image/png")
+
+    @app.post("/api/exports", response_model=ExportView, status_code=201)
+    def create_export(value: ExportRequest, user=Depends(reader)):
+        return exports.export_view(exports.capture(store, value, user.username))
+
+    @app.get("/api/exports", response_model=list[ExportView])
+    def list_exports(case_id: Key | None = None, user=Depends(reader)):
+        result = []
+        with store.connect() as db:
+            for row in db.execute("SELECT target FROM changes WHERE action='export.snapshot' ORDER BY rowid DESC"):
+                try:
+                    snapshot = exports.load_snapshot(store, db, row["target"])
+                except HTTPException as exc:
+                    if exc.status_code == 403:
+                        continue
+                    raise
+                if case_id and (not snapshot["individual"] or snapshot["members"][0]["case_id"] != case_id):
+                    continue
+                ready = db.execute("SELECT 1 FROM changes WHERE target=? AND action='export.file'", (row["target"],)).fetchone()
+                result.append(exports.export_view(snapshot, "ready" if ready else "snapshot"))
+        return result
+
+    @app.post("/api/exports/{export_id}/generate", response_model=Message)
+    def generate_export(export_id: Key, user=Depends(reader)):
+        exports.generate(store, export_id, user.username)
+        return Message(message="파일이 준비되었습니다.")
+
+    @app.get("/api/exports/{export_id}/file")
+    def download_export(export_id: Key, user=Depends(reader)):
+        with store.connect() as db:
+            snapshot = exports.load_snapshot(store, db, export_id)
+            row = db.execute("SELECT detail_json FROM changes WHERE target=? AND action='export.file' ORDER BY rowid DESC LIMIT 1", (export_id,)).fetchone()
+            if not row:
+                raise HTTPException(409, "파일 생성을 먼저 요청하세요.")
+            link = json.loads(row[0])
+            path = store.path(link["ref"])
+            raw = path.read_bytes()
+            if hashlib.sha256(raw).hexdigest() != link["hash"]:
+                raise HTTPException(409, "내보내기 파일 해시가 일치하지 않습니다.")
+            exports.guard_snapshot(store, db, snapshot)
+            return Response(raw, media_type={".pdf": "application/pdf", ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".zip": "application/zip"}[path.suffix],
+                            headers={"Content-Disposition": f'attachment; filename="kdog-{export_id}{path.suffix}"'})
 
     def settings_view(db):
         version, config = active_configuration(db, observation_configuration()["model"])

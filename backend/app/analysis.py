@@ -43,7 +43,7 @@ def related_input(row):
             "videos": [video.model_dump() for video in session.videos],
             "capture_mode": session.capture_mode, "route_note": session.route_note,
             "config": {key: value for key, value in json.loads(row["config_snapshot_json"]).items()
-                       if key not in ("evaluation", "behavior_catalog", "survey_catalog", "scoring_rules")}}
+                       if key not in ("evaluation", "report", "behavior_catalog", "survey_catalog", "scoring_rules")}}
 
 
 def evaluation_related(row, branch):
@@ -127,6 +127,8 @@ def enqueue(store: Store, case_id, value, actor):
     config["scoring_rules"] = RULES
     with store.connect(write=True) as db:
         _, config["evaluation"] = active_configuration(db, config["model"])
+        from app.reporting import active_report_configuration
+        _, config["report"] = active_report_configuration(db, config["model"])
         case = store.case(db, case_id, expected=value.expected_revision)
         require_consent(case, "video_analysis")
         require_consent(case, "external_ai")

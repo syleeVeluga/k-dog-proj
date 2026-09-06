@@ -47,6 +47,6 @@ export function Scores({ run, play }: { run: ScoreData; play: (id: string) => vo
         <p>{g.status === 'rule_pending' ? '규칙 미정' : `평균 ${value(g.mean)}`}</p><small>{g.target_count === null ? '문항 포함 규칙 미정' : `응답 ${g.valid_count}/${g.target_count}`}</small></div>)}</div>
       <details><summary>설문 30문항 원응답·환산값</summary><div className="survey-values">{run.survey_scores.items.map(q => <p key={q.item_id}>{q.item_id} · {q.source_layer} · 원응답 {q.raw ?? '미응답'} → {q.status === 'rule_pending' ? '규칙 미정' : q.converted ?? '미응답'}</p>)}</div></details>
     </>}
-    <p className="notice">q23/C-2, 4영역 대응과 ②④ 유형은 규칙 미정입니다. 설명·내보내기는 후속 단계에서 제공됩니다.</p>
+    <p className="notice">q23/C-2, 4영역 대응과 ②④ 유형은 규칙 미정입니다.</p>
   </div>;
 }

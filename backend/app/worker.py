@@ -43,12 +43,14 @@ def heartbeat(store, row):
 
 
 class Worker:
-    def __init__(self, store, *, observer=None, evaluator=None, probe=inspect_media):
+    def __init__(self, store, *, observer=None, evaluator=None, reporter=None, probe=inspect_media):
         self.store = store
         # Injection is only a Python test seam; CLI/API never offer a fake provider.
         self.observer = observer if observer is not None else GeminiObserver()
         self.probe = probe
         self.evaluator = evaluator if evaluator is not None else Evaluator()
+        from app.reporting import Reporter
+        self.reporter = reporter if reporter is not None else Reporter()
 
     def check(self, row):
         return guard(self.store, row["run_id"], row["claim_token"])
@@ -75,15 +77,15 @@ class Worker:
                 self.check(row)
                 with self.store.connect(write=True) as db:
                     db.execute("UPDATE steps SET status='abandoned',usage_json=?,updated_at=? WHERE step_id=? AND status='running'",
-                               (encode({"code": "worker_interrupted", "billing_uncertain": stage in ("observe", "evaluate")}), now(), previous["step_id"]))
+                               (encode({"code": "worker_interrupted", "billing_uncertain": stage in ("observe", "evaluate", "report")}), now(), previous["step_id"]))
         attempt = previous["attempt"] + 1 if previous else 1
         if attempt > 3:
             return None
         if previous and previous["status"] == "retry_wait" and previous["retry_at"] > now():
             return None
         # Schema repair has its own one-repair cap inside the shared three-attempt budget.
-        schema_code = "evaluation_schema_invalid" if stage == "evaluate" else "observation_schema_invalid"
-        if stage in ("observe", "evaluate"):
+        schema_code = "evaluation_schema_invalid" if stage in ("evaluate", "report") else "observation_schema_invalid"
+        if stage in ("observe", "evaluate", "report"):
             with self.store.connect() as db:
                 history = [json.loads(s[0]) for s in db.execute(
                     "SELECT usage_json FROM steps WHERE run_id=? AND stage=? AND branch_key=?", (row["run_id"], stage, branch))]
@@ -185,6 +187,7 @@ class Worker:
         return artifact.model_dump(mode="json")
 
     def process(self, row):
+        report_source = None
         config = json.loads(row["config_snapshot_json"])
         if "evaluation" in config:
             if config["scoring_rules"] != RULES:
@@ -249,6 +252,8 @@ class Worker:
                         futures = [executor.submit(evaluate_branch, branch) for branch in ("dog", "owner")]
                         for future in futures:
                             future.result()
+                    from app.reporting import generate_report
+                    report_source = generate_report(self, row)
         self.check(row)
         with self.store.connect(write=True) as db:
             current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
@@ -257,14 +262,16 @@ class Worker:
             check_access(self.store, db, current)
             steps = db.execute("SELECT * FROM steps WHERE run_id=? ORDER BY attempt", (row["run_id"],)).fetchall()
             latest = {(s["stage"], s["branch_key"]): s for s in steps}
-            codes = [json.loads(s["usage_json"]).get("code", "") for s in latest.values()]
-            if any(s["status"] == "retry_wait" for s in latest.values()):
+            processing = [s for s in latest.values() if s["stage"] != "report"]
+            codes = [json.loads(s["usage_json"]).get("code", "") for s in processing]
+            if any(s["status"] == "retry_wait" for s in latest.values()
+                   if s["stage"] != "report" or s["branch_key"] == report_source):
                 status = "retry_wait"
             elif "developer_settings_required" in codes:
                 status = "settings_required"
             elif not prepared:
                 status = "failed"
-            elif prepared.errors or any(s["status"] != "succeeded" for s in latest.values()):
+            elif prepared.errors or any(s["status"] != "succeeded" for s in processing):
                 status = "partial_failed"
             else:
                 status = "scored" if "evaluation" in config else "observed"

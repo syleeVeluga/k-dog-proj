@@ -77,11 +77,11 @@ def evaluation_context(branch, catalog, bundle):
 
 
 class Evaluator:
-    def evaluate(self, config, context, guard):
+    def evaluate(self, config, context, guard, *, schema=None, response_type=EvaluationResponse):
         if not configured(config):
             raise ProviderError("developer_settings_required")
         provider, model = config["provider"], config["model"]
-        schema = response_schema(context["branch"])
+        schema = schema or response_schema(context["branch"])
         content = json.dumps(context, ensure_ascii=False)
         if provider == "gemini":
             url = BASE + f"/v1beta/models/{model}:generateContent"
@@ -126,7 +126,7 @@ class Evaluator:
                         raise ProviderError("evaluation_refused" if result.get("stop_reason") == "refusal" else "evaluation_incomplete", usage=usage)
                     raw = "".join(p["text"] for p in result["content"] if p.get("type") == "text")
             try:
-                parsed = EvaluationResponse.model_validate_json(raw)
+                parsed = response_type.model_validate_json(raw)
             except ValueError:
                 raise ProviderError("evaluation_schema_invalid", retryable=True, usage=usage) from None
             return parsed, usage

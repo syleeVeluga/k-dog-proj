@@ -25,6 +25,7 @@ from app.observation_models import MediaInfo, ObservationResponse
 from app.storage import Store, encode, now, uid
 from app.worker import Worker
 from tests.evaluation_fixtures import FakeEvaluator
+from tests.report_fixtures import FakeReporter
 
 
 def fake_probe(path, video, prepared_path, prepared_ref):
@@ -78,7 +79,7 @@ class ObservationTests(unittest.TestCase):
             self.assertEqual(result.status_code, 201, result.text)
             self.item = result.json()
         self.observer = FakeObserver()
-        self.worker = Worker(self.store, observer=self.observer, evaluator=FakeEvaluator(), probe=fake_probe)
+        self.worker = Worker(self.store, observer=self.observer, evaluator=FakeEvaluator(), reporter=FakeReporter(), probe=fake_probe)
 
     def login(self, role):
         self.assertEqual(self.client.post("/api/auth/login", json={"username": role, "password": "Synthetic-test-only-42"}).status_code, 200)
