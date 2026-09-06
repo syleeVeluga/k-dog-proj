@@ -369,7 +369,8 @@ class ReportAdapterTests(unittest.TestCase):
         response, _ = FakeReporter().write({}, {"evidence": []}, lambda: None)
         text = response.model_dump_json()
         bodies = {
-            "gemini": {"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": text}]}}]},
+            "gemini": {"status": "completed", "steps": [{"type": "model_output", "content": [
+                {"type": "text", "text": text}]}]},
             "openai": {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": text}]}]},
             "anthropic": {"stop_reason": "end_turn", "content": [{"type": "text", "text": text}]},
         }

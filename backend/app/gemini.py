@@ -1,4 +1,4 @@
-"""Gemini Files + generateContent REST adapter; no SDK retries or secret persistence."""
+"""Gemini Files + Interactions REST adapter; no SDK retries or secret persistence."""
 
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -29,12 +29,62 @@ unconfirmed_conditions에 기록한다. 무음에서 발성 부재나 성공을 
 """
 
 
+def observation_schema() -> dict:
+    properties = {
+        "segment_id": {"type": "string", "enum": ["entry", "separation", "reunion", "training", "play", "exit", "unknown"]},
+        "start_sec": {"type": "number", "minimum": 0},
+        "end_sec": {"type": "number", "minimum": 0},
+        "subject": {"type": "string", "enum": ["dog", "owner", "staff", "unknown"]},
+        "modality": {"type": "string", "enum": ["video", "audio", "audio_video"]},
+        "observation": {"type": "string"},
+        "candidate_item_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 55},
+        "quality_flags": {"type": "array", "items": {"type": "string"}, "maxItems": 30},
+    }
+    item = {"type": "object", "properties": properties, "required": list(properties), "additionalProperties": False}
+    result = {"observations": {"type": "array", "items": item},
+              "unconfirmed_conditions": {"type": "array", "items": {"type": "string"}, "maxItems": 100}}
+    return {"type": "object", "properties": result, "required": list(result), "additionalProperties": False}
+
+
 class ProviderError(Exception):
     def __init__(self, code: str, *, retryable=False, delay=0, uncertain=False, usage=None):
         super().__init__(code)
         self.code, self.retryable, self.delay = code, retryable, delay
         self.uncertain = uncertain
         self.usage = usage if usage is not None else {}
+
+
+def interaction_request(model: str, prompt: str, inputs, schema: dict, max_output_tokens: int) -> dict:
+    return {"model": model, "system_instruction": prompt, "input": inputs, "store": False,
+            "response_format": {"type": "text", "mime_type": "application/json", "schema": schema},
+            "generation_config": {"max_output_tokens": max_output_tokens}}
+
+
+def interaction_text(result: dict, incomplete_code: str, usage: dict) -> str:
+    if not isinstance(result, dict):
+        raise ProviderError("provider_response_invalid", uncertain=True, usage=usage)
+    provider_usage = result.get("usage", {})
+    if not isinstance(provider_usage, dict):
+        raise ProviderError("provider_response_invalid", uncertain=True, usage=usage)
+    usage.update({key: value for key, value in provider_usage.items()
+                  if "tokens" in key and type(value) is int})
+    usage.update(model=str(result.get("model", usage.get("model", ""))),
+                 response_id=str(result.get("id", "")))
+    if result.get("status") != "completed":
+        raise ProviderError(incomplete_code, usage=usage)
+    steps = result.get("steps")
+    if not isinstance(steps, list):
+        raise ProviderError("provider_response_invalid", uncertain=True, usage=usage)
+    text = []
+    for step in steps:
+        if not isinstance(step, dict) or step.get("type") != "model_output":
+            continue
+        content = step.get("content")
+        if not isinstance(content, list):
+            raise ProviderError("provider_response_invalid", uncertain=True, usage=usage)
+        text.extend(part["text"] for part in content
+                    if isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str))
+    return "".join(text)
 
 
 def configuration() -> dict:
@@ -92,10 +142,28 @@ def request(method, url, key, *, data=None, headers=None, provider="gemini"):
                 delay = max(0, int((parsedate_to_datetime(value) - datetime.now(timezone.utc)).total_seconds()))
             except (ValueError, TypeError):
                 pass
+        error_usage = {}
+        try:
+            raw = exc.read(64 * 1024 + 1)
+            if len(raw) <= 64 * 1024:
+                payload = json.loads(raw)
+                error = payload.get("error", {}) if isinstance(payload, dict) else {}
+                if isinstance(error, dict):
+                    status = error.get("status")
+                    if isinstance(status, str) and re.fullmatch(r"[A-Z][A-Z0-9_]{0,63}", status):
+                        error_usage["provider_error_status"] = status
+                    message = error.get("message")
+                    if isinstance(message, str):
+                        message = message.replace(key, "[REDACTED]") if key else message
+                        message = re.sub(r"https?://\S+", "[URL]", " ".join(message.split()))
+                        message = re.sub(r"files/[A-Za-z0-9_-]+", "files/[REDACTED]", message)
+                        error_usage["provider_error_message"] = message[:500]
+        except (ValueError, TypeError, OSError, AttributeError):
+            pass
         code = "developer_settings_required" if exc.code in (401, 403) else f"provider_http_{exc.code}"
         exc.close()
         raise ProviderError(code, retryable=exc.code == 429 or exc.code >= 500,
-                            delay=delay, uncertain=exc.code >= 500) from None
+                            delay=delay, uncertain=exc.code >= 500, usage=error_usage) from None
     except (URLError, TimeoutError, OSError, HTTPTransportError):
         raise ProviderError("provider_connection_lost", retryable=True, uncertain=True) from None
     except (ValueError, KeyError):
@@ -112,7 +180,7 @@ class GeminiObserver:
         if not config["model"]:
             raise ProviderError("developer_settings_required")
         name = None
-        usage = {"credential_reference": reference}
+        usage = {"credential_reference": reference, "model": config["model"]}
         cleanup_pending = False
         try:
             guard()
@@ -145,31 +213,21 @@ class GeminiObserver:
             if remote.get("state") != "ACTIVE":
                 raise ProviderError("remote_file_failed")
             guard()
-            result, _ = request("POST", BASE + f"/v1beta/models/{config['model']}:generateContent", key, data={
-                "systemInstruction": {"parts": [{"text": config["prompt"]}]},
-                "contents": [{"role": "user", "parts": [
-                    {"fileData": {"fileUri": remote["uri"], "mimeType": media.mime_type},
-                     "videoMetadata": {"fps": config["fps"]}},
-                    {"text": json.dumps(context, ensure_ascii=False)}]}],
-                "generationConfig": {"maxOutputTokens": config["max_output_tokens"],
-                    "responseFormat": {"text": {"mimeType": "application/json",
-                                               "schema": ObservationResponse.model_json_schema()}}}})
-            usage.update({key: value for key, value in result.get("usageMetadata", {}).items()
-                          if key.endswith("TokenCount") and type(value) is int})
-            usage["model"] = str(result.get("modelVersion", config["model"]))
-            usage["response_id"] = str(result.get("responseId", ""))
-            candidates = result.get("candidates", [])
-            if not candidates or candidates[0].get("finishReason") != "STOP":
-                raise ProviderError("observation_incomplete", usage=usage)
-            raw = "".join(part.get("text", "") for part in candidates[0]["content"]["parts"] if not part.get("thought"))
+            result, _ = request("POST", BASE + "/v1beta/interactions", key, data=interaction_request(
+                config["model"], config["prompt"], [
+                    {"type": "video", "uri": remote["uri"], "mime_type": media.mime_type,
+                     "processing": {"type": "static", "fps": config["fps"]}},
+                    {"type": "text", "text": json.dumps(context, ensure_ascii=False)}],
+                observation_schema(), config["max_output_tokens"]))
+            raw = interaction_text(result, "observation_incomplete", usage)
             try:
                 parsed = ObservationResponse.model_validate_json(raw)
             except ValueError:
                 raise ProviderError("observation_schema_invalid", retryable=True, usage=usage) from None
             return parsed, usage
         except ProviderError as exc:
-            if not exc.usage:
-                exc.usage = usage
+            usage.update(exc.usage)
+            exc.usage = usage
             raise
         except (KeyError, TypeError, ValueError):
             raise ProviderError("provider_response_invalid", uncertain=True, usage=usage) from None

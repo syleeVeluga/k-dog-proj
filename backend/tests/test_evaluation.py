@@ -339,7 +339,8 @@ class AdapterTests(unittest.TestCase):
             config = {**configuration("gemini-test")["dog"], "provider": provider, "model": "test-model"}
             context = {"branch": "dog", "items": [], "evidence": []}
             responses = {
-                "gemini": {"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": empty}]}}], "usageMetadata": {"totalTokenCount": 13}},
+                "gemini": {"status": "completed", "steps": [{"type": "model_output", "content": [
+                    {"type": "text", "text": empty}]}], "usage": {"total_tokens": 13}},
                 "openai": {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": empty}]}], "usage": {"input_tokens": 13}},
                 "anthropic": {"stop_reason": "end_turn", "content": [{"type": "text", "text": empty}], "usage": {"input_tokens": 13}},
             }
@@ -358,7 +359,10 @@ class AdapterTests(unittest.TestCase):
                 elif provider == "anthropic":
                     self.assertEqual(body["output_config"]["format"]["type"], "json_schema")
                 else:
-                    self.assertIn("responseFormat", body["generationConfig"])
+                    self.assertTrue(transport.call_args.args[1].endswith("/v1beta/interactions"))
+                    self.assertFalse(body["store"])
+                    self.assertEqual(body["response_format"]["mime_type"], "application/json")
+                    self.assertEqual(body["generation_config"]["max_output_tokens"], 16384)
                 self.assertEqual(usage["provider"], provider)
                 transport.side_effect = ProviderError("developer_settings_required")
                 with self.assertRaises(ProviderError):

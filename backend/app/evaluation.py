@@ -7,7 +7,7 @@ import re
 from app.domain.contracts import BranchEvaluation
 from app.domain.validation import resolve_branch_scores
 from app.evaluation_models import EvaluationArtifact, EvaluationResponse
-from app.gemini import BASE, ProviderError, request
+from app.gemini import BASE, ProviderError, interaction_request, interaction_text, request
 from app.scoring import behavior_scores
 
 
@@ -89,11 +89,8 @@ class Evaluator:
         schema = schema or response_schema(context["branch"])
         content = json.dumps(context, ensure_ascii=False)
         if provider == "gemini":
-            url = BASE + f"/v1beta/models/{model}:generateContent"
-            body = {"systemInstruction": {"parts": [{"text": config["prompt"]}]},
-                "contents": [{"role": "user", "parts": [{"text": content}]}],
-                "generationConfig": {"maxOutputTokens": config["max_output_tokens"],
-                    "responseFormat": {"text": {"mimeType": "application/json", "schema": schema}}}}
+            url = BASE + "/v1beta/interactions"
+            body = interaction_request(model, config["prompt"], content, schema, config["max_output_tokens"])
         elif provider == "openai":
             url = "https://api.openai.com/v1/responses"
             body = {"model": model, "instructions": config["prompt"], "input": content, "store": False,
@@ -109,12 +106,7 @@ class Evaluator:
         try:
             result, headers = request("POST", url, key, data=body, provider=provider)
             if provider == "gemini":
-                usage.update({k: v for k, v in result.get("usageMetadata", {}).items() if k.endswith("TokenCount") and type(v) is int})
-                usage.update(model=str(result.get("modelVersion", model)), response_id=str(result.get("responseId", "")))
-                candidates = result.get("candidates", [])
-                if not candidates or candidates[0].get("finishReason") != "STOP":
-                    raise ProviderError("evaluation_incomplete", usage=usage)
-                raw = "".join(p.get("text", "") for p in candidates[0]["content"]["parts"] if not p.get("thought"))
+                raw = interaction_text(result, "evaluation_incomplete", usage)
             else:
                 usage.update({k: v for k, v in result.get("usage", {}).items() if "tokens" in k and type(v) is int})
                 usage.update(model=str(result.get("model", model)), response_id=str(result.get("id", "")))

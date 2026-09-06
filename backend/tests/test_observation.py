@@ -1,6 +1,7 @@
 """Synthetic provider/transport tests; generated color clips only, no real AI calls."""
 
 import hashlib
+from io import BytesIO
 import json
 import os
 from pathlib import Path
@@ -18,7 +19,7 @@ from fastapi.testclient import TestClient
 from app.analysis import adopt, claim, later, validated_prepared, write_output
 from app.api import create_app
 from app.auth import create_user
-from app.gemini import BASE, GeminiObserver, ProviderError, request
+from app.gemini import BASE, GeminiObserver, ProviderError, observation_schema, request
 from app.input_models import StoredVideo, UserCreate
 from app.media import MediaError, inspect_media
 from app.observation_models import MediaInfo, ObservationResponse
@@ -353,10 +354,18 @@ class MediaTests(unittest.TestCase):
 
 
 class GeminiTests(unittest.TestCase):
+    def test_observation_schema_uses_gemini_supported_subset(self):
+        encoded = json.dumps(observation_schema())
+        for unsupported in ("$defs", "$ref", "pattern", "minLength", "maxLength"):
+            self.assertNotIn(unsupported, encoded)
+        self.assertNotIn("maxItems", observation_schema()["properties"]["observations"])
+
     def test_http_failures_are_sanitized_and_off_origin_upload_rejected(self):
         for error, code, retryable in [
             (HTTPError(BASE, 401, "secret-test", {}, None), "developer_settings_required", False),
-            (HTTPError(BASE, 429, "secret-test", {"Retry-After": "75"}, None), "provider_http_429", True),
+            (HTTPError(BASE, 429, "secret-test", {"Retry-After": "75"}, BytesIO(json.dumps({"error": {
+                "status": "RESOURCE_EXHAUSTED", "message": "quota for secret-test at https://example.invalid"}}).encode())),
+             "provider_http_429", True),
             (URLError("secret-test"), "provider_connection_lost", True),
         ]:
             opener = MagicMock()
@@ -369,6 +378,8 @@ class GeminiTests(unittest.TestCase):
             self.assertNotIn("secret-test", str(caught.exception))
             if code == "provider_http_429":
                 self.assertEqual(caught.exception.delay, 75)
+                self.assertEqual(caught.exception.usage["provider_error_status"], "RESOURCE_EXHAUSTED")
+                self.assertEqual(caught.exception.usage["provider_error_message"], "quota for [REDACTED] at [URL]")
         with self.assertRaises(ProviderError):
             request("POST", "https://example.com/upload", "secret-test")
 
@@ -386,8 +397,9 @@ class GeminiTests(unittest.TestCase):
                 return {"name": "files/f1", "state": "ACTIVE", "uri": BASE + "/v1beta/files/f1"}, {}
             if method == "DELETE":
                 return {}, {}
-            return {"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": response().model_dump_json()}]}}],
-                    "usageMetadata": {"totalTokenCount": 12}, "modelVersion": "gemini-test", "responseId": "test-id"}, {}
+            return {"status": "completed", "steps": [{"type": "model_output", "content": [
+                    {"type": "text", "text": response().model_dump_json()}]}],
+                    "usage": {"total_tokens": 12}, "model": "gemini-test", "id": "test-id"}, {}
         with tempfile.TemporaryDirectory(prefix="kdog-gemini-test-") as temp:
             path = Path(temp) / "test.mp4"
             path.write_bytes(b"fake")
@@ -395,12 +407,17 @@ class GeminiTests(unittest.TestCase):
             with patch.dict(os.environ, {"GEMINI_API_KEY": "secret-test", "KDOG_GEMINI_MODEL": "gemini-test"}), patch("app.gemini.request", side_effect=transport), patch("app.gemini.time.sleep"):
                 parsed, usage = GeminiObserver().observe(path, media, configuration(), {"items": []}, lambda: guards.append(True))
         self.assertEqual(len(parsed.observations), 1)
-        self.assertEqual(usage["totalTokenCount"], 12)
+        self.assertEqual(usage["total_tokens"], 12)
         self.assertEqual(calls[-1][0], "DELETE")
         self.assertGreaterEqual(len(guards), 5)
-        generated = next(c for c in calls if "generateContent" in c[1])
+        generated = next(c for c in calls if c[1].endswith("/v1beta/interactions"))
         self.assertNotIn("secret-test", json.dumps(generated[2]))
-        self.assertIn("responseFormat", generated[2]["data"]["generationConfig"])
+        body = generated[2]["data"]
+        self.assertEqual(body["model"], "gemini-test")
+        self.assertFalse(body["store"])
+        self.assertEqual(body["input"][0]["processing"], {"type": "static", "fps": 1.0})
+        self.assertEqual(body["response_format"]["mime_type"], "application/json")
+        self.assertEqual(body["generation_config"]["max_output_tokens"], 16384)
 
 
 if __name__ == "__main__":
