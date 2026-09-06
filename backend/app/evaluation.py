@@ -77,10 +77,15 @@ def evaluation_context(branch, catalog, bundle):
 
 
 class Evaluator:
+    def __init__(self, store=None):
+        self.store = store
+
     def evaluate(self, config, context, guard, *, schema=None, response_type=EvaluationResponse):
-        if not configured(config):
+        from app.secrets import credential
+        if config["provider"] not in KEYS or not config["model"]:
             raise ProviderError("developer_settings_required")
         provider, model = config["provider"], config["model"]
+        key, reference = credential(self.store, provider)
         schema = schema or response_schema(context["branch"])
         content = json.dumps(context, ensure_ascii=False)
         if provider == "gemini":
@@ -99,10 +104,10 @@ class Evaluator:
             body = {"model": model, "system": config["prompt"], "max_tokens": config["max_output_tokens"],
                 "messages": [{"role": "user", "content": content}],
                 "output_config": {"format": {"type": "json_schema", "schema": schema}}}
-        usage = {"provider": provider, "model": model}
+        usage = {"provider": provider, "model": model, "credential_reference": reference}
         guard()
         try:
-            result, headers = request("POST", url, os.environ[KEYS[provider]], data=body, provider=provider)
+            result, headers = request("POST", url, key, data=body, provider=provider)
             if provider == "gemini":
                 usage.update({k: v for k, v in result.get("usageMetadata", {}).items() if k.endswith("TokenCount") and type(v) is int})
                 usage.update(model=str(result.get("modelVersion", model)), response_id=str(result.get("responseId", "")))

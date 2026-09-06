@@ -7,6 +7,7 @@ from pathlib import Path
 import secrets
 import sqlite3
 import time
+from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
@@ -14,6 +15,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import Field, SecretStr
 
 from app.auth import authenticate, check_password, create_user, password_hash, token_hash, user_view
 from app.analysis import check_access, control, enqueue, step_payload, validated_prepared, view_analysis
@@ -25,11 +27,17 @@ from app.input_models import (
 from app.intake import create_case, new_session, preview, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, require_consent, uid
 from app.observation_models import AnalysisRequest, AnalysisView
-from app.evaluation import KEYS, active_configuration
+from app.evaluation import active_configuration
 from app.evaluation_models import SettingsEdit, SettingsView
 from app.gemini import configuration as observation_configuration
 from app.report_models import ExportRequest, ExportView, FrameEdit, ReportSettingsEdit, ReportSettingsView, ReportView, ReviewEdit
-from app import exports, reporting
+from app import exports, reporting, settings
+from app import secrets as vault
+from app.input_models import Model
+
+
+class SecretEdit(Model):
+    value: Annotated[SecretStr, Field(min_length=8, max_length=512)]
 
 
 COOKIE = "kdog_session"
@@ -45,7 +53,13 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     store = Store(data_dir or DEFAULT_DATA)
     catalog = SurveyCatalog.model_validate_json((REPO_ROOT / "resources/catalogs/survey-v1.json").read_bytes())
     dummy_password = password_hash(secrets.token_urlsafe(32))
-    app = FastAPI(title="K-DOG M4", docs_url=None, redoc_url=None, openapi_url=None)
+    @asynccontextmanager
+    async def lifespan(app):
+        from app.maintenance import runtime_lock
+        with runtime_lock(store, "api"):
+            yield
+
+    app = FastAPI(title="K-DOG M5", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.store = store
 
     @app.middleware("http")
@@ -93,10 +107,55 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     administrator = roles("admin")
     developer = roles("developer")
 
+    @app.get("/api/developer/settings", response_model=settings.SettingsView)
+    def developer_settings(user=Depends(developer)):
+        return settings.view(store)
+
+    @app.post("/api/developer/settings/drafts", status_code=201, response_model=settings.Version)
+    def draft_settings(value: settings.DraftEdit, user=Depends(developer)):
+        return settings.save(store, value, user.username)
+
+    @app.get("/api/developer/settings/{version}", response_model=settings.Difference)
+    def settings_difference(version: Key, user=Depends(developer)):
+        return settings.difference(store, version)
+
+    @app.post("/api/developer/settings/{version}/activate", response_model=settings.ActiveVersion)
+    def activate_settings(version: Key, value: settings.Activate, user=Depends(developer)):
+        return settings.activate(store, version, value, user.username)
+
+    @app.post("/api/developer/settings/{version}/trial", response_model=settings.TrialResult)
+    def trial_settings(version: Key, value: settings.TrialRequest, user=Depends(developer)):
+        return settings.trial(store, version, value, user.username)
+
+    @app.put("/api/developer/keys/{provider}", response_model=settings.KeyState)
+    def register_key(provider: Literal["gemini", "openai", "anthropic"], value: SecretEdit, user=Depends(developer)):
+        return vault.change(store, provider, value.value.get_secret_value(), user.username)
+
+    @app.delete("/api/developer/keys/{provider}", response_model=settings.KeyState)
+    def revoke_key(provider: Literal["gemini", "openai", "anthropic"], user=Depends(developer)):
+        return vault.change(store, provider, None, user.username)
+
+    @app.post("/api/developer/keys/{provider}/test", response_model=settings.KeyTest)
+    def test_key(provider: Literal["gemini", "openai", "anthropic"], user=Depends(developer)):
+        return vault.connection_test(store, provider, user.username)
+
+    @app.post("/api/admin/backups", status_code=201)
+    def backup_data(user=Depends(administrator)):
+        from app.maintenance import backup
+        return backup(store, store.root.parent / "backups" / uid(), user.username)
+
+    @app.get("/api/admin/recovery")
+    def recovery_status(user=Depends(administrator)):
+        from app.maintenance import status
+        return status(store)
+
     def report_settings_view(db):
         version, config = reporting.active_report_configuration(db, observation_configuration()["model"])
+        if settings.active(db) != "legacy":
+            version, pipeline = settings.current(store, db)
+            config = pipeline.report.model_dump()
         return ReportSettingsView(version=version, selection={"provider": config["provider"], "model": config["model"]},
-            key_available=bool(os.environ.get(KEYS.get(config["provider"], ""))))
+            key_available=vault.available(store, config["provider"]))
 
     @app.get("/api/developer/report", response_model=ReportSettingsView)
     def report_settings(user=Depends(developer)):
@@ -106,6 +165,8 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.put("/api/developer/report", response_model=ReportSettingsView)
     def save_report_settings(value: ReportSettingsEdit, user=Depends(developer)):
         with store.connect(write=True) as db:
+            if settings.active(db) != "legacy":
+                raise HTTPException(409, "버전 편집 화면에서 초안과 운영 적용을 사용하세요.")
             if report_settings_view(db).version != value.expected_version:
                 raise HTTPException(409, "설명 설정이 변경되었습니다. 새로 조회하세요.")
             version = uid()
@@ -135,7 +196,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             if view.status in ("ready", "manual"):
                 return Message(message="현재 점수에 맞는 설명이 준비되어 있습니다.")
             steps = db.execute("SELECT * FROM steps WHERE run_id=? AND stage='report' AND branch_key=?", (run_id, view.source_hash)).fetchall()
-            if len(steps) >= 3 or sum(json.loads(s["usage_json"]).get("code") == "evaluation_schema_invalid" for s in steps) >= 2:
+            if len(steps) >= json.loads(row["config_snapshot_json"]).get("max_attempts", 3) or sum(json.loads(s["usage_json"]).get("code") == "evaluation_schema_invalid" for s in steps) >= 2:
                 raise HTTPException(409, "설명 시도 한도에 도달했습니다. 수동 설명 수정 또는 새 실행을 사용하세요.")
             db.execute("UPDATE runs SET status='queued',claim_token=NULL,lease_expires_at=NULL WHERE run_id=?", (run_id,))
             store.audit(db, user.username, run_id, "report.request", {"source_hash": view.source_hash})
@@ -202,8 +263,11 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
 
     def settings_view(db):
         version, config = active_configuration(db, observation_configuration()["model"])
+        if settings.active(db) != "legacy":
+            version, pipeline = settings.current(store, db)
+            config = {branch: getattr(pipeline, branch).model_dump() for branch in ("dog", "owner")}
         return SettingsView(version=version, branches={branch: {"provider": c["provider"], "model": c["model"]}
-            for branch, c in config.items()}, key_available={branch: bool(os.environ.get(KEYS.get(c["provider"], ""))) for branch, c in config.items()})
+            for branch, c in config.items()}, key_available={branch: vault.available(store, c["provider"]) for branch, c in config.items()})
 
     @app.get("/api/developer/evaluation", response_model=SettingsView)
     def evaluation_settings(user=Depends(developer)):
@@ -213,6 +277,8 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.put("/api/developer/evaluation", response_model=SettingsView)
     def save_evaluation_settings(value: SettingsEdit, user=Depends(developer)):
         with store.connect(write=True) as db:
+            if settings.active(db) != "legacy":
+                raise HTTPException(409, "버전 편집 화면에서 초안과 운영 적용을 사용하세요.")
             current = settings_view(db)
             if value.expected_version != current.version:
                 raise HTTPException(409, "평가 설정이 변경되었습니다. 새로고침 후 다시 적용하세요.")

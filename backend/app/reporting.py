@@ -223,12 +223,15 @@ def save_frame(store, case_id, run_id, value, actor):
 
 
 class Reporter:
+    def __init__(self, store=None):
+        self.store = store
+
     def write(self, config, context, guard):
         part = {"type": "object", "properties": {"text": {"type": "string"}, "evidence_ids": {"type": "array", "items": {"type": "string"}}},
                 "required": ["text", "evidence_ids"], "additionalProperties": False}
         props = {"cover": part, "comments": {"type": "array", "items": part}, "cross": part, "tips": {"type": "array", "items": part}}
         schema = {"type": "object", "properties": props, "required": list(props), "additionalProperties": False}
-        return Evaluator().evaluate(config, context, guard, schema=schema, response_type=Narration)
+        return Evaluator(self.store).evaluate(config, context, guard, schema=schema, response_type=Narration)
 
 
 def generate_report(worker, row):
@@ -259,6 +262,7 @@ def generate_report(worker, row):
                    "mapping_status": "mapping_pending", "cross_type_status": "type_rule_pending"}
         if step["attempt"] > 1:
             context["repair"] = "허용 근거 ID와 필수 구성만 사용해 전체 설명을 반환하세요."
+        worker.reserve_call(row, step)
         response, usage = worker.reporter.write(config["report"], context, lambda: worker.check(row))
         try:
             report = make_report(response, row, state["revision"], allowed)

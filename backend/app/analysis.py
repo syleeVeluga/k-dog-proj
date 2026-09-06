@@ -11,7 +11,7 @@ from app.domain.validation import validate_evidence
 from app.domain.contracts import BehaviorCatalog, SurveyCatalog
 from app.evaluation import active_configuration, validated_evaluation
 from app.scoring import RULES, behavior_scores, survey_scores
-from app.gemini import configuration, configured
+from app.gemini import configuration
 from app.input_models import Manifest
 from app.intake import selected_session
 from app.observation_models import (
@@ -43,7 +43,8 @@ def related_input(row):
             "videos": [video.model_dump() for video in session.videos],
             "capture_mode": session.capture_mode, "route_note": session.route_note,
             "config": {key: value for key, value in json.loads(row["config_snapshot_json"]).items()
-                       if key not in ("evaluation", "report", "behavior_catalog", "survey_catalog", "scoring_rules")}}
+                       if key not in ("evaluation", "report", "behavior_catalog", "survey_catalog", "scoring_rules",
+                                      "settings_version", "evaluation_concurrency", "max_ai_calls", "max_attempts")}}
 
 
 def evaluation_related(row, branch):
@@ -129,6 +130,8 @@ def enqueue(store: Store, case_id, value, actor):
         _, config["evaluation"] = active_configuration(db, config["model"])
         from app.reporting import active_report_configuration
         _, config["report"] = active_report_configuration(db, config["model"])
+        from app.settings import apply_snapshot
+        apply_snapshot(store, db, config)
         case = store.case(db, case_id, expected=value.expected_revision)
         require_consent(case, "video_analysis")
         require_consent(case, "external_ai")
@@ -349,7 +352,16 @@ def view_analysis(store, case_id):
                 evaluations=evaluations, scores=scores, survey_scores=survey,
                 behavior_items=list(catalog.items) if evaluations else [],
                 reused_from=sorted({entry["source_run_id"] for entry in json.loads(row["reuse_manifest_json"])})))
-    return AnalysisView(configured=configured(), message="관찰 설정 준비됨 · 평가 공급자 연결은 각 분기 실행 시 확인합니다." if configured()
+    from app.settings import current
+    from app.secrets import available
+    try:
+        with store.connect() as db:
+            _, selected = current(store, db)
+        ready = bool(selected.observe.model and available(store, "gemini"))
+    except (HTTPException, OSError, ValueError):
+        # Broken current settings must not hide already validated historical results.
+        ready = False
+    return AnalysisView(configured=ready, message="관찰 설정 준비됨 · 평가 공급자 연결은 각 분기 실행 시 확인합니다." if ready
                         else "개발자 설정 필요 · Gemini 모델과 키를 설정한 worker가 필요합니다.", runs=result)
 
 
@@ -370,7 +382,8 @@ def control(store, case_id, run_id, actor, action):
                 latest[key] = step
                 if json.loads(step["usage_json"]).get("code") in ("observation_schema_invalid", "evaluation_schema_invalid"):
                     repairs[key] = repairs.get(key, 0) + 1
-            if not any(step["status"] != "succeeded" and step["attempt"] < 3 and repairs.get(key, 0) < 2
+            maximum = json.loads(row["config_snapshot_json"]).get("max_attempts", 3)
+            if not any(step["status"] != "succeeded" and step["attempt"] < maximum and repairs.get(key, 0) < 2
                        for key, step in latest.items()):
                 raise HTTPException(409, "재시도 가능한 실패 단계가 없습니다. 시도·구조 수정 한도와 입력·설정을 확인하세요.")
             state = "queued"

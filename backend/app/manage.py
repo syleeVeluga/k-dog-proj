@@ -29,12 +29,47 @@ def main():
     serve.add_argument("--public-origin")
     worker = sub.add_parser("worker")
     worker.add_argument("--once", action="store_true", help="대기 실행 하나를 처리한 뒤 종료")
+    backup = sub.add_parser("backup", help="자료와 DB를 새 폴더에 검증하여 백업 (키 제외)")
+    backup.add_argument("destination", type=Path)
+    backup.add_argument("--actor", required=True, help="기록에 사용할 운영 관리자 계정")
+    restore = sub.add_parser("restore", help="현재 --data-dir 삭제 목록을 재적용하여 새 폴더에 복원")
+    restore.add_argument("source", type=Path)
+    restore.add_argument("destination", type=Path)
+    clean = sub.add_parser("clean", help="API·worker 종료 후 미참조 파일 정리")
+    clean.add_argument("--purge-deleted", action="store_true", help="삭제 요청된 참가자 DB·파일도 영구 삭제")
+    sub.add_parser("recovery-status")
     args = parser.parse_args()
+    if args.command in ("backup", "restore", "clean", "recovery-status"):
+        from app import maintenance
+        from fastapi import HTTPException
+        import json
+        if not (args.data_dir / "kdog.sqlite3").is_file():
+            parser.error("현재 데이터 DB가 필요합니다. 삭제 목록을 새 빈 폴더로 대체하지 마세요.")
+        store = Store(args.data_dir)
+        try:
+            if args.command == "backup":
+                with store.connect() as db:
+                    actor = db.execute("SELECT * FROM users WHERE username=? AND role='admin' AND active=1", (args.actor,)).fetchone()
+                    if not actor:
+                        parser.error("활성 운영 관리자 계정이 필요합니다.")
+                result = maintenance.backup(store, args.destination, args.actor)
+            elif args.command == "restore":
+                result = maintenance.restore(store, args.source, args.destination)
+            elif args.command == "clean":
+                result = maintenance.clean(store, purge_deleted=args.purge_deleted)
+            else:
+                result = maintenance.status(store)
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        except (HTTPException, OSError, ValueError):
+            parser.error("유지보수 실패: 실행 중 프로세스, 새 대상 폴더, 파일 해시 및 권한을 확인하세요.")
+        return
     if args.command == "worker":
         from app.worker import Worker
+        from app.maintenance import runtime_lock
         worker = Worker(Store(args.data_dir))
         try:
-            worker.once() if args.once else worker.run()
+            with runtime_lock(worker.store, "worker"):
+                worker.once() if args.once else worker.run()
         except KeyboardInterrupt:
             pass
         return

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { EvaluationSettings } from './EvaluationSettings';
+import { DeveloperSettings, Recovery } from './DeveloperSettings';
 import { Exports, ReportSettings } from './Reports';
 import type { FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -29,6 +30,7 @@ function App() {
   const [selected, setSelected] = useState<Case | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [versionedSettings, setVersionedSettings] = useState(false);
   const [page, setPage] = useState<'cases' | 'import' | 'users'>('cases');
   const writable = user?.role === 'operator' || user?.role === 'admin';
 
@@ -91,8 +93,8 @@ function App() {
       {busy && <p className="working" role="status">처리 중입니다… 파일 업로드 중에는 이 화면을 유지하세요.</p>}
       <fieldset disabled={busy} className="workspace">
         {user.role === 'developer' ? <section><p className="eyebrow">개발자 전용</p><h1>개발 설정</h1>
-          <EvaluationSettings />
-          <ReportSettings />
+          <DeveloperSettings onVersionModeChange={setVersionedSettings} />
+          {!versionedSettings && <><EvaluationSettings /><ReportSettings /></>}
           <button onClick={() => void run(async () => setNotice((await api<{ message: string }>('/developer/status')).message))}>인증 상태 확인</button>
         </section> : page === 'import' ? <Importer run={run} catalogVersion={catalog?.version ?? ''} done={async message => { setNotice(message); await reload(); }} />
           : page === 'users' ? <Users run={run} />
@@ -120,6 +122,7 @@ function App() {
                   <p className="fine">이름이 같아도 참가자 ID는 각각 등록합니다. ID 앞자리 0은 그대로 보존됩니다.</p><button className="primary">참가자 저장</button></form></details>}
             </>}
       </fieldset>
+      {user.role === 'admin' && <Recovery />}
       <footer>K-DOG · 현장 평가 자료 관리<span>영상 관찰 · 행동 평가 · 프로그램 점수 집계</span></footer>
     </main>
   </>;

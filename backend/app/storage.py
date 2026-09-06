@@ -88,7 +88,9 @@ class Store:
         with self.connect() as db:
             db.execute("PRAGMA journal_mode=WAL")
             db.executescript(SCHEMA)
-            db.execute("PRAGMA user_version=1")
+            if "call_reserved" not in {r[1] for r in db.execute("PRAGMA table_info(steps)")}:
+                db.execute("ALTER TABLE steps ADD COLUMN call_reserved INTEGER NOT NULL DEFAULT 0")
+            db.execute("PRAGMA user_version=2")
 
     @contextmanager
     def connect(self, *, write=False):

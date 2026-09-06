@@ -46,14 +46,27 @@ class Worker:
     def __init__(self, store, *, observer=None, evaluator=None, reporter=None, probe=inspect_media):
         self.store = store
         # Injection is only a Python test seam; CLI/API never offer a fake provider.
-        self.observer = observer if observer is not None else GeminiObserver()
+        self.observer = observer if observer is not None else GeminiObserver(store)
         self.probe = probe
-        self.evaluator = evaluator if evaluator is not None else Evaluator()
+        self.evaluator = evaluator if evaluator is not None else Evaluator(store)
         from app.reporting import Reporter
-        self.reporter = reporter if reporter is not None else Reporter()
+        self.reporter = reporter if reporter is not None else Reporter(store)
 
     def check(self, row):
         return guard(self.store, row["run_id"], row["claim_token"])
+
+    def reserve_call(self, row, step):
+        self.check(row)
+        with self.store.connect(write=True) as db:
+            current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
+            if current["claim_token"] != row["claim_token"] or current["lease_expires_at"] <= now():
+                raise HTTPException(409, "실행 점유가 변경되었습니다.")
+            check_access(self.store, db, current)
+            limit = json.loads(row["config_snapshot_json"]).get("max_ai_calls", 1000)
+            used = db.execute("SELECT COUNT(*) FROM steps WHERE run_id=? AND call_reserved=1", (row["run_id"],)).fetchone()[0]
+            if used >= limit:
+                raise ProviderError("call_budget_exhausted")
+            db.execute("UPDATE steps SET call_reserved=1 WHERE step_id=?", (step["step_id"],))
 
     def stage(self, row, stage, branch, validate, work):
         self.check(row)
@@ -79,7 +92,8 @@ class Worker:
                     db.execute("UPDATE steps SET status='abandoned',usage_json=?,updated_at=? WHERE step_id=? AND status='running'",
                                (encode({"code": "worker_interrupted", "billing_uncertain": stage in ("observe", "evaluate", "report")}), now(), previous["step_id"]))
         attempt = previous["attempt"] + 1 if previous else 1
-        if attempt > 3:
+        maximum = json.loads(row["config_snapshot_json"]).get("max_attempts", 3)
+        if attempt > maximum:
             return None
         if previous and previous["status"] == "retry_wait" and previous["retry_at"] > now():
             return None
@@ -112,7 +126,7 @@ class Worker:
             with self.store.connect() as db:
                 schema_failures = sum(json.loads(s[0]).get("code") == schema_code for s in db.execute(
                     "SELECT usage_json FROM steps WHERE run_id=? AND stage=? AND branch_key=?", (row["run_id"], stage, branch)))
-            retry = exc.retryable and attempt < 3 and not (exc.code == schema_code and schema_failures >= 1)
+            retry = exc.retryable and attempt < maximum and not (exc.code == schema_code and schema_failures >= 1)
             self.fail(row, step, "retry_wait" if retry else "failed", usage,
                       later(max(exc.delay, 10 * 2 ** (attempt - 1))) if retry else None)
         except MediaError as exc:
@@ -168,6 +182,7 @@ class Worker:
         context = {"items": config["catalog_items"], "route_note": session.route_note,
                    "capture_mode": session.capture_mode, "duration_sec": info.duration_sec,
                    "audio_status": info.audio_status, "sampling_fps": config["fps"]}
+        self.reserve_call(row, step)
         response, usage = self.observer.observe(path, info, config, context, lambda: self.check(row))
         try:
             evidence = [Evidence(evidence_id=f"ev-{step['step_id']}-{index:04}", run_id=row["run_id"],
@@ -248,7 +263,7 @@ class Worker:
                             lambda step: self.evaluate(row, step, prepared.run_input, branch, catalog, allowed, bundle))
 
                     # Each task adopts its own output before the other future is awaited.
-                    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="kdog-evaluate") as executor:
+                    with ThreadPoolExecutor(max_workers=config.get("evaluation_concurrency", 2), thread_name_prefix="kdog-evaluate") as executor:
                         futures = [executor.submit(evaluate_branch, branch) for branch in ("dog", "owner")]
                         for future in futures:
                             future.result()
@@ -292,6 +307,7 @@ class Worker:
                                                            (row["run_id"], branch))]
         if any(f.get("code") == "evaluation_schema_invalid" for f in failures):
             context["repair"] = "이전 응답의 항목 집합·선택지·근거·상태 연결 검증에 실패했습니다. 제공된 ID와 스키마만 사용해 전체 분기를 다시 반환하세요."
+        self.reserve_call(row, step)
         response, usage = self.evaluator.evaluate(config, context, lambda: self.check(row))
         try:
             artifact = make_evaluation(response, usage, run, branch, catalog, evidence)

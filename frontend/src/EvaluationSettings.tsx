@@ -27,6 +27,6 @@ export function EvaluationSettings() {
       <label>{branch === 'dog' ? '반려견' : '보호자'} 평가 모델<input value={data.branches[branch].model} maxLength={150} required
         pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]*" onChange={e => setData({ ...data, branches: { ...data.branches, [branch]: { ...data.branches[branch], model: e.target.value } } })} /></label>
     </div>)}<button className="primary">새 실행에 평가 설정 적용</button></fieldset></form>}
-    <p className="fine">키는 worker 실행 환경의 GEMINI_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY에서 읽습니다. 이 화면에는 키를 입력하지 않습니다. 실제 모델 접근과 연결은 실행 시 확인하며 다른 공급자로 자동 전환하지 않습니다.</p>
+    <p className="fine">버전 편집 시작 전의 빠른 설정입니다. 키는 위의 공급자 키 관리에서 등록합니다. 실제 모델 접근과 연결은 샘플 시험으로 확인하며 다른 공급자로 자동 전환하지 않습니다.</p>
   </section>;
 }

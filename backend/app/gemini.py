@@ -72,7 +72,16 @@ def request(method, url, key, *, data=None, headers=None, provider="gemini"):
             raw = response.read(16 * 1024 * 1024 + 1)
             if len(raw) > 16 * 1024 * 1024:
                 raise ProviderError("provider_response_invalid")
-            return (json.loads(raw) if raw else {}), response.headers
+            # Also redact JSON-escaped reflections and request IDs before usage is persisted.
+            def redact(value):
+                if isinstance(value, str):
+                    return value.replace(key, "[REDACTED]") if key else value
+                if isinstance(value, dict):
+                    return {redact(k): redact(v) for k, v in value.items()}
+                if isinstance(value, list):
+                    return [redact(v) for v in value]
+                return value
+            return redact(json.loads(raw) if raw else {}), {k: redact(v) for k, v in response.headers.items()}
     except HTTPError as exc:
         delay = 0
         value = exc.headers.get("Retry-After", "0")
@@ -94,12 +103,16 @@ def request(method, url, key, *, data=None, headers=None, provider="gemini"):
 
 
 class GeminiObserver:
+    def __init__(self, store=None):
+        self.store = store
+
     def observe(self, path: Path, media, config, context: dict, guard) -> tuple[ObservationResponse, dict]:
-        key = os.environ.get("GEMINI_API_KEY", "")
-        if not key or not config["model"]:
+        from app.secrets import credential
+        key, reference = credential(self.store, "gemini")
+        if not config["model"]:
             raise ProviderError("developer_settings_required")
         name = None
-        usage = {}
+        usage = {"credential_reference": reference}
         cleanup_pending = False
         try:
             guard()

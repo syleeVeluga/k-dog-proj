@@ -130,5 +130,5 @@ export function ReportSettings() {
     void api<Settings>('/developer/report', 'PUT', { expected_version: data.version, selection: data.selection }).then(v => { setData(v); setMessage('새 실행에 설명 설정을 적용했습니다.'); }).catch(e => setMessage(e.message));
   }}><label>설명 공급자<select aria-label="설명 공급자" value={data.selection.provider} onChange={e => setData({ ...data, selection: { provider: e.target.value, model: '' } })}><option value="gemini">Gemini</option><option value="openai">GPT · OpenAI</option><option value="anthropic">Claude · Anthropic</option></select></label>
     <label>설명 모델 ID<input value={data.selection.model} maxLength={150} onChange={e => setData({ ...data, selection: { ...data.selection, model: e.target.value } })} /></label>
-    <p className="fine">키 {data.key_available ? '환경에 있음' : '개발자 설정 필요'} · 신규 실행부터 고정합니다.</p><button>새 실행에 설명 설정 적용</button></form>}{message && <p role="status">{message}</p>}</section>;
+    <p className="fine">키 {data.key_available ? '등록됨' : '개발자 설정 필요'} · 신규 실행부터 고정합니다.</p><button>새 실행에 설명 설정 적용</button></form>}{message && <p role="status">{message}</p>}</section>;
 }
