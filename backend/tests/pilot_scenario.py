@@ -120,7 +120,8 @@ def scenario(participants=20, cameras=2, seconds=180):
         restored = summarize(Store(root / "restored"))
         if restored["run_statuses"] != {"scored": participants}:
             raise RuntimeError("pilot restored runs mismatch")
-        expected_calls = participants * (cameras + 3)
+        # Per video: one shared event ledger plus a dog and an owner branch call; one report per run.
+        expected_calls = participants * (cameras * 3 + 1)
         usage = summarize(store)
         if usage["calls_reserved"] != expected_calls or len(durations) != participants:
             raise RuntimeError("pilot call count mismatch")
@@ -132,7 +133,8 @@ def scenario(participants=20, cameras=2, seconds=180):
             "worker_max_sec": max(durations), "export_sec": export_sec, "export_bytes": exported,
             "backup_restore_sec": time.perf_counter() - backup_started,
             "data_bytes": sum(path.stat().st_size for path in store.root.rglob("*") if path.is_file()),
-            "provider_calls_simulated": {"observe": len(observer.calls), "evaluate": len(evaluator.calls), "report": len(reporter.calls)},
+            "provider_calls_simulated": {"video": len(observer.calls), "evaluate": len(evaluator.calls), "report": len(reporter.calls),
+                                         "video_call_shape": "per video: ledger + dog branch + owner branch"},
             "real_provider_calls": 0, "actual_provider_cost": None,
             "platform": platform.platform(), "python": platform.python_version(), "usage": usage}
 

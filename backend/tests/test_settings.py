@@ -134,6 +134,42 @@ class SettingsTests(unittest.TestCase):
         data["config"]["observe"]["provider"] = "openai"
         self.assertEqual(self.client.post("/api/developer/settings/drafts", json={"expected_active": "legacy", "config": data["config"]}).status_code, 422)
 
+    def test_sampling_and_reasoning_options_are_mutually_checked(self):
+        data = self.config()
+        base = data["config"]
+        self.assertEqual(base["processing_mode"], "static")
+        # Agentic navigation has no frame rate, so specifying one is a contradiction, not a hint.
+        rejected = [{"processing_mode": "agentic", "fps": 2.0}, {"thinking_level": "minimal"},
+                    {"thinking_level": "none"}, {"media_resolution": "ultra_high"}, {"processing_mode": "adaptive"}]
+        for value in rejected:
+            response = self.client.post("/api/developer/settings/drafts",
+                                        json={"expected_active": "legacy", "config": {**base, **value}})
+            self.assertEqual(response.status_code, 422, response.text)
+        for value in [{"processing_mode": "agentic"}, {"processing_mode": "agentic", "fps": 1.0},
+                      {"thinking_level": "high", "media_resolution": "low"}, {"processing_mode": "static", "fps": 0.5}]:
+            response = self.client.post("/api/developer/settings/drafts",
+                                        json={"expected_active": "legacy", "config": {**base, **value}})
+            self.assertEqual(response.status_code, 201, response.text)
+
+    def test_inference_settings_version_the_run_snapshot(self):
+        from app.settings import apply_snapshot
+        base = self.config()["config"]
+        # Both paths read these settings, so both must record which values produced a run.
+        for mode in ("per_video", "legacy"):
+            self.pipeline_mode = mode
+            versions = []
+            for value in [{}, {"processing_mode": "agentic"}, {"thinking_level": "high"}, {"media_resolution": "high"}]:
+                version = self.draft({**base, **value})
+                self.activate(version)
+                snapshot = {}
+                with self.store.connect() as db:
+                    apply_snapshot(self.store, db, snapshot)
+                versions.append(snapshot["config_version"])
+                self.assertEqual(snapshot["processing_mode"], value.get("processing_mode", "static"))
+                self.assertEqual(snapshot["thinking_level"], value.get("thinking_level"))
+                self.assertEqual(snapshot["media_resolution"], value.get("media_resolution"))
+            self.assertEqual(len(set(versions)), 4, mode)
+
     def test_trials_never_create_case_runs_or_change_active_version(self):
         version = self.draft()
         for stage in ("observe", "dog", "owner", "report"):

@@ -24,6 +24,20 @@ class Measurement(Model):
         return self
 
 
+class LedgerEvent(Model):
+    step: Literal["entry", "baseline_no_response", "separation", "reunion", "command_1", "command_2",
+                  "command_3", "command_4", "play", "exit", "unknown"]
+    kind: Literal["command_utterance", "dog_performance", "reward_response", "owner_exit", "owner_return",
+                  "dog_settled", "play_cue", "other"]
+    start_sec: Annotated[float, Field(ge=0)]
+    end_sec: Annotated[float, Field(ge=0)]
+    subject: Literal["dog", "owner", "staff", "unknown"]
+    modality: Literal["video", "audio", "audio_video"]
+    command: Literal["c1", "c2", "c3", "c4", "other", "none"]
+    observation: Annotated[str, Field(min_length=1, max_length=4000)]
+    quality_flags: Annotated[list[str], Field(max_length=30)]
+
+
 class VideoDecision(Model):
     item_id: BehaviorId
     status: Status

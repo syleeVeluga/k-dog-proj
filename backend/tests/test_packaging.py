@@ -170,6 +170,43 @@ class UsageTests(unittest.TestCase):
         self.assertNotIn("credential_reference", encode(result))
         self.assertEqual(summarize(self.store, event_id="absent")["runs"], [])
 
+    def test_recorded_but_unpriced_token_meters_block_a_complete_estimate(self):
+        self.completed()
+        prices = {"currency": "TEST", "as_of": "2026-09-08", "source": "synthetic unit test; not real prices",
+            "models": {"synthetic/model": {"total_input_tokens": "2", "total_output_tokens": "4"}}}
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE steps SET usage_json=? WHERE call_reserved=1",
+                (encode({"provider": "synthetic", "model": "model", "total_input_tokens": 100,
+                         "total_output_tokens": 50, "total_tokens": 150}),))
+        result = summarize(self.store, prices=prices)
+        # The provider roll-up is not a billable category, so it never counts as unpriced.
+        self.assertEqual(result["unpriced_meters"], [])
+        self.assertEqual(result["complete_meter_cost_estimate"], "0.0020")
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE steps SET usage_json=? WHERE call_reserved=1",
+                (encode({"provider": "synthetic", "model": "model", "total_input_tokens": 100,
+                         "total_output_tokens": 50, "total_tokens": 400, "total_thought_tokens": 200,
+                         "total_tool_use_tokens": 50}),))
+        result = summarize(self.store, prices=prices)
+        self.assertEqual(result["unpriced_meters"], ["total_thought_tokens", "total_tool_use_tokens"])
+        self.assertIsNone(result["complete_meter_cost_estimate"])
+        self.assertEqual(result["known_meter_cost_estimate"], "0.0020")
+        # A call whose recorded categories are not all priced is itself an unpriced call.
+        self.assertEqual(result["unpriced_or_uncertain_calls"], result["calls_reserved"])
+        self.assertTrue(all(a["unpriced_meters"] == ["total_thought_tokens", "total_tool_use_tokens"]
+                            for run in result["runs"] for a in run["attempts"]))
+        priced = {**prices, "models": {"synthetic/model": {**prices["models"]["synthetic/model"],
+                  "total_thought_tokens": "4", "total_tool_use_tokens": "1"}}}
+        result = summarize(self.store, prices=priced)
+        self.assertEqual(result["unpriced_meters"], [])
+        self.assertEqual(result["unpriced_or_uncertain_calls"], 0)
+        self.assertEqual(result["complete_meter_cost_estimate"], "0.00625")
+        # Pricing the provider roll-up covers every category inside it.
+        rolled = {**prices, "models": {"synthetic/model": {"total_tokens": "2"}}}
+        result = summarize(self.store, prices=rolled)
+        self.assertEqual(result["unpriced_meters"], [])
+        self.assertEqual(result["complete_meter_cost_estimate"], "0.0040")
+
     def test_prices_retry_uncertainty_reuse_and_deletion(self):
         self.completed()
         prices = {"currency": "TEST", "as_of": "2026-09-06", "source": "synthetic unit test; not real prices",

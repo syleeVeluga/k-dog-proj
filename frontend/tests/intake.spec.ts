@@ -105,13 +105,20 @@ test('three views: direct item assessments, merged scores, evidence and 360px', 
   await expect(page.getByText('관찰 근거 3개', { exact: true })).toBeVisible({ timeout: 15000 });
   await expect(page.locator('.video-row').getByText('가상 관찰: 입장 시 이동', { exact: true })).toHaveCount(3);
   const assessments = page.getByLabel('영상별 평가 결과', { exact: true });
-  await expect(assessments.locator('details')).toHaveCount(3);
-  await assessments.locator('summary').first().click();
-  await expect(assessments.locator('details').first().locator('article')).toHaveCount(55);
+  // Three videos: one shared event ledger plus a dog and an owner branch each.
+  await expect(assessments.locator('details')).toHaveCount(9);
+  const ledger = assessments.locator('details').filter({ hasText: '사건 원장' }).first();
+  await ledger.locator('summary').click();
+  await expect(ledger.getByText('입장 · 그 밖의 사건 · 0.00–1.00초 · 가상 사건: 입장', { exact: true })).toBeVisible();
+  await ledger.locator('summary').click();
+  const branch = assessments.locator('details').filter({ hasText: '반려견·행동신호' }).first();
+  await branch.locator('summary').click();
+  await expect(branch.locator('article')).toHaveCount(36);
+  await expect(assessments.locator('details').filter({ hasText: '보호자 ·' })).toHaveCount(3);
   await assessments.getByRole('button', { name: 'BS-01 근거 1 재생' }).first().click();
   await expect(page.locator('section[aria-label="영상 관찰"] video')).toHaveAttribute('src', /#t=1,2$/);
   await page.getByRole('button', { name: '근거 재생 닫기' }).click();
-  await assessments.locator('summary').first().click();
+  await branch.locator('summary').click();
   await expect(page.getByText(/반려견 처리 완료 · 유효/)).toBeVisible();
   await expect(page.getByText(/보호자 처리 완료 · 유효/)).toBeVisible();
   await expect(page.getByText('원 척도 참고 전체값 3.00', { exact: true })).toBeVisible();

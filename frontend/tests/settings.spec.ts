@@ -9,6 +9,17 @@ test('M5: developer draft, isolated schema trial, apply, restore and key secrecy
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   const panel = page.locator('.developer-settings');
   await expect(panel.getByLabel('단계 프롬프트')).toBeVisible();
+  // Agentic navigation owns its own sampling, so the frame rate must not stay editable.
+  await panel.getByLabel('영상 처리 방식').selectOption('agentic');
+  await expect(panel.getByLabel('관찰 FPS')).toBeDisabled();
+  await panel.getByLabel('추론 수준').selectOption('high');
+  await panel.getByLabel('편집 단계').selectOption('ledger');
+  await expect(panel.getByLabel('단계 프롬프트')).toHaveCount(0);
+  await expect(panel.getByText('사건 원장의 프롬프트는 프로그램이 소유하며 편집하지 않습니다.', { exact: false })).toBeVisible();
+  await panel.getByLabel('편집 단계').selectOption('video');
+  await panel.getByLabel('추론 수준').selectOption('');
+  await panel.getByLabel('영상 처리 방식').selectOption('static');
+  await expect(panel.getByLabel('관찰 FPS')).toBeEnabled();
   const before = await (await page.request.get('/api/developer/settings')).json();
   await panel.getByLabel('편집 단계').selectOption('dog');
   await panel.getByLabel('단계 프롬프트').fill('가상 브라우저 시험: 확정 항목·근거만 사용합니다.');

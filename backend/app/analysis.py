@@ -15,7 +15,7 @@ from app.gemini import configuration
 from app.input_models import Manifest
 from app.intake import selected_session
 from app.observation_models import (
-    AnalysisView, ObservationArtifact, PreparedInput, RunView, StepView,
+    AnalysisView, LedgerArtifact, ObservationArtifact, PreparedInput, RunView, StepView,
 )
 from app.storage import REPO_ROOT, Store, encode, now, uid
 
@@ -57,6 +57,15 @@ def evaluation_related(row, branch):
             "catalog": config.get("behavior_catalog"), "rules": config.get("scoring_rules")}
 
 
+def branch_key(video_id, branch=None):
+    return f"{video_id}/{branch}" if branch else video_id
+
+
+def split_branch_key(value):
+    video_id, _, branch = value.partition("/")
+    return video_id, (branch or None)
+
+
 def read_artifact(store, ref, expected_hash=None):
     try:
         raw = store.path(ref).read_bytes()
@@ -78,7 +87,32 @@ def step_payload(store, row, step, *, recover=False):
     return result["payload"]
 
 
-def validated_observation(payload, run_input, video_id, source_run_id=None, *, catalog=None, expected_items=None):
+def validated_ledger(payload, run_input, video_id, source_run_id=None):
+    artifact = LedgerArtifact.model_validate_json(encode(payload))
+    if artifact.run_id != (source_run_id or run_input.run_id) or artifact.video_id != video_id:
+        raise ValueError("ledger provenance mismatch")
+    from app.ledger import VERSION, measures
+    if artifact.measures.get("version") == VERSION and artifact.measures != measures(artifact.events):
+        raise ValueError("ledger measures are not derived from its own events")
+    return artifact
+
+
+def ledger_references(db, row):
+    """Where each video's ledger artifact actually lives, following the run's own reuse."""
+    result = {}
+    for entry in json.loads(row["reuse_manifest_json"]):
+        if entry.get("stage") == "ledger":
+            result[entry["video_id"]] = {"source_run_id": entry["source_run_id"], "step_id": entry["step_id"],
+                                         "output_ref": entry["output_ref"], "output_hash": entry["output_hash"]}
+    for step in db.execute("SELECT * FROM steps WHERE run_id=? AND stage='ledger' AND status='succeeded'",
+                           (row["run_id"],)):
+        result[step["branch_key"]] = {"source_run_id": row["run_id"], "step_id": step["step_id"],
+                                      "output_ref": step["output_ref"], "output_hash": step["output_hash"]}
+    return result
+
+
+def validated_observation(payload, run_input, video_id, source_run_id=None, *, catalog=None,
+                          expected_items=None, review=False, measures=None, branch=None):
     artifact = ObservationArtifact.model_validate_json(encode(payload))
     origin = source_run_id or run_input.run_id
     if artifact.run_id != origin or artifact.video_id != video_id:
@@ -89,15 +123,17 @@ def validated_observation(payload, run_input, video_id, source_run_id=None, *, c
     # Only an already checked, explicit manifest entry may use another source run.
     rebound = tuple(item.model_copy(update={"run_id": run_input.run_id}) for item in artifact.evidence)
     validate_evidence(run_input, rebound)
-    from app.video_evaluation import VERSION, validate_items
-    if run_input.pipeline_version == VERSION:
+    from app.video_evaluation import VERSIONS, validate_items
+    if run_input.pipeline_version in VERSIONS:
         from app.domain.contracts import BEHAVIOR_IDS
         if catalog is None:
             raise ValueError("video assessment requires frozen catalog")
         expected = BEHAVIOR_IDS if expected_items is None else expected_items
-        if set(artifact.review_item_ids) != (set() if expected_items is None else set(expected_items)):
+        if set(artifact.review_item_ids) != (set(expected_items) if review else set()):
             raise ValueError("video review scope mismatch")
-        validate_items(artifact, run_input, catalog, expected)
+        if branch is not None and artifact.branch != branch:
+            raise ValueError("video branch mismatch")
+        validate_items(artifact, run_input, catalog, expected, measures)
     return artifact
 
 
@@ -169,12 +205,35 @@ def enqueue(store: Store, case_id, value, actor):
             if not prepared_step:
                 raise HTTPException(409, "재사용할 미디어 검사 결과가 없습니다.")
             prepared = validated_prepared(source, step_payload(store, source, prepared_step))
+            from app.ledger import branch_items
+            frozen = BehaviorCatalog.model_validate_json(encode(config["behavior_catalog"]))
+            direct = bool(config.get("direct_video"))
+            related = digest(related_input(source))
+            reusable = {}
+            # Shared facts must be reused before the branch decisions that were checked against them.
+            for video_id, reference in ledger_references(db, source).items():
+                origin = db.execute("SELECT * FROM runs WHERE run_id=?", (reference["source_run_id"],)).fetchone()
+                step = db.execute("SELECT * FROM steps WHERE step_id=? AND run_id=? AND status='succeeded'",
+                                  (reference["step_id"], reference["source_run_id"])).fetchone()
+                if not origin or not step:
+                    continue
+                artifact = validated_ledger(step_payload(store, origin, step), prepared.run_input, video_id,
+                                            reference["source_run_id"])
+                reusable[video_id] = artifact.measures
+                reuse.append({"stage": "ledger", "video_id": video_id, "branch_key": video_id,
+                              "related_hash": related, **reference})
             for step in db.execute("SELECT * FROM steps WHERE run_id=? AND stage='observe' AND status='succeeded'", (source["run_id"],)):
-                validated_observation(step_payload(store, source, step), prepared.run_input, step["branch_key"],
-                                      catalog=BehaviorCatalog.model_validate_json(encode(config["behavior_catalog"])))
+                video_id, branch = split_branch_key(step["branch_key"])
+                if direct and branch and video_id not in reusable:
+                    # Without its ledger the decision cannot be re-checked; re-run that branch.
+                    continue
+                expected = branch_items(branch) if direct and branch else None
+                validated_observation(step_payload(store, source, step), prepared.run_input, video_id,
+                                      catalog=frozen, expected_items=expected,
+                                      measures=reusable.get(video_id), branch=branch)
                 reuse.append({"source_run_id": source["run_id"], "step_id": step["step_id"],
-                              "video_id": step["branch_key"], "output_ref": step["output_ref"],
-                              "output_hash": step["output_hash"], "related_hash": digest(related_input(source))})
+                              "video_id": video_id, "branch_key": step["branch_key"], "output_ref": step["output_ref"],
+                              "output_hash": step["output_hash"], "related_hash": related})
             if not reuse:
                 raise HTTPException(409, "재사용할 성공 관찰이 없습니다.")
             # Reuse evaluation only when every camera observation is directly reusable.
@@ -274,31 +333,79 @@ def adopt(store, row, step, ref, output_hash, usage):
             raise HTTPException(409, "오래된 단계 결과를 채택할 수 없습니다.")
 
 
-def observations(store, db, row, prepared):
+def reused_step(db, row, entry):
+    if entry["related_hash"] != digest(related_input(row)):
+        raise HTTPException(409, "재사용 입력 해시가 일치하지 않습니다.")
+    source = db.execute("SELECT * FROM runs WHERE run_id=? AND case_id=? AND session_id=?",
+                        (entry["source_run_id"], row["case_id"], row["session_id"])).fetchone()
+    step = db.execute("SELECT * FROM steps WHERE step_id=? AND run_id=? AND status='succeeded'",
+                      (entry["step_id"], entry["source_run_id"])).fetchone()
+    if not source or not step or (step["output_ref"], step["output_hash"]) != (entry["output_ref"], entry["output_hash"]):
+        raise HTTPException(409, "재사용 산출물 연결이 일치하지 않습니다.")
+    return source, step
+
+
+def ledgers(store, db, row, prepared):
+    """Shared per-video facts, loaded before any branch decision is validated against them."""
+    output = {}
+    for entry in json.loads(row["reuse_manifest_json"]):
+        if entry.get("stage") != "ledger":
+            continue
+        source, step = reused_step(db, row, entry)
+        output[entry["video_id"]] = validated_ledger(step_payload(store, source, step), prepared.run_input,
+                                                     entry["video_id"], entry["source_run_id"])
+    for step in db.execute("SELECT * FROM steps WHERE run_id=? AND stage='ledger' AND status='succeeded' ORDER BY branch_key",
+                           (row["run_id"],)):
+        output[step["branch_key"]] = validated_ledger(step_payload(store, row, step), prepared.run_input, step["branch_key"])
+    return output
+
+
+def observations(store, db, row, prepared, ledger=None):
     output = []
     config = json.loads(row["config_snapshot_json"])
-    catalog = BehaviorCatalog.model_validate_json(encode(config["behavior_catalog"])) if config.get("direct_video") else None
+    direct = bool(config.get("direct_video"))
+    catalog = BehaviorCatalog.model_validate_json(encode(config["behavior_catalog"])) if direct else None
+    ledger = ledgers(store, db, row, prepared) if direct and ledger is None else (ledger or {})
+
+    def scope(key, review_ids=None):
+        # A branch step owns exactly its own items; legacy steps own the full catalog.
+        video_id, branch = split_branch_key(key)
+        if not direct or branch is None:
+            return video_id, None, (review_ids if review_ids is not None else None)
+        from app.ledger import branch_items
+        items = branch_items(branch)
+        expected = tuple(i for i in (review_ids if review_ids is not None else items) if i in items)
+        return video_id, branch, expected
+
+    def measures_of(video_id):
+        artifact = ledger.get(video_id)
+        return artifact.measures if artifact else None
+
     for entry in json.loads(row["reuse_manifest_json"]):
         if entry.get("stage", "observe") != "observe":
             continue
-        if entry["related_hash"] != digest(related_input(row)):
-            raise HTTPException(409, "재사용 입력 해시가 일치하지 않습니다.")
-        source = db.execute("SELECT * FROM runs WHERE run_id=? AND case_id=? AND session_id=?",
-                            (entry["source_run_id"], row["case_id"], row["session_id"])).fetchone()
-        step = db.execute("SELECT * FROM steps WHERE step_id=? AND run_id=? AND status='succeeded'",
-                          (entry["step_id"], entry["source_run_id"])).fetchone()
-        if not source or not step or (step["output_ref"], step["output_hash"]) != (entry["output_ref"], entry["output_hash"]):
-            raise HTTPException(409, "재사용 산출물 연결이 일치하지 않습니다.")
+        source, step = reused_step(db, row, entry)
+        video_id, branch, expected = scope(entry.get("branch_key", entry["video_id"]))
+        if branch and measures_of(video_id) is None:
+            raise HTTPException(409, "재사용한 분기 판단에 연결된 사건 원장이 없습니다.")
         output.append(validated_observation(step_payload(store, source, step), prepared.run_input,
-                                            entry["video_id"], entry["source_run_id"], catalog=catalog))
+                                            video_id, entry["source_run_id"], catalog=catalog,
+                                            expected_items=expected, measures=measures_of(video_id), branch=branch))
     for step in db.execute("SELECT * FROM steps WHERE run_id=? AND stage='observe' AND status='succeeded' ORDER BY branch_key", (row["run_id"],)):
-        output.append(validated_observation(step_payload(store, row, step), prepared.run_input, step["branch_key"], catalog=catalog))
-    if config.get("direct_video"):
+        video_id, branch, expected = scope(step["branch_key"])
+        if branch and measures_of(video_id) is None:
+            raise HTTPException(409, "영상별 분기 판단에 연결된 사건 원장이 없습니다.")
+        output.append(validated_observation(step_payload(store, row, step), prepared.run_input, video_id,
+                                            catalog=catalog, expected_items=expected,
+                                            measures=measures_of(video_id), branch=branch))
+    if direct:
         from app.video_evaluation import conflicts
         review_ids = conflicts(output)
         for step in db.execute("SELECT * FROM steps WHERE run_id=? AND stage='review_video' AND status='succeeded' ORDER BY branch_key", (row["run_id"],)):
-            output.append(validated_observation(step_payload(store, row, step), prepared.run_input, step["branch_key"],
-                                                catalog=catalog, expected_items=review_ids))
+            video_id, branch, expected = scope(step["branch_key"], review_ids)
+            output.append(validated_observation(step_payload(store, row, step), prepared.run_input, video_id,
+                                                catalog=catalog, expected_items=expected, review=True,
+                                                measures=measures_of(video_id), branch=branch))
     ids = [item.evidence_id for artifact in output for item in artifact.evidence]
     if len(ids) != len(set(ids)):
         raise ValueError("duplicate evidence")
@@ -335,6 +442,7 @@ def view_analysis(store, case_id):
             steps = db.execute("SELECT * FROM steps WHERE run_id=? ORDER BY created_at", (row["run_id"],)).fetchall()
             ready = next((step for step in steps if step["stage"] == "prepare" and step["status"] == "succeeded"), None)
             prepared, artifacts, evaluations, scores, survey = None, [], [], None, None
+            ledger = {}
             config = json.loads(row["config_snapshot_json"])
             _, run_session = session_snapshot(row)
             video_names = {v.video_id: v.original_name for v in run_session.videos}
@@ -349,7 +457,8 @@ def view_analysis(store, case_id):
                         raise HTTPException(409, "설문 계산 산출물이 일치하지 않습니다.")
             if ready:
                 prepared = validated_prepared(row, step_payload(store, row, ready))
-                artifacts = observations(store, db, row, prepared)
+                ledger = ledgers(store, db, row, prepared) if config.get("direct_video") else {}
+                artifacts = observations(store, db, row, prepared, ledger)
                 evidence = tuple(e for artifact in artifacts for e in artifact.evidence)
                 if "evaluation" in config:
                     catalog = BehaviorCatalog.model_validate_json(encode(config["behavior_catalog"]))
@@ -373,6 +482,7 @@ def view_analysis(store, case_id):
                 behavior_items=list(catalog.items) if ready and "evaluation" in config else [],
                 evaluation_mode=config.get("evaluation_mode", "legacy"),
                 video_assessments=[a for a in artifacts if a.video_items],
+                ledgers=[ledger[key] for key in sorted(ledger)],
                 reused_from=sorted({entry["source_run_id"] for entry in json.loads(row["reuse_manifest_json"])})))
     from app.settings import current
     from app.secrets import available

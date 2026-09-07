@@ -36,6 +36,10 @@ def validate_prices(prices):
             amount(rate)
 
 
+# The provider's own roll-up; pricing uses the category meters, so it is never "unpriced".
+AGGREGATE_METERS = ("total_tokens",)
+
+
 def token_meters(value, prefix=""):
     meters = {}
     for key, item in value.items():
@@ -65,11 +69,12 @@ def summarize(store, *, event_id=None, prices=None):
     results = []
     known_cost = Decimal(0)
     unknown = reserved_count = unreserved_count = reused_count = 0
+    unpriced_meters = set()
     for run in runs:
         records = []
         config = json.loads(run["config_snapshot_json"])
         for step in by_run[run["run_id"]]:
-            if step["stage"] not in ("observe", "review_video", "evaluate", "report"):
+            if step["stage"] not in ("ledger", "observe", "review_video", "evaluate", "report"):
                 continue
             if json.loads(step["usage_json"]).get("program_merge"):
                 continue
@@ -81,26 +86,35 @@ def summarize(store, *, event_id=None, prices=None):
                 continue  # Reused artifacts retain source usage; never charge it twice.
             reserved_count += 1
             usage = json.loads(step["usage_json"])
-            selected = config if step["stage"] in ("observe", "review_video") else (
+            selected = config if step["stage"] in ("ledger", "observe", "review_video") else (
                 config.get("report", {}) if step["stage"] == "report" else
                 config.get("evaluation", {}).get(step["branch_key"], {}))
-            provider = usage.get("provider", selected.get("provider", "gemini" if step["stage"] in ("observe", "review_video") else "unknown"))
+            provider = usage.get("provider", selected.get("provider", "gemini" if step["stage"] in ("ledger", "observe", "review_video") else "unknown"))
             model = usage.get("model", selected.get("model", "unknown"))
             meters = token_meters(usage)
             uncertain = bool(usage.get("billing_uncertain")) or step["status"] in ("running", "abandoned")
             rates = (prices or {}).get("models", {}).get(f"{provider}/{model}")
             cost = None
-            if rates and not uncertain and all(meter in meters for meter in rates):
+            # Recorded token categories the price file does not list would be silently unbilled.
+            # Pricing the provider roll-up instead already covers every category inside it.
+            aggregate = any(meter.rsplit(".", 1)[-1] in AGGREGATE_METERS for meter in rates or {})
+            missing = [] if aggregate else sorted(
+                meter for meter in meters if rates and meter not in rates
+                and meter.rsplit(".", 1)[-1] not in AGGREGATE_METERS)
+            unpriced_meters.update(missing)
+            priced = bool(rates) and not uncertain and all(meter in meters for meter in rates)
+            if priced:
                 cost = sum((Decimal(meters[meter]) * amount(rate) / 1_000_000 for meter, rate in rates.items()), Decimal(0))
                 known_cost += cost
-            else:
+            if not priced or missing:
                 unknown += 1
             group = groups.setdefault((provider, model, step["stage"]), {"calls_reserved": 0, "meters": Counter()})
             group["calls_reserved"] += 1
             group["meters"].update(meters)
             records.append({"step_id": step["step_id"], "stage": step["stage"], "branch": step["branch_key"],
                 "attempt": step["attempt"], "status": step["status"], "provider": provider, "model": model,
-                "meters": meters, "billing_uncertain": uncertain, "meter_cost_estimate": str(cost) if cost is not None else None})
+                "meters": meters, "billing_uncertain": uncertain, "unpriced_meters": missing,
+                "meter_cost_estimate": str(cost) if cost is not None else None})
         results.append({"event_id": run["event_id"], "participant_id": run["participant_id"],
             "run_id": run["run_id"], "status": run["status"],
             "elapsed_to_last_update_sec": (datetime.fromisoformat(run["updated_at"]) - datetime.fromisoformat(run["created_at"])).total_seconds(),
@@ -110,7 +124,9 @@ def summarize(store, *, event_id=None, prices=None):
         "groups": [{"provider": key[0], "model": key[1], "stage": key[2], **value} for key, value in sorted(groups.items())],
         "calls_reserved": reserved_count, "unreserved_ai_steps": unreserved_count, "reused_ai_steps": reused_count,
         "unpriced_or_uncertain_calls": unknown, "known_meter_cost_estimate": str(known_cost) if prices else None,
+        "unpriced_meters": sorted(unpriced_meters),
         "complete_meter_cost_estimate": str(known_cost) if prices and unknown == 0 and unreserved_count == 0 else None,
         "price_basis": prices,
         "notice": "사용자 지정 계량식의 추정이며 청구액·결제 상한이 아닙니다. 중첩 token 필드·캐시·추론·구간 단가를 확인하세요. "
+                  "unpriced_meters는 기록되었으나 단가에 없는 token 계량이며 추정에서 빠집니다. "
                   "누락/응답 유실 비용은 미확인입니다. 예약 없는 재사용 및 M5 이전 단계는 비용 합계에서 제외합니다."}

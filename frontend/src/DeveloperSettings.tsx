@@ -3,17 +3,21 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 
 type Stage = 'observe' | 'dog' | 'owner' | 'report' | 'video';
+type TrialStage = Stage | 'ledger';
 type StageConfig = { provider: string; model: string; prompt: string; max_output_tokens: number };
-type Pipeline = Record<Stage, StageConfig> & { evaluation_mode: 'per_video' | 'legacy'; fps: number; max_attempts: number; evaluation_concurrency: number; max_ai_calls: number };
-type Trial = { trial_id: string; stage: Stage; mode: string; status: string; output?: unknown; usage: unknown };
+type Pipeline = Record<Stage, StageConfig> & { evaluation_mode: 'per_video' | 'legacy'; processing_mode: 'static' | 'agentic';
+  fps: number; thinking_level: 'low' | 'medium' | 'high' | null; media_resolution: 'low' | 'medium' | 'high' | null;
+  max_attempts: number; evaluation_concurrency: number; max_ai_calls: number };
+type Trial = { trial_id: string; stage: TrialStage; mode: string; status: string; output?: unknown; usage: unknown };
 type Settings = { active_version: string; config: Pipeline; versions: { version: string; created_at: string; actor: string }[];
   trials: Trial[]; keys: { provider: string; available: boolean; reference: string }[] };
 const stages: Record<Stage, string> = { video: '영상별 직접 평가', observe: '기존 방식 · Gemini 관찰', dog: '기존 방식 · 반려견 평가', owner: '기존 방식 · 보호자 평가', report: '리포트 설명' };
+const trialStages: Record<TrialStage, string> = { ...stages, ledger: '사건 원장 (프로그램 프롬프트)' };
 
 export function DeveloperSettings({ onVersionModeChange }: { onVersionModeChange: (active: boolean) => void }) {
   const [data, setData] = useState<Settings | null>(null);
   const [config, setConfig] = useState<Pipeline | null>(null);
-  const [stage, setStage] = useState<Stage>('video');
+  const [stage, setStage] = useState<TrialStage>('video');
   const [version, setVersion] = useState('');
   const [diff, setDiff] = useState('');
   const [trial, setTrial] = useState<Trial | null>(null);
@@ -36,8 +40,9 @@ export function DeveloperSettings({ onVersionModeChange }: { onVersionModeChange
     const value = await api<{ config: Pipeline; diff: string }>(`/developer/settings/${id}`);
     setVersion(id); setConfig(value.config); setDiff(value.diff || '운영 버전과 내용이 같습니다.'); setTrial(null);
   }
+  const editable: Stage = stage === 'ledger' ? 'video' : stage;
   function edit(value: Partial<StageConfig>) {
-    if (config) setConfig({ ...config, [stage]: { ...config[stage], ...value } });
+    if (config) setConfig({ ...config, [editable]: { ...config[editable], ...value } });
     setVersion(''); setDiff(''); setTrial(null);
   }
   function limits(value: Partial<Pipeline>) {
@@ -52,18 +57,31 @@ export function DeveloperSettings({ onVersionModeChange }: { onVersionModeChange
       <label>신규 분석 방식<select value={config.evaluation_mode} onChange={e => limits({ evaluation_mode: e.target.value as Pipeline['evaluation_mode'] })}>
         <option value="per_video">영상별 직접 평가 → 항목별 결과 병합</option><option value="legacy">기존 관찰 요약 → 분기별 평가 (비교용)</option>
       </select></label>
-      <p className="fine">영상별 방식은 각 영상에 전체 평가표를 제공합니다. 선택지가 다른 항목만 영상별 한 차례 재검토하며, 해결되지 않으면 보류합니다. 기존 방식 단계의 설정은 영상별 평가에 사용하지 않습니다.</p>
+      <p className="fine">영상별 방식은 각 영상마다 사건 원장을 먼저 기록하고 같은 영상으로 반려견 36항목·보호자 19항목을 나누어 평가합니다. 공유 사실인 구령 횟수는 원장에서만 계산합니다. 선택지가 다른 항목만 분기별 한 차례 재검토하며, 해결되지 않으면 보류합니다. 영상당 AI 호출은 원장 1회와 분기 2회입니다. 기존 방식 단계의 설정은 영상별 평가에 사용하지 않습니다.</p>
       <div className="form-grid"><label>저장 버전<select value={version} onChange={e => { const id = e.target.value; if (id) void work(() => selectVersion(id)); }}>
         <option value="">편집 중인 새 초안</option>{data.versions.map(v => <option key={v.version} value={v.version}>{v.created_at.slice(0, 19)} · {v.version.slice(0, 8)} · {v.actor}</option>)}
       </select></label><label>편집 단계<select value={stage} onChange={e => setStage(e.target.value as Stage)}>
-        {Object.entries(stages).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+        {Object.entries(trialStages).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
       </select></label></div>
-      <div className="form-grid"><label>단계 공급자<select value={config[stage].provider} onChange={e => edit({ provider: e.target.value, model: '' })} disabled={stage === 'observe' || stage === 'video'}>
+      <div className="form-grid"><label>단계 공급자<select value={config[editable].provider} onChange={e => edit({ provider: e.target.value, model: '' })} disabled={editable === 'observe' || editable === 'video'}>
         <option value="gemini">Gemini</option><option value="openai">GPT · OpenAI</option><option value="anthropic">Claude · Anthropic</option>
-      </select></label><label>단계 모델 ID<input value={config[stage].model} maxLength={150} onChange={e => edit({ model: e.target.value })} /></label>
-      <label>최대 출력 토큰<input type="number" min={256} max={65536} value={config[stage].max_output_tokens} onChange={e => edit({ max_output_tokens: Number(e.target.value) })} /></label></div>
-      <label>단계 프롬프트<textarea rows={12} maxLength={24000} value={config[stage].prompt} onChange={e => edit({ prompt: e.target.value })} /></label>
-      <div className="form-grid"><label>관찰 FPS<input type="number" min={0.1} max={10} step={0.1} value={config.fps} onChange={e => limits({ fps: Number(e.target.value) })} /></label>
+      </select></label><label>단계 모델 ID<input value={config[editable].model} maxLength={150} disabled={stage === 'ledger'} onChange={e => edit({ model: e.target.value })} /></label>
+      <label>최대 출력 토큰<input type="number" min={256} max={65536} value={config[editable].max_output_tokens} disabled={stage === 'ledger'} onChange={e => edit({ max_output_tokens: Number(e.target.value) })} /></label></div>
+      {stage === 'ledger'
+        ? <p className="fine">사건 원장의 프롬프트는 프로그램이 소유하며 편집하지 않습니다. 모델·출력 한도는 영상별 직접 평가 단계의 값을 사용하고, 이 단계에서는 합성 샘플 시험만 실행합니다.</p>
+        : <label>단계 프롬프트<textarea rows={12} maxLength={24000} value={config[editable].prompt} onChange={e => edit({ prompt: e.target.value })} /></label>}
+      <div className="form-grid"><label>영상 처리 방식<select value={config.processing_mode} onChange={e => limits({ processing_mode: e.target.value as Pipeline['processing_mode'], ...(e.target.value === 'agentic' ? { fps: 1 } : {}) })}>
+        <option value="static">고정 샘플링 · static</option><option value="agentic">모델 자율 탐색 · agentic</option>
+      </select></label>
+        <label>관찰 FPS<input type="number" min={0.1} max={10} step={0.1} value={config.fps} disabled={config.processing_mode === 'agentic'} onChange={e => limits({ fps: Number(e.target.value) })} /></label>
+        <label>추론 수준<select value={config.thinking_level ?? ''} onChange={e => limits({ thinking_level: (e.target.value || null) as Pipeline['thinking_level'] })}>
+          <option value="">공급자 기본값</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option>
+        </select></label>
+        <label>미디어 해상도<select value={config.media_resolution ?? ''} onChange={e => limits({ media_resolution: (e.target.value || null) as Pipeline['media_resolution'] })}>
+          <option value="">공급자 기본값</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option>
+        </select></label></div>
+      <p className="fine">agentic은 모델이 필요한 구간의 프레임·오디오·전사를 직접 선택하며 FPS·구간 지정을 사용하지 않습니다. 근거에는 사용한 샘플링 방식을 기록합니다. 처리 방식·추론 설정을 바꾸면 신규 분석의 설정 버전이 달라집니다.</p>
+      <div className="form-grid">
         <label>최대 시도 수<input type="number" min={1} max={3} value={config.max_attempts} onChange={e => limits({ max_attempts: Number(e.target.value) })} /></label>
         <label>평가 동시 요청<select value={config.evaluation_concurrency} onChange={e => limits({ evaluation_concurrency: Number(e.target.value) })}><option value={1}>1</option><option value={2}>2</option></select></label>
         <label>분석당 AI 호출 상한<input type="number" min={1} max={1000} value={config.max_ai_calls} onChange={e => limits({ max_ai_calls: Number(e.target.value) })} /></label></div>
@@ -81,7 +99,7 @@ export function DeveloperSettings({ onVersionModeChange }: { onVersionModeChange
       {diff && <details open><summary>운영 버전과 차이</summary><pre className="settings-diff">{diff}</pre></details>}
       <p className="fine">합성 샘플은 회색 무음 영상 또는 빈 관찰 근거를 사용합니다. 실 참가자 정보는 사용하지 않으며, 한 단계당 AI 요청 1회를 실행합니다. 스키마 통과는 모델 지원·품질 검증을 뜻하지 않습니다.</p>
       {trial && <div role="status"><strong>시험 결과: {trial.status}</strong><pre className="settings-diff">{JSON.stringify(trial, null, 2)}</pre></div>}
-      {!!data.trials.length && <details><summary>저장된 시험 이력</summary>{data.trials.map(t => <p key={t.trial_id}>{stages[t.stage]} · {t.mode} · {t.status}</p>)}</details>}
+      {!!data.trials.length && <details><summary>저장된 시험 이력</summary>{data.trials.map(t => <p key={t.trial_id}>{trialStages[t.stage] ?? t.stage} · {t.mode} · {t.status}</p>)}</details>}
       <h3>공급자 키 관리</h3><p className="fine">Windows 실행 계정의 DPAPI로 보호합니다. 등록 후 원문은 조회할 수 없습니다. 폐기하면 환경 변수 키로 자동 복귀하지 않습니다.</p>
       <ul>{data.keys.map(k => <li key={k.provider}>{k.provider} · {k.available ? '등록됨' : '개발자 설정 필요'}</li>)}</ul>
       <form onSubmit={e => { e.preventDefault(); const form = e.currentTarget;

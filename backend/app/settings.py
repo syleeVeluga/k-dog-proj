@@ -13,7 +13,7 @@ from app.input_models import Model
 from app.storage import encode, now, uid
 
 
-Stage = Literal["observe", "dog", "owner", "report", "video"]
+Stage = Literal["observe", "dog", "owner", "report", "video", "ledger"]
 
 
 class StageConfig(Model):
@@ -30,7 +30,12 @@ class Pipeline(Model):
     report: StageConfig
     video: StageConfig | None = None
     evaluation_mode: Literal["per_video", "legacy"] = "per_video"
+    # Saved drafts without the field keep the single-pass frame extraction they were validated with.
+    processing_mode: Literal["static", "agentic"] = "static"
     fps: Annotated[float, Field(gt=0, le=10)] = 1.0
+    # "minimal" is excluded: gemini-3.8-flash rejects it.
+    thinking_level: Literal["low", "medium", "high"] | None = None
+    media_resolution: Literal["low", "medium", "high"] | None = None
     max_attempts: Annotated[int, Field(ge=1, le=3)] = 3
     evaluation_concurrency: Literal[1, 2] = 2
     max_ai_calls: Annotated[int, Field(ge=1, le=1000)] = 100
@@ -45,6 +50,8 @@ class Pipeline(Model):
                                      max_output_tokens=self.observe.max_output_tokens)
         if self.video.provider != "gemini" or self.video.model and not self.video.model.startswith("gemini-"):
             raise ValueError("영상별 직접 평가는 Gemini 모델만 지원합니다.")
+        if self.processing_mode == "agentic" and self.fps != 1.0:
+            raise ValueError("agentic 처리는 프레임 속도를 지정할 수 없습니다. static을 선택하거나 FPS를 1로 두세요.")
         return self
 
 
@@ -202,10 +209,16 @@ def apply_snapshot(store, db, snapshot):
         data = value.model_dump()
         data["prompt_version"] = hashlib.sha256(encode(data).encode()).hexdigest()
         return data
+    inference = {"processing_mode": config.processing_mode, "fps": config.fps,
+                 "thinking_level": config.thinking_level, "media_resolution": config.media_resolution}
+    def version_of(prompt_version):
+        # Sampling and reasoning settings change how the video was read, so they version the run.
+        return hashlib.sha256(encode({"stage": prompt_version, **inference}).encode()).hexdigest()
+
     observation = stage(config.observe)
     snapshot.update(observation)
-    snapshot.update(config_version=observation["prompt_version"], settings_version=version,
-                    fps=config.fps, max_attempts=config.max_attempts,
+    snapshot.update(config_version=version_of(observation["prompt_version"]), settings_version=version,
+                    max_attempts=config.max_attempts, **inference,
                     evaluation_concurrency=config.evaluation_concurrency, max_ai_calls=config.max_ai_calls)
     snapshot["evaluation"] = {branch: stage(getattr(config, branch)) for branch in ("dog", "owner")}
     snapshot["report"] = stage(config.report)
@@ -213,7 +226,8 @@ def apply_snapshot(store, db, snapshot):
         from app.video_evaluation import VERSION
         video = stage(config.video)
         snapshot.update(video)
-        snapshot.update(pipeline_version=VERSION, config_version=video["prompt_version"], direct_video=True)
+        snapshot.update(pipeline_version=VERSION, direct_video=True,
+                        config_version=version_of(video["prompt_version"]))
 
 
 def trial(store, version, value, actor):

@@ -19,7 +19,7 @@ from fastapi.testclient import TestClient
 from app.analysis import adopt, claim, later, validated_prepared, write_output
 from app.api import create_app
 from app.auth import create_user
-from app.gemini import BASE, GeminiObserver, ProviderError, observation_schema, request
+from app.gemini import API_REVISION, BASE, GeminiObserver, INTERACTION_TIMEOUT, ProviderError, observation_schema, request
 from app.input_models import StoredVideo, UserCreate
 from app.media import MediaError, inspect_media
 from app.observation_models import MediaInfo, ObservationResponse
@@ -52,6 +52,9 @@ class FakeObserver:
         self.calls.append(media.video_id)
         if self.callback:
             return self.callback(media, guard)
+        if config.get("ledger"):
+            from tests.video_fixtures import ledger_response
+            return ledger_response(context), {"model": "synthetic-test-only", "totalTokenCount": 10}
         if config.get("direct_video"):
             from tests.video_fixtures import video_response
             return video_response(context), {"model": "synthetic-test-only", "totalTokenCount": 10}
@@ -427,7 +430,41 @@ class GeminiTests(unittest.TestCase):
         self.assertFalse(body["store"])
         self.assertEqual(body["input"][0]["processing"], {"type": "static", "fps": 1.0})
         self.assertEqual(body["response_format"]["mime_type"], "application/json")
-        self.assertEqual(body["generation_config"]["max_output_tokens"], 65536)
+        self.assertEqual(body["generation_config"], {"max_output_tokens": 65536})
+        self.assertEqual(generated[2]["headers"]["Api-Revision"], API_REVISION)
+        self.assertEqual(generated[2]["timeout"], INTERACTION_TIMEOUT)
+
+    def test_agentic_processing_sends_no_frame_rate_and_carries_inference_settings(self):
+        media = fake_probe(None, StoredVideo(video_id="v", camera_id="c", original_name="x.mp4",
+                           storage_ref="x.mp4", sha256="a" * 64, size_bytes=4), None, None)
+        calls = []
+        def transport(method, url, key, **kwargs):
+            calls.append((method, url, kwargs))
+            if "upload/v1beta" in url:
+                return {}, {"X-Goog-Upload-URL": BASE + "/upload-session"}
+            if "upload-session" in url:
+                return {"file": {"name": "files/f1", "state": "ACTIVE", "uri": BASE + "/v1beta/files/f1"}}, {}
+            if method == "DELETE":
+                return {}, {}
+            return {"status": "completed", "steps": [{"type": "model_output", "content": [
+                    {"type": "text", "text": response().model_dump_json()}]}],
+                    "usage": {"total_tokens": 12}, "model": "gemini-test", "id": "test-id"}, {}
+        from app.gemini import sampling, sampling_flag
+        config = {"model": "gemini-test", "prompt": "test", "max_output_tokens": 65536, "fps": 1.0,
+                  "processing_mode": "agentic", "thinking_level": "high", "media_resolution": "low"}
+        with tempfile.TemporaryDirectory(prefix="kdog-gemini-agentic-") as temp:
+            path = Path(temp) / "test.mp4"
+            path.write_bytes(b"fake")
+            with patch.dict(os.environ, {"GEMINI_API_KEY": "secret-test", "KDOG_GEMINI_MODEL": "gemini-test"}), \
+                 patch("app.gemini.request", side_effect=transport), patch("app.gemini.time.sleep"):
+                GeminiObserver().observe(path, media, config, {"items": []}, lambda: None)
+        body = next(c for c in calls if c[1].endswith("/v1beta/interactions"))[2]["data"]
+        self.assertEqual(body["input"][0]["processing"], "agentic")
+        self.assertEqual(body["generation_config"],
+                         {"max_output_tokens": 65536, "thinking_level": "high", "media_resolution": "low"})
+        self.assertEqual(sampling(config), {"mode": "agentic"})
+        self.assertEqual(sampling_flag(config), "sampling_agentic")
+        self.assertEqual(sampling_flag({"processing_mode": "static", "fps": 0.5}), "sampling_static_0.5fps")
 
 
 if __name__ == "__main__":

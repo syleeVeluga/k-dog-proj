@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 
-from app.domain.contracts import BehaviorCatalog, RunInput, SurveyCatalog
+from app.domain.contracts import BEHAVIOR_IDS, BehaviorCatalog, RunInput, SurveyCatalog
 from app.evaluation import Evaluator, evaluation_context, make_evaluation
 from app.gemini import GeminiObserver, ProviderError
 from app.media import command, MediaError
@@ -16,7 +16,9 @@ from app.storage import REPO_ROOT
 
 
 def run_sample(store, pipeline, stage):
-    config = getattr(pipeline, stage).model_dump()
+    from app.gemini import sampling
+    # The ledger prompt is program-owned, so its trial borrows the video stage's model and limits.
+    config = getattr(pipeline, "video" if stage == "ledger" else stage).model_dump()
     catalog = BehaviorCatalog.model_validate_json((REPO_ROOT / "resources/catalogs/behavior-v1.json").read_bytes())
     run = RunInput.model_validate_json(json.dumps({
         "run_id": "synthetic-run", "case_id": "synthetic-case", "event_id": "SYNTHETIC", "participant_id": "0000",
@@ -25,7 +27,9 @@ def run_sample(store, pipeline, stage):
         "prompt_version": "synthetic-v1", "config_version": "synthetic-v1",
         "survey": {f"q{i:02}": None for i in range(1, 31)}, "videos": [{"video_id": "synthetic-video", "camera_id": "CAM-1",
         "storage_ref": "synthetic/video.mp4", "sha256": "0" * 64, "duration_sec": 2.0, "audio_status": "absent"}]}))
-    if stage in ("observe", "video"):
+    inference = {"processing_mode": pipeline.processing_mode, "fps": pipeline.fps,
+                 "thinking_level": pipeline.thinking_level, "media_resolution": pipeline.media_resolution}
+    if stage in ("observe", "video", "ledger"):
         with tempfile.TemporaryDirectory(prefix="kdog-developer-sample-") as directory:
             path = Path(directory) / "sample.mp4"
             try:
@@ -37,18 +41,38 @@ def run_sample(store, pipeline, stage):
                 size_bytes=path.stat().st_size, duration_sec=2.0, codec="h264", width=320, height=240, audio_status="absent", mime_type="video/mp4", quality_flags=["audio_absent"])
             from app.video_evaluation import context
             from app.input_models import Session
-            sample_context = context(catalog, Session(session_id="synthetic-session", capture_mode="unknown", route_note="",
-                survey_version=catalog.version, survey=dict(run.survey), videos=[]), info, pipeline.fps)
+            session = Session(session_id="synthetic-session", capture_mode="unknown", route_note="",
+                survey_version=catalog.version, survey=dict(run.survey), videos=[])
+            if stage == "ledger":
+                from app.ledger import PROMPT as LEDGER_PROMPT, context as ledger_context, measures, validate_events
+                sample_context = ledger_context(session, info, sampling(inference))
+                config = {**config, "prompt": LEDGER_PROMPT, "ledger": True}
+            else:
+                from app.ledger import branch_items
+                branch = "dog" if stage == "video" else None
+                sample_context = context(catalog, session, info, sampling(inference),
+                                         branch_items(branch) if branch else BEHAVIOR_IDS, None, branch, {})
             sample_context["sample"] = "synthetic gray frame; no dog, guardian or audio"
-            response, usage = GeminiObserver(store).observe(path, info, {**config, "fps": pipeline.fps, "direct_video": stage == "video"},
+            response, usage = GeminiObserver(store).observe(path, info, {**config, **inference, "direct_video": stage == "video"},
                 sample_context, lambda: None)
+            if stage == "ledger":
+                try:
+                    validate_events(response.events, info, {})
+                except ValueError as exc:
+                    raise ProviderError("observation_schema_invalid",
+                                        usage={**usage, "validation_error": str(exc)[:300]}) from None
+                return {"events": [e.model_dump(mode="json") for e in response.events],
+                        "measures": measures(response.events),
+                        "unconfirmed_conditions": response.unconfirmed_conditions}, usage
             if response.observations:
                 raise ProviderError("observation_schema_invalid", usage=usage)
             if stage == "video":
                 from app.video_evaluation import decisions, validate_items
                 from app.observation_models import ObservationArtifact
                 validate_items(ObservationArtifact(run_id=run.run_id, video_id=info.video_id, evidence=[],
-                    unconfirmed_conditions=response.unconfirmed_conditions, usage=usage, video_items=decisions(response, [], catalog, info.duration_sec)), run, catalog)
+                    unconfirmed_conditions=response.unconfirmed_conditions, usage=usage, branch=branch,
+                    video_items=decisions(response, [], catalog, info.duration_sec, {})),
+                    run, catalog, branch_items(branch))
             return response.model_dump(mode="json"), usage
     bundle = {"evidence": [], "quality_flags": [], "unconfirmed_conditions": ["synthetic empty evidence"]}
     if stage in ("dog", "owner"):

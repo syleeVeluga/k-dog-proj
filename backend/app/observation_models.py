@@ -8,7 +8,7 @@ from app.domain.contracts import BehaviorId, Evidence, RunInput
 from app.input_models import Key, Model, Revision
 from app.domain.contracts import CatalogItem, ScoreResult
 from app.evaluation_models import EvaluationArtifact, SurveyResult
-from app.video_models import VideoDecision, VideoItem
+from app.video_models import LedgerEvent, VideoDecision, VideoItem
 
 
 SEGMENTS = ("entry", "separation", "reunion", "training", "play", "exit", "unknown")
@@ -39,6 +39,11 @@ class VideoResponse(ObservationResponse):
     items: Annotated[list[VideoDecision], Field(min_length=1, max_length=55)]
 
 
+class LedgerResponse(Model):
+    events: Annotated[list[LedgerEvent], Field(max_length=2000)]
+    unconfirmed_conditions: Annotated[list[str], Field(max_length=100)]
+
+
 class MediaInfo(Model):
     video_id: str
     storage_ref: str
@@ -67,6 +72,16 @@ class ObservationArtifact(Model):
     usage: dict[str, int | str | bool]
     video_items: list[VideoItem] = []
     review_item_ids: list[BehaviorId] = []
+    branch: Literal["dog", "owner"] | None = None
+
+
+class LedgerArtifact(Model):
+    run_id: str
+    video_id: str
+    events: list[LedgerEvent]
+    measures: dict
+    unconfirmed_conditions: list[str]
+    usage: dict[str, int | str | bool]
 
 
 class StepView(Model):
@@ -97,6 +112,7 @@ class RunView(Model):
     behavior_items: list[CatalogItem] = []
     evaluation_mode: str = "legacy"
     video_assessments: list[ObservationArtifact] = []
+    ledgers: list[LedgerArtifact] = []
 
 
 class AnalysisView(Model):
