@@ -257,7 +257,8 @@ class IntakeTests(unittest.TestCase):
             migrated = Store(self.root)
             with migrated.connect() as db:
                 self.assertNotIn("consent_json", {r[1] for r in db.execute("PRAGMA table_info(cases)")})
-                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 3)
+                self.assertNotIn("lease_expires_at", {r[1] for r in db.execute("PRAGMA table_info(steps)")})
+                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 4)
                 after = [dict(row) for row in db.execute("SELECT * FROM cases ORDER BY participant_id")]
                 before[2]["deletion_requested"] = 1
                 self.assertEqual(after, before)

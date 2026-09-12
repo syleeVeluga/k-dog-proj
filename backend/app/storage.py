@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS runs (
 CREATE TABLE IF NOT EXISTS steps (
     step_id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES runs(run_id),
     stage TEXT NOT NULL, branch_key TEXT NOT NULL, attempt INTEGER NOT NULL,
-    status TEXT NOT NULL, claim_token TEXT, lease_expires_at TEXT,
+    status TEXT NOT NULL, claim_token TEXT,
     heartbeat_at TEXT, retry_at TEXT, output_ref TEXT UNIQUE, output_hash TEXT,
     usage_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL, UNIQUE(run_id, stage, branch_key, attempt)
@@ -98,7 +98,9 @@ class Store:
                     detail.pop("consent", None)
                     db.execute("UPDATE changes SET detail_json=? WHERE change_id=?",
                                (encode(detail), row["change_id"]))
-            db.execute("PRAGMA user_version=3")
+            if "lease_expires_at" in {r[1] for r in db.execute("PRAGMA table_info(steps)")}:
+                db.execute("ALTER TABLE steps DROP COLUMN lease_expires_at")
+            db.execute("PRAGMA user_version=4")
 
     @contextmanager
     def connect(self, *, write=False):

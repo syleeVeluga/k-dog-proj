@@ -161,6 +161,11 @@ def conflicts(artifacts):
 def merge(run, catalog, artifacts, reviews):
     # Replace reviewed decisions only for that view and item; no votes or confidence weighting.
     replacements = {(a.video_id, i.item_id): i for a in reviews for i in a.video_items}
+    original = {(a.video_id, i.item_id): i for a in artifacts for i in a.video_items}
+    # A review may settle a conflict the ledger itself caused, so record the overturn instead of losing it.
+    lifted = {key[1] for key, decision in replacements.items()
+              if decision.status == "scored" and key in original and original[key].status != "scored"}
+    single_view, overridden = set(), set()
     items = []
     for item_id in BEHAVIOR_IDS:
         candidates = [replacements.get((a.video_id, i.item_id), i) for a in artifacts for i in a.video_items if i.item_id == item_id]
@@ -168,6 +173,10 @@ def merge(run, catalog, artifacts, reviews):
         options = {i.selected_option_id for i in scored}
         statuses = {i.status for i in candidates}
         if len(options) == 1 and "conflicting_evidence" not in statuses:
+            if len(scored) == 1:
+                single_view.add(item_id)
+            if item_id in lifted:
+                overridden.add(item_id)
             refs = tuple(dict.fromkeys(e for i in scored for e in i.evidence_ids))
             item = ItemEvaluation(item_id=item_id, status="scored", selected_option_id=scored[0].selected_option_id,
                 evidence_ids=refs, reason=("충분한 관찰 범위의 영상별 판단이 일치합니다. " if len(scored) > 1 else
@@ -185,6 +194,8 @@ def merge(run, catalog, artifacts, reviews):
     for branch in ("dog", "owner"):
         evaluation = BranchEvaluation(run_id=run.run_id, branch=branch,
             items=tuple(i for i in items if i.item_id.startswith("OWN-") == (branch == "owner")))
+        mine = {i.item_id for i in evaluation.items}
         output[branch] = EvaluationArtifact(evaluation=evaluation, scores=behavior_scores(run, [evaluation], catalog, evidence),
-            usage={"program_merge": True})
+            usage={"program_merge": True}, single_view_item_ids=sorted(single_view & mine),
+            review_overridden_item_ids=sorted(overridden & mine))
     return output

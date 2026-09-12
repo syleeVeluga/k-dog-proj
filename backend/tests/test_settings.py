@@ -285,7 +285,7 @@ class SettingsTests(unittest.TestCase):
             maintenance.restore(self.store, root / "backup", root / "restored")
             restored = Store(root / "restored")
             with restored.connect() as db:
-                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 3)
+                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 4)
                 self.assertEqual([dict(r) for r in db.execute("SELECT * FROM runs")], runs)
                 self.assertEqual([dict(r) for r in db.execute("SELECT * FROM steps")], steps)
                 self.assertEqual(maintenance.references(restored, db), refs)

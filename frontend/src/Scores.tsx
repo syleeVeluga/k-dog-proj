@@ -14,6 +14,8 @@ export type ScoreData = {
     groups: { group: string; mean: number | null; status: string; valid_count: number; target_count: number | null }[];
     items: { item_id: string; raw: number | null; converted: number | null; source_layer: string; status: string }[] } | null;
   behavior_items: { item_id: string; text: string; domain: string | null; options: { option_id: string; text: string }[] }[];
+  single_view_item_ids?: string[];
+  review_overridden_item_ids?: string[];
 };
 const value = (n: number | null) => n === null ? '—' : n.toFixed(2);
 
@@ -44,13 +46,15 @@ export function Scores({ run, play, selectedItem, onSelect }: { run: ScoreData; 
         <label>검토 상태<select value={status} onChange={e => setStatus(e.target.value)}><option value="all">모든 상태</option>{Object.entries(statusNames).map(([id, name]) => <option key={id} value={id}>{name} {counts[id]}개</option>)}</select></label>
         <label>검토 영역<select value={domain} onChange={e => setDomain(e.target.value)}><option value="all">모든 영역</option>{Object.entries(domainNames).map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
       </div>
-      <p className="warning">유효 채점 {counts.scored}개 · 근거 충돌 {counts.conflicting_evidence}개 · 근거 부족 {counts.insufficient_evidence}개 · 규칙 미정 {counts.rule_pending}개</p>
+      <p className="warning">유효 채점 {counts.scored}개 · 근거 충돌 {counts.conflicting_evidence}개 · 근거 부족 {counts.insufficient_evidence}개 · 규칙 미정 {counts.rule_pending}개{run.single_view_item_ids?.length ? ` · 영상 1개 단독 판정 ${run.single_view_item_ids.length}개` : ''}{run.review_overridden_item_ids?.length ? ` · 재검토로 보류 해제 ${run.review_overridden_item_ids.length}개` : ''}</p>
       <div className="assessment-list" aria-label="검토 항목 목록">{run.scores.items.filter(matching).map(score => {
         const catalog = run.behavior_items.find(c => c.item_id === score.item_id);
         const item = run.evaluations.flatMap(a => a.evaluation.items).find(i => i.item_id === score.item_id);
         return <article className={selectedItem === score.item_id ? 'score-item selected' : 'score-item'} key={score.item_id}>
           <div className="section-title"><strong>{score.item_id} · {catalog?.text}</strong>{onSelect && <button aria-label={`${score.item_id} 검토하기`} onClick={() => onSelect(score.item_id)}>검토하기</button>}</div>
-          <p>{statusNames[score.status]}{score.raw_score !== null ? ` · ${value(score.raw_score)}점` : ''}{catalog?.domain === null ? ' · 참고 항목' : ''}</p>
+          <p>{statusNames[score.status]}{score.raw_score !== null ? ` · ${value(score.raw_score)}점` : ''}{catalog?.domain === null ? ' · 참고 항목' : ''}
+            {run.single_view_item_ids?.includes(score.item_id) && <span className="tag">영상 1개 단독 판정 · 교차 확인 없음</span>}
+            {run.review_overridden_item_ids?.includes(score.item_id) && <span className="tag">재검토로 보류 해제</span>}</p>
           <details><summary>선택지·사유·근거</summary><p>{catalog?.options.find(o => o.option_id === item?.selected_option_id)?.text}</p><p>{score.reason}</p>
             <div className="toolbar">{item?.evidence_ids.map((id, i) => <button key={id} onClick={() => play(id)}>근거 {i + 1} 재생</button>)}</div>
           </details>

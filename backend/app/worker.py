@@ -110,10 +110,13 @@ class Worker:
             if current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
                 raise HTTPException(409, "실행 점유가 변경되었습니다.")
             check_access(self.store, db, current)
+            if previous and previous["status"] == "retry_wait":
+                db.execute("UPDATE steps SET status='superseded',updated_at=? WHERE step_id=? AND status='retry_wait'",
+                           (now(), previous["step_id"]))
             step = {"step_id": uid(), "claim_token": row["claim_token"], "attempt": attempt}
-            db.execute("INSERT INTO steps(step_id,run_id,stage,branch_key,attempt,status,claim_token,lease_expires_at,created_at,updated_at) "
-                       "VALUES(?,?,?,?,?,'running',?,?,?,?)",
-                       (step["step_id"], row["run_id"], stage, branch, attempt, row["claim_token"], later(180), now(), now()))
+            db.execute("INSERT INTO steps(step_id,run_id,stage,branch_key,attempt,status,claim_token,created_at,updated_at) "
+                       "VALUES(?,?,?,?,?,'running',?,?,?)",
+                       (step["step_id"], row["run_id"], stage, branch, attempt, row["claim_token"], now(), now()))
         try:
             payload = work(step)
             parsed = validate(payload)

@@ -163,6 +163,9 @@ class VideoPipelineTests(unittest.TestCase):
         self.assertEqual(len(self.observer.ledger_calls()), 3)
         self.assertEqual(len(self.observer.branch_calls()), 8)
         self.assertEqual(self.view()["status"], "scored")
+        statuses = {s["status"] for s in self.view()["steps"]}
+        self.assertIn("superseded", statuses)
+        self.assertNotIn("retry_wait", statuses)
         self.start(reanalyze=True, reuse_run_id=run_id)
         self.worker.once()
         self.assertEqual(len(self.observer.calls), 11)
@@ -246,6 +249,61 @@ class VideoPipelineTests(unittest.TestCase):
         self.assertEqual(self.view()["scores"]["items"][0]["status"], "conflicting_evidence")
         self.assertEqual(len(self.view()["evaluations"][0]["evaluation"]["items"][0]["evidence_ids"]), 3)
 
+    def test_one_view_deciding_alone_is_marked_not_cross_checked(self):
+        self.start()
+        def alone(media, context, guard):
+            result = video_response(context)
+            if media.video_id != self.video_ids[0]:
+                result.items[0].status = "not_visible"
+                result.items[0].selected_option_id = None
+            return result
+        self.observer.callback = alone
+        self.worker.once()
+        run = self.view()
+        marked = set(run["single_view_item_ids"])
+        scored = {i["item_id"] for i in run["scores"]["items"] if i["status"] == "scored"}
+        # Abstaining views never disagree, so nothing else flags these decisions.
+        self.assertEqual(len(self.observer.review_calls()), 0)
+        self.assertTrue(marked)
+        self.assertTrue(marked <= scored)
+        self.assertNotIn(run["scores"]["items"][-1]["item_id"], marked)
+
+    def test_review_lifting_a_withheld_decision_is_recorded(self):
+        self.start()
+        def disputed(media, context, guard):
+            result = video_response(context)
+            if len(context["items"]) == len(branch_items(context["branch"])) and media.video_id != self.video_ids[0]:
+                result.items[0].status = "conflicting_evidence"
+                result.items[0].selected_option_id = None
+            return result
+        self.observer.callback = disputed
+        self.worker.once()
+        run = self.view()
+        overridden = set(run["review_overridden_item_ids"])
+        self.assertTrue(overridden)
+        self.assertTrue(overridden <= {i["item_id"] for i in run["scores"]["items"] if i["status"] == "scored"})
+
+    def test_review_that_leaves_views_disagreeing_is_not_recorded_as_lifted(self):
+        self.start()
+        def unresolved(media, context, guard):
+            result = video_response(context)
+            target = next((i for i in result.items if i.item_id == "BS-01"), None)
+            if target is None or media.video_id == self.video_ids[0]:
+                return result
+            if len(context["items"]) < len(branch_items(context["branch"])):
+                target.selected_option_id = "BS-01:S3"    # answers the review, but not with the first view's option
+            else:
+                target.status = "conflicting_evidence"
+                target.selected_option_id = None
+            return result
+        self.observer.callback = unresolved
+        self.worker.once()
+        run = self.view()
+        disputed = next(i for i in run["scores"]["items"] if i["item_id"] == "BS-01")
+        # The merge still withholds the item, so no note may claim the review released it.
+        self.assertEqual(disputed["status"], "conflicting_evidence")
+        self.assertNotIn("BS-01", run["review_overridden_item_ids"])
+        self.assertNotIn("BS-01", run["single_view_item_ids"])
     def test_measurement_outside_original_is_rejected_before_item_withholding(self):
         self.start()
         def invalid(media, context, guard):

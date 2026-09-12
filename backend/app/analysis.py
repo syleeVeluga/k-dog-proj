@@ -483,6 +483,8 @@ def view_analysis(store, case_id):
                 evaluation_mode=config.get("evaluation_mode", "legacy"),
                 video_assessments=[a for a in artifacts if a.video_items],
                 ledgers=[ledger[key] for key in sorted(ledger)],
+                single_view_item_ids=[i for a in evaluations for i in a.single_view_item_ids],
+                review_overridden_item_ids=[i for a in evaluations for i in a.review_overridden_item_ids],
                 reused_from=sorted({entry["source_run_id"] for entry in json.loads(row["reuse_manifest_json"])})))
     from app.settings import current
     from app.secrets import available

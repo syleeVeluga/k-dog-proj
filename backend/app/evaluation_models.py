@@ -16,6 +16,8 @@ class EvaluationArtifact(Model):
     evaluation: BranchEvaluation
     scores: ScoreResult
     usage: dict[str, int | str | bool]
+    single_view_item_ids: list[str] = []
+    review_overridden_item_ids: list[str] = []
 
 
 class SurveyValue(Model):

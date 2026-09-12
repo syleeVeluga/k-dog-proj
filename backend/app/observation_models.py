@@ -113,6 +113,8 @@ class RunView(Model):
     evaluation_mode: str = "legacy"
     video_assessments: list[ObservationArtifact] = []
     ledgers: list[LedgerArtifact] = []
+    single_view_item_ids: list[str] = []
+    review_overridden_item_ids: list[str] = []
 
 
 class AnalysisView(Model):
