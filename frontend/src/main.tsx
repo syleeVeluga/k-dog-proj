@@ -142,8 +142,8 @@ function App() {
               {writable && <details className="panel" open={!cases.length}><summary>참가자 등록</summary>
                 <form onSubmit={e => { e.preventDefault(); const value = fields(e); void run(async () => {
                   const created = await api<Case>('/cases', 'POST', value); await reload(created.case_id); setNotice('참가자를 등록했습니다.');
-                }); }}><div className="form-grid"><label>행사 ID<input name="event_id" placeholder="KDOG-2026" pattern="[A-Za-z0-9_-]+" required /></label>
-                  <label>참가자 ID<input name="participant_id" placeholder="0001" pattern="[A-Za-z0-9_-]+" required /></label>
+                }); }}><div className="form-grid"><label>행사 ID<input name="event_id" placeholder="KDOG-2026" pattern="[A-Za-z0-9_\-]+" required /></label>
+                  <label>참가자 ID<input name="participant_id" placeholder="0001" pattern="[A-Za-z0-9_\-]+" required /></label>
                   <label>반려견 이름<input name="dog_name" required maxLength={200} /></label><label>예약 시각<input name="reservation_at" type="datetime-local" /></label></div>
                   <p className="fine">이름이 같아도 참가자 ID는 각각 등록합니다. ID 앞자리 0은 그대로 보존됩니다.</p><button className="primary">참가자 저장</button></form></details>}
             </>}
@@ -211,7 +211,7 @@ function Users({ run }: { run: Run }) {
       <label className="check"><input name="active" type="checkbox" defaultChecked={user.active} />활성</label><button>계정 변경 저장</button></form>)}</div>
     <details className="panel"><summary>직원 계정 추가</summary><form onSubmit={e => { e.preventDefault(); const value = fields(e); const form = e.currentTarget; void run(async () => {
       await api('/admin/users', 'POST', value); form.reset(); await refresh();
-    }); }}><div className="form-grid"><label>새 계정<input name="username" pattern="[A-Za-z0-9_-]+" required /></label><label>초기 비밀번호<input type="password" name="password" minLength={12} maxLength={256} autoComplete="new-password" required /></label>
+    }); }}><div className="form-grid"><label>새 계정<input name="username" pattern="[A-Za-z0-9_\-]+" required /></label><label>초기 비밀번호<input type="password" name="password" minLength={12} maxLength={256} autoComplete="new-password" required /></label>
       <label>새 계정 역할<select name="role"><option value="operator">운영자</option><option value="reviewer">교수 / 검토자</option><option value="admin">운영 관리자</option></select></label></div><button className="primary">계정 생성</button></form></details>
   </section>;
 }

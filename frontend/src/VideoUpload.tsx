@@ -34,7 +34,7 @@ export function VideoUpload({ item, session, refresh }: { item: Case; session: S
     finally { setBusy(false); }
   }
   return <form onSubmit={e => { e.preventDefault(); void upload(); }}><fieldset disabled={busy}>
-    <div className="toolbar"><label>카메라 ID<input value={camera} pattern="[A-Za-z0-9_-]+" required onChange={e => setCamera(e.target.value)} /></label>
+    <div className="toolbar"><label>카메라 ID<input value={camera} pattern="[A-Za-z0-9_\-]+" required onChange={e => setCamera(e.target.value)} /></label>
       <label>영상 파일<input type="file" accept=".mp4,.mov,.m4v,.avi,.mkv,.webm" multiple onChange={e => {
         const chosen = Array.from(e.target.files ?? []).map(file => ({ file, camera, state: '대기' as const, error: '' }));
         setQueue(previous => [...previous.filter(q => q.state !== '저장됨'), ...chosen]);
@@ -42,7 +42,7 @@ export function VideoUpload({ item, session, refresh }: { item: Case; session: S
       }} /></label><button className="primary" disabled={!queue.some(q => q.state !== '저장됨')}>영상 등록</button></div>
     <p className="fine">{item.participant_id} · {item.dog_name} · {item.manifest.sessions.findIndex(s => s.session_id === session.session_id) + 1}차 촬영. 파일별 카메라를 확인하세요. 실패 이후 파일은 대기하며 저장된 파일은 다시 보내지 않습니다.</p>
     <ol className="upload-queue">{queue.map((q, i) => <li key={i}><strong>{q.file.name}</strong> · {(q.file.size / 1048576).toFixed(1)} MiB
-      <label>파일 {i + 1} 카메라<input value={q.camera} disabled={q.state === '저장됨'} pattern="[A-Za-z0-9_-]+" required onChange={e => setQueue(queue.map((row, index) => index === i ? { ...row, camera: e.target.value } : row))} /></label>
+      <label>파일 {i + 1} 카메라<input value={q.camera} disabled={q.state === '저장됨'} pattern="[A-Za-z0-9_\-]+" required onChange={e => setQueue(queue.map((row, index) => index === i ? { ...row, camera: e.target.value } : row))} /></label>
       <p role="status">{q.state}{q.error && ` · ${q.error}`}</p>
       {q.state !== '저장됨' && <button type="button" onClick={() => setQueue(queue.filter((_, index) => index !== i))}>대기 목록에서 제거</button>}
     </li>)}</ol>

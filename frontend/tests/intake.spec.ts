@@ -9,6 +9,27 @@ async function login(page: Page, username = 'operator') {
   await expect(page.getByRole('button', { name: '로그아웃' })).toBeVisible();
 }
 
+test('shell: favicon and identifier constraints are valid', async ({ page }) => {
+  const patternErrors: string[] = [];
+  page.on('console', message => {
+    if (message.type() === 'error' && message.text().startsWith('Pattern attribute value')) patternErrors.push(message.text());
+  });
+  await login(page);
+  const inputs = page.locator('input[pattern]');
+  await expect(inputs).toHaveCount(2);
+  for (const input of await inputs.all()) {
+    await input.fill('invalid!');
+    expect(await input.evaluate(element => (element as HTMLInputElement).checkValidity())).toBe(false);
+    await input.fill('VALID_ID-1');
+    expect(await input.evaluate(element => (element as HTMLInputElement).checkValidity())).toBe(true);
+  }
+  expect(patternErrors).toEqual([]);
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg');
+  const favicon = await page.request.get('/favicon.svg');
+  expect(favicon.status()).toBe(200);
+  expect(favicon.headers()['content-type']).toContain('image/svg+xml');
+});
+
 test('desktop: registration without consent, two cameras, survey, refresh and retake', async ({ page }, testInfo) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
