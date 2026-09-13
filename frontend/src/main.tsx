@@ -158,15 +158,25 @@ function Detail({ item, catalog, writable, run, refresh, back }: {
   item: Case; catalog: Catalog; writable: boolean; run: Run; refresh: (message?: string) => Promise<void>; back: () => void;
 }) {
   const [viewSession, setViewSession] = useState(item.selected_session_id);
+  const [view, setView] = useState<'analysis' | 'report'>('analysis');
   const session = item.manifest.sessions.find(s => s.session_id === (writable ? item.selected_session_id : viewSession)) ?? sessionOf(item);
   const [playing, setPlaying] = useState<string | null>(null);
-  useEffect(() => { setPlaying(null); }, [session.session_id]);
+  useEffect(() => { setPlaying(null); }, [session.session_id, view]);
+  function changeView(next: 'analysis' | 'report') {
+    setView(next);
+    document.getElementById('analysis')?.scrollIntoView({ block: 'start' });
+  }
   return <>
     <button className="plain back" onClick={back}>← 참가자 목록</button>
     <section className="page-heading"><div><p className="eyebrow">{item.event_id} / {item.participant_id}</p><h1>{item.dog_name}</h1>
       <p className="muted">{item.reservation_at ? `예약 ${item.reservation_at.replace('T', ' ')}` : '예약 정보 없음'}</p></div><span className="tag">입력 버전 {item.input_revision}</span></section>
-    <nav className="section-nav" aria-label="참가자 업무"><a href="#analysis">결과·검토</a><a href="#videos">영상 자료</a><a href="#survey">설문</a><a href="#sessions">촬영 세션</a></nav>
-    {!writable && <Observations item={item} writable={writable} />}
+    <nav className="section-nav" aria-label="참가자 업무">
+      <button aria-current={view === 'analysis' ? 'page' : undefined} onClick={() => changeView('analysis')}>분석·검토</button>
+      <button aria-current={view === 'report' ? 'page' : undefined} onClick={() => changeView('report')}>보고서</button>
+      {view === 'analysis' && <><a href="#videos">영상 자료</a><a href="#survey">설문</a><a href="#sessions">촬영 세션</a></>}
+    </nav>
+    <Observations item={item} writable={writable} view={view} />
+    <div hidden={view !== 'analysis'}>
     <div className="detail-grid" id="sessions">
       <section className="panel"><h2>촬영 세션</h2><label>선택 세션<select aria-label="선택 세션" value={session.session_id} onChange={e => { if (!mayLeave()) return; if (!writable) { setViewSession(e.target.value); return; } void run(async () => {
         await api(`/cases/${item.case_id}/sessions`, 'POST', { expected_revision: item.input_revision, session_id: e.target.value }); await refresh();
@@ -195,8 +205,8 @@ function Detail({ item, catalog, writable, run, refresh, back }: {
       {playing && <div><video src={playing} controls preload="metadata" /><button onClick={() => setPlaying(null)}>재생 닫기</button></div>}
       {writable && <VideoUpload key={session.session_id} item={item} session={session} refresh={refresh} />}
     </section>
-    {writable && <Observations item={item} writable={writable} />}
     <SurveyEditor key={session.session_id} item={item} session={session} catalog={catalog} writable={writable} run={run} refresh={refresh} />
+    </div>
   </>;
 }
 

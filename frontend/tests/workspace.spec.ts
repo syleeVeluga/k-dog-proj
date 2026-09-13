@@ -129,8 +129,16 @@ test('paragraph evidence saves independently and keeps a separate score draft', 
   const before = await (await page.request.get(report)).json();
   await page.getByRole('button', { name: 'UX-0501 상세 열기' }).click();
   await page.getByLabel('점수 수정 사유', { exact: true }).fill('별도로 보존할 점수 초안');
+  const selectedRun = await page.getByLabel('관찰 실행 이력').inputValue();
+  await page.getByRole('button', { name: '보고서', exact: true }).click();
+  await page.getByText('보고서 편집 도구', { exact: true }).click();
   await page.getByText('설명 수동 수정', { exact: true }).click();
   await page.getByRole('textbox', { name: '표지 관계 요약', exact: true }).fill('합성 문단 수정: 관찰 조건을 확인하세요.');
+  await page.getByRole('button', { name: '분석·검토', exact: true }).click();
+  await expect(page.getByLabel('점수 수정 사유', { exact: true })).toHaveValue('별도로 보존할 점수 초안');
+  await page.getByRole('button', { name: '보고서', exact: true }).click();
+  await expect(page.getByLabel('관찰 실행 이력')).toHaveValue(selectedRun);
+  await expect(page.getByRole('textbox', { name: '표지 관계 요약', exact: true })).toHaveValue('합성 문단 수정: 관찰 조건을 확인하세요.');
   await page.getByText('표지 관계 요약에 연결할 근거', { exact: true }).click();
   for (const checkbox of await page.locator('.narration-part').first().getByRole('checkbox').all()) await checkbox.uncheck();
   await page.getByLabel('설명 수정 사유', { exact: true }).fill('표지 문단만 정정');
@@ -147,4 +155,28 @@ test('paragraph evidence saves independently and keeps a separate score draft', 
   await page.getByText(/수정 이력 · \d+건/).click();
   await expect(page.getByText('수정 전', { exact: true })).toBeVisible();
   await expect(page.getByText('수정 후', { exact: true })).toBeVisible();
+});
+
+test('report remains reachable without results and tab changes preserve survey input', async ({ page }) => {
+  await login(page);
+  await create(page, 'UX-REPORT-EMPTY');
+  await page.getByRole('button', { name: 'UX-REPORT-EMPTY 상세 열기' }).click();
+  await page.getByText('설문 원응답', { exact: false }).first().click();
+  await page.getByLabel('q01 응답', { exact: true }).selectOption('4');
+  await page.getByRole('button', { name: '보고서', exact: true }).click();
+  await expect(page.getByText('아직 보고서에 표시할 평가 결과가 없습니다.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '분석 시작', exact: true })).toBeHidden();
+  await expect(page.getByLabel('q01 응답', { exact: true })).toBeHidden();
+  await expect(page.getByRole('button', { name: '보고서', exact: true })).toHaveAttribute('aria-current', 'page');
+  await page.getByRole('button', { name: '분석·검토', exact: true }).click();
+  await expect(page.getByLabel('q01 응답', { exact: true })).toHaveValue('4');
+});
+
+test('analysis polling failure appears once on the report tab', async ({ page }) => {
+  await login(page);
+  await create(page, 'UX-REPORT-ERROR');
+  await page.route('**/api/cases/*/analysis', route => route.fulfill({ status: 503, json: { detail: '합성 조회 장애' } }));
+  await page.getByRole('button', { name: 'UX-REPORT-ERROR 상세 열기' }).click();
+  await page.getByRole('button', { name: '보고서', exact: true }).click();
+  await expect(page.getByRole('alert').filter({ hasText: '합성 조회 장애' })).toHaveCount(1);
 });

@@ -18,10 +18,10 @@ from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Table, TableStyle, PageBreak
+from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Table, TableStyle, PageBreak, Spacer
 
 from app.analysis import session_snapshot
-from app.reporting import NOTICE, PENDING, CROSS_PENDING, read_saved, report_view, run_row, write_json
+from app.reporting import NOTICE, PENDING, CROSS_PENDING, PRESENTATION, read_saved, report_view, run_row, write_json
 from app.storage import REPO_ROOT, encode, now, uid
 
 
@@ -74,7 +74,7 @@ def capture(store, value, actor, *, persist=True):
                 member["raw_survey"] = session.survey
             members.append(member)
         snapshot = {"schema_version": "1.0", "export_id": uid(), "format": value.format, "individual": bool(value.case_id),
-                    "created_at": now(), "actor": actor, "members": members,
+                    "created_at": now(), "actor": actor, "members": members, "presentation": PRESENTATION,
                     "catalog": json.loads((REPO_ROOT / "resources/catalogs/behavior-v1.json").read_text(encoding="utf-8")),
                     "survey_catalog": json.loads((REPO_ROOT / "resources/catalogs/survey-v1.json").read_text(encoding="utf-8")),
                     "rules": {"notice": NOTICE, "mapping": PENDING, "cross": CROSS_PENDING, "pending": "q23/C-2·DOG-12·OWN-14 계산 보류"}}
@@ -106,28 +106,46 @@ def export_view(snapshot, status="snapshot"):
             "preview_hash": snapshot.get("preview_hash", ""), "members": members}
 
 
+def report_coverage(data):
+    data = data or {}
+    branches = {a["evaluation"]["branch"] for a in data.get("evaluations", [])}
+    items = (data.get("scores") or {}).get("items", [])
+    total = len(data.get("behavior_items", []))
+    scored = sum(i["status"] == "scored" for i in items)
+    state = "부분 평가 결과" if branches != {"dog", "owner"} or scored < total else "평가 범위"
+    return (f"{state} · 반려견 평가 {'완료' if 'dog' in branches else '미완료'} · 보호자 평가 {'완료' if 'owner' in branches else '미완료'}"
+            + (f" · {total}개 항목 중 {scored}개 채점. 미채점은 0점이 아닙니다." if total else " · 채점 결과 없음"))
+
+
 def tabular(snapshot):
+    presentation = snapshot.get("presentation", PRESENTATION)
+    topics = presentation["topics"]
+    titles = {t["slot"]: t["title"] + " (잠정)" for t in topics}
     tables = {
         "전체요약": [["행사", "참가자 ID", "반려견", "상태", "입력 버전", "수정 버전", "실행 ID", "설명 상태", "생성시각 UTC", "내보내기 ID"]],
         "리포트": [["행사", "참가자 ID", "구성", "설명", "근거 ID"]],
-        "영역비교": [["행사", "참가자 ID", "영역", "자기인식", "AI관찰", "상태"]],
+        "영역비교": [["행사", "참가자 ID", "비교 항목 번호", "보호자 설문", "영상 관찰", "상태", "평가 주제 (잠정)"]],
         "행동55항목": [["행사", "참가자 ID", "항목 ID", "항목", "영역", "상태", "선택지", "점수", "방향", "사유", "근거 ID"]],
         "행동집계": [["행사", "참가자 ID", "영역", "평균", "최고", "유효 수", "대상 수"]],
         "설문": [["행사", "참가자 ID", "문항", "원문", "원응답", "환산값", "상태"]],
         "근거": [["행사", "참가자 ID", "근거 ID", "영상 ID", "카메라", "시작초", "종료초", "관찰", "항목 ID"]],
         "수정이력": [["행사", "참가자 ID", "수정 버전", "사용자", "시각 UTC", "종류", "사유", "이전값", "수정값"]],
-        "규칙설명": [["구분", "내용"], *[[k, v] for k, v in snapshot["rules"].items()]],
+        "규칙설명": [["구분", "내용"], ["평가 주제 안내", presentation["notice"]], *[[k, v] for k, v in snapshot["rules"].items()]],
     }
     for m in snapshot["members"]:
         identity = [m["event_id"], m["participant_id"]]
         tables["전체요약"].append([*identity, m["dog_name"], m["status"], m["input_revision"], m["revision"], m["run_id"], m["explanation_status"],
                                   datetime.fromisoformat(snapshot["created_at"]).astimezone(timezone.utc).replace(tzinfo=None), snapshot["export_id"]])
         for slot in range(1, 5):
-            tables["영역비교"].append([*identity, slot, None, None, "mapping_pending"])
+            tables["영역비교"].append([*identity, slot, None, None, "비교 기준 확인 중", titles[slot]])
         report = m["report"]
-        parts = [("표지 요약", report["cover"]["text"], report["cover"]["evidence_ids"])] if report else [("표지 요약", "설명 미준비 · " + m["explanation_status"], [])]
-        parts += [(f"영역 {d['slot']}", d["comment"], d["evidence_ids"]) for d in report["domains"]] if report else [(f"영역 {i}", PENDING, []) for i in range(1, 5)]
-        parts += [("②④ 교차 해설", report["cross_type"]["explanation"] if report else CROSS_PENDING, report["cross_type"]["evidence_ids"] if report else [])]
+        parts = [("이번 평가 요약", report["cover"]["text"], report["cover"]["evidence_ids"])] if report else [("이번 평가 요약", "아직 평가 설명이 준비되지 않았습니다.", [])]
+        parts += [("평가 범위", report_coverage(m["result"]), []), ("평가 주제 안내", presentation["notice"], [])]
+        comments = {d["slot"]: d for d in report["domains"]} if report else {}
+        for topic in topics:
+            comment = comments.get(topic["slot"], {})
+            parts.append((titles[topic["slot"]], topic["description"] + "\n" + comment.get("comment", presentation["pending"]), comment.get("evidence_ids", [])))
+        parts += [("관계 스타일 해설", report["cross_type"]["explanation"] if report else presentation["cross_pending"], report["cross_type"]["evidence_ids"] if report else [])]
         parts += [("오늘의 팁", tip["text"], tip["evidence_ids"]) for tip in report["tips"]] if report else [("오늘의 팁", "근거 기반 설명 준비 후 제공됩니다.", [])]
         parts += [("안내", NOTICE, [])]
         tables["리포트"].extend([[*identity, title, text, ", ".join(ids)] for title, text, ids in parts])
@@ -192,10 +210,11 @@ def workbook(snapshot):
         ws.print_title_rows = "1:1"
     # Four missing comparisons are explicitly blank, never a zero-height score chart.
     ws = wb["영역비교"]
-    ws["H1"] = "자기인식 / AI관찰 비교"
-    ws["H2"] = PENDING
+    ws["H1"] = "보호자 설문 / 영상 관찰 비교"
+    ws["H2"] = snapshot.get("presentation", PRESENTATION)["notice"]
     ws.column_dimensions["H"].width = 70
     ws["H2"].alignment = Alignment(wrap_text=True, vertical="top")
+    ws.row_dimensions[2].height = max(ws.row_dimensions[2].height or 0, 120)
     for index, m in enumerate(snapshot["members"], 1):
         if m["image"]:
             ws = wb.create_sheet(f"대표이미지{index}")
@@ -228,13 +247,14 @@ def workbook(snapshot):
 
 
 def pdf(snapshot, member):
+    presentation = snapshot.get("presentation", PRESENTATION)
     if "KDog" not in pdfmetrics.getRegisteredFontNames():
         pdfmetrics.registerFont(TTFont("KDog", str(REPO_ROOT / "resources/fonts/NanumGothic-Regular.ttf")))
     if "KDogSymbols" not in pdfmetrics.getRegisteredFontNames():
         pdfmetrics.registerFont(TTFont("KDogSymbols", str(REPO_ROOT / "resources/fonts/NotoSansSymbols.ttf")))
-    style = ParagraphStyle("body", fontName="KDog", fontSize=10, leading=16, wordWrap="CJK", spaceAfter=9)
+    style = ParagraphStyle("body", fontName="KDog", fontSize=11, leading=18, wordWrap="CJK", spaceAfter=10)
     title_style = ParagraphStyle("title", parent=style, fontSize=23, leading=30, spaceAfter=16)
-    heading = ParagraphStyle("heading", parent=style, fontSize=14, leading=21, spaceBefore=12)
+    heading = ParagraphStyle("heading", parent=style, fontSize=14, leading=21, spaceBefore=16, keepWithNext=True)
     def p(text, selected=style):
         text = escape(str(text)).replace("\n", "<br/>")
         for symbol in "②④":
@@ -256,20 +276,23 @@ def pdf(snapshot, member):
     else:
         story.append(p("대표 이미지 미선택"))
     report = m["report"]
-    story += [p(report["cover"]["text"] if report else "설명 미준비. 저장된 부분 결과와 보류 상태를 확인하세요."), p("4영역 비교", heading), p(PENDING)]
-    table = Table([[p("영역"), p("자기인식"), p("AI관찰")], *[[p(f"영역 {i}"), p("매핑 미정"), p("매핑 미정")] for i in range(1, 5)]], colWidths=[110, 196, 196])
+    story += [p("이번 평가 요약", heading), p(report["cover"]["text"] if report else "아직 평가 설명이 준비되지 않았습니다."), p(report_coverage(m["result"])),
+              p("보호자 설문·영상 관찰 비교", heading), p(presentation["notice"])]
+    table = Table([[p("평가 주제 (잠정)"), p("보호자 설문"), p("영상 관찰")],
+                   *[[p(t["title"]), p("비교 기준 확인 중"), p("비교 기준 확인 중")] for t in presentation["topics"]]], colWidths=[170, 166, 166], repeatRows=1)
     table.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E6EEEB")), ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD8D3")), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
-    story += [table, PageBreak(), p("관찰 설명", title_style)]
+    story += [table, PageBreak(), p("평가 주제별 설명", title_style), p("주제명과 연결 기준은 잠정안입니다. 아래는 저장된 설명과 근거입니다.")]
     evidence = {e["evidence_id"]: e for e in (m["result"] or {}).get("evidence", [])}
     def cite(ids):
         return " / ".join(f"{evidence[i]['camera_id']} {evidence[i]['source_start_sec']:.2f}초: {evidence[i]['observation']}" for i in ids if i in evidence) or "연결 근거 없음"
-    for i in range(4):
-        d = report["domains"][i] if report else {"comment": PENDING, "evidence_ids": []}
-        story += [p(f"영역 {i + 1} 코멘트", heading), p(d["comment"]), p("근거: " + cite(d["evidence_ids"]))]
-    story += [p("②④ 교차 해설", heading), p(report["cross_type"]["explanation"] if report else CROSS_PENDING), p("오늘의 팁", heading)]
+    comments = {d["slot"]: d for d in report["domains"]} if report else {}
+    for topic in presentation["topics"]:
+        d = comments.get(topic["slot"], {"comment": presentation["pending"], "evidence_ids": []})
+        story += [p(topic["title"] + " (잠정)", heading), p(topic["description"]), p(d["comment"]), p("근거: " + cite(d["evidence_ids"]))]
+    story += [p("관계 스타일 해설", heading), p(report["cross_type"]["explanation"] if report else presentation["cross_pending"]), p("오늘의 팁", heading)]
     for tip in report["tips"] if report else [{"text": "근거 기반 설명 준비 후 제공됩니다.", "evidence_ids": []}]:
         story += [p(tip["text"]), p("근거: " + cite(tip["evidence_ids"]))]
-    story += [p(NOTICE), PageBreak(), p("점수·검토 기록", title_style)]
+    story += [p(NOTICE), Spacer(1, 24), p("점수·검토 기록", heading)]
     for d in ((m["result"] or {}).get("scores") or {}).get("domains", []):
         story.append(p(f"{d['domain']} · 평균 {d['mean'] if d['mean'] is not None else '미산출'} · 최고 {d['maximum'] if d['maximum'] is not None else '미산출'} · 유효 {d['valid_count']}/{d['target_count']}"))
     for h in m["history"]:

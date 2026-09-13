@@ -6,7 +6,9 @@ import type { ScoreData } from './Scores';
 import type { Video } from './types';
 import { mayLeave, useEditBase } from './Editing';
 import { Exports } from './Exports';
+import presentation from '../../resources/report-presentation-v1.json';
 export { Exports } from './Exports';
+const topicTitle = (slot: number) => `${presentation.topics.find(t => t.slot === slot)?.title ?? `평가 주제 ${slot}`} (잠정)`;
 
 type TextPart = { text: string; evidence_ids: string[] };
 type Report = { cover: TextPart; domains: { slot: number; comment: string; evidence_ids: string[] }[];
@@ -30,8 +32,8 @@ function HistoryValue({ value, kind, result }: { value: unknown; kind: string; r
   }
   if (kind === 'text') {
     const report = value as Report;
-    const parts = [{ label: '표지 요약', ...report.cover }, ...report.domains.map(d => ({ label: `영역 ${d.slot}`, text: d.comment, evidence_ids: d.evidence_ids })),
-      { label: '②④ 교차 해설', text: report.cross_type.explanation, evidence_ids: report.cross_type.evidence_ids }, ...report.tips.map((p, i) => ({ label: `오늘의 팁 ${i + 1}`, ...p }))];
+    const parts = [{ label: '이번 평가 요약', ...report.cover }, ...report.domains.map(d => ({ label: topicTitle(d.slot), text: d.comment, evidence_ids: d.evidence_ids })),
+      { label: '관계 스타일 해설', text: report.cross_type.explanation, evidence_ids: report.cross_type.evidence_ids }, ...report.tips.map((p, i) => ({ label: `오늘의 팁 ${i + 1}`, ...p }))];
     return <>{parts.map(p => <div key={p.label}><h4>{p.label}</h4><p>{p.text}</p>{evidence(p.evidence_ids)}</div>)}</>;
   }
   return <p className="fine">상세 기록은 내보낸 파일에서 확인하세요.</p>;
@@ -69,10 +71,11 @@ function ScoreEditor({ data, itemId, setItemId, save, busy, play }: {
 function NarrationEditor({ data, save, busy, play }: { data: View; save: Save; busy: boolean; play: (id: string) => void }) {
   const edit = useEditBase(data); const view = edit.view;
   const parts = [{ name: 'cover', label: '표지 관계 요약', part: view.report?.cover },
-    ...[1, 2, 3, 4].map(i => { const d = view.report?.domains.find(d => d.slot === i); return { name: `comment${i}`, label: `영역 ${i} 코멘트`, part: d ? { text: d.comment, evidence_ids: d.evidence_ids } : undefined }; }),
-    { name: 'cross', label: '②④ 교차 해설', part: view.report ? { text: view.report.cross_type.explanation, evidence_ids: view.report.cross_type.evidence_ids } : undefined },
+    ...[1, 2, 3, 4].map(i => { const d = view.report?.domains.find(d => d.slot === i); return { name: `comment${i}`, label: `${topicTitle(i)} 설명`, part: d ? { text: d.comment, evidence_ids: d.evidence_ids } : undefined }; }),
+    { name: 'cross', label: '관계 스타일 해설', part: view.report ? { text: view.report.cross_type.explanation, evidence_ids: view.report.cross_type.evidence_ids } : undefined },
     { name: 'tip1', label: '오늘의 팁 1', part: view.report?.tips[0] }, { name: 'tip2', label: '오늘의 팁 2 (선택)', part: view.report?.tips[1] }];
   return <details><summary>설명 수동 수정</summary>
+    <p>{presentation.notice}</p>
     {edit.dirty && <p role="status">설명 수정 입력 · 저장 전</p>}
     {(view.source_hash !== data.source_hash || view.revision !== data.revision || view.status !== data.status) && <p className="warning">새 결과가 도착했습니다. 작성 중인 설명은 유지합니다.</p>}
     <button disabled={busy} onClick={edit.discard}>최신 설명 불러오기 · 미저장 입력 초기화</button>
@@ -82,17 +85,18 @@ function NarrationEditor({ data, save, busy, play }: { data: View; save: Save; b
       const tips = [part('tip1')]; if (f.get('tip2')) tips.push(part('tip2'));
       void save({ expected_revision: view.revision, expected_source_hash: view.source_hash, reason: f.get('reason'), narration: { cover: part('cover'), comments: [1, 2, 3, 4].map(i => part(`comment${i}`)), cross: part('cross'), tips } }).then(ok => { if (ok) edit.reset(); });
     }}><fieldset disabled={busy}>{parts.map(p => <section className="narration-part" key={p.name}>
-      <label>{p.label}<textarea name={p.name} required={p.name !== 'tip2'} maxLength={4000} defaultValue={p.part?.text ?? (p.name.startsWith('comment') ? '영역 대응 미정으로 수치 해석을 보류합니다. 관찰 조건과 자료 한계를 확인하세요.' : p.name === 'cross' ? '유형 경계와 명칭이 미정이므로 분류를 보류합니다.' : '')} /></label>
+      <label>{p.label}<textarea name={p.name} required={p.name !== 'tip2'} maxLength={4000} defaultValue={p.part?.text ?? (p.name.startsWith('comment') ? presentation.pending : p.name === 'cross' ? presentation.cross_pending : '')} /></label>
       <details><summary>{p.label}에 연결할 근거</summary>{view.result.evidence.map(e => <div key={e.evidence_id}><label className="check"><input type="checkbox" name={`${p.name}_evidence`} value={e.evidence_id} defaultChecked={p.part?.evidence_ids.includes(e.evidence_id)} />{e.observation}</label><button type="button" onClick={() => play(e.evidence_id)}>문단 근거 재생</button></div>)}</details>
     </section>)}<label>설명 수정 사유<textarea name="reason" required maxLength={2000} /></label><button>설명 수정 저장</button></fieldset></form>
   </details>;
 }
 
-function FrameEditor({ data, videos, base, save, busy }: { data: View; videos: Video[]; base: string; save: Save; busy: boolean }) {
+function FrameEditor({ data, videos, base, save, busy, active }: { data: View; videos: Video[]; base: string; save: Save; busy: boolean; active: boolean }) {
   const [videoId, setVideoId] = useState(data.image?.video_id ?? data.result.media[0]?.video_id ?? '');
   const [second, setSecond] = useState(data.image?.second ?? 1);
   const player = useRef<HTMLVideoElement>(null);
   const [open, setOpen] = useState(false);
+  useEffect(() => { if (!active) player.current?.pause(); }, [active]);
   useEffect(() => { if (!videoId && data.result.media.length) setVideoId(data.result.media[0].video_id); }, [videoId, data.result.media]);
   const media = data.result.media.find(m => m.video_id === videoId);
   return <details onToggle={e => setOpen(e.currentTarget.open)}><summary>대표 이미지 선택</summary><form onSubmit={e => { e.preventDefault(); void save({ expected_revision: data.revision, video_id: videoId, second }, '/image'); }}><fieldset disabled={busy}>
@@ -103,7 +107,7 @@ function FrameEditor({ data, videos, base, save, busy }: { data: View; videos: V
   </fieldset></form></details>;
 }
 
-export function Reports({ caseId, runId, play, videos = [] }: { caseId: string; runId: string; play: (id: string) => void; videos?: Video[] }) {
+export function Reports({ caseId, runId, play, videos = [], view }: { caseId: string; runId: string; play: (id: string) => void; videos?: Video[]; view: 'analysis' | 'report' }) {
   const [data, setData] = useState<View | null>(null);
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [message, setMessage] = useState('');
   const [itemId, setItemId] = useState('BS-01');
@@ -123,30 +127,58 @@ export function Reports({ caseId, runId, play, videos = [] }: { caseId: string; 
     catch (e) { setError(e instanceof Error ? e.message : '저장 실패'); return false; }
     finally { setBusy(false); }
   };
+  const scored = data?.result.scores?.items.filter(i => i.status === 'scored').length ?? 0;
+  const total = data?.result.behavior_items.length ?? 0;
+  const completed = (branch: string) => data?.result.evaluations.some(e => e.evaluation.branch === branch);
   return <div aria-label="리포트 검토"><Notification message={error} kind="error" onClose={() => setError('')} /><Notification message={message} onClose={() => setMessage('')} />
+    {!data && !error && <p role="status">평가 결과를 불러오고 있습니다.</p>}
     {data && <>
+      <div hidden={view !== 'analysis'}>
       <div className="review-workspace"><Scores run={data.result} play={play} selectedItem={itemId} onSelect={id => { if (id === itemId || mayLeave()) setItemId(id); }} />
         <section><h3>점수 검토·수정</h3><p className="fine">AI 원결과를 보존하며 수정 사유를 기록합니다. 현재 수정 버전 {data.revision}</p>
           <ScoreEditor key={`${runId}-${itemId}`} data={data} itemId={itemId} setItemId={setItemId} save={save} busy={busy} play={play} />
         </section></div>
-      <section className="report-preview" aria-label="리포트 미리보기"><h3>리포트 미리보기</h3><p role="status">{states[data.status] ?? data.status}</p>
+      </div>
+      <div hidden={view !== 'report'} className="report-workspace">
+        <div className="report-toolbar"><p role="status">{states[data.status] ?? data.status}</p>
+          <button disabled={busy || ['running', 'retry_wait'].includes(data.status)} onClick={() => void save({}, '/generate', 'POST')}>현재 점수로 설명 생성·재시도</button>
+        </div>
         {data.status === 'stale' && <p className="warning">점수가 바뀌어 이전 설명은 내보내기에서 제외됩니다. 현재 점수로 설명을 갱신하거나 직접 수정하세요.</p>}
-        <button disabled={busy || ['running', 'retry_wait'].includes(data.status)} onClick={() => void save({}, '/generate', 'POST')}>현재 점수로 설명 생성·재시도</button>
+      <article className="report-preview" aria-label="리포트 미리보기">
+        <h3>이번 평가 요약</h3><p className="report-summary">{data.report?.cover.text ?? '아직 평가 설명이 준비되지 않았습니다. 현재 결과로 설명을 생성하거나 직접 작성할 수 있습니다.'}</p>
+        <aside className="report-coverage" aria-label="평가 범위"><strong>{!completed('dog') || !completed('owner') || scored < total ? '부분 평가 결과' : '평가 범위'}</strong>
+          <p>반려견 평가 {completed('dog') ? '완료' : '미완료'} · 보호자 평가 {completed('owner') ? '완료' : '미완료'}<br />{total}개 항목 중 {scored}개 채점</p>
+          {scored < total && <p>미채점 항목의 사유는 분석·검토 탭에서 확인하세요. 미채점은 0점이 아닙니다.</p>}
+        </aside>
         {data.image ? <img className="report-image" src={`/api${base}/image?v=${data.revision}`} alt={`대표 프레임 · 원본 ${data.image.second.toFixed(2)}초`} /> : <p className="fine">대표 이미지 미선택</p>}
-        <FrameEditor data={data} videos={videos} base={base} save={save} busy={busy} />
-        <h4>표지 요약</h4><p>{data.report?.cover.text ?? '현재 점수에 맞는 설명을 준비해 주세요. 오래된 설명은 내보내기에서 제외됩니다.'}</p>
-        <h4>4영역 비교 · 매핑 미정</h4><div className="score-grid">{[1, 2, 3, 4].map(slot => <div className="score-card" key={slot}><strong>영역 {slot}</strong>
-          <p>자기인식: 매핑 미정<br />AI관찰: 매핑 미정</p><p>{data.report?.domains.find(d => d.slot === slot)?.comment ?? '대응·통합·가중치 확정 전 수치 대조를 보류합니다.'}</p>
-          {data.report?.domains.find(d => d.slot === slot)?.evidence_ids.map((id, i) => <button key={id} onClick={() => play(id)}>관찰 근거 {i + 1}</button>)}</div>)}</div>
-        <h4>②④ 교차 해설</h4><p>{data.report?.cross_type.explanation ?? '경계·명칭 미정으로 관계 유형 분류를 보류합니다.'}</p>
-        <h4>오늘의 팁</h4>{data.report ? data.report.tips.map((p, i) => <p key={i}>{p.text}</p>) : <p>근거 기반 설명 준비 후 제공됩니다.</p>}
-        <p className="fine">진단이 아닌 관찰 기반 제안입니다. 어려움이 지속되면 관련 전문가와 상담해 보세요.</p>
-      </section>
+        {data.report?.cover.evidence_ids.map((id, i) => <button key={id} onClick={() => play(id)}>요약 근거 영상 {i + 1}</button>)}
+        <section className="report-section"><h3>평가 주제별 설명</h3>
+          <aside className="report-notice"><strong>보호자 설문·영상 관찰 비교 기준 확인 중</strong><p>{presentation.notice}</p></aside>
+          <div className="report-topics">{presentation.topics.map(topic => {
+            const part = data.report?.domains.find(d => d.slot === topic.slot);
+            return <section className="report-topic" key={topic.slot}><h4>{topicTitle(topic.slot)}</h4><p>{topic.description}</p>
+              <details><summary>{topic.title}의 저장된 설명·근거</summary><p>{part?.comment ?? presentation.pending}</p>
+                {part?.evidence_ids.map((id, i) => <button key={id} onClick={() => play(id)}>근거 영상 보기 {i + 1}</button>)}
+              </details></section>;
+          })}</div>
+        </section>
+        <section className="report-section"><h3>관계 스타일 해설</h3><p>{data.report?.cross_type.explanation ?? presentation.cross_pending}</p>
+          {data.report?.cross_type.evidence_ids.map((id, i) => <button key={id} onClick={() => play(id)}>관계 해설 근거 영상 {i + 1}</button>)}
+        </section>
+        <section className="report-section"><h3>오늘의 팁</h3>{data.report ? <ol className="report-tips">{data.report.tips.map((p, i) => <li key={i}><p>{p.text}</p>
+          {p.evidence_ids.map((id, n) => <button key={id} onClick={() => play(id)}>팁 {i + 1} 근거 영상 {n + 1}</button>)}
+        </li>)}</ol> : <p>근거 기반 설명 준비 후 제공됩니다.</p>}</section>
+        <p className="report-footer">진단이 아닌 관찰 기반 제안입니다. 어려움이 지속되면 관련 전문가와 상담해 보세요.</p>
+      </article>
+      <Exports caseId={caseId} runId={runId} />
+      <details className="report-tools"><summary>보고서 편집 도구</summary>
+      <FrameEditor data={data} videos={videos} base={base} save={save} busy={busy} active={view === 'report'} />
       <NarrationEditor data={data} save={save} busy={busy} play={play} />
       <details><summary>수정 이력 · {data.history.length}건</summary>{data.history.map(h => <section key={h.revision}><p>수정 {h.revision} · {h.actor} · {new Date(h.at).toLocaleString()} · {h.reason}</p>
         {(h.before !== undefined || h.after !== undefined) && <div className="history-comparison"><div><strong>수정 전</strong><HistoryValue value={h.before} kind={h.kind} result={data.result} /></div><div><strong>수정 후</strong><HistoryValue value={h.after} kind={h.kind} result={data.result} /></div></div>}
       </section>)}</details>
-      <Exports caseId={caseId} runId={runId} />
+      </details>
+      </div>
     </>}
   </div>;
 }

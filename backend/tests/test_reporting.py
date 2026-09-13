@@ -183,8 +183,19 @@ class ReportingTests(unittest.TestCase):
         self.assertEqual(workbook["전체요약"]["C2"].data_type, "s")
         pdf = PdfReader(BytesIO(self.download(self.snapshot("pdf"))))
         text = "\n".join(page.extract_text() for page in pdf.pages)
-        for value in ("가상견", "4영역", "오늘의 팁", "진단이 아닌", "0001", "②④"):
+        for value in ("가상견", "평가 주제", "오늘의 팁", "진단이 아닌", "0001", "관계 스타일 해설", "교육태도 (잠정)", "보호자 설문", "영상 관찰"):
             self.assertIn(value, text)
+        self.assertNotIn("영역 1 코멘트", text)
+        self.assertIn("비교점수와관계유형을제공하지않습니다", "".join(text.split()))
+        comparisons = workbook["영역비교"]
+        self.assertEqual([comparisons.cell(row, 3).value for row in range(2, 6)], [1, 2, 3, 4])
+        self.assertTrue(all(comparisons.cell(row, col).value is None for row in range(2, 6) for col in (4, 5)))
+        self.assertEqual([comparisons.cell(row, 7).value for row in range(2, 6)],
+                         [t["title"] + " (잠정)" for t in exports.PRESENTATION["topics"]])
+        self.assertIn("보호자가 반려견을 가르치고 안내하는 방식", str(list(workbook["리포트"].values)))
+        self.assertIn("부분 평가 결과", text)
+        self.assertIn("부분 평가 결과", str(list(workbook["리포트"].values)))
+        self.assertGreaterEqual(comparisons.row_dimensions[2].height, 120)
         snapshot["format"] = "csv"
         archive = ZipFile(BytesIO(exports.render(snapshot)[0]))
         self.assertEqual(len(archive.namelist()), 9)

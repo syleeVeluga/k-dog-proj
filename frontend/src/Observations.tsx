@@ -37,7 +37,7 @@ function stepTarget(stage: string, key: string, item: Case) {
   return ` · ${name}${branch ? ` · ${branchLabels[branch] ?? branch}` : ''}`;
 }
 
-export function Observations({ item, writable }: { item: Case; writable: boolean }) {
+export function Observations({ item, writable, view }: { item: Case; writable: boolean; view: 'analysis' | 'report' }) {
   const [data, setData] = useState<Analysis | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -77,10 +77,13 @@ export function Observations({ item, writable }: { item: Case; writable: boolean
     finally { setBusy(false); }
   }
   const active = current && ['queued', 'running', 'retry_wait'].includes(current.status);
-  return <section className="panel" id="analysis" aria-label="영상 관찰">
-    <div className="section-title"><h2>영상 관찰·행동 평가</h2><span className="tag">{current ? analysisNames[current.status] : '실행 전'}</span></div>
-    <p className="fine">{data?.message ?? '분석 상태 확인 중…'} 화면을 닫아도 백그라운드 처리는 계속됩니다. 완료된 분기부터 점수를 확인할 수 있습니다.</p>
+  const hasResults = current && (current.survey_scores || current.evaluations.length > 0);
+  useEffect(() => { setPlaying(null); }, [view]);
+  return <section className={`panel${view === 'report' ? ' report-panel' : ''}`} id="analysis" aria-label={view === 'report' ? '보고서 결과' : '영상 관찰'}>
+    <div className="section-title"><h2>{view === 'report' ? '보고서' : '영상 관찰·행동 평가'}</h2><span className="tag">{current ? analysisNames[current.status] : '실행 전'}</span></div>
     <Notification message={error} kind="error" onClose={() => setError('')} />
+    <div hidden={view !== 'analysis'}>
+    <p className="fine">{data?.message ?? '분석 상태 확인 중…'} 화면을 닫아도 백그라운드 처리는 계속됩니다. 완료된 분기부터 점수를 확인할 수 있습니다.</p>
     {writable && <fieldset disabled={busy}><div className="toolbar">
       <button className="primary" disabled={!data || data.runs.some(r => r.is_current && ['queued', 'running', 'retry_wait'].includes(r.status))}
         onClick={() => void act(base, { expected_revision: item.input_revision, reuse_run_id: reuse && current ? current.run_id : null })}>분석 시작</button>
@@ -92,12 +95,14 @@ export function Observations({ item, writable }: { item: Case; writable: boolean
     </div><p className="fine">실제 실행 시 사용 요금이 발생합니다. 중지해도 이미 전송한 요청의 취소·환불은 보장되지 않습니다.</p></fieldset>}
     {data && !data.configured && <p className="warning">개발자에게 분석 연결 설정을 요청하세요. 기존 결과는 계속 조회할 수 있습니다. 설정 확인을 위한 실행은 실패 상태로 기록될 수 있습니다.</p>}
     {current && ['failed', 'partial_failed', 'settings_required'].includes(current.status) && <p className="warning">완료된 결과는 보존됩니다. 파일 오류는 원본 자료를 확인하고, 연결 설정 오류는 개발자에게 요청하세요. 일시 장애는 ‘실패 단계 재시도’를 사용하세요.</p>}
+    </div>
     {data && data.runs.length > 0 && <label>관찰 실행 이력<select value={current?.run_id ?? ''} onChange={e => { if (mayLeave()) { setSelected(e.target.value); setPlaying(null); setReuse(false); } }}>
       {data.runs.map(r => <option value={r.run_id} key={r.run_id}>{item.manifest.sessions.findIndex(s => s.session_id === r.session_id) + 1}차 촬영 · {new Date(r.created_at).toLocaleString()} · 입력 {r.input_revision} · {analysisNames[r.status]}{r.is_current ? ' · 현재 표시' : ' · 이전 실행'}</option>)}
     </select></label>}
     {current && <>
-      <p className="fine">{current.evaluation_mode === 'per_video' ? '영상별 직접 평가 → 항목별 결과 병합' : '기존 관찰 요약 → 분기별 평가'}</p>
       {!current.is_current && <p className="warning">이전 실행 결과입니다. 현재 입력과 다를 수 있습니다.</p>}
+      <div hidden={view !== 'analysis'}>
+      <p className="fine">{current.evaluation_mode === 'per_video' ? '영상별 직접 평가 → 항목별 결과 병합' : '기존 관찰 요약 → 분기별 평가'}</p>
       {current.reused_from.length > 0 && <p className="fine">기존 성공 관찰 재사용 · 원본 근거 ID 보존</p>}
       <details><summary>미디어 검사·단계별 처리 이력</summary>{current.media.map(m => <p className="fine" key={m.video_id}>{item.manifest.sessions.flatMap(s => s.videos).find(v => v.video_id === m.video_id)?.camera_id} · {m.duration_sec.toFixed(1)}초 · {m.width}×{m.height} · {m.codec} · {m.audio_status === 'present' ? '오디오 트랙 있음' : '오디오 없음'}</p>)}
       {Object.entries(current.media_errors).map(([id, message]) => <p className="error" key={id}>{message}</p>)}
@@ -108,16 +113,21 @@ export function Observations({ item, writable }: { item: Case; writable: boolean
       {(current.video_assessments?.length > 0 || current.ledgers?.length > 0) && <VideoAssessments assessments={current.video_assessments ?? []} ledgers={current.ledgers ?? []} catalog={current.behavior_items}
         name={id => item.manifest.sessions.flatMap(s => s.videos).find(v => v.video_id === id)?.original_name ?? id}
         play={id => setPlaying(current.evidence.find(e => e.evidence_id === id) ?? null)} />}
-      {(current.survey_scores || current.evaluations.length > 0) && <Reports key={current.run_id} videos={item.manifest.sessions.flatMap(s => s.videos)} caseId={item.case_id} runId={current.run_id} play={id => setPlaying(current.evidence.find(e => e.evidence_id === id) ?? null)} />}
+      </div>
+      {hasResults && <Reports key={current.run_id} view={view} videos={item.manifest.sessions.flatMap(s => s.videos)} caseId={item.case_id} runId={current.run_id} play={id => setPlaying(current.evidence.find(e => e.evidence_id === id) ?? null)} />}
+      <div hidden={view !== 'analysis'}>
       <p>관찰 근거 {current.evidence.length}개</p>
       {current.unconfirmed_conditions.map((flag, i) => <p className="fine" key={i}>{flag}</p>)}
       {current.evidence.map(e => <div className="video-row" key={e.evidence_id}><div><strong>{item.manifest.sessions.flatMap(s => s.videos).find(v => v.video_id === e.video_id)?.original_name} · {e.camera_id} · {e.source_start_sec.toFixed(2)}–{e.source_end_sec.toFixed(2)}초</strong>
         <p>{e.observation}</p><small>{e.candidate_item_ids.join(', ')} · {e.quality_flags.join(', ')}</small></div>
         <button onClick={() => setPlaying(e)}>원본 근거 재생</button></div>)}
+      {current.evidence.length > 0 && <p className="fine">동기화 미확인 카메라는 별도 근거로 보존하며 횟수를 합산하지 않습니다. 관찰 내용은 원본과 대조하세요.</p>}
+      </div>
       {playing && <EvidencePlayer src={`/api/cases/${item.case_id}/analysis/${current.run_id}/videos/${playing.video_id}#t=${playing.source_start_sec},${playing.source_end_sec}`}
         title={`${item.manifest.sessions.flatMap(s => s.videos).find(v => v.video_id === playing.video_id)?.original_name ?? '원본 영상'} · ${playing.camera_id} · ${playing.source_start_sec.toFixed(2)}–${playing.source_end_sec.toFixed(2)}초`}
         description={playing.observation} close={() => setPlaying(null)} />}
-      {current.evidence.length > 0 && <p className="fine">동기화 미확인 카메라는 별도 근거로 보존하며 횟수를 합산하지 않습니다. 관찰 내용은 원본과 대조하세요.</p>}
     </>}
+    {view === 'report' && !hasResults && <div className="empty"><h3>{active ? '분석 결과를 기다리고 있습니다.' : '아직 보고서에 표시할 평가 결과가 없습니다.'}</h3>
+      <p>{active ? '완료된 평가부터 보고서에 표시됩니다.' : '분석·검토 탭에서 자료와 분석 상태를 확인해 주세요.'}</p></div>}
   </section>;
 }
