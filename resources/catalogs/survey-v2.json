@@ -1,0 +1,268 @@
+{
+  "schema_version": "2.0",
+  "version": "catalog-20260913-v2",
+  "source_filename": "04_보호자_설문지_28문항.pdf",
+  "source_sha256": "e10fd0bc217b070719af42d8d0d62d19913965216ce4f1cd1f10216d80d83d76",
+  "provenance": "excel_verified",
+  "response_scale": [
+    "전혀 아니다",
+    "아니다",
+    "보통",
+    "그렇다",
+    "매우 그렇다"
+  ],
+  "items": [
+    {
+      "schema_version": "2.0",
+      "item_id": "s01",
+      "number": 1,
+      "text": "무언가를 가르칠 때 단계적으로 시도한다",
+      "domain": "A",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s02",
+      "number": 2,
+      "text": "문제행동이 있으면 그 원인을 파악하려 한다",
+      "domain": "A",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s03",
+      "number": 3,
+      "text": "문제행동을 고칠 때 대신할 행동을 가르치려 한다",
+      "domain": "A",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s04",
+      "number": 4,
+      "text": "책·영상 등으로 훈련 방법을 배우려 노력한다",
+      "domain": "A",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s05",
+      "number": 5,
+      "text": "두려워하는 것에 천천히 적응할 시간을 준다",
+      "domain": "A",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s06",
+      "number": 6,
+      "text": "두려운 것을 좋은 경험과 연결해 극복하도록 돕는다",
+      "domain": "A",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s07",
+      "number": 7,
+      "text": "어릴 때 다른 개들을 많이 만나게 하려 노력했다",
+      "domain": "A",
+      "allows_not_applicable": true,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s08",
+      "number": 8,
+      "text": "사회화 시기에 다양한 경험을 하도록 노력했다",
+      "domain": "A",
+      "allows_not_applicable": true,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s09",
+      "number": 9,
+      "text": "다른 사람들과 접촉할 기회를 갖도록 노력했다",
+      "domain": "A",
+      "allows_not_applicable": true,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s10",
+      "number": 10,
+      "text": "처음 가는 장소에서도 곧 편안해한다",
+      "domain": "B",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s11",
+      "number": 11,
+      "text": "낯선 사람이 다가와도 편안하게 대한다",
+      "domain": "B",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s12",
+      "number": 12,
+      "text": "낯선 개를 만나도 크게 긴장하지 않는다",
+      "domain": "B",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s13",
+      "number": 13,
+      "text": "새로운 물건(우산·큰 가방 등)을 무서워하지 않는다",
+      "domain": "B",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s14",
+      "number": 14,
+      "text": "갑작스러운 소리(천둥·공사음 등)에 크게 놀라지 않는다",
+      "domain": "B",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s15",
+      "number": 15,
+      "text": "반려견과 나는 서로 긍정적인 영향을 준다",
+      "domain": "C",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s16",
+      "number": 16,
+      "text": "반려견과 자주 눈을 맞춘다",
+      "domain": "C",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s17",
+      "number": 17,
+      "text": "함께 있는 것만으로 행복하다",
+      "domain": "C",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s18",
+      "number": 18,
+      "text": "시간이 나면 함께 시간을 보내려 한다",
+      "domain": "C",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s19",
+      "number": 19,
+      "text": "반려견과 나는 서로 의지한다",
+      "domain": "C",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s20",
+      "number": 20,
+      "text": "자주 만지고 쓰다듬으며, 아이도 이를 즐긴다",
+      "domain": "C",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s21",
+      "number": 21,
+      "text": "서로 사랑한다고 느낀다",
+      "domain": "C",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s22",
+      "number": 22,
+      "text": "내가 잠깐 자리를 비우면 아이가 불안해한다",
+      "domain": "D",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s23",
+      "number": 23,
+      "text": "내가 안 보이면 나를 찾아다닌다",
+      "domain": "D",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s24",
+      "number": 24,
+      "text": "내가 돌아오면 반갑게 맞이하고 금방 안정된다",
+      "domain": "D",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s25",
+      "number": 25,
+      "text": "내가 다른 방으로 가면 아이가 따라온다",
+      "domain": "D",
+      "allows_not_applicable": false,
+      "source_page": 1
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s26",
+      "number": 26,
+      "text": "내 기분에 따라 아이를 대하는 방식이 달라진다",
+      "domain": "E",
+      "allows_not_applicable": false,
+      "source_page": 2
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s27",
+      "number": 27,
+      "text": "내 기분에 따라 더 심하게 혼내곤 한다",
+      "domain": "E",
+      "allows_not_applicable": false,
+      "source_page": 2
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "s28",
+      "number": 28,
+      "text": "반려견 때문에 자주 화가 난다",
+      "domain": "E",
+      "allows_not_applicable": false,
+      "source_page": 2
+    }
+  ]
+}

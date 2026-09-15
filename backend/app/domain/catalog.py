@@ -1,4 +1,4 @@
-"""42-item behavior catalog contract (03_행동_채점표_42항목_20260913.xlsx). Content must come from the source workbook."""
+"""42-item behavior catalog (03_행동_채점표_42항목_20260913.xlsx) and 28-item survey catalog (04_보호자_설문지_28문항.pdf). Content must come from the customer sources."""
 
 from collections import Counter
 from typing import Annotated, Literal, Self
@@ -27,6 +27,16 @@ BEHAVIOR_IDS: tuple[str, ...] = tuple(
     f"{prefix}-{number:02d}" for prefix, _, count in SHEET_GROUPS for number in range(1, count + 1)
 )
 PHASE_COUNT_RANGE = tuple(range(0, 7))
+SurveyId = Annotated[str, Field(pattern=r"^s(0[1-9]|1[0-9]|2[0-8])$")]
+SURVEY_IDS: tuple[str, ...] = tuple(f"s{number:02d}" for number in range(1, 29))
+SurveyDomain = Literal["A", "B", "C", "D", "E"]
+# Section letter -> (first number, last number, printed title). 04 설문지 두 쪽의 구성이다.
+SURVEY_DOMAINS: dict[SurveyDomain, tuple[int, int, str]] = {
+    "A": (1, 9, "나의 교육 방식"), "B": (10, 14, "우리 아이의 사회성"), "C": (15, 21, "정서적 친밀감"),
+    "D": (22, 25, "떨어져 있을 때 우리 아이는"), "E": (26, 28, "나의 감정 기복"),
+}
+SURVEY_NOT_APPLICABLE_NUMBERS = (7, 8, 9)
+SURVEY_RESPONSE_SCALE = ("전혀 아니다", "아니다", "보통", "그렇다", "매우 그렇다")
 
 
 class ScaleLabel(Contract):
@@ -102,9 +112,41 @@ class BehaviorCatalog(Contract):
             offset += count
         return self
 
-    def by_id(self) -> dict[str, CatalogItem]:
-        return {item.item_id: item for item in self.items}
-
     def rated_items(self) -> tuple[CatalogItem, ...]:
         """Items a rater enters; auto_ratio items are derived by the program."""
         return tuple(item for item in self.items if item.value_type != "auto_ratio")
+
+
+class SurveyItem(Contract):
+    item_id: SurveyId
+    number: Annotated[int, Field(ge=1, le=28)]
+    text: Text
+    domain: SurveyDomain
+    allows_not_applicable: bool
+    source_page: Literal[1, 2]
+
+    @model_validator(mode="after")
+    def consistent_item(self) -> Self:
+        first, last, _ = SURVEY_DOMAINS[self.domain]
+        if self.item_id != f"s{self.number:02d}" or not first <= self.number <= last:
+            raise ValueError("survey item id, number and section disagree")
+        if self.allows_not_applicable != (self.number in SURVEY_NOT_APPLICABLE_NUMBERS):
+            raise ValueError("only items 7 to 9 offer 해당 없음")
+        return self
+
+
+class SurveyCatalog(Contract):
+    version: Text
+    source_filename: Text
+    source_sha256: Hash
+    provenance: Literal["excel_verified", "test_fixture"]
+    response_scale: tuple[Text, Text, Text, Text, Text]
+    items: tuple[SurveyItem, ...]
+
+    @model_validator(mode="after")
+    def exact_survey(self) -> Self:
+        if tuple(item.item_id for item in self.items) != SURVEY_IDS:
+            raise ValueError("survey catalog must contain s01 through s28 in order")
+        if self.response_scale != SURVEY_RESPONSE_SCALE:
+            raise ValueError("response scale is the printed 1-5 agreement scale")
+        return self
