@@ -4,8 +4,8 @@ from decimal import Decimal, ROUND_HALF_UP
 import json
 from pathlib import Path
 
-from app.domain.contracts import DomainScore, ScoreResult, SURVEY_IDS
-from app.domain.validation import resolve_branch_scores
+from app.legacy.contracts_v1 import DomainScore, ScoreResult, SURVEY_IDS
+from app.legacy.validation_v1 import resolve_branch_scores
 from app.evaluation_models import SurveyGroup, SurveyResult, SurveyValue
 
 

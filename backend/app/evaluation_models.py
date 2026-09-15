@@ -3,7 +3,7 @@
 from typing import Annotated, Literal
 from pydantic import Field
 
-from app.domain.contracts import BranchEvaluation, ItemEvaluation, ScoreResult
+from app.legacy.contracts_v1 import BranchEvaluation, ItemEvaluation, ScoreResult
 from app.input_models import Model
 
 

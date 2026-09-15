@@ -10,7 +10,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from app.domain.contracts import BehaviorCatalog, BranchEvaluation, Evidence, RunInput, SurveyCatalog
+from app.legacy.contracts_v1 import BehaviorCatalog, BranchEvaluation, Evidence, RunInput, SurveyCatalog
 from app.evaluation import Evaluator, configuration, make_evaluation
 from app.gemini import ProviderError
 from app.scoring import RULES, behavior_scores, rounded, survey_scores

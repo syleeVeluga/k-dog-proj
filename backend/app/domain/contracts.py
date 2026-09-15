@@ -1,336 +1,270 @@
-"""M0 file/API contracts. Production catalog content must come from source Excel."""
+"""42-item (2026-09-13) contracts: three-state item scores, rater sheets, 8-segment timing, survey answers and derived results.
 
+Values must come from a rater or from `app.scoring`; nothing here asserts an assessment rule of its own.
+"""
+
+from datetime import datetime
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import Field, model_validator
 
-Text = Annotated[str, Field(min_length=1, pattern=r"\S")]
-Identifier = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")]
-Hash = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
-Nonnegative = Annotated[float, Field(ge=0, allow_inf_nan=False)]
-Positive = Annotated[float, Field(gt=0, allow_inf_nan=False)]
-Revision = Annotated[int, Field(ge=1)]
-BehaviorId = Annotated[str, Field(pattern=r"^(BS-(0[1-9]|1[0-6])|DOG-(0[1-9]|1[0-9]|20)|OWN-(0[1-9]|1[0-9]))$")]
-SurveyId = Annotated[str, Field(pattern=r"^q(0[1-9]|[12][0-9]|30)$")]
-Status = Literal[
-    "scored", "not_visible", "audio_unusable", "not_performed",
-    "not_applicable", "insufficient_evidence", "conflicting_evidence", "rule_pending",
-]
-Direction = Literal["A", "B"] | None
-Domain = Literal["EDU", "SOC_P", "SOC_D", "SOC_E", "ATT", "CON", "TRN"]
-BEHAVIOR_IDS = tuple(
-    f"{prefix}-{number:02d}"
-    for prefix, count in (("BS", 16), ("DOG", 20), ("OWN", 19))
-    for number in range(1, count + 1)
-)
-SURVEY_IDS = tuple(f"q{number:02d}" for number in range(1, 31))
+from .base import Contract, Identifier, Nonnegative, Text, require_unique
+from .catalog import BEHAVIOR_IDS, BehaviorId, DomainCode, SEGMENTS, SegmentId, SURVEY_IDS, SurveyId
 
-
-def require_unique(values: list[str] | tuple[str, ...], label: str) -> None:
-    if len(values) != len(set(values)):
-        raise ValueError(f"duplicate {label}")
-
-
-class Contract(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid", strict=True, frozen=True, allow_inf_nan=False,
-        revalidate_instances="always",
-    )
-    schema_version: Literal["1.0"] = "1.0"
-
-
-class VideoReference(Contract):
-    video_id: Identifier
-    camera_id: Identifier
-    sha256: Hash
-    storage_ref: Text
-    duration_sec: Positive
-    audio_status: Literal["present", "absent", "unusable", "unknown"]
-    clip_offset_sec: Nonnegative = 0.0
-    sync_offset_sec: float | None = None
-    sync_method: Literal["marker", "operator"] | None = None
-
-    @field_validator("storage_ref")
-    @classmethod
-    def managed_relative_reference(cls, value: str) -> str:
-        # This is a storage key, never a user-supplied OS path or URL.
-        if value.startswith("/") or ":" in value or "\\" in value:
-            raise ValueError("storage_ref must be a relative POSIX storage key")
-        if any(part in ("", ".", "..") for part in value.split("/")):
-            raise ValueError("invalid storage_ref component")
-        return value
-
-    @model_validator(mode="after")
-    def synchronization_pair(self) -> Self:
-        if (self.sync_offset_sec is None) != (self.sync_method is None):
-            raise ValueError("sync offset requires a marker or operator correction")
-        return self
-
-
-class RunInput(Contract):
-    run_id: Identifier
-    case_id: Identifier
-    event_id: Text
-    participant_id: Text
-    session_id: Identifier
-    input_revision: Revision
-    catalog_version: Text
-    pipeline_version: Text
-    scoring_rule_version: Text
-    report_mapping_version: Text
-    prompt_version: Text
-    config_version: Text
-    # 데이터입력!A2: normalized original responses 1..5; conversion is separate.
-    survey: dict[SurveyId, Annotated[int, Field(ge=1, le=5)] | None]
-    videos: Annotated[tuple[VideoReference, ...], Field(min_length=1)]
-
-    @model_validator(mode="after")
-    def complete_input(self) -> Self:
-        if set(self.survey) != set(SURVEY_IDS):
-            raise ValueError("survey requires exactly q01 through q30; missing answers use null")
-        if any(isinstance(value, bool) for value in self.survey.values()):
-            raise ValueError("boolean survey answers are not raw numeric/text responses")
-        require_unique(tuple(video.video_id for video in self.videos), "video_id")
-        return self
-
-
-class Evidence(Contract):
-    evidence_id: Identifier
-    run_id: Identifier
-    case_id: Identifier
-    session_id: Identifier
-    video_id: Identifier
-    camera_id: Identifier
-    segment_id: Identifier
-    source_start_sec: Nonnegative
-    source_end_sec: Nonnegative
-    subject: Literal["dog", "owner", "staff", "unknown"]
-    modality: Literal["video", "audio", "audio_video"]
-    observation: Text
-    candidate_item_ids: Annotated[tuple[BehaviorId, ...], Field(min_length=1)]
-    quality_flags: tuple[Text, ...] = ()
-    event_group_id: Identifier | None = None
-
-    @model_validator(mode="after")
-    def ordered_interval(self) -> Self:
-        if self.source_end_sec < self.source_start_sec:
-            raise ValueError("evidence end precedes start")
-        require_unique(self.candidate_item_ids, "candidate item")
-        return self
-
-
-class ItemEvaluation(Contract):
-    item_id: BehaviorId
-    status: Status
-    selected_option_id: Text | None
-    evidence_ids: tuple[Identifier, ...]
-    reason: Text
-
-    @model_validator(mode="after")
-    def selected_only_when_scored(self) -> Self:
-        require_unique(self.evidence_ids, "evidence_id")
-        if self.status == "scored":
-            if self.selected_option_id is None or not self.evidence_ids:
-                raise ValueError("scored requires an option and evidence")
-        elif self.selected_option_id is not None:
-            raise ValueError("unscored and rule_pending options must be null")
-        return self
-
-
-class BranchEvaluation(Contract):
-    run_id: Identifier
-    branch: Literal["dog", "owner"]
-    items: tuple[ItemEvaluation, ...]
-
-    @model_validator(mode="after")
-    def exact_branch_items(self) -> Self:
-        expected = {
-            item for item in BEHAVIOR_IDS
-            if item.startswith("OWN-") == (self.branch == "owner")
-        }
-        ids = tuple(item.item_id for item in self.items)
-        require_unique(ids, "evaluation item")
-        if set(ids) != expected:
-            raise ValueError("branch must contain exactly its 36 dog or 19 owner items")
-        return self
-
-
-class CatalogOption(Contract):
-    option_id: Text
-    text: Text
-    score: float
-    direction: Direction
-    source_cell: Text
-
-
-class CatalogItem(Contract):
-    item_id: BehaviorId
-    text: Text
-    segment: Text
-    domain: Domain | None
-    source_sheet: Text
-    source_row: Revision
-    options: Annotated[tuple[CatalogOption, ...], Field(min_length=1)]
-
-    @model_validator(mode="after")
-    def unique_options(self) -> Self:
-        require_unique(tuple(option.option_id for option in self.options), "option_id")
-        return self
-
-
-class BehaviorCatalog(Contract):
-    version: Text
-    source_filename: Text
-    source_sha256: Hash
-    provenance: Literal["excel_verified", "test_fixture"]
-    items: tuple[CatalogItem, ...]
-
-    @model_validator(mode="after")
-    def exact_catalog(self) -> Self:
-        ids = tuple(item.item_id for item in self.items)
-        require_unique(ids, "catalog item")
-        if set(ids) != set(BEHAVIOR_IDS):
-            raise ValueError("catalog must contain all 55 behavior items exactly once")
-        return self
-
-
-class SurveyItem(Contract):
-    item_id: SurveyId
-    text: Text
-    domain_label: Literal["A", "B", "C", "D"]
-    source_layer: Literal["원", "C", "영"]
-    scoring_note: Text
-    source_sheet: Text
-    source_row: Revision
-
-
-class SurveyCatalog(Contract):
-    version: Text
-    source_filename: Text
-    source_sha256: Hash
-    provenance: Literal["excel_verified"]
-    response_instructions: Text
-    allowed_responses: tuple[Literal[1, 2, 3, 4, 5], ...]
-    items: tuple[SurveyItem, ...]
-
-    @model_validator(mode="after")
-    def exact_survey(self) -> Self:
-        ids = tuple(item.item_id for item in self.items)
-        require_unique(ids, "survey item")
-        if set(ids) != set(SURVEY_IDS):
-            raise ValueError("catalog requires exactly 30 survey items")
-        if self.allowed_responses != (1, 2, 3, 4, 5):
-            raise ValueError("source response scale is 1 through 5")
-        return self
+ScoreStatus = Literal["scored", "unreadable", "not_applicable"]
+# strict int rejects booleans, which Literal[1..5] would silently canonicalise to 1
+Answer = Annotated[int, Field(ge=1, le=5)]
+RaterKind = Literal["ai", "human"]
+IndicatorKey = Literal["adaptation", "recovery", "stranger_calming", "sync_rate"]
+INDICATOR_KEYS: tuple[IndicatorKey, ...] = ("adaptation", "recovery", "stranger_calming", "sync_rate")
+TypeKey = Literal["attachment", "sociability_person"]
+TYPE_LABELS: dict[TypeKey, tuple[str, ...]] = {
+    "attachment": ("안정", "불안", "거리 둠", "일관되지 않음"),
+    "sociability_person": ("편안·우호", "우호·들뜸", "담담·거리둠", "경계·긴장"),
+}
+# 01 §4: only these Korean names may appear; Ainsworth terms (secure/avoidant/…) are rejected by the whitelist.
+DerivedStatus = Literal["calculated", "missing", "invalid"]
+SurveyMeanDomain = Literal["A", "B", "C", "E"]
+SeparationLabel = Literal["안정", "불안", "회피 쪽", "무덤덤"]
 
 
 class ItemScore(Contract):
     item_id: BehaviorId
-    status: Status
-    raw_score: float | None
-    direction: Direction
-    reason: Text
+    score: Annotated[int, Field(ge=0)] | None
+    status: ScoreStatus
+    reason: Text | None = None
 
     @model_validator(mode="after")
-    def null_missing_score(self) -> Self:
-        if self.status == "scored" and self.raw_score is None:
-            raise ValueError("scored requires raw_score")
-        if self.status != "scored" and (self.raw_score is not None or self.direction is not None):
-            raise ValueError("unscored values and direction must be null")
+    def three_states(self) -> Self:
+        if self.status == "scored":
+            if self.score is None:
+                raise ValueError("scored requires a value; a blank is not 0")
+        elif self.score is not None or self.reason is None:
+            raise ValueError("unreadable and not_applicable carry no value and require a reason")
         return self
 
 
-class DomainScore(Contract):
-    domain: Domain
-    mean: float | None
-    maximum: float | None
-    valid_count: Annotated[int, Field(ge=0)]
-    target_count: Annotated[int, Field(gt=0)]
-    direction: Direction = None
-    direction_a_sum: float = 0.0
-    direction_b_sum: float = 0.0
+class Rater(Contract):
+    rater_id: Identifier
+    kind: RaterKind
+    label: Text | None = None
+
+
+class ScoreSheet(Contract):
+    """One rater's entries for one pair; several sheets per pair are kept for agreement (ICC) analysis."""
+
+    sheet_id: Identifier
+    case_id: Identifier
+    session_id: Identifier
+    catalog_version: Text
+    rater: Rater
+    recorded_at: Text
+    items: Annotated[tuple[ItemScore, ...], Field(min_length=1)]
 
     @model_validator(mode="after")
-    def valid_denominator(self) -> Self:
-        if self.valid_count > self.target_count:
-            raise ValueError("valid_count exceeds target_count")
-        if self.valid_count == 0:
-            if self.mean is not None or self.maximum is not None:
-                raise ValueError("empty domain must have null mean and maximum")
-        elif self.mean is None or self.maximum is None or self.mean > self.maximum:
-            raise ValueError("nonempty domain requires mean <= maximum")
+    def unique_items_and_timestamp(self) -> Self:
+        require_unique(tuple(item.item_id for item in self.items), "sheet item")
+        try:
+            datetime.fromisoformat(self.recorded_at)
+        except ValueError as error:
+            raise ValueError("recorded_at must be ISO 8601") from error
+        return self
+
+
+class SegmentWindow(Contract):
+    segment: SegmentId
+    start_sec: Nonnegative
+    end_sec: Nonnegative
+    source: Literal["ai_proposed", "operator_confirmed"]
+
+    @model_validator(mode="after")
+    def ordered(self) -> Self:
+        if self.end_sec < self.start_sec:
+            raise ValueError("segment end precedes start")
+        return self
+
+
+class SessionSegments(Contract):
+    """The eight procedure segments of one recording (01 §2). `confirmed()` tells whether an operator has fixed every window."""
+
+    session_id: Identifier
+    video_id: Identifier
+    windows: tuple[SegmentWindow, ...]
+
+    @model_validator(mode="after")
+    def eight_ordered_windows(self) -> Self:
+        if tuple(window.segment for window in self.windows) != tuple(segment for segment, _ in SEGMENTS):
+            raise ValueError("windows must be the eight segments in procedure order")
+        for earlier, later in zip(self.windows, self.windows[1:]):
+            if later.start_sec < earlier.end_sec:
+                raise ValueError("segments overlap")
+        return self
+
+    def confirmed(self) -> bool:
+        return all(window.source == "operator_confirmed" for window in self.windows)
+
+
+class SurveyAnswers(Contract):
+    answers: dict[SurveyId, Answer | None]
+    not_applicable: tuple[SurveyId, ...] = ()
+
+    @model_validator(mode="after")
+    def complete_and_consistent(self) -> Self:
+        if set(self.answers) != set(SURVEY_IDS):
+            raise ValueError("survey requires exactly s01 through s28; blanks use null")
+        require_unique(self.not_applicable, "not_applicable item")
+        if any(self.answers[item_id] is not None for item_id in self.not_applicable):
+            raise ValueError("해당 없음 is a missing value, not a score")
+        return self
+
+
+class DomainSummary(Contract):
+    domain: DomainCode
+    target_count: Annotated[int, Field(gt=0)]
+    scored_count: Annotated[int, Field(ge=0)]
+    unreadable_count: Annotated[int, Field(ge=0)]
+    not_applicable_count: Annotated[int, Field(ge=0)]
+    excluded_count: Annotated[int, Field(ge=0)]
+    mean: float | None
+    lean: float | None
+    width: Annotated[int, Field(ge=0, le=2)] | None
+    degree: float | None
+
+    @model_validator(mode="after")
+    def counts_and_nulls(self) -> Self:
+        if self.scored_count + self.unreadable_count + self.not_applicable_count + self.excluded_count != self.target_count:
+            raise ValueError("item states must account for every item of the domain")
+        if (self.mean is None) != (self.lean is None):
+            raise ValueError("lean is derived from mean; both or neither")
+        if self.scored_count == 0 and any(value is not None for value in (self.mean, self.width, self.degree)):
+            raise ValueError("a domain without scored items has no values")
+        return self
+
+
+class Indicator(Contract):
+    key: IndicatorKey
+    value: float | None
+    status: DerivedStatus
+    reason: Text | None = None
+
+    @model_validator(mode="after")
+    def value_only_when_calculated(self) -> Self:
+        if (self.status == "calculated") != (self.value is not None):
+            raise ValueError("calculated indicators carry a value; missing/invalid ones do not")
+        if self.status != "calculated" and self.reason is None:
+            raise ValueError("missing or invalid indicators require a reason")
+        return self
+
+
+class TypeResult(Contract):
+    key: TypeKey
+    label: Text | None
+    status: DerivedStatus
+    reason: Text | None = None
+
+    @model_validator(mode="after")
+    def named_only_when_calculated(self) -> Self:
+        if (self.status == "calculated") != (self.label is not None):
+            raise ValueError("calculated types carry a label; missing/invalid ones do not")
+        if self.status != "calculated" and self.reason is None:
+            raise ValueError("missing or invalid types require a reason")
+        if self.label is not None and self.label not in TYPE_LABELS[self.key]:
+            raise ValueError("type label is not one of the agreed Korean names")
         return self
 
 
 class ScoreResult(Contract):
-    run_id: Identifier
+    sheet_id: Identifier
     catalog_version: Text
     scoring_rule_version: Text
+    rater: Rater
     items: tuple[ItemScore, ...]
-    domains: tuple[DomainScore, ...]
+    baseline_arousal: Annotated[int, Field(ge=1, le=5)] | None
+    domains: tuple[DomainSummary, ...]
+    indicators: tuple[Indicator, ...]
+    types: tuple[TypeResult, ...]
 
     @model_validator(mode="after")
-    def unique_results(self) -> Self:
-        require_unique(tuple(item.item_id for item in self.items), "score item")
-        require_unique(tuple(domain.domain for domain in self.domains), "score domain")
+    def complete_result(self) -> Self:
+        if tuple(item.item_id for item in self.items) != BEHAVIOR_IDS:
+            raise ValueError("result lists all 42 items in catalog order, derived items included")
+        if sorted(domain.domain for domain in self.domains) != sorted(("SOC_E", "SOC_H", "ATT", "SYN", "EDU", "EXIT")):
+            raise ValueError("result needs one summary per domain")
+        if tuple(indicator.key for indicator in self.indicators) != INDICATOR_KEYS:
+            raise ValueError("result needs the four indicators in order")
+        if tuple(result.key for result in self.types) != ("attachment", "sociability_person"):
+            raise ValueError("result needs the two type judgements")
         return self
 
 
-class ReportDomain(Contract):
-    # Slot numbers do not assert an unconfirmed domain-name mapping.
-    slot: Literal[1, 2, 3, 4]
-    status: Literal["ready", "mapping_pending", "insufficient_evidence"]
-    label: Text | None
-    value: float | None
-    comment: Text
-    evidence_ids: tuple[Identifier, ...]
+class SurveyItemValue(Contract):
+    item_id: SurveyId
+    raw: Answer | None
+    converted: Answer | None
+    not_applicable: bool
 
     @model_validator(mode="after")
-    def pending_display(self) -> Self:
-        if self.status != "ready" and self.value is not None:
-            raise ValueError("pending or missing report value must be null")
-        if self.status == "mapping_pending" and self.label is not None:
-            raise ValueError("unconfirmed domain mapping must not assert a label")
-        if self.status == "ready" and (self.label is None or self.value is None):
-            raise ValueError("ready domain requires label and value")
+    def missing_stays_missing(self) -> Self:
+        if (self.raw is None) != (self.converted is None):
+            raise ValueError("a missing answer has no converted value")
+        if self.not_applicable and self.raw is not None:
+            raise ValueError("해당 없음 has no answer")
         return self
 
 
-class ReportText(Contract):
-    text: Text
-    evidence_ids: tuple[Identifier, ...]
-
-
-class CrossType(Contract):
-    status: Literal["ready", "type_rule_pending", "insufficient_evidence"]
-    rule_id: Text | None
-    type_name: Text | None
-    explanation: Text
-    evidence_ids: tuple[Identifier, ...]
+class SurveyDomainScore(Contract):
+    domain: SurveyMeanDomain
+    mean: float | None
+    answered_count: Annotated[int, Field(ge=0)]
+    target_count: Annotated[int, Field(gt=0)]
+    status: Literal["calculated", "partial", "missing"]
 
     @model_validator(mode="after")
-    def pending_type(self) -> Self:
-        if self.status == "ready" and (self.rule_id is None or self.type_name is None):
-            raise ValueError("ready type requires a rule and name")
-        if self.status != "ready" and self.type_name is not None:
-            raise ValueError("pending type name must be null")
-        if self.status == "type_rule_pending" and self.rule_id is not None:
-            raise ValueError("pending type rule must be null")
+    def status_matches_counts(self) -> Self:
+        if self.answered_count > self.target_count:
+            raise ValueError("answered_count exceeds target_count")
+        expected = ("missing" if self.answered_count == 0 else
+                    "calculated" if self.answered_count == self.target_count else "partial")
+        if self.status != expected or (self.mean is None) != (self.answered_count == 0):
+            raise ValueError("domain status and mean must follow the answered count")
         return self
 
 
-class ReportResult(Contract):
-    run_id: Identifier
-    report_mapping_version: Text
-    result_revision: Revision
-    cover: ReportText
-    domains: Annotated[tuple[ReportDomain, ...], Field(min_length=4, max_length=4)]
-    cross_type: CrossType
-    tips: Annotated[tuple[ReportText, ...], Field(min_length=1, max_length=2)]
-    notice: Text
+class SeparationType(Contract):
+    resistance: float | None
+    recovery: Annotated[int, Field(ge=1, le=5)] | None
+    label: SeparationLabel | None
+    status: Literal["calculated", "missing"]
+    reason: Text | None = None
 
     @model_validator(mode="after")
-    def four_slots(self) -> Self:
-        if {domain.slot for domain in self.domains} != {1, 2, 3, 4}:
-            raise ValueError("report requires four distinct domain slots")
+    def label_only_when_calculated(self) -> Self:
+        complete = self.resistance is not None and self.recovery is not None
+        if (self.status == "calculated") != complete or (self.label is not None) != complete:
+            raise ValueError("separation type needs both resistance and recovery")
+        if self.status == "missing" and self.reason is None:
+            raise ValueError("missing separation type requires a reason")
+        return self
+
+
+class SurveyResult(Contract):
+    """No total and no ranking: the survey is compared with the video, never summed (01 §6)."""
+
+    catalog_version: Text
+    scoring_rule_version: Text
+    items: tuple[SurveyItemValue, ...]
+    domains: tuple[SurveyDomainScore, ...]
+    separation: SeparationType
+    status: Literal["calculated", "partial", "unregistered"]
+
+    @model_validator(mode="after")
+    def complete_survey(self) -> Self:
+        if tuple(item.item_id for item in self.items) != SURVEY_IDS:
+            raise ValueError("survey result lists s01 through s28 in order")
+        if tuple(domain.domain for domain in self.domains) != ("A", "B", "C", "E"):
+            raise ValueError("survey means cover A, B, C and E; D is a type, not a mean")
+        answered = sum(item.raw is not None for item in self.items)
+        expected = "unregistered" if answered == 0 else "calculated" if answered == len(self.items) else "partial"
+        if self.status != expected:
+            raise ValueError("survey status must follow the answered count")
         return self

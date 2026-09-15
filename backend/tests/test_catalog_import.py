@@ -6,7 +6,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from app.domain.contracts import BehaviorCatalog, SurveyCatalog
+from app.legacy.contracts_v1 import BehaviorCatalog, SurveyCatalog
 
 ROOT = Path(__file__).resolve().parents[2]
 

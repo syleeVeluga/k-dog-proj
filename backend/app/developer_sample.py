@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 
-from app.domain.contracts import BEHAVIOR_IDS, BehaviorCatalog, RunInput, SurveyCatalog
+from app.legacy.contracts_v1 import BEHAVIOR_IDS, BehaviorCatalog, RunInput, SurveyCatalog
 from app.evaluation import Evaluator, evaluation_context, make_evaluation
 from app.gemini import GeminiObserver, ProviderError
 from app.media import command, MediaError

@@ -53,7 +53,7 @@ def observation_schema() -> dict:
 def video_schema(duration=None) -> dict:
     # Use the same REST-supported subset as observations; enforce full constraints locally.
     from typing import get_args
-    from app.domain.contracts import Status
+    from app.legacy.contracts_v1 import Status
     result = observation_schema()
     measurement = {"kind": {"type": "string", "enum": ["command_count", "behavior_count", "duration_sec", "latency_sec"]},
                    **{key: {"type": "number", "minimum": 0} for key in ("value", "start_sec", "end_sec")}}

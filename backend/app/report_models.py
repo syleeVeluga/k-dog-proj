@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 import json
 from pydantic import Field, field_validator
 
-from app.domain.contracts import ItemEvaluation, ReportResult, ReportText
+from app.legacy.contracts_v1 import ItemEvaluation, ReportResult, ReportText
 from app.input_models import Key, Model
 from app.evaluation_models import ProviderSelection, ProviderState
 

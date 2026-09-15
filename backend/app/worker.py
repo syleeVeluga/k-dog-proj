@@ -13,7 +13,7 @@ from app.analysis import (
     adopt, branch_key, check_access, claim, guard, later, ledgers, observations, session_snapshot,
     step_payload, validated_ledger, validated_observation, validated_prepared, write_output, evaluation_reuse,
 )
-from app.domain.contracts import BehaviorCatalog, Evidence, RunInput, SurveyCatalog, VideoReference
+from app.legacy.contracts_v1 import BehaviorCatalog, Evidence, RunInput, SurveyCatalog, VideoReference
 from app.evaluation import Evaluator, evaluation_context, make_evaluation, validated_evaluation
 from app.scoring import RULES, survey_scores
 from app.gemini import GeminiObserver, ProviderError, sampling, sampling_flag

@@ -9,7 +9,7 @@ from app.analysis import (
     claim, later, related_input, split_branch_key, validated_observation, validated_prepared, step_payload, write_output,
 )
 from app.ledger import branch_items
-from app.domain.contracts import BehaviorCatalog
+from app.legacy.contracts_v1 import BehaviorCatalog
 from app.gemini import ProviderError
 from app.observation_models import VideoResponse
 from app.storage import encode, now, uid
