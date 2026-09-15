@@ -1,6 +1,6 @@
 """Program-owned event ledger: the single source of shared facts both branches read."""
 
-from app.domain.contracts import BEHAVIOR_IDS
+from app.legacy.contracts_v1 import BEHAVIOR_IDS
 
 
 VERSION = "ledger-1.1"

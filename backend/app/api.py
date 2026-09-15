@@ -19,7 +19,7 @@ from pydantic import Field, SecretStr
 
 from app.auth import authenticate, check_password, create_user, password_hash, token_hash, user_view
 from app.analysis import check_access, control, enqueue, step_payload, validated_prepared, view_analysis
-from app.domain.contracts import SurveyCatalog
+from app.legacy.contracts_v1 import SurveyCatalog
 from app.input_models import (
     CaseCreate, CaseEdit, CaseView, ImportColumns, ImportCommit, ImportMapping, ImportPreview, Key, Login, Message, Revision,
     SessionEdit, SessionMetadata, StoredVideo, SurveyEdit, UserCreate, UserEdit, UserView,

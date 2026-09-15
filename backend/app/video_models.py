@@ -3,7 +3,7 @@
 from typing import Annotated, Literal
 from pydantic import Field, model_validator
 
-from app.domain.contracts import BehaviorId, ItemEvaluation, Status
+from app.legacy.contracts_v1 import BehaviorId, ItemEvaluation, Status
 from app.input_models import Model
 
 

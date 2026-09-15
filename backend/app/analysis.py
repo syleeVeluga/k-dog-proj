@@ -7,8 +7,8 @@ import os
 
 from fastapi import HTTPException
 
-from app.domain.validation import validate_evidence
-from app.domain.contracts import BehaviorCatalog, SurveyCatalog
+from app.legacy.validation_v1 import validate_evidence
+from app.legacy.contracts_v1 import BehaviorCatalog, SurveyCatalog
 from app.evaluation import active_configuration, validated_evaluation
 from app.scoring import RULES, behavior_scores, survey_scores
 from app.gemini import configuration
@@ -125,7 +125,7 @@ def validated_observation(payload, run_input, video_id, source_run_id=None, *, c
     validate_evidence(run_input, rebound)
     from app.video_evaluation import VERSIONS, validate_items
     if run_input.pipeline_version in VERSIONS:
-        from app.domain.contracts import BEHAVIOR_IDS
+        from app.legacy.contracts_v1 import BEHAVIOR_IDS
         if catalog is None:
             raise ValueError("video assessment requires frozen catalog")
         expected = BEHAVIOR_IDS if expected_items is None else expected_items

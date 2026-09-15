@@ -4,8 +4,8 @@ import json
 import os
 import re
 
-from app.domain.contracts import BranchEvaluation
-from app.domain.validation import resolve_branch_scores
+from app.legacy.contracts_v1 import BranchEvaluation
+from app.legacy.validation_v1 import resolve_branch_scores
 from app.evaluation_models import EvaluationArtifact, EvaluationResponse
 from app.gemini import BASE, ProviderError, interaction_request, interaction_text, request
 from app.scoring import behavior_scores

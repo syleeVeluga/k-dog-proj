@@ -1,201 +1,195 @@
-import copy
+"""42-item contracts: three-state scores, rater sheets, segment timing, survey answers and derived results."""
+
 import json
 import unittest
 from pathlib import Path
 
 from pydantic import ValidationError
 
+from app.domain.catalog import BEHAVIOR_IDS, BehaviorCatalog, SEGMENTS, SURVEY_IDS, SurveyCatalog
 from app.domain.contracts import (
-    BEHAVIOR_IDS, BehaviorCatalog, BranchEvaluation, DomainScore, Evidence,
-    ItemEvaluation, ItemScore, ReportResult, RunInput, ScoreResult, SurveyCatalog,
-    VideoReference,
+    DomainSummary, Indicator, ItemScore, Rater, ScoreResult, ScoreSheet, SegmentWindow, SeparationType,
+    SessionSegments, SurveyAnswers, SurveyDomainScore, SurveyItemValue, SurveyResult, TypeResult,
 )
-from app.domain.validation import resolve_branch_scores, validate_evidence, validate_report_evidence
+from app.domain.validation import validate_score_sheet, validate_segments, validate_survey_answers
 
 ROOT = Path(__file__).resolve().parents[2]
+RATER = Rater(rater_id="human-01", kind="human", label="채점자 A")
 
 
 def parse(model, value):
     return model.model_validate_json(json.dumps(value, ensure_ascii=False))
 
 
+def unreadable(item_id, reason="가상 시험: 관찰 없음"):
+    return {"item_id": item_id, "score": None, "status": "unreadable", "reason": reason}
+
+
 class ContractTests(unittest.TestCase):
-    def setUp(self):
-        self.fixture = json.loads((Path(__file__).parent / "fixtures/contract-case.json").read_text(encoding="utf-8"))
-        self.run = parse(RunInput, self.fixture["run"])
-        self.evidence = tuple(parse(Evidence, value) for value in self.fixture["evidence"])
-        self.catalog = BehaviorCatalog.model_validate_json((ROOT / "resources/catalogs/behavior-v1.json").read_bytes())
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = BehaviorCatalog.model_validate_json((ROOT / "resources/catalogs/behavior-v2.json").read_bytes())
+        cls.survey_catalog = SurveyCatalog.model_validate_json((ROOT / "resources/catalogs/survey-v2.json").read_bytes())
 
-    def branch(self, branch="dog", first=None):
-        values = [{
-            "item_id": item_id, "status": "not_visible", "selected_option_id": None,
-            "evidence_ids": [], "reason": "가상 시험: 관찰 없음",
-        } for item_id in BEHAVIOR_IDS if item_id.startswith("OWN-") == (branch == "owner")]
-        values[0] = first or self.fixture["scored" if branch == "dog" else "missing"]
-        return parse(BranchEvaluation, {"run_id": self.run.run_id, "branch": branch, "items": values})
+    def sheet(self, overrides=None, items=None):
+        entries = {item.item_id: unreadable(item.item_id) for item in self.catalog.rated_items()}
+        for item_id, score in (overrides or {}).items():
+            entries[item_id] = {"item_id": item_id, "score": score, "status": "scored", "reason": None}
+        return parse(ScoreSheet, {
+            "sheet_id": "sheet-1", "case_id": "case-1", "session_id": "session-1",
+            "catalog_version": self.catalog.version, "rater": RATER.model_dump(mode="json"),
+            "recorded_at": "2026-09-16T10:00:00+09:00", "items": items if items is not None else list(entries.values()),
+        })
 
-    def report(self):
-        return {
-            "run_id": self.run.run_id, "report_mapping_version": "pending-v1", "result_revision": 1,
-            "cover": {"text": "시험용 요약", "evidence_ids": ["test-ev01"]},
-            "domains": [{"slot": number, "status": "mapping_pending", "label": None,
-                         "value": None, "comment": "표시 규칙 미정", "evidence_ids": []}
-                        for number in range(1, 5)],
-            "cross_type": {"status": "type_rule_pending", "rule_id": None, "type_name": None,
-                           "explanation": "유형 규칙 미정", "evidence_ids": []},
-            "tips": [{"text": "시험용 안내", "evidence_ids": []}],
-            "notice": "진단이 아닌 관찰 기반 제안",
-        }
+    def segments(self, **changes):
+        windows = []
+        for index, (segment, _) in enumerate(SEGMENTS):
+            windows.append({"segment": segment, "start_sec": float(index * 20), "end_sec": float(index * 20 + 15),
+                            "source": "operator_confirmed"})
+        data = {"session_id": "session-1", "video_id": "video-1", "windows": windows, **changes}
+        return parse(SessionSegments, data)
 
-    def test_run_round_trip_keeps_leading_zero_and_null_response(self):
-        restored = RunInput.model_validate_json(self.run.model_dump_json())
-        self.assertEqual(restored.participant_id, "0001")
-        self.assertIsNone(restored.survey["q02"])
-        self.assertEqual(restored.survey["q23"], 3)
-        self.assertEqual(len(restored.videos), 1)  # 2 cameras/3 minutes are planning, not limits.
+    def test_item_score_three_states(self):
+        self.assertEqual(ItemScore(item_id="BS-04", score=0, status="scored").score, 0)  # 0회 is an observation
+        for bad in ({"item_id": "BS-04", "score": None, "status": "scored", "reason": None},
+                    {"item_id": "BS-04", "score": 1, "status": "unreadable", "reason": "x"},
+                    {"item_id": "BS-04", "score": None, "status": "unreadable", "reason": None},
+                    {"item_id": "BS-04", "score": None, "status": "not_applicable", "reason": None},
+                    {"item_id": "BS-04", "score": True, "status": "scored", "reason": None},
+                    {"item_id": "BS-04", "score": -1, "status": "scored", "reason": None},
+                    {"item_id": "BS-17", "score": 3, "status": "scored", "reason": None}):
+            with self.subTest(bad=bad), self.assertRaises(ValidationError):
+                parse(ItemScore, bad)
+        parse(ItemScore, {"item_id": "OWN-05", "score": None, "status": "not_applicable", "reason": "개가 버틴 장면이 없음"})
 
-    def test_wrong_id_type_unknown_fields_and_survey_values_rejected(self):
-        for field, value in (("participant_id", 1), ("input_revision", True), ("api_key", "test")):
-            with self.subTest(field=field), self.assertRaises(ValidationError):
-                parse(RunInput, {**self.fixture["run"], field: value})
-        for value in (True, 0, 6, "3", 1.5, float("nan")):
-            data = copy.deepcopy(self.fixture["run"])
-            data["survey"]["q01"] = value
-            with self.subTest(value=value), self.assertRaises(ValidationError):
-                parse(RunInput, data)
-
-    def test_survey_requires_all_30_keys(self):
-        data = copy.deepcopy(self.fixture["run"])
-        del data["survey"]["q30"]
+    def test_sheet_holds_exactly_the_rated_items(self):
+        sheet = self.sheet({"BS-01": 3, "DOG-03": 5, "OWN-04": 4, "DOG-21": 6, "BS-04": 0, "OWN-08": 1})
+        validate_score_sheet(sheet, self.catalog)
+        items = [item.model_dump(mode="json") for item in sheet.items]
+        for variant in (items[:-1], items + [unreadable("DOG-22")], items[:-1] + [unreadable("DOG-22")]):
+            with self.subTest(count=len(variant)), self.assertRaises(ValueError):
+                validate_score_sheet(self.sheet(items=variant), self.catalog)
         with self.assertRaises(ValidationError):
-            parse(RunInput, data)
-        data["survey"]["q31"] = None
-        with self.assertRaises(ValidationError):
-            parse(RunInput, data)
-
-    def test_duplicate_video_rejected(self):
-        data = copy.deepcopy(self.fixture["run"])
-        data["videos"] *= 2
-        with self.assertRaises(ValidationError):
-            parse(RunInput, data)
-
-    def test_invalid_video_paths_hash_duration_and_sync_rejected(self):
-        source = self.fixture["run"]["videos"][0]
-        for key, value in (("storage_ref", "../secret"), ("storage_ref", "C:/secret"),
-                           ("storage_ref", "/absolute"), ("sha256", "example-hash"),
-                           ("duration_sec", 0), ("duration_sec", float("inf")),
-                           ("sync_offset_sec", 1.0)):
-            with self.subTest(key=key, value=value), self.assertRaises(ValidationError):
-                parse(VideoReference, {**source, key: value})
-
-    def test_source_time_bounds_and_cross_case_references_rejected(self):
-        for key, value in (("case_id", "other"), ("session_id", "other"), ("run_id", "other"),
-                           ("video_id", "other"), ("camera_id", "other"), ("source_end_sec", 31.0),
-                           ("source_start_sec", 6.0), ("modality", "audio")):
-            with self.subTest(key=key), self.assertRaises(ValueError):
-                evidence = parse(Evidence, {**self.fixture["evidence"][0], key: value})
-                validate_evidence(self.run, (evidence,))
-
-    def test_duplicate_evidence_rejected(self):
+            self.sheet(items=items + [items[0]])
         with self.assertRaises(ValueError):
-            validate_evidence(self.run, self.evidence * 2)
+            validate_score_sheet(self.sheet(), self.catalog.model_copy(update={"version": "other"}))
 
-    def test_branch_requires_exact_item_set(self):
-        data = self.branch().model_dump(mode="json")
-        for items in (data["items"][:-1], data["items"] + [data["items"][0]]):
-            with self.assertRaises(ValidationError):
-                parse(BranchEvaluation, {**data, "items": items})
-        data["items"][-1]["item_id"] = "OWN-01"
-        with self.assertRaises(ValidationError):
-            parse(BranchEvaluation, data)
-
-    def test_actual_option_lookup_and_independent_missing_branch(self):
-        scores = resolve_branch_scores(self.run, self.branch(), self.catalog, self.evidence)
-        self.assertEqual((scores[0].raw_score, scores[0].direction), (2.0, "B"))
-        self.assertTrue(all(score.raw_score is None for score in scores[1:]))
-        owner = resolve_branch_scores(self.run, self.branch("owner"), self.catalog, ())
-        self.assertEqual(len(owner), 19)
-        self.assertEqual(owner[0].status, "audio_unusable")
-        self.assertIsNone(owner[0].raw_score)
-
-    def test_invented_option_and_unknown_or_unrelated_evidence_rejected(self):
-        for key, value in (("selected_option_id", "BS-01:S4"), ("selected_option_id", "DOG-01:S1"),
-                           ("evidence_ids", ["unknown"])):
-            with self.subTest(key=key, value=value), self.assertRaises(ValueError):
-                branch = self.branch(first={**self.fixture["scored"], key: value})
-                resolve_branch_scores(self.run, branch, self.catalog, self.evidence)
-        unrelated = parse(Evidence, {**self.fixture["evidence"][0], "candidate_item_ids": ["BS-02"]})
-        with self.assertRaises(ValueError):
-            resolve_branch_scores(self.run, self.branch(), self.catalog, (unrelated,))
-
-    def test_scored_requires_option_and_evidence(self):
-        for key, value in (("selected_option_id", None), ("evidence_ids", [])):
-            with self.assertRaises(ValidationError):
-                parse(ItemEvaluation, {**self.fixture["scored"], key: value})
-
-    def test_missing_and_pending_never_gain_score_or_direction(self):
-        for status in ("not_visible", "audio_unusable", "not_performed", "not_applicable",
-                       "insufficient_evidence", "conflicting_evidence", "rule_pending"):
-            missing = {**self.fixture["missing"], "status": status}
-            with self.subTest(status=status):
-                parse(ItemEvaluation, missing)
-                with self.assertRaises(ValidationError):
-                    parse(ItemEvaluation, {**missing, "selected_option_id": "OWN-01:S1"})
-                with self.assertRaises(ValidationError):
-                    ItemScore(item_id="OWN-01", status=status, raw_score=1.0, direction=None, reason="test")
-                scores = resolve_branch_scores(self.run, self.branch("owner", missing), self.catalog, ())
-                self.assertIsNone(scores[0].raw_score)
-                self.assertIsNone(scores[0].direction)
+    def test_scored_values_must_be_labelled(self):
+        for item_id, score in (("DOG-03", 4), ("DOG-24", 1), ("OWN-04", 2), ("OWN-08", 4), ("OWN-09", 5), ("DOG-21", 7), ("BS-01", 0)):
+            with self.subTest(item=item_id, score=score), self.assertRaises(ValueError):
+                validate_score_sheet(self.sheet({item_id: score}), self.catalog)
+        validate_score_sheet(self.sheet({"BS-06": 4, "DOG-16": 2}), self.catalog)  # counts are open integers
 
     def test_test_catalog_requires_explicit_test_mode(self):
-        catalog = parse(BehaviorCatalog, {**self.catalog.model_dump(mode="json"), "provenance": "test_fixture"})
+        fixture = self.catalog.model_copy(update={"provenance": "test_fixture"})
         with self.assertRaises(ValueError):
-            resolve_branch_scores(self.run, self.branch(), catalog, self.evidence)
-        self.assertEqual(len(resolve_branch_scores(self.run, self.branch(), catalog, self.evidence, mode="test")), 36)
+            validate_score_sheet(self.sheet(), fixture)
+        validate_score_sheet(self.sheet(), fixture, mode="test")
 
-    def test_run_and_catalog_version_mismatch_rejected(self):
-        data = self.fixture["run"]
-        for key in ("run_id", "catalog_version"):
-            with self.subTest(key=key), self.assertRaises(ValueError):
-                resolve_branch_scores(parse(RunInput, {**data, key: "other"}), self.branch(), self.catalog, self.evidence)
+    def test_sheet_timestamp_must_be_iso(self):
+        with self.assertRaises(ValidationError):
+            parse(ScoreSheet, {**self.sheet().model_dump(mode="json"), "recorded_at": "16/09/2026"})
 
-    def test_empty_domain_is_null_and_denominator_valid(self):
-        empty = dict(domain="EDU", mean=None, maximum=None, valid_count=0, target_count=7)
-        DomainScore(**empty)
-        for changes in ({"mean": 0.0}, {"valid_count": 8}, {"valid_count": 1}):
-            with self.assertRaises(ValidationError):
-                DomainScore(**{**empty, **changes})
-
-    def test_rule_pending_preserves_exact_boundary_observations(self):
-        for boundary in (2.0, 5.0, 15.0):
-            evidence = parse(Evidence, {**self.fixture["evidence"][0], "source_start_sec": 0.0,
-                                      "source_end_sec": boundary, "candidate_item_ids": ["OWN-14"]})
-            validate_evidence(self.run, (evidence,))
-            item = ItemEvaluation(item_id="OWN-14", status="rule_pending", selected_option_id=None,
-                                  evidence_ids=(evidence.evidence_id,), reason="시간 경계·선택 규칙 미정")
-            self.assertIsNone(item.selected_option_id)
-
-    def test_pending_report_keeps_four_slots_without_invented_mapping(self):
-        report = parse(ReportResult, self.report())
-        validate_report_evidence(self.run, report, self.evidence)
-        self.assertEqual(len(report.domains), 4)
-        self.assertIsNone(report.cross_type.type_name)
-        self.assertEqual(ReportResult.model_validate_json(report.model_dump_json()), report)
-
-    def test_invented_report_values_and_references_rejected(self):
-        for key, value in (("value", 3), ("label", "임의 영역"), ("slot", 2)):
-            data = self.report()
-            data["domains"][0][key] = value
-            with self.assertRaises(ValidationError):
-                parse(ReportResult, data)
-        data = self.report()
-        data["cover"]["evidence_ids"] = ["other-participant"]
+    def test_segments_are_eight_ordered_windows(self):
+        segments = self.segments()
+        self.assertTrue(segments.confirmed())
+        validate_segments(segments, 160.0)
         with self.assertRaises(ValueError):
-            validate_report_evidence(self.run, parse(ReportResult, data), self.evidence)
+            validate_segments(segments, 150.0)
+        windows = [window.model_dump(mode="json") for window in segments.windows]
+        for variant in (windows[:-1], windows[1:] + windows[:1], [{**windows[0], "end_sec": 25.0}] + windows[1:]):
+            with self.subTest(variant=len(variant)), self.assertRaises(ValidationError):
+                self.segments(windows=variant)
+        with self.assertRaises(ValidationError):
+            SegmentWindow(segment="entry", start_sec=5.0, end_sec=4.0, source="ai_proposed")
+        proposed = self.segments(windows=[{**windows[0], "source": "ai_proposed"}] + windows[1:])
+        self.assertFalse(proposed.confirmed())
+
+    def test_survey_answers_complete_and_not_applicable_is_missing(self):
+        answers = {item_id: 3 for item_id in SURVEY_IDS}
+        parsed = parse(SurveyAnswers, {"answers": {**answers, "s07": None}, "not_applicable": ["s07"]})
+        validate_survey_answers(parsed, self.survey_catalog)
+        for bad in ({"answers": {k: v for k, v in answers.items() if k != "s28"}},
+                    {"answers": {**answers, "s29": 3}},
+                    {"answers": {**answers, "s01": 0}},
+                    {"answers": {**answers, "s01": True}},
+                    {"answers": answers, "not_applicable": ["s07"]},
+                    {"answers": {**answers, "s07": None}, "not_applicable": ["s07", "s07"]}):
+            with self.subTest(bad=list(bad.get("not_applicable", []))), self.assertRaises(ValidationError):
+                parse(SurveyAnswers, bad)
+        with self.assertRaises(ValueError):
+            validate_survey_answers(parse(SurveyAnswers, {"answers": {**answers, "s10": None}, "not_applicable": ["s10"]}),
+                                    self.survey_catalog)
+
+    def test_domain_summary_invariants(self):
+        base = dict(domain="EDU", target_count=5, scored_count=2, unreadable_count=3, not_applicable_count=0, excluded_count=0,
+                    mean=3.0, lean=0.0, width=1, degree=None)
+        DomainSummary(**base)
+        empty = {**base, "scored_count": 0, "unreadable_count": 5, "mean": None, "lean": None, "width": None}
+        DomainSummary(**empty)
+        for changes in ({"unreadable_count": 2}, {"lean": None}, {"width": 3}, {"scored_count": 0, "unreadable_count": 5, "mean": None, "lean": None}):
+            with self.subTest(changes=changes), self.assertRaises(ValidationError):
+                DomainSummary(**{**base, **changes})
+
+    def test_indicator_and_type_states(self):
+        Indicator(key="recovery", value=1.0, status="calculated")
+        Indicator(key="sync_rate", value=None, status="invalid", reason="걷기 시행 유효성 3")
+        TypeResult(key="attachment", label="안정", status="calculated")
+        TypeResult(key="sociability_person", label=None, status="missing", reason="낯선 각성 미판독")
+        for bad in (dict(key="recovery", value=None, status="calculated"), dict(key="recovery", value=1.0, status="missing", reason="x"),
+                    dict(key="recovery", value=None, status="missing")):
+            with self.subTest(bad=bad), self.assertRaises(ValidationError):
+                Indicator(**bad)
+        for bad in (dict(key="attachment", label="Secure", status="calculated"), dict(key="attachment", label="편안·우호", status="calculated"),
+                    dict(key="attachment", label=None, status="calculated"), dict(key="attachment", label=None, status="invalid")):
+            with self.subTest(bad=bad), self.assertRaises(ValidationError):
+                TypeResult(**bad)
+
+    def test_score_result_shape(self):
+        items = [unreadable(item_id) for item_id in BEHAVIOR_IDS]
+        domains = [dict(domain=code, target_count=count, scored_count=0, unreadable_count=count, not_applicable_count=0,
+                        excluded_count=0, mean=None, lean=None, width=None, degree=None)
+                   for code, count in (("SOC_E", 5), ("SOC_H", 4), ("ATT", 9), ("SYN", 3), ("EDU", 5), ("EXIT", 2))]
+        indicators = [dict(key=key, value=None, status="missing", reason="미판독") for key in ("adaptation", "recovery", "stranger_calming", "sync_rate")]
+        types = [dict(key=key, label=None, status="missing", reason="미판독") for key in ("attachment", "sociability_person")]
+        data = dict(sheet_id="sheet-1", catalog_version=self.catalog.version, scoring_rule_version="scoring-v2",
+                    rater=RATER.model_dump(mode="json"), items=items, baseline_arousal=None, domains=domains,
+                    indicators=indicators, types=types)
+        result = parse(ScoreResult, data)
+        self.assertEqual(ScoreResult.model_validate_json(result.model_dump_json()), result)
+        for changes in ({"items": items[:-1]}, {"domains": domains[:-1]}, {"indicators": indicators[::-1]}, {"types": types[:1]},
+                        {"baseline_arousal": 0}):
+            with self.subTest(changes=list(changes)), self.assertRaises(ValidationError):
+                parse(ScoreResult, {**data, **changes})
+        self.assertFalse({"total", "overall_reference", "rank"} & set(ScoreResult.model_fields))
+
+    def test_survey_result_shape_has_no_total(self):
+        items = [dict(item_id=item_id, raw=None, converted=None, not_applicable=item_id == "s07") for item_id in SURVEY_IDS]
+        domains = [dict(domain=domain, mean=None, answered_count=0, target_count=count, status="missing")
+                   for domain, count in (("A", 9), ("B", 5), ("C", 7), ("E", 3))]
+        separation = dict(resistance=None, recovery=None, label=None, status="missing", reason="미응답")
+        data = dict(catalog_version=self.survey_catalog.version, scoring_rule_version="scoring-v2", items=items,
+                    domains=domains, separation=separation, status="unregistered")
+        parse(SurveyResult, data)
+        self.assertFalse({"total", "overall_reference"} & set(SurveyResult.model_fields))
+        for changes in ({"status": "calculated"}, {"domains": domains + [dict(domain="A", mean=None, answered_count=0, target_count=9, status="missing")]},
+                        {"items": items[:-1]}):
+            with self.subTest(changes=list(changes)), self.assertRaises(ValidationError):
+                parse(SurveyResult, {**data, **changes})
+        for bad in (dict(item_id="s01", raw=3, converted=None, not_applicable=False), dict(item_id="s07", raw=3, converted=3, not_applicable=True)):
+            with self.subTest(bad=bad), self.assertRaises(ValidationError):
+                SurveyItemValue(**bad)
+        for bad in (dict(domain="A", mean=3.0, answered_count=9, target_count=9, status="partial"),
+                    dict(domain="D", mean=3.0, answered_count=4, target_count=4, status="calculated"),
+                    dict(domain="A", mean=None, answered_count=3, target_count=9, status="partial")):
+            with self.subTest(bad=bad), self.assertRaises(ValidationError):
+                SurveyDomainScore(**bad)
+        SeparationType(resistance=3.5, recovery=4, label="안정", status="calculated")
+        with self.assertRaises(ValidationError):
+            SeparationType(resistance=3.5, recovery=None, label="안정", status="calculated")
 
     def test_core_models_generate_json_schema(self):
-        for model in (RunInput, VideoReference, Evidence, ItemEvaluation, ScoreResult, ReportResult,
-                      BehaviorCatalog, SurveyCatalog, BranchEvaluation):
+        for model in (ItemScore, ScoreSheet, SessionSegments, SurveyAnswers, ScoreResult, SurveyResult):
             with self.subTest(model=model.__name__):
                 schema = model.model_json_schema()
                 self.assertFalse(schema["additionalProperties"])

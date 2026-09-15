@@ -61,7 +61,9 @@ uv run --locked python -X utf8 -m app.import_catalogs --customer-dir "D:/referen
 
 ## 데이터 계약 사용
 
-`app.domain.contracts`의 `model_validate_json()`으로 요청·저장 파일을 검증한 뒤 `app.domain.validation`의 문맥 검증을 호출한다. 구조 검사만으로 영상 소속·시간·근거 참조를 검증했다고 간주하지 않는다. 카탈로그는 서버가 제공하는 신뢰된 파일만 사용하며 사용자 업로드를 `excel_verified`로 받아들이지 않는다.
+42항목 판 계약은 `app.domain`에 있다. `catalog.py`(행동 42·설문 28 카탈로그), `contracts.py`(3상태 항목 점수 `ItemScore{score,status,reason}`, 채점자별 `ScoreSheet`, 8구간 `SessionSegments`, `SurveyAnswers`, 계산 결과 `ScoreResult`·`SurveyResult`), `validation.py`(카탈로그 대조: 채점 대상 41항목 정확히, 라벨 있는 점수만, 「해당 없음」 허용 문항만, 구간 시각이 영상 길이 안). `model_validate_json()`으로 구조를 검증한 뒤 `validation`의 문맥 검증을 호출한다. 구조 검사만으로 카탈로그 일치·영상 길이를 검증했다고 간주하지 않는다. 카탈로그는 서버가 제공하는 신뢰된 파일만 사용하며 사용자 업로드를 `excel_verified`로 받아들이지 않는다. 총점·등수 필드는 계약에 없고, 유형 라벨은 우리말 이름만 허용한다(Ainsworth 용어 거절).
+
+옛 55항목 판 계약·문맥 검증은 `app.legacy`(`contracts_v1`·`validation_v1`)에 읽기 전용으로 있다(계산 `scoring_v1`은 PR-4에서 합류). 저장된 옛 run을 읽는 worker·API·리포트가 아직 이를 import하며, 각 모듈이 42항목 판으로 교체되는 PR에서 함께 삭제한다. legacy에 기능을 추가하지 않는다.
 
 저장 계층은 검증 후 직렬화한 JSON을 불변 입력 파일로 저장하고 수정 시 새 revision을 만든다. 기본 도메인 검증은 새 run 자체의 관찰만 허용하며, `app.analysis`가 같은 참가자·세션·관련 입력/설정 해시와 명시적 reuse manifest를 확인한 경우에만 이전 관찰의 근거 ID를 연결한다. 이 원칙(불변 산출물·점유 토큰·삭제 상태 재확인·revision 고정·관찰 부족과 규칙 미정의 구분)은 42항목 판에서도 유지한다.
 

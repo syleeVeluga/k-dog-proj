@@ -7,7 +7,7 @@ import os
 from fastapi import HTTPException
 
 from app.analysis import check_access, digest, step_payload, validated_prepared, view_analysis
-from app.domain.contracts import BehaviorCatalog, BranchEvaluation, ReportResult
+from app.legacy.contracts_v1 import BehaviorCatalog, BranchEvaluation, ReportResult
 from app.evaluation import Evaluator
 from app.gemini import ProviderError
 from app.media import command, MediaError
@@ -164,7 +164,7 @@ def edit_review(store, case_id, run_id, value, actor):
             run = validated_prepared(row, step_payload(store, row, prepared)).run_input
             branch = next(a["evaluation"] for a in data["evaluations"] if any(i["item_id"] == item.item_id for i in a["evaluation"]["items"]))
             branch["items"] = [item.model_dump(mode="json") if i["item_id"] == item.item_id else i for i in branch["items"]]
-            from app.domain.contracts import Evidence
+            from app.legacy.contracts_v1 import Evidence
             evidence = tuple(Evidence.model_validate_json(encode(e)).model_copy(update={"run_id": run_id}) for e in data["evidence"])
             try:
                 behavior_scores(run, [BranchEvaluation.model_validate_json(encode(branch))],

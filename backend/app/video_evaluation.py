@@ -1,8 +1,8 @@
 """Direct video rubric evaluation and deterministic, non-voting item merge."""
 
-from app.domain.contracts import BEHAVIOR_IDS, BranchEvaluation, ItemEvaluation
+from app.legacy.contracts_v1 import BEHAVIOR_IDS, BranchEvaluation, ItemEvaluation
 from app.ledger import COUNT_ITEM_STEPS, count_problem
-from app.domain.validation import resolve_branch_scores
+from app.legacy.validation_v1 import resolve_branch_scores
 from app.evaluation_models import EvaluationArtifact
 from app.scoring import behavior_scores
 from app.video_models import VideoItem

@@ -4,9 +4,9 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from app.domain.contracts import BehaviorId, Evidence, RunInput
+from app.legacy.contracts_v1 import BehaviorId, Evidence, RunInput
 from app.input_models import Key, Model, Revision
-from app.domain.contracts import CatalogItem, ScoreResult
+from app.legacy.contracts_v1 import CatalogItem, ScoreResult
 from app.evaluation_models import EvaluationArtifact, SurveyResult
 from app.video_models import LedgerEvent, VideoDecision, VideoItem
 
