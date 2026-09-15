@@ -32,7 +32,7 @@ uv run --locked python -X utf8 -m unittest discover -s tests -v
 uv run --locked python -X utf8 -m app.import_catalogs --check
 ```
 
-첫 명령은 `backend/.venv`에 잠금 의존성을 설치한다. `--check`는 `resources/catalogs/`의 JSON과 원본 엑셀을 대조하며 어떤 파일도 변경하지 않는다. Python `-X utf8`은 Windows의 한글 입출력 인코딩을 고정한다.
+첫 명령은 `backend/.venv`에 잠금 의존성을 설치한다. `--check`는 `resources/catalogs/`의 JSON과 원본 엑셀을 대조하며 어떤 파일도 변경하지 않는다. Python `-X utf8`은 Windows의 한글 입출력 인코딩을 고정한다. 시험 명령은 반드시 `backend/`에서 실행한다. 다른 폴더에서는 `tests` 시작 폴더를 import할 수 없어 `Start directory is not importable` 오류가 난다.
 
 ```powershell
 # frontend/에서 실행

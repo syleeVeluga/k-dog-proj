@@ -5,6 +5,7 @@
 K-DOG is an operator-facing dog/guardian assessment application. The current code implements the superseded 55-item specification (2026-09-04); the domain layer is being rebuilt for the customer's 42-item specification (2026-09-13) while the infrastructure layer is kept. `docs/` contains:
 
 - `K-DOG_변경검토_v1.0_20260915.md`: the transition decision — what is reused, what is rewritten, schedule, open customer questions. Read first.
+- `K-DOG_P0_구현계획_v1.0_20260916.md`: the file-level plan for PR-0 to PR-4 (catalog 42, survey 28, contracts v2, scoring v2 with golden tests), the item-ID table, and the rule interpretations (R1–R9) that still need customer confirmation.
 - `최종 고객 문서/`: the customer's requirement set. `00_먼저_읽어주세요` is the entry point; `03_행동_채점표_42항목_20260913.xlsx` is the de-facto specification (items, 1–5 labels, domain codes, axes, derived metrics and type formulas).
 - `DEVELOPMENT.md`, `PILOT_OPERATIONS.md`: environment, commands, installation and operations.
 - `K-DOG_Gemini영상API_적용계획_v1.0_20260907.md`: Gemini video request contract (infrastructure).
@@ -44,7 +45,7 @@ Tests use standard-library `unittest`; no coverage threshold is configured. Driv
 
 ## Commit & Pull Request Guidelines
 
-The single existing commit uses `docs: 초기 K-DOG 프로젝트 문서 추가`. Continue concise, type-prefixed subjects such as `docs: clarify retry behavior`; no broader historical convention exists. PRs should describe scope, affected requirements, validation performed, and unresolved issues. Link related issues when available; include screenshots for UI changes.
+Use concise, type-prefixed subjects (`docs:`, `feat:`, `fix:`, `release:`, `merge:`) such as `docs: clarify retry behavior`. Work in one branch per PR and follow the PR procedure in `docs/K-DOG_P0_구현계획_v1.0_20260916.md` §0 (implement → verify → review → triage findings → apply accepted ones → push). PRs should describe scope, affected requirements, validation performed, and unresolved issues. Link related issues when available; include screenshots for UI changes.
 
 ## Security & Agent Instructions
 

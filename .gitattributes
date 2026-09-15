@@ -1,0 +1,18 @@
+# Normalize line endings in the index regardless of each machine's core.autocrlf.
+* text=auto eol=lf
+
+# Windows launch scripts must stay CRLF on checkout.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary sources and assets: never convert, never diff as text.
+*.xlsx binary
+*.docx binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.ttf binary
+*.zip binary
+*.insv binary
+*.mp4 binary

@@ -1,6 +1,9 @@
 {
   "schema_version": "1.0",
   "version": "pending-v1",
+  "status": "superseded",
+  "superseded_on": "2026-09-15",
+  "superseded_by": "docs/K-DOG_변경검토_v1.0_20260915.md 7장 — 42항목 판(2026-09-13)에서는 엑셀 수식으로 규칙이 확정되어 이 목록의 미정 규칙은 더 이상 유효하지 않다. 옛 run(55항목 판)을 읽을 때만 참조한다.",
   "rules": [
     {"rule_id": "q23_conversion_c2", "status": "rule_pending", "affected_items": ["q23"], "reason": "원본 안내·수식의 환산/C-2 집계 충돌. 원응답은 보존하고 환산값은 null."},
     {"rule_id": "four_domain_mapping", "status": "mapping_pending", "reason": "4영역 번호·통합·가중치 미정. 표시 자리만 유지하며 이름·그래프 값은 확정하지 않음."},
