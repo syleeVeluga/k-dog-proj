@@ -162,8 +162,8 @@ class BehaviorCatalog(Contract):
 
 ### 4.3 변경 `backend/app/import_catalogs.py`
 
-- 상수: `CUSTOMER_DIR = ROOT / "docs/최종 고객 문서"`, `BEHAVIOR_V2_FILE = "03_행동_채점표_42항목_20260913.xlsx"`, `V2_VERSION = "catalog-20260913-v2"`.
-- `read_behavior_v2(path: Path) -> BehaviorCatalog`: 시트마다 4행 헤더 검사(`A4 구간·B4 관찰 항목·C4~G4 '1'~'5'·H4 영역·I4 척도·축·AD4 영역코드·AY4 척도`), 5행부터 B열이 빈 행 직전까지 읽는다. 셀이 수식이면 오류. `segment`는 A열→`SEGMENTS`, `axis`는 I열의 `양쌍·<축>` 접미로, `value_type`은 규칙 R1로 판정. 읽기 전후 파일 해시 동일 확인(옛 방식 유지).
+- 상수: `CUSTOMER_DIR = ROOT / "docs/최종 고객 문서"`, `BEHAVIOR_V2_FILE = "03_행동_채점표_42항목_20260913.xlsx"`, `BEHAVIOR_V2_VERSION = "catalog-20260913-v2"`.
+- `read_behavior_v2(path: Path) -> BehaviorCatalog`: 시트마다 4행 헤더 검사(`A4 구간·B4 관찰 항목·C4~G4 '1'~'5'·H4 영역·I4 척도·축·AD4 영역코드·AY4 척도`), 5행부터 합의된 행 수(9·24·9)만 읽고 그 다음 B열이 비어 있는지 확인한다(행이 늘면 실패). 셀이 수식이면 오류. `segment`는 A열→`SEGMENTS`, `axis`는 I열의 `양쌍·<축>` 접미로, `value_type`은 규칙 R1로 판정. 읽기 전후 파일 해시 동일 확인(옛 방식 유지).
 - `read_behavior`(v1) 삭제, `GROUPS`·`DOMAIN_MAP`·`BEHAVIOR_FILE` 삭제. `read_survey`(v1)는 PR-2까지 유지.
 - `main`: `behavior-v2.json`(03 엑셀)과 `survey-v1.json`(옛 원본, PR-2에서 교체)을 다룬다. `--source-dir`는 옛 원본 폴더, 새 인자 `--customer-dir`(기본 `docs/최종 고객 문서`)는 42항목 판 원본 폴더.
 

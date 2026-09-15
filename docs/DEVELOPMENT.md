@@ -46,18 +46,18 @@ npm run test:e2e
 
 ## 원본 항목집 이관
 
-원본 엑셀은 `resources/source/`에 둔다. 원본을 수정하지 않는다. 이관기는 현재 템플릿의 구조를 검증하는 전용 도구이며 범용 업로드 처리기가 아니다.
+42항목 판 원본은 고객이 보낸 `docs/최종 고객 문서/03_행동_채점표_42항목_20260913.xlsx`(행동 채점표)와 `04_보호자_설문지_28문항.pdf`(설문)다. 원본을 수정하지 않는다. 이관기는 03 엑셀의 구조(4행 헤더, 시트별 9·24·9행, AD 영역코드, AY 척도)를 검증하는 전용 도구이며 범용 업로드 처리기가 아니다. 04 설문지 PDF는 PR-2에서 읽는다.
 
 ```powershell
 # backend/에서 실행: 파생 JSON을 재생성한다.
 uv run --locked python -X utf8 -m app.import_catalogs
 # 다른 읽기 전용 위치의 원본을 대조할 경우
-uv run --locked python -X utf8 -m app.import_catalogs --source-dir "D:/reference" --check
+uv run --locked python -X utf8 -m app.import_catalogs --customer-dir "D:/reference" --check
 ```
 
-출력은 `resources/catalogs/`의 버전 있는 JSON이다. 각 결과는 원본 파일명·SHA-256·시트·행·셀을 기록한다. 참가자 답안이나 개인정보는 가져오지 않는다. 원본이 개정되면 기존 버전을 덮어 배포하지 말고 이관기와 항목집 버전을 함께 갱신하고 다시 검증한다.
+출력은 `resources/catalogs/behavior-v2.json`(`catalog-20260913-v2`)이다. 항목마다 원본 시트·행·라벨 셀 좌표, 영역코드, 축, 척도구분(BI/ONE), 자료형(`scale`·`count`·`phase_count`·`auto_ratio`), 허용 점수를 기록하고, 파일 전체의 SHA-256을 남긴다. 참고 항목의 자료형은 B열 문구(`※횟수`·`※0~6`·`※자동 계산`)로 판정하며, 허용 점수는 C~G열에 라벨이 있는 값만이다 — 근거와 고객 확인 사항은 [P0 구현 계획](K-DOG_P0_구현계획_v1.0_20260916.md) 1·2장. 참가자 답안이나 개인정보는 가져오지 않는다. 원본이 개정되면 기존 버전을 덮어 배포하지 말고 이관기와 항목집 버전을 함께 갱신하고 다시 검증한다.
 
-현재 `resources/source/`의 55항목·30문항 엑셀과 `behavior-v1.json`·`survey-v1.json`은 42항목 판 이관(`behavior-v2`·`survey-v2`)이 끝날 때까지만 유지한다. 42항목 판 원본은 `docs/최종 고객 문서/03_행동_채점표_42항목_20260913.xlsx`와 `04_보호자_설문지_28문항.pdf`다.
+옛 55항목 판의 `resources/source/` 엑셀과 `behavior-v1.json`·`survey-v1.json`은 저장된 옛 run을 읽는 코드가 남아 있는 동안 유지한다. `behavior-v1.json`은 더 이상 재생성하지 않으며 `tests/test_catalog_import.py`가 원본 엑셀과 직접 대조한다. `survey-v1.json`은 설문 28문항 이관(`survey-v2`)까지 `--source-dir`의 원본으로 재생성한다.
 
 ## 데이터 계약 사용
 
