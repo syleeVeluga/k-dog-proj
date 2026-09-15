@@ -12,7 +12,7 @@ K-DOG is an operator-facing dog/guardian assessment application. The current cod
 
 Earlier 55-item documents (PRD v0.4, implementation guide, M1–M6 records) were removed on 2026-09-15 and exist only in git history before commit `7124809`. Do not treat their scoring, aggregation or report rules as current.
 
-`backend/app/domain/` contains validated Python contracts; `backend/app/import_catalogs.py` reads source Excel workbooks in `resources/source/`. `backend/app/api.py` provides the FastAPI API; `storage.py` manages SQLite and immutable input files; `worker.py` runs the analysis stages. `frontend/` contains the React UI. Tests and synthetic fixtures live in `backend/tests/` and `frontend/tests/`; extracted catalogs live in `resources/`. Create directories only when needed.
+`backend/app/domain/` contains validated Python contracts (`base.py`/`catalog.py` are the 42-item layer; `contracts.py`/`validation.py` are still the 55-item layer until PR-3); `backend/app/import_catalogs.py` reads the customer's 42-item workbook in `docs/최종 고객 문서/` and, until PR-2, the superseded survey workbook in `resources/source/`. `backend/app/api.py` provides the FastAPI API; `storage.py` manages SQLite and immutable input files; `worker.py` runs the analysis stages. `frontend/` contains the React UI. Tests and synthetic fixtures live in `backend/tests/` and `frontend/tests/`; extracted catalogs live in `resources/`. Create directories only when needed.
 
 ## Build, Test, and Development Commands
 

@@ -1,0 +1,2058 @@
+{
+  "schema_version": "2.0",
+  "version": "catalog-20260913-v2",
+  "source_filename": "03_행동_채점표_42항목_20260913.xlsx",
+  "source_sha256": "958e158d3c13d7111aeb3db25c4467c837ebbed36b8527589d42d60c15bd75c5",
+  "provenance": "excel_verified",
+  "items": [
+    {
+      "schema_version": "2.0",
+      "item_id": "BS-01",
+      "sheet": "1_바디시그널",
+      "source_row": 5,
+      "segment_label": "입장",
+      "segment": "entry",
+      "text": "꼬리",
+      "domain_label": "사회성 — 환경",
+      "domain": "SOC_E",
+      "axis_label": "양쪽·각성",
+      "axis": "각성",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "다리 사이로 말아 넣음",
+          "source_cell": "C5"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "꼬리 아랫부분이 바닥을 가리킴 · 짧게 흔들림",
+          "source_cell": "D5"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "등선 높이 · 꼬리끝이 바닥보다 위 · 부드러운 움직임",
+          "source_cell": "E5"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "등선보다 높이 올라옴",
+          "source_cell": "F5"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "높이 들고 경직 · 짧고 빠른 흔들림",
+          "source_cell": "G5"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "BS-02",
+      "sheet": "1_바디시그널",
+      "source_row": 6,
+      "segment_label": "입장",
+      "segment": "entry",
+      "text": "발성  ※입장 구간",
+      "domain_label": "사회성 — 환경",
+      "domain": "SOC_E",
+      "axis_label": "양쪽·각성",
+      "axis": "각성",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "지속적인 낑낑소리",
+          "source_cell": "C6"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "가끔 낑낑",
+          "source_cell": "D6"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "없음",
+          "source_cell": "E6"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "한두 번 짖음",
+          "source_cell": "F6"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "여러 번 짖음",
+          "source_cell": "G6"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "BS-03",
+      "sheet": "1_바디시그널",
+      "source_row": 7,
+      "segment_label": "입장",
+      "segment": "entry",
+      "text": "낯선 바닥 — 꼬리  ※바닥을 밟는 동안",
+      "domain_label": "사회성 — 환경",
+      "domain": "SOC_E",
+      "axis_label": "양쪽·각성",
+      "axis": "각성",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "다리 사이로 말아 넣음",
+          "source_cell": "C7"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "꼬리 아랫부분이 바닥을 가리킴 · 짧게 흔들림",
+          "source_cell": "D7"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "등선 높이 · 꼬리끝이 바닥보다 위 · 부드러운 움직임",
+          "source_cell": "E7"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "등선보다 높이 올라옴",
+          "source_cell": "F7"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "높이 들고 경직 · 짧고 빠른 흔들림",
+          "source_cell": "G7"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "BS-04",
+      "sheet": "1_바디시그널",
+      "source_row": 8,
+      "segment_label": "입장",
+      "segment": "entry",
+      "text": "낯선 바닥 — 몸 털기  ※횟수 · 점수가 아닙니다",
+      "domain_label": "— 참고 · 각성의 보조",
+      "domain": null,
+      "axis_label": "참고",
+      "axis": null,
+      "scale": null,
+      "value_type": "count",
+      "labels": [],
+      "allowed_scores": [],
+      "note": "바닥을 처음 밟은 순간부터 5초 안에 개가 몸을 턴 횟수를 셉니다. 물기를 털듯 온몸을 흔드는 동작입니다. 하품·코 핥기는 세지 않습니다 — 개가 가까울 때만 보여 채점자마다 달라집니다."
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "BS-05",
+      "sheet": "1_바디시그널",
+      "source_row": 9,
+      "segment_label": "혼자",
+      "segment": "alone",
+      "text": "꼬리  ※혼자 있는 15초",
+      "domain_label": "친밀·애착",
+      "domain": "ATT",
+      "axis_label": "양쪽·각성",
+      "axis": "각성",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "다리 사이로 말아 넣음",
+          "source_cell": "C9"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "꼬리 아랫부분이 바닥을 가리킴 · 짧게 흔들림",
+          "source_cell": "D9"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "등선 높이 · 꼬리끝이 바닥보다 위 · 부드러운 움직임",
+          "source_cell": "E9"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "등선보다 높이 올라옴",
+          "source_cell": "F9"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "높이 들고 경직 · 짧고 빠른 흔들림",
+          "source_cell": "G9"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "BS-06",
+      "sheet": "1_바디시그널",
+      "source_row": 10,
+      "segment_label": "혼자",
+      "segment": "alone",
+      "text": "분리 — 몸 털기  ※횟수 · 점수가 아닙니다",
+      "domain_label": "— 참고 · 각성의 보조",
+      "domain": null,
+      "axis_label": "참고",
+      "axis": null,
+      "scale": null,
+      "value_type": "count",
+      "labels": [],
+      "allowed_scores": [],
+      "note": "보호자가 나간 순간부터 5초 안에 개가 몸을 턴 횟수를 셉니다. 물기를 털듯 온몸을 흔드는 동작입니다. 하품·코 핥기는 세지 않습니다 — 개가 가까울 때만 보여 채점자마다 달라집니다."
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "BS-07",
+      "sheet": "1_바디시그널",
+      "source_row": 11,
+      "segment_label": "낯선",
+      "segment": "stranger",
+      "text": "꼬리  ※낯선 사람이 있는 동안",
+      "domain_label": "사회성 — 사람",
+      "domain": "SOC_H",
+      "axis_label": "양쪽·각성",
+      "axis": "각성",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "다리 사이로 말아 넣음",
+          "source_cell": "C11"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "꼬리 아랫부분이 바닥을 가리킴 · 짧게 흔들림",
+          "source_cell": "D11"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "등선 높이 · 꼬리끝이 바닥보다 위 · 부드러운 움직임",
+          "source_cell": "E11"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "등선보다 높이 올라옴",
+          "source_cell": "F11"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "높이 들고 경직 · 짧고 빠른 흔들림",
+          "source_cell": "G11"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "BS-08",
+      "sheet": "1_바디시그널",
+      "source_row": 12,
+      "segment_label": "걷기",
+      "segment": "walk",
+      "text": "꼬리",
+      "domain_label": "행동 동조",
+      "domain": "SYN",
+      "axis_label": "양쪽·각성",
+      "axis": "각성",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "다리 사이로 말아 넣음",
+          "source_cell": "C12"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "꼬리 아랫부분이 바닥을 가리킴 · 짧게 흔들림",
+          "source_cell": "D12"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "등선 높이 · 꼬리끝이 바닥보다 위 · 부드러운 움직임",
+          "source_cell": "E12"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "등선보다 높이 올라옴",
+          "source_cell": "F12"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "높이 들고 경직 · 짧고 빠른 흔들림",
+          "source_cell": "G12"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "BS-09",
+      "sheet": "1_바디시그널",
+      "source_row": 13,
+      "segment_label": "퇴장",
+      "segment": "exit",
+      "text": "꼬리",
+      "domain_label": "퇴장 — 환경 적응",
+      "domain": "EXIT",
+      "axis_label": "양쪽·각성",
+      "axis": "각성",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "다리 사이로 말아 넣음",
+          "source_cell": "C13"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "꼬리 아랫부분이 바닥을 가리킴 · 짧게 흔들림",
+          "source_cell": "D13"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "등선 높이 · 꼬리끝이 바닥보다 위 · 부드러운 움직임",
+          "source_cell": "E13"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "등선보다 높이 올라옴",
+          "source_cell": "F13"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "높이 들고 경직 · 짧고 빠른 흔들림",
+          "source_cell": "G13"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-01",
+      "sheet": "2_개행동",
+      "source_row": 5,
+      "segment_label": "입장",
+      "segment": "entry",
+      "text": "[입장] 방 문 통과 — 보호자보다 앞서는가",
+      "domain_label": "사회성 — 환경",
+      "domain": "SOC_E",
+      "axis_label": "양쪽·각성",
+      "axis": "각성",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "들어가지 않으려 버팀 · 보호자의 강한유도(끌거나, 5초이상)",
+          "source_cell": "C5"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "뒤처져 따라 들어옴, 보호자의 약한유도(5초 이내)",
+          "source_cell": "D5"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "보호자와 나란히 들어옴",
+          "source_cell": "E5"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "앞서 들어옴",
+          "source_cell": "F5"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "끌고 들어옴 · 뛰어 들어옴",
+          "source_cell": "G5"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-02",
+      "sheet": "2_개행동",
+      "source_row": 6,
+      "segment_label": "입장",
+      "segment": "entry",
+      "text": "[입장] 비닐 바닥 통과 — 스스로 밟는가",
+      "domain_label": "사회성 — 환경",
+      "domain": "SOC_E",
+      "axis_label": "양쪽·사회화",
+      "axis": "사회화",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "올라가지 않음 · 돌아서 감 · 버팀",
+          "source_cell": "C6"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "머뭇거리다 뒤처져 밟음",
+          "source_cell": "D6"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "잠깐 살피고 스스로 지나감",
+          "source_cell": "E6"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "살피지 않고 그냥 지나감",
+          "source_cell": "F6"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "뛰어서 통과 · 밟는 줄도 모름",
+          "source_cell": "G6"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-03",
+      "sheet": "2_개행동",
+      "source_row": 7,
+      "segment_label": "입장",
+      "segment": "entry",
+      "text": "[입장] 냄새 — 코를 쓰는가",
+      "domain_label": "— 참고 · 입장↔퇴장 비교용",
+      "domain": null,
+      "axis_label": "참고",
+      "axis": null,
+      "scale": null,
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "맡음 — 바닥이나 물체에 코를 댐",
+          "source_cell": "E7"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "안 맡음",
+          "source_cell": "G7"
+        }
+      ],
+      "allowed_scores": [
+        3,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-04",
+      "sheet": "2_개행동",
+      "source_row": 8,
+      "segment_label": "기준",
+      "segment": "baseline",
+      "text": "[기준] 각성  ※목줄을 푼 직후 10초 · 모든 해석의 바탕",
+      "domain_label": "— 참고 (기준선)",
+      "domain": null,
+      "axis_label": "참고",
+      "axis": null,
+      "scale": null,
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "얼어붙어 움직이지 않음",
+          "source_cell": "C8"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "웅크리고 거의 움직이지 않음",
+          "source_cell": "D8"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "편안히 앉거나 서서 둘러봄",
+          "source_cell": "E8"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "계속 움직임 · 자리를 못 잡음",
+          "source_cell": "F8"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "한시도 가만있지 못함 · 심하게 안절부절",
+          "source_cell": "G8"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-05",
+      "sheet": "2_개행동",
+      "source_row": 9,
+      "segment_label": "혼자",
+      "segment": "alone",
+      "text": "[혼자] 블라인드(나간 쪽) 지향  ★핵심 애착지표",
+      "domain_label": "친밀·애착",
+      "domain": "ATT",
+      "axis_label": "양쪽·애착",
+      "axis": "애착",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "문 울타리에 붙어서 긁음, 낑낑거림.",
+          "source_cell": "C9"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "문앞에서 처다보고 있음",
+          "source_cell": "D9"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "문앞까지 따라온 뒤 스스로 시간을 보냄. ",
+          "source_cell": "E9"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "문앞까지 따라오다 말음. 보호자가 나가는것을 늦게발견하고 따라왔다 다시 자기행동을 함",
+          "source_cell": "F9"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "나간 것을 알아차린 기색이 전혀 없음",
+          "source_cell": "G9"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-06",
+      "sheet": "2_개행동",
+      "source_row": 10,
+      "segment_label": "혼자",
+      "segment": "alone",
+      "text": "[혼자] 각성",
+      "domain_label": "친밀·애착",
+      "domain": "ATT",
+      "axis_label": "양쪽·각성",
+      "axis": "각성",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "한자리에 얼어붙어 움직이지 않음",
+          "source_cell": "C10"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "구석 · 매트 한쪽에 웅크려 머묾",
+          "source_cell": "D10"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "안정적으로 머물며 가끔 둘러봄",
+          "source_cell": "E10"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "왔다갔다 반복 · 안절부절",
+          "source_cell": "F10"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "울타리 긁음 · 넘으려 함 · 패닉 (즉시 중단)",
+          "source_cell": "G10"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-07",
+      "sheet": "2_개행동",
+      "source_row": 11,
+      "segment_label": "혼자",
+      "segment": "alone",
+      "text": "[혼자] 발성  ※각성의 보조",
+      "domain_label": "— 참고 · 각성의 보조",
+      "domain": null,
+      "axis_label": "참고",
+      "axis": null,
+      "scale": null,
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "지속적인 낑낑소리",
+          "source_cell": "C11"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "가끔 낑낑",
+          "source_cell": "D11"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "없음",
+          "source_cell": "E11"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "한두 번 짖음",
+          "source_cell": "F11"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "여러 번 짖음",
+          "source_cell": "G11"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-08",
+      "sheet": "2_개행동",
+      "source_row": 12,
+      "segment_label": "혼자",
+      "segment": "alone",
+      "text": "[혼자] 탐색량 변화  ※균형설계 불가 · 판정 제외",
+      "domain_label": "— 참고 (Rehn 2013 · 순서효과)",
+      "domain": null,
+      "axis_label": "참고",
+      "axis": null,
+      "scale": null,
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "보호자가 있을 때도 탐색이 거의 없다",
+          "source_cell": "C12"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "멀리 떨어지지 않고 탐색한다",
+          "source_cell": "D12"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "있을 때 탐색하고 나간 뒤 눈에 띄게 줄어든다",
+          "source_cell": "E12"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "잠시 신경 쓰고 탐색한다",
+          "source_cell": "F12"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "없어져도 있을 때와 마찬가지로 탐색",
+          "source_cell": "G12"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-09",
+      "sheet": "2_개행동",
+      "source_row": 13,
+      "segment_label": "낯선",
+      "segment": "stranger",
+      "text": "[낯선] 우호성 — 다가가는가  ※거리로만 봅니다",
+      "domain_label": "사회성 — 사람",
+      "domain": "SOC_H",
+      "axis_label": "양쪽·우호",
+      "axis": "우호",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "2 m 밖에서 벗어나지 않음 · 등을 돌림",
+          "source_cell": "C13"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "거리를 두고 지켜보기만 함",
+          "source_cell": "D13"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "다가가 냄새 맡고 스스로 물러남",
+          "source_cell": "E13"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "계속 붙어 다님",
+          "source_cell": "F13"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "뛰어오름 · 매달림 · 떨어지지 않음",
+          "source_cell": "G13"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-10",
+      "sheet": "2_개행동",
+      "source_row": 14,
+      "segment_label": "낯선",
+      "segment": "stranger",
+      "text": "[낯선] 각성  ※들떴는가 굳었는가만 봅니다",
+      "domain_label": "사회성 — 사람",
+      "domain": "SOC_H",
+      "axis_label": "양쪽·각성",
+      "axis": "각성",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "얼어붙음 · 굳어서 움직이지 않음",
+          "source_cell": "C14"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "웅크림 · 조심스럽게 움직임",
+          "source_cell": "D14"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "편안히 움직임",
+          "source_cell": "E14"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "들떠서 계속 움직임",
+          "source_cell": "F14"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "짖음 · 안절부절 · 가만있지 못함",
+          "source_cell": "G14"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-11",
+      "sheet": "2_개행동",
+      "source_row": 15,
+      "segment_label": "낯선",
+      "segment": "stranger",
+      "text": "[낯선] 이름을 불렀을 때  ★보호자 부름과 비교",
+      "domain_label": "사회성 — 사람",
+      "domain": "SOC_H",
+      "axis_label": "양쪽·우호",
+      "axis": "우호",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "매달림 · 떨어지지 않음",
+          "source_cell": "C15"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "바로 와서 몸을 붙임",
+          "source_cell": "D15"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "와서 살피고 스스로 물러남",
+          "source_cell": "E15"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "고개만 돌림 · 오지 않음",
+          "source_cell": "F15"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "반응 없음 · 계속 딴 것을 함",
+          "source_cell": "G15"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-12",
+      "sheet": "2_개행동",
+      "source_row": 16,
+      "segment_label": "재회",
+      "segment": "reunion",
+      "text": "[재회] 다가오는가  ※보호자가 들어와 의자에 앉을 때까지",
+      "domain_label": "친밀·애착",
+      "domain": "ATT",
+      "axis_label": "양쪽·애착",
+      "axis": "애착",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "걸어가는 내내 매달려 떨어지지 않음",
+          "source_cell": "C16"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "바로 다가와 몸을 붙임",
+          "source_cell": "D16"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "다가와 인사하고 스스로 물러남",
+          "source_cell": "E16"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "한 번 쳐다보고 만다",
+          "source_cell": "F16"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "본체만체 · 오지 않음",
+          "source_cell": "G16"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-13",
+      "sheet": "2_개행동",
+      "source_row": 17,
+      "segment_label": "재회",
+      "segment": "reunion",
+      "text": "[재회] 진정  ※앉은 뒤 · 혼자 때와 비교하면 「회복」이 나옵니다",
+      "domain_label": "친밀·애착",
+      "domain": "ATT",
+      "axis_label": "양쪽·각성",
+      "axis": "각성",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "굳은 채로 있음 · 위축이 풀리지 않음",
+          "source_cell": "C17"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "조심스러운 상태가 이어짐",
+          "source_cell": "D17"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "금방 안정을 찾음",
+          "source_cell": "E17"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "들뜬 상태가 이어짐",
+          "source_cell": "F17"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "과흥분 · 20초 안에 안정 실패",
+          "source_cell": "G17"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-14",
+      "sheet": "2_개행동",
+      "source_row": 18,
+      "segment_label": "재회",
+      "segment": "reunion",
+      "text": "[재회 접촉] 몸의 중심  ★앉은 뒤 이름을 부르고 만질 때",
+      "domain_label": "친밀·애착",
+      "domain": "ATT",
+      "axis_label": "양쪽·애착",
+      "axis": "애착",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "몸을 얹거나 무릎에 올라감 · 기대어 떨어지지 않음",
+          "source_cell": "C18"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "몸이 닿을 만큼 앞으로 붙임",
+          "source_cell": "D18"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "앞으로 살짝 기울여 손을 받음",
+          "source_cell": "E18"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "선 자리를 지킴 · 몸을 앞으로 옮기지 않음",
+          "source_cell": "F18"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "뒤로 물러남 · 옆으로 피함 · 등을 돌림",
+          "source_cell": "G18"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-15",
+      "sheet": "2_개행동",
+      "source_row": 19,
+      "segment_label": "재회",
+      "segment": "reunion",
+      "text": "[재회 접촉] 꼬리  ★앉은 뒤 이름을 부르고 만질 때",
+      "domain_label": "친밀·애착",
+      "domain": "ATT",
+      "axis_label": "양쪽·각성",
+      "axis": "각성",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "다리 사이로 말아 넣음",
+          "source_cell": "C19"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "아래로 늘어뜨린 채 거의 흔들지 않음",
+          "source_cell": "D19"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "등선 아래에서 부드럽게 흔듦",
+          "source_cell": "E19"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "등선 높이로 올려 크게 흔듦",
+          "source_cell": "F19"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "등선보다 높이 들고 빠르게 흔듦 · 온몸이 함께 흔들림",
+          "source_cell": "G19"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-16",
+      "sheet": "2_개행동",
+      "source_row": 20,
+      "segment_label": "재회",
+      "segment": "reunion",
+      "text": "[재회] 접근의 일관성  ※횟수 · 점수가 아닙니다",
+      "domain_label": "— 참고 · 애착 유형 판정용",
+      "domain": null,
+      "axis_label": "참고",
+      "axis": null,
+      "scale": null,
+      "value_type": "count",
+      "labels": [],
+      "allowed_scores": [],
+      "note": "재회에서 다음이 몇 번 나왔는지 셉니다 — 다가오다 멈춤 · 다가오면서 고개를 돌림 · 보호자를 지나쳐 감 · 다가오다 돌아섬 · 그 자리에서 굳음. 하나라도 있으면 애착 유형이 「일관되지 않음」이 됩니다."
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-17",
+      "sheet": "2_개행동",
+      "source_row": 21,
+      "segment_label": "무시",
+      "segment": "ignore",
+      "text": "[무시] 접촉 개시 — 먼저 다가가는가  ※만져 준 뒤 반응을 끊었을 때",
+      "domain_label": "친밀·애착",
+      "domain": "ATT",
+      "axis_label": "양쪽·애착",
+      "axis": "애착",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "무릎에 올라감 · 몸을 얹고 떨어지지 않음",
+          "source_cell": "C21"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "몸이 닿는 거리로 붙어 있음",
+          "source_cell": "D21"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "주변 1 m 안에 있으며 가끔 확인",
+          "source_cell": "E21"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "떨어져 있고 가끔만 쳐다봄",
+          "source_cell": "F21"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "한 번도 쳐다보지 않음 · 혼자 다님",
+          "source_cell": "G21"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-18",
+      "sheet": "2_개행동",
+      "source_row": 22,
+      "segment_label": "무시",
+      "segment": "ignore",
+      "text": "[무시] 각성  ※기준 때와 비교하면 「적응」이 나옵니다",
+      "domain_label": "친밀·애착",
+      "domain": "ATT",
+      "axis_label": "양쪽·각성",
+      "axis": "각성",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "얼어붙어 움직이지 않음",
+          "source_cell": "C22"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "웅크리고 거의 움직이지 않음",
+          "source_cell": "D22"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "편안히 앉거나 서서 둘러봄",
+          "source_cell": "E22"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "계속 움직임 · 자리를 못 잡음",
+          "source_cell": "F22"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "한시도 가만있지 못함 · 심하게 안절부절",
+          "source_cell": "G22"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-19",
+      "sheet": "2_개행동",
+      "source_row": 23,
+      "segment_label": "걷기",
+      "segment": "walk",
+      "text": "[걷기] 거리 유지",
+      "domain_label": "행동 동조",
+      "domain": "SYN",
+      "axis_label": "양쪽·거리",
+      "axis": "거리",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "보호자 발에 걸릴 만큼 붙어 다님",
+          "source_cell": "C23"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "계속 몸이 닿을 거리로 따라다님",
+          "source_cell": "D23"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "1~2 m 간격을 유지",
+          "source_cell": "E23"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "3 m 이상 벌어짐",
+          "source_cell": "F23"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "평가 구역을 벗어남 · 보호자를 두고 감",
+          "source_cell": "G23"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-20",
+      "sheet": "2_개행동",
+      "source_row": 24,
+      "segment_label": "걷기",
+      "segment": "walk",
+      "text": "[걷기] 보호자 확인 ※시선",
+      "domain_label": "행동 동조",
+      "domain": "SYN",
+      "axis_label": "양쪽·거리",
+      "axis": "거리",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "계속 올려다봄 · 앞을 보지 않음",
+          "source_cell": "C24"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "자주 올려다보며 걸음",
+          "source_cell": "D24"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "이동 중 여러 번 확인하고 다시 앞을 봄",
+          "source_cell": "E24"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "한두 번 힐끗",
+          "source_cell": "F24"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "한 번도 쳐다보지 않음",
+          "source_cell": "G24"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-21",
+      "sheet": "2_개행동",
+      "source_row": 25,
+      "segment_label": "걷기",
+      "segment": "walk",
+      "text": "[걷기] 동조 국면 수  ※0~6 · 점수가 아닙니다",
+      "domain_label": "— 참고 (영역 집계 제외)",
+      "domain": null,
+      "axis_label": "참고",
+      "axis": null,
+      "scale": null,
+      "value_type": "phase_count",
+      "labels": [],
+      "allowed_scores": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "note": "보호자가 움직이거나 멈춘 6국면(이동 3 · 정지 3) 중, 개가 3초 안에 같은 상태가 된 횟수를 셉니다."
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-22",
+      "sheet": "2_개행동",
+      "source_row": 26,
+      "segment_label": "걷기",
+      "segment": "walk",
+      "text": "[걷기] 동조율  ※자동 계산 · 입력하지 마세요",
+      "domain_label": "— 참고 (영역 집계 제외)",
+      "domain": null,
+      "axis_label": "참고",
+      "axis": null,
+      "scale": null,
+      "value_type": "auto_ratio",
+      "labels": [],
+      "allowed_scores": [],
+      "note": "동조 국면 수 ÷ 6. 시행 유효성이 3점이면 「무효」로 표시됩니다."
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-23",
+      "sheet": "2_개행동",
+      "source_row": 27,
+      "segment_label": "퇴장",
+      "segment": "exit",
+      "text": "[퇴장] 방 문 통과 — 나가는 쪽으로 가는가",
+      "domain_label": "퇴장 — 환경 적응",
+      "domain": "EXIT",
+      "axis_label": "양쪽·각성",
+      "axis": "각성",
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "나가지 않으려 버팀",
+          "source_cell": "C27"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "리드줄을 당겨야 나감",
+          "source_cell": "D27"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "보호자를 따라 자연스럽게 나감",
+          "source_cell": "E27"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "앞질러 나감",
+          "source_cell": "F27"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "문 쪽으로 끌고 감",
+          "source_cell": "G27"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "DOG-24",
+      "sheet": "2_개행동",
+      "source_row": 28,
+      "segment_label": "퇴장",
+      "segment": "exit",
+      "text": "[퇴장] 냄새 — 나가면서 코를 쓰는가",
+      "domain_label": "— 참고 · 입장↔퇴장 비교용",
+      "domain": null,
+      "axis_label": "참고",
+      "axis": null,
+      "scale": null,
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "맡음 — 바닥이나 물체에 코를 댐",
+          "source_cell": "E28"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "안 맡음",
+          "source_cell": "G28"
+        }
+      ],
+      "allowed_scores": [
+        3,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "OWN-01",
+      "sheet": "3_보호자행동",
+      "source_row": 5,
+      "segment_label": "전 구간",
+      "segment": null,
+      "text": "목소리 톤  ※입장 · 기준 10초 · 재회 · 퇴장에서 봅니다",
+      "domain_label": "교육태도",
+      "domain": "EDU",
+      "axis_label": "양쪽",
+      "axis": null,
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "거의 말이 없음 · 반응 없음",
+          "source_cell": "C5"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "드물게 짧게만 말함",
+          "source_cell": "D5"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "평이하고 낮은 톤",
+          "source_cell": "E5"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "높고 빠름",
+          "source_cell": "F5"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "커지거나 날카로움 · 꾸짖음",
+          "source_cell": "G5"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "OWN-02",
+      "sheet": "3_보호자행동",
+      "source_row": 6,
+      "segment_label": "전 구간",
+      "segment": null,
+      "text": "리드줄  ※입장·퇴장에서만 보입니다",
+      "domain_label": "교육태도",
+      "domain": "EDU",
+      "axis_label": "양쪽",
+      "axis": null,
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "방치 — 개가 시야 밖으로 가도 무반응",
+          "source_cell": "C6"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "줄을 늘어뜨린 채 신경 쓰지 않음",
+          "source_cell": "D6"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "느슨함 (U자 유지)",
+          "source_cell": "E6"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "가끔 당김",
+          "source_cell": "F6"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "지속적으로 당김",
+          "source_cell": "G6"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "OWN-03",
+      "sheet": "3_보호자행동",
+      "source_row": 7,
+      "segment_label": "전 구간",
+      "segment": null,
+      "text": "지시·말 반복  ※입장 · 기준 10초 · 재회 · 퇴장에서 봅니다",
+      "domain_label": "교육태도",
+      "domain": "EDU",
+      "axis_label": "양쪽",
+      "axis": null,
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "개를 놓침 · 말도 안 함 (방치)",
+          "source_cell": "C7"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "말을 걸지 않고 지켜보기만 함",
+          "source_cell": "D7"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "1회만 말하고 기다림",
+          "source_cell": "E7"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "2~3회 반복",
+          "source_cell": "F7"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "4회 이상 · 지시어 뒤섞임 · 쉼 없이 연발",
+          "source_cell": "G7"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "OWN-04",
+      "sheet": "3_보호자행동",
+      "source_row": 8,
+      "segment_label": "전 구간",
+      "segment": null,
+      "text": "시선 — 개를 보려 하는가  ※무시 15초와 걷기는 빼고 봅니다 — 안 보는 것이 지시입니다",
+      "domain_label": "교육태도",
+      "domain": "EDU",
+      "axis_label": "한쪽",
+      "axis": null,
+      "scale": "ONE",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "개를 보고 있음",
+          "source_cell": "E8"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "가끔 다른 곳을 봄",
+          "source_cell": "F8"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "개를 거의 보지 않음",
+          "source_cell": "G8"
+        }
+      ],
+      "allowed_scores": [
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "OWN-05",
+      "sheet": "3_보호자행동",
+      "source_row": 9,
+      "segment_label": "전 구간",
+      "segment": null,
+      "text": "유도 방식  ※개가 안 가려 할 때 · 입장과 퇴장",
+      "domain_label": "교육태도",
+      "domain": "EDU",
+      "axis_label": "양쪽",
+      "axis": null,
+      "scale": "BI",
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "개를 두고 먼저 감 · 그냥 끌려오게 둠",
+          "source_cell": "C9"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "아무 말 없이 기다리기만 함",
+          "source_cell": "D9"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "기다려주고 부드럽게 격려 · 먹이나 장난감으로 유도",
+          "source_cell": "E9"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "가볍게 재촉 · 리드줄 살짝 당김 · 큰 소리로 재촉",
+          "source_cell": "F9"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "리드줄 확 잡아챔 · 몸으로 밀어 넣음 · 안아서 옮김",
+          "source_cell": "G9"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "OWN-06",
+      "sheet": "3_보호자행동",
+      "source_row": 10,
+      "segment_label": "혼자",
+      "segment": "alone",
+      "text": "[분리] 나갈 때  ※참고 · 개 행동 해석용",
+      "domain_label": "— 참고 (영역 집계 제외)",
+      "domain": null,
+      "axis_label": "참고",
+      "axis": null,
+      "scale": null,
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "개를 보지도 않고 그냥 나감",
+          "source_cell": "C10"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "몰래 급히 나감",
+          "source_cell": "D10"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "차분히 나감",
+          "source_cell": "E10"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "과하게 인사하고 나감",
+          "source_cell": "F10"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "달래다 못 나감 · 여러 번 되돌아옴",
+          "source_cell": "G10"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "OWN-07",
+      "sheet": "3_보호자행동",
+      "source_row": 11,
+      "segment_label": "재회",
+      "segment": "reunion",
+      "text": "[재회] 들어올 때  ※의자에 앉은 뒤 · 참고",
+      "domain_label": "— 참고 (영역 집계 제외)",
+      "domain": null,
+      "axis_label": "참고",
+      "axis": null,
+      "scale": null,
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "피하고 개가 뛰어오르면 밀어냄 · 통제 지시만 함",
+          "source_cell": "C11"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "수동적으로 인사를 받기만 함",
+          "source_cell": "D11"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "적극적으로 인사하고 친근한 톤으로 말함",
+          "source_cell": "E11"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 4,
+          "text": "웃으며 들뜬 목소리로 인사",
+          "source_cell": "F11"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 5,
+          "text": "크게 호들갑 · 개를 흥분시킴",
+          "source_cell": "G11"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "OWN-08",
+      "sheet": "3_보호자행동",
+      "source_row": 12,
+      "segment_label": "무시",
+      "segment": "ignore",
+      "text": "[무시] 지시 준수  ※참고 · 조건 준수 확인",
+      "domain_label": "— 참고 (영역 집계 제외)",
+      "domain": null,
+      "axis_label": "참고",
+      "axis": null,
+      "scale": null,
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "15초 동안 말 · 시선 · 접촉 없음 — 유효",
+          "source_cell": "C12"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "한 번 보거나 말함 — 유효(주의)",
+          "source_cell": "D12"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "두 번 이상 · 만짐 — 이 시행의 무시 항목 무효",
+          "source_cell": "E12"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3
+      ],
+      "note": null
+    },
+    {
+      "schema_version": "2.0",
+      "item_id": "OWN-09",
+      "sheet": "3_보호자행동",
+      "source_row": 13,
+      "segment_label": "걷기",
+      "segment": "walk",
+      "text": "[걷기] 시행 유효성  ※참고 · 조건 준수 확인",
+      "domain_label": "— 참고 (영역 집계 제외)",
+      "domain": null,
+      "axis_label": "참고",
+      "axis": null,
+      "scale": null,
+      "value_type": "scale",
+      "labels": [
+        {
+          "schema_version": "2.0",
+          "score": 1,
+          "text": "30초 동안 말·손짓 없음 — 유효",
+          "source_cell": "C13"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 2,
+          "text": "한 번 부르거나 손짓함 — 유효(주의)",
+          "source_cell": "D13"
+        },
+        {
+          "schema_version": "2.0",
+          "score": 3,
+          "text": "두 번 이상 — 이 시행의 걷기 항목과 동조율 무효",
+          "source_cell": "E13"
+        }
+      ],
+      "allowed_scores": [
+        1,
+        2,
+        3
+      ],
+      "note": null
+    }
+  ]
+}
