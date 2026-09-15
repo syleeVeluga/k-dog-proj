@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import tomllib
 from zipfile import ZipFile, ZIP_DEFLATED
 
 
@@ -26,14 +27,18 @@ def build(destination):
     # New application files are included before the release commit, without globbing secrets.
     for name in ("launcher.py", "usage.py"):
         files[f"backend/app/{name}"] = ROOT / "backend/app" / name
-    for name in ("backend/pyproject.toml", "backend/uv.lock", "docs/PILOT_OPERATIONS.md"):
+    for name in ("README.md", "backend/pyproject.toml", "backend/uv.lock", "docs/PILOT_OPERATIONS.md"):
         files[name] = ROOT / name
     for name in ("Install.cmd", "Start.cmd", "install.ps1"):
         files[name] = ROOT / "scripts/windows" / name
     files.update({path.relative_to(ROOT).as_posix(): path for path in (ROOT / "frontend/dist").rglob("*") if path.is_file()})
-    manifest = {"format": "kdog-release-1", "commit": subprocess.check_output(
+    if subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT):
+        raise ValueError("릴리즈 패키지는 커밋된 깨끗한 작업 트리에서 생성해야 합니다.")
+    with (ROOT / "backend/pyproject.toml").open("rb") as project_file:
+        version = tomllib.load(project_file)["project"]["version"]
+    manifest = {"format": "kdog-release-1", "version": version, "commit": subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=ROOT).decode().strip(),
-        "working_tree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT)),
+        "working_tree_dirty": False,
         "files": {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in sorted(files.items())}}
     destination.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(destination, "x", ZIP_DEFLATED) as archive:

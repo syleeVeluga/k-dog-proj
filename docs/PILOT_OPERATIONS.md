@@ -1,6 +1,6 @@
 # K-DOG Windows 설치·파일럿 운영 안내
 
-버전: v1.2 · 2026-09-15 · M6
+버전: v1.3 · 2026-09-15 · M6
 
 ## 일반 사용자 빠른 실행
 
@@ -37,10 +37,10 @@ K-DOG는 키를 등록한 **동일한 Windows 사용자 계정**으로 설치·�
 
 ### 1. 전달 파일 확인
 
-배포 담당자에게 같은 이름의 ZIP과 SHA-256 파일 두 개를 받는다. 예: `kdog-m6.zip`, `kdog-m6.zip.sha256`. 둘을 같은 폴더에 둔 뒤 PowerShell에서 다음을 실행한다.
+[GitHub v0.1.0 릴리즈](https://github.com/syleeVeluga/k-dog-proj/releases/tag/v0.1.0)에서 같은 이름의 ZIP과 SHA-256 파일 두 개를 받는다. 예: `kdog-v0.1.0-windows-x64.zip`, `kdog-v0.1.0-windows-x64.zip.sha256`. 둘을 같은 폴더에 둔 뒤 PowerShell에서 다음을 실행한다. GitHub의 자동 생성 `Source code` 압축 파일은 설치 패키지가 아니다.
 
 ```powershell
-$zip = (Resolve-Path ".\kdog-m6.zip").Path
+$zip = (Resolve-Path ".\kdog-v0.1.0-windows-x64.zip").Path
 $expected = ((Get-Content -LiteralPath "$zip.sha256" -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
 $actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw "ZIP SHA-256이 일치하지 않습니다. 실행하지 말고 파일을 다시 받으세요." }
@@ -63,7 +63,7 @@ ffprobe -version
 
 ### 3. 프로그램과 자료 경로 준비
 
-ZIP은 반드시 빈 새 프로그램 폴더에 압축 해제한다. 압축 파일 내부에서 `Install.cmd`를 직접 열지 않는다. 예: `C:/K-DOG/app-m6`. 프로그램 폴더에는 운영 자료를 두지 않는다.
+ZIP은 반드시 빈 새 프로그램 폴더에 압축 해제한다. 압축 파일 내부에서 `Install.cmd`를 직접 열지 않는다. 예: `C:/K-DOG/app-v0.1.0`. 프로그램 폴더에는 운영 자료를 두지 않는다.
 
 자료의 기본 위치는 `%LOCALAPPDATA%/K-DOG/data`다. 다른 위치를 사용할 때에는 설치 전에 다음처럼 사용자 환경 변수를 설정하고 새 PowerShell 창을 연다. 기존 자료를 다시 열 때 경로 철자와 드라이브가 이전 실행과 같은지 먼저 확인한다.
 
