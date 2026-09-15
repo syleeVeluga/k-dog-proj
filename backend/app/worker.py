@@ -15,7 +15,7 @@ from app.analysis import (
 )
 from app.legacy.contracts_v1 import BehaviorCatalog, Evidence, RunInput, SurveyCatalog, VideoReference
 from app.evaluation import Evaluator, evaluation_context, make_evaluation, validated_evaluation
-from app.scoring import RULES, survey_scores
+from app.legacy.scoring_v1 import RULES, survey_scores
 from app.gemini import GeminiObserver, ProviderError, sampling, sampling_flag
 from app.media import MediaError, inspect_media
 from app.observation_models import LedgerArtifact, ObservationArtifact, PreparedInput

@@ -1,0 +1,211 @@
+{
+  "schema_version": "2.0",
+  "version": "scoring-v2",
+  "catalog_version": "catalog-20260913-v2",
+  "source": {
+    "workbook": "03_행동_채점표_42항목_20260913.xlsx",
+    "sheet": "여러쌍비교",
+    "cells": "D6:Z6",
+    "document": "01_개발_요구사항_20260913 §4 · 04_보호자_설문지_문항근거 §2",
+    "interpretations": "docs/K-DOG_P0_구현계획_v1.0_20260916.md §2 R3~R9"
+  },
+  "center": 3,
+  "rounding": {
+    "decimal_places": 2,
+    "mode": "ROUND_HALF_UP",
+    "note": "엑셀 ROUND(x,2)와 동일. 중간값은 반올림하지 않는다."
+  },
+  "domain_output": {
+    "EDU": "lean",
+    "SOC_E": "lean",
+    "SOC_H": "type",
+    "ATT": "type",
+    "SYN": "lean",
+    "EXIT": "lean"
+  },
+  "mean_scales": [
+    "BI"
+  ],
+  "width_scales": [
+    "BI",
+    "ONE"
+  ],
+  "degree_scales": [
+    "ONE"
+  ],
+  "roles": {
+    "baseline_arousal": "DOG-04",
+    "alone_orientation": "DOG-05",
+    "alone_arousal": "DOG-06",
+    "stranger_affiliation": "DOG-09",
+    "stranger_arousal": "DOG-10",
+    "reunion_approach": "DOG-12",
+    "reunion_calm": "DOG-13",
+    "reunion_body": "DOG-14",
+    "approach_consistency": "DOG-16",
+    "ignore_contact": "DOG-17",
+    "ignore_arousal": "DOG-18",
+    "sync_phase_count": "DOG-21"
+  },
+  "indicators": {
+    "adaptation": {
+      "formula": "|baseline_arousal - 3| - |ignore_arousal - 3|",
+      "cell": "V6"
+    },
+    "recovery": {
+      "formula": "|alone_arousal - 3| - |reunion_calm - 3|",
+      "cell": "W6"
+    },
+    "stranger_calming": {
+      "formula": "|alone_arousal - 3| - |stranger_arousal - 3|",
+      "cell": "X6"
+    },
+    "sync_rate": {
+      "formula": "sync_phase_count / 6",
+      "cell": "Z6",
+      "item": "DOG-22"
+    }
+  },
+  "types": {
+    "attachment": {
+      "cell": "M6",
+      "required": [
+        "ignore_contact",
+        "alone_orientation",
+        "reunion_approach",
+        "reunion_body",
+        "reunion_calm",
+        "approach_consistency"
+      ],
+      "consistency_item": "approach_consistency",
+      "consistency_threshold": 1,
+      "degree_items": [
+        "ignore_contact",
+        "alone_orientation",
+        "reunion_approach",
+        "reunion_body"
+      ],
+      "degree_threshold": 3.5,
+      "calm_item": "reunion_calm",
+      "calm_tolerance": 1,
+      "labels": {
+        "inconsistent": "일관되지 않음",
+        "low_calm": "안정",
+        "low_restless": "불안",
+        "high_calm": "거리 둠",
+        "high_restless": "일관되지 않음"
+      }
+    },
+    "sociability_person": {
+      "cell": "J6",
+      "required": [
+        "stranger_affiliation",
+        "stranger_arousal"
+      ],
+      "affiliation_item": "stranger_affiliation",
+      "affiliation_threshold": 3,
+      "arousal_item": "stranger_arousal",
+      "calm_tolerance": 1,
+      "labels": {
+        "high_calm": "편안·우호",
+        "high_restless": "우호·들뜸",
+        "low_calm": "담담·거리둠",
+        "low_restless": "경계·긴장"
+      }
+    }
+  },
+  "invalidation": {
+    "ignore": {
+      "item": "OWN-08",
+      "invalid_score": 3,
+      "excludes": [
+        "DOG-17",
+        "DOG-18"
+      ],
+      "voids_indicators": [
+        "adaptation"
+      ],
+      "voids_types": [
+        "attachment"
+      ],
+      "source": "03 3_보호자행동!C12 「두 번 이상 · 만짐 — 이 시행의 무시 항목 무효」 (R6)"
+    },
+    "walk": {
+      "item": "OWN-09",
+      "invalid_score": 3,
+      "excludes": [
+        "BS-08",
+        "DOG-19",
+        "DOG-20",
+        "DOG-21"
+      ],
+      "voids_indicators": [
+        "sync_rate"
+      ],
+      "voids_types": [],
+      "source": "03 3_보호자행동!C13 「두 번 이상 — 이 시행의 걷기 항목과 동조율 무효」, 여러쌍비교!Z6 (R5)"
+    }
+  },
+  "survey": {
+    "reverse_items": [
+      "s26",
+      "s27",
+      "s28"
+    ],
+    "domain_means": {
+      "A": [
+        "s01",
+        "s02",
+        "s03",
+        "s04",
+        "s05",
+        "s06",
+        "s07",
+        "s08",
+        "s09"
+      ],
+      "B": [
+        "s10",
+        "s11",
+        "s12",
+        "s13",
+        "s14"
+      ],
+      "C": [
+        "s15",
+        "s16",
+        "s17",
+        "s18",
+        "s19",
+        "s20",
+        "s21"
+      ],
+      "E": [
+        "s26",
+        "s27",
+        "s28"
+      ]
+    },
+    "separation": {
+      "resistance_items": [
+        "s22",
+        "s23"
+      ],
+      "recovery_item": "s24",
+      "resistance_threshold": 3.5,
+      "recovery_high": [
+        4,
+        5
+      ],
+      "labels": {
+        "high_high": "안정",
+        "high_low": "불안",
+        "low_high": "회피 쪽",
+        "low_low": "무덤덤"
+      },
+      "source": "04 문항근거 §2 「D 영역은 합산하지 않고 두 축으로 유형을 가른다」 (R8)"
+    },
+    "note": "「해당 없음」 허용 문항은 survey-v2.json의 allows_not_applicable가 정한다. s25(따라옴)는 값만 저장하고 평균·유형에 넣지 않는다. 총점은 만들지 않는다(01 §6) — SurveyResult 계약에 총점 필드가 없다."
+  },
+  "note": "formula·cell·source 항목은 근거 표기이며 코드가 읽지 않는다. 계산식 자체는 app/scoring.py에 있고, 임계값·항목 역할·라벨·무효 규칙·설문 규칙은 이 파일에서 읽는다."
+}
