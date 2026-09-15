@@ -2,14 +2,16 @@
 
 ## Project Structure & Module Organization
 
-K-DOG is an operator-facing dog/guardian assessment application at milestone M1 (authenticated intake and persistent storage). `docs/` contains:
+K-DOG is an operator-facing dog/guardian assessment application. The current code implements the superseded 55-item specification (2026-09-04); the domain layer is being rebuilt for the customer's 42-item specification (2026-09-13) while the infrastructure layer is kept. `docs/` contains:
 
-- `K-DOG_PRD_v0.4_20260905.md`: product requirements and roles.
-- `K-DOG_바이브코딩_구현지시서_v1.0_20260905.md`: MVP scope, implementation contracts, and acceptance checks.
-- `K-DOG_AI_처리_파이프라인_v0.1_20260905.md`: AI stages and data contracts.
-- `K-DOG_문서검수_v1.0_20260905.md`: unresolved review findings F-01–F-05.
+- `K-DOG_변경검토_v1.0_20260915.md`: the transition decision — what is reused, what is rewritten, schedule, open customer questions. Read first.
+- `최종 고객 문서/`: the customer's requirement set. `00_먼저_읽어주세요` is the entry point; `03_행동_채점표_42항목_20260913.xlsx` is the de-facto specification (items, 1–5 labels, domain codes, axes, derived metrics and type formulas).
+- `DEVELOPMENT.md`, `PILOT_OPERATIONS.md`: environment, commands, installation and operations.
+- `K-DOG_Gemini영상API_적용계획_v1.0_20260907.md`: Gemini video request contract (infrastructure).
 
-`backend/app/domain/` contains validated Python contracts; `backend/app/import_catalogs.py` reads source Excel workbooks in `docs/`. `backend/app/api.py` provides the FastAPI intake API; `storage.py` manages SQLite and immutable input files. `frontend/` contains the React UI. Tests and synthetic fixtures live in `backend/tests/` and `frontend/tests/`; extracted catalogs and pending-rule records live in `resources/`. Worker implementation starts in M2. Create directories only when needed.
+Earlier 55-item documents (PRD v0.4, implementation guide, M1–M6 records) were removed on 2026-09-15 and exist only in git history before commit `7124809`. Do not treat their scoring, aggregation or report rules as current.
+
+`backend/app/domain/` contains validated Python contracts; `backend/app/import_catalogs.py` reads source Excel workbooks in `resources/source/`. `backend/app/api.py` provides the FastAPI API; `storage.py` manages SQLite and immutable input files; `worker.py` runs the analysis stages. `frontend/` contains the React UI. Tests and synthetic fixtures live in `backend/tests/` and `frontend/tests/`; extracted catalogs live in `resources/`. Create directories only when needed.
 
 ## Build, Test, and Development Commands
 
@@ -38,7 +40,7 @@ No formatter, linter, or indentation configuration exists. For new code, use fou
 
 ## Testing Guidelines
 
-Tests use standard-library `unittest`; no coverage threshold is configured. Use implementation-guide §11 scenarios T01–T16 to drive tests, especially scoring, permissions, exports, and interrupted-worker recovery. Address review findings F-01–F-05 when implementing affected contracts. Name Python tests `test_<behavior>.py`. Keep fixture-based tests distinct from real provider validation. For documentation changes, check links and consistency across specifications.
+Tests use standard-library `unittest`; no coverage threshold is configured. Drive tests from the customer specification (`docs/최종 고객 문서/01_개발_요구사항`, `03` workbook formulas as golden values), especially scoring, permissions, exports, and interrupted-worker recovery. Keep the established safeguards (immutable per-attempt artifacts with occupancy tokens, re-checking deletion state before use, explicit reuse manifests, pinned revisions in exports, distinguishing missing observation from undecided rules). Name Python tests `test_<behavior>.py`. Keep fixture-based tests distinct from real provider validation. For documentation changes, check links and consistency across specifications.
 
 ## Commit & Pull Request Guidelines
 

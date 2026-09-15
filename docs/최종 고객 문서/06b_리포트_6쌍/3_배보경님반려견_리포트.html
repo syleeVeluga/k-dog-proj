@@ -1,0 +1,576 @@
+<title>배보경 님 반려견 관계 리포트</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap">
+<style>
+:root{
+  --ink:#16211E; --ink-2:#4A5B56; --ink-3:#7E8E89;
+  --paper:#FAFAF7; --card:#FFFFFF; --line:#E2E6E1;
+  --survey:#A8703C;          /* 설문 — 보호자가 말한 것 */
+  --video:#2F6B6B;           /* 영상 — 오늘 본 것 */
+  --survey-soft:#F5EBE0; --video-soft:#E3EFEE;
+  --calm:#5C8A6B;
+  --serif:'Gowun Batang', 'Nanum Myeongjo', serif;
+  --sans:'IBM Plex Sans KR', 'Malgun Gothic', sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --ink:#EAEFEC; --ink-2:#B3C1BC; --ink-3:#7E8E89;
+  --paper:#121917; --card:#1A2320; --line:#2C3733;
+  --survey:#D69A62; --video:#6FB3B0;
+  --survey-soft:#2A2119; --video-soft:#16292A;
+  --calm:#7FB08D;
+}}
+:root[data-theme="dark"]{
+  --ink:#EAEFEC; --ink-2:#B3C1BC; --ink-3:#7E8E89;
+  --paper:#121917; --card:#1A2320; --line:#2C3733;
+  --survey:#D69A62; --video:#6FB3B0;
+  --survey-soft:#2A2119; --video-soft:#16292A;
+  --calm:#7FB08D;
+}
+*{box-sizing:border-box}
+body{background:var(--paper); color:var(--ink); font-family:var(--sans); font-weight:300;
+  line-height:1.75; -webkit-font-smoothing:antialiased;}
+.wrap{max-width:780px; margin:0 auto; padding:48px 28px 90px;}
+
+/* ── 표지 ── */
+.mast{border-bottom:2px solid var(--ink); padding-bottom:20px; margin-bottom:38px;}
+.eyebrow{font-size:12px; letter-spacing:.16em; color:var(--ink-3); font-weight:500;}
+.name{font-family:var(--serif); font-size:clamp(38px,7vw,54px); font-weight:700; line-height:1.1;
+  margin:10px 0 4px; text-wrap:balance;}
+.sub{font-family:var(--serif); font-size:19px; color:var(--ink-2);}
+.meta{display:flex; flex-wrap:wrap; gap:22px; margin-top:20px; font-size:13px; color:var(--ink-3);
+  font-variant-numeric:tabular-nums;}
+.meta b{color:var(--ink-2); font-weight:500;}
+
+h2{font-family:var(--serif); font-size:25px; font-weight:700; margin:52px 0 6px; text-wrap:balance;}
+h2 .num{color:var(--ink-3); font-size:17px; margin-right:9px; font-family:var(--sans); font-weight:400;}
+.lede{color:var(--ink-2); margin:0 0 22px; font-size:15.5px;}
+p{margin:0 0 15px;}
+strong{font-weight:600;}
+
+/* ── 척도 막대 ── */
+.scale{background:var(--card); border:1px solid var(--line); border-radius:3px;
+  padding:18px 20px 14px; margin:0 0 12px;}
+.scale-top{display:flex; justify-content:space-between; align-items:baseline; gap:14px; margin-bottom:12px;}
+.scale-name{font-size:15px; font-weight:500;}
+.scale-val{font-size:13px; color:var(--ink-3); font-variant-numeric:tabular-nums; white-space:nowrap;}
+.track{position:relative; height:34px;}
+.track .rail{position:absolute; top:15px; left:0; right:0; height:3px; background:var(--line);}
+.track .mid{position:absolute; top:6px; bottom:6px; left:50%; width:1px; background:var(--ink-3); opacity:.5;}
+.track .dot{position:absolute; top:8px; width:17px; height:17px; border-radius:50%;
+  background:var(--video); border:3px solid var(--card); transform:translateX(-50%);
+  box-shadow:0 0 0 1px var(--video);}
+.track .dot.s{background:var(--survey); box-shadow:0 0 0 1px var(--survey);}
+.ends{display:flex; justify-content:space-between; font-size:12px; color:var(--ink-3); margin-top:-4px;}
+.ends span:nth-child(2){color:var(--ink-2);}
+
+/* ── 척도 출처 ── */
+.src{font-size:11.5px; color:var(--ink-3); margin-top:9px; padding-top:8px;
+  border-top:1px dotted var(--line); line-height:1.55;}
+
+/* ── 설문 막대 (0→5 채우기) ── */
+.svy{background:var(--card); border:1px solid var(--line); border-radius:3px;
+  padding:18px 20px 14px; margin:0 0 12px;}
+.svy h4{font-size:12px; letter-spacing:.08em; color:var(--survey); font-weight:600;
+  margin:0 0 14px; text-transform:none;}
+.srow{display:grid; grid-template-columns:1fr 62px 44px; align-items:center; gap:12px; margin-bottom:11px;}
+.srow:last-child{margin-bottom:2px;}
+.srow .nm{font-size:14px;}
+.srow .bar{height:7px; background:var(--line); border-radius:4px; overflow:hidden;}
+.srow .bar i{display:block; height:100%; background:var(--survey); border-radius:4px;}
+.srow .vv{font-size:13.5px; color:var(--ink-2); text-align:right; font-variant-numeric:tabular-nums;
+  font-weight:500;}
+.svy .foot{font-size:11.5px; color:var(--ink-3); margin-top:12px; padding-top:9px;
+  border-top:1px dotted var(--line); line-height:1.55;}
+@media (max-width:460px){ .srow{grid-template-columns:1fr 44px 40px; gap:9px;} .srow .nm{font-size:13px;} }
+
+/* ── 장면 카드 ── */
+.scene{border-left:3px solid var(--video); padding:2px 0 2px 20px; margin:0 0 30px;}
+.scene h3{font-family:var(--serif); font-size:20px; font-weight:700; margin:0 0 3px;}
+.scene .when{font-size:12.5px; color:var(--ink-3); font-variant-numeric:tabular-nums; margin-bottom:10px;}
+.scene p{margin:0 0 10px;}
+.scene.good{border-left-color:var(--calm);}
+
+/* ── 대조 ── */
+.face{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+  border:1px solid var(--line); border-radius:3px; overflow:hidden; margin:0 0 14px;}
+.face > div{background:var(--card); padding:16px 18px;}
+.face .lab{font-size:11.5px; letter-spacing:.1em; font-weight:600; margin-bottom:7px;}
+.face .s .lab{color:var(--survey);} .face .v .lab{color:var(--video);}
+.face p{margin:0; font-size:14.5px; line-height:1.65;}
+@media (max-width:560px){ .face{grid-template-columns:1fr;} }
+
+.note{background:var(--card); border:1px solid var(--line); border-left:3px solid var(--survey);
+  padding:16px 20px; margin:20px 0; font-size:14.5px; color:var(--ink-2);}
+.note b{color:var(--ink);}
+
+/* ── 해보실 것 ── */
+.todo{counter-reset:t; list-style:none; padding:0; margin:0;}
+.todo li{counter-increment:t; position:relative; padding:0 0 0 42px; margin:0 0 24px;}
+.todo li::before{content:counter(t); position:absolute; left:0; top:1px; width:27px; height:27px;
+  border-radius:50%; background:var(--video); color:#fff; font-size:13px; font-weight:600;
+  display:grid; place-items:center;}
+.todo h4{font-size:16px; font-weight:600; margin:0 0 5px;}
+.todo p{margin:0; color:var(--ink-2); font-size:14.5px;}
+
+/* ── 각성 흐름 ── */
+.chart{background:var(--card); border:1px solid var(--line); border-radius:3px;
+  padding:22px 20px 16px; margin:0 0 16px;}
+.chart svg{display:block; width:100%; height:auto; overflow:visible;}
+.chart .cap{font-size:13px; color:var(--ink-3); margin-top:12px; line-height:1.65;}
+.chart .cap b{color:var(--ink-2); font-weight:500;}
+
+/* ── 큰 수치 ── */
+.figs{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+  border:1px solid var(--line); border-radius:3px; overflow:hidden; margin:0 0 16px;}
+.figs > div{background:var(--card); padding:20px 20px 18px;}
+.fig-lab{font-size:12px; letter-spacing:.08em; color:var(--ink-3); font-weight:500; margin-bottom:6px;}
+.fig-num{font-family:var(--serif); font-size:44px; font-weight:700; line-height:1; color:var(--calm);
+  font-variant-numeric:tabular-nums;}
+.fig-num span{font-size:22px; margin-left:2px;}
+.fig-sub{font-size:13px; color:var(--ink-2); margin-top:8px; line-height:1.6;}
+.fig-how{font-size:11.5px; color:var(--ink-3); margin-top:6px; line-height:1.55;}
+@media (max-width:560px){ .figs{grid-template-columns:1fr;} }
+
+/* ── 동조 여섯 국면 ── */
+.phases{display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin:4px 0 0;}
+.ph{text-align:center;}
+.ph .icon{height:52px; border:1px solid var(--line); border-radius:3px; display:grid; place-items:center;
+  background:var(--paper); margin-bottom:7px;}
+.ph.hit .icon{background:var(--calm); border-color:var(--calm);}
+.ph .mark{font-size:21px; line-height:1; color:var(--ink-3);}
+.ph.hit .mark{color:#fff;}
+.ph .kind{font-size:11.5px; color:var(--ink-2); font-weight:500;}
+.ph .time{font-size:10.5px; color:var(--ink-3); font-variant-numeric:tabular-nums;}
+@media (max-width:560px){ .phases{grid-template-columns:repeat(3,1fr); gap:10px;} }
+
+.fine{border-top:1px solid var(--line); margin-top:56px; padding-top:22px;
+  font-size:13px; color:var(--ink-3); line-height:1.7;}
+.fine h4{font-size:13px; font-weight:600; color:var(--ink-2); margin:0 0 8px; letter-spacing:.02em;}
+.fine ul{margin:0; padding-left:17px;} .fine li{margin-bottom:5px;}
+@media print{ body{background:#fff;} .wrap{padding:0;} h2{page-break-after:avoid;} .scene{page-break-inside:avoid;} }
+
+.idnote{font-size:13px; color:var(--ink-3); background:var(--card); border:1px solid var(--line);
+  border-radius:3px; padding:11px 15px; margin:0 0 18px;}
+.idnote b{color:var(--ink-2);}
+.chart svg text{font-family:var(--sans);}
+
+/* ── 안전기지 세 단계 ── */
+.base{background:var(--card); border:1px solid var(--line); border-radius:3px;
+  padding:22px 22px 18px; margin:0 0 16px;}
+.base .ring{display:block; width:100%; max-width:430px; margin:0 auto 18px; height:auto; overflow:visible;}
+.step{display:grid; grid-template-columns:34px 1fr; gap:14px; padding:14px 0;
+  border-top:1px solid var(--line);}
+.step:first-of-type{border-top:none;}
+.step .no{width:30px; height:30px; border-radius:50%; display:grid; place-items:center;
+  font-size:13px; font-weight:600; background:var(--calm); color:#fff;}
+.step.off .no{background:var(--paper); color:var(--ink-3); border:1px dashed var(--line);}
+.step h5{font-size:15px; font-weight:600; margin:0 0 4px;}
+.step.off h5{color:var(--ink-3);}
+.step p{margin:0; font-size:14px; color:var(--ink-2); line-height:1.65;}
+.step.off p{color:var(--ink-3);}
+
+/* ── 오늘의 흐름 ── */
+.tl{background:var(--card); border:1px solid var(--line); border-radius:3px;
+  padding:20px 22px 16px; margin:0 0 16px;}
+.tl-row{display:grid; grid-template-columns:108px 1fr 62px; align-items:center;
+  gap:12px; margin-bottom:7px; font-size:13.5px;}
+.tl-row:last-child{margin-bottom:2px;}
+.tl-bar{height:16px; border-radius:3px; position:relative; background:var(--line);}
+.tl-bar i{position:absolute; top:0; bottom:0; border-radius:3px;}
+.tl-dur{font-size:12.5px; color:var(--ink-3); text-align:right;
+  font-variant-numeric:tabular-nums;}
+.tl-foot{font-size:11.5px; color:var(--ink-3); margin-top:11px; padding-top:9px;
+  border-top:1px dotted var(--line);}
+@media (max-width:520px){ .tl-row{grid-template-columns:84px 1fr 52px; gap:8px; font-size:12.5px;} }
+
+/* ── 입장·퇴장 대조 ── */
+.io{width:100%; border-collapse:collapse; margin:0 0 14px; font-size:14px;}
+.io th{font-size:11.5px; letter-spacing:.08em; color:var(--ink-3); font-weight:600;
+  text-align:left; padding:0 12px 8px 0; border-bottom:1px solid var(--line);}
+.io td{padding:11px 12px 11px 0; border-bottom:1px solid var(--line);
+  color:var(--ink-2); vertical-align:top;}
+.io td:first-child{color:var(--ink); font-weight:500; width:26%;}
+
+/* ── 지표 줄 ── */
+.mt{display:grid; grid-template-columns:1fr 54px; gap:14px; align-items:center;
+  background:var(--card); border:1px solid var(--line); border-radius:3px;
+  padding:14px 18px; margin:0 0 9px;}
+.mt .mt-l{font-size:14px;}
+.mt .mt-l b{display:block; font-size:12.5px; color:var(--ink-3); font-weight:400; margin-top:3px;}
+.mt .mt-v{font-family:var(--serif); font-size:26px; font-weight:700; text-align:right;
+  color:var(--calm); font-variant-numeric:tabular-nums;}
+.mt .mt-v.zero{color:var(--ink-3);}
+
+/* ── 분포 점 ── */
+.dist{background:var(--card); border:1px solid var(--line); border-radius:3px;
+  padding:20px 22px 14px; margin:0 0 12px;}
+.dist-top{display:flex; justify-content:space-between; align-items:baseline;
+  gap:12px; margin-bottom:15px;}
+.dist-name{font-size:15px; font-weight:500;}
+.dist-me{font-size:13px; color:var(--survey); font-weight:600;
+  font-variant-numeric:tabular-nums;}
+.dist-track{position:relative; height:30px;}
+.dist-track .rail{position:absolute; top:14px; left:0; right:0; height:2px; background:var(--line);}
+.dist-track .d{position:absolute; top:10px; width:9px; height:9px; border-radius:50%;
+  background:var(--ink-3); opacity:.38; transform:translateX(-50%);}
+.dist-track .avg{position:absolute; top:4px; bottom:4px; width:1px;
+  background:var(--ink-3); opacity:.5;}
+.dist-track .me{position:absolute; top:6px; width:17px; height:17px; border-radius:50%;
+  background:var(--survey); border:3px solid var(--card); transform:translateX(-50%);
+  box-shadow:0 0 0 1px var(--survey); z-index:2;}
+.dist-ends{display:flex; justify-content:space-between; font-size:11.5px;
+  color:var(--ink-3); margin-top:-2px;}
+
+/* ── 동조 여섯 국면 막대 ── */
+.pbar{margin:4px 0 0;}
+.pbar-row{display:grid; grid-template-columns:52px 1fr; align-items:center;
+  gap:12px; margin-bottom:8px;}
+.pbar-row:last-child{margin-bottom:2px;}
+.pbar-lab{font-size:12.5px; color:var(--ink-2);}
+.pbar-seg{display:grid; grid-template-columns:repeat(3,1fr); gap:6px;}
+.pbar-seg span{height:26px; border-radius:3px; background:var(--line);
+  display:grid; place-items:center; font-size:11.5px; color:var(--ink-3);}
+.pbar-seg span.on{background:var(--calm); color:#fff; font-weight:500;}
+
+.dist-track .bell{position:absolute; left:0; right:0; top:-6px; height:40px;}
+.dist-track .bell svg{display:block; width:100%; height:100%;}
+.dist-src{font-size:11.5px; color:var(--ink-3); margin-top:8px; padding-top:7px;
+  border-top:1px dotted var(--line); line-height:1.55;}
+.dist-track{height:56px;}
+.dist-track .rail{top:40px;}
+.dist-track .d{top:36px;}
+.dist-track .me{top:32px;}
+.dist-track .avg{top:6px; bottom:10px;}
+</style>
+<div class="wrap">
+<div class="mast"><div class="eyebrow">반려견 – 보호자 관계 관찰</div>
+<div class="name">배보경 님 반려견</div>
+<div class="sub">오늘 이 자리에서 본 것</div>
+<div class="meta"><span><b>2026. 9. 13.</b></span><span>관찰 <b>3분 12초</b></span><span>카메라 <b>3대</b></span><span>설문 <b>28문항</b></span></div></div>
+<p class="idnote">설문지에 반려견 이름이 적혀 있지 않아 번호로 적었습니다. 보호자 <b>배보경</b> 님 · 영상 3번입니다.</p>
+<p>처음 오는 장소에 들어와, 보호자가 잠깐 나갔다 돌아오기까지를 담았습니다. <strong>좋고 나쁨을 매기지 않습니다.</strong> 오늘 어떻게 했는지를 적었을 뿐입니다.</p>
+<h2><span class="num">01</span>오늘의 흐름</h2>
+<p class="lede">들어와서 나가기까지 실제로 걸린 시간입니다. 막대 길이가 그 구간의 길이입니다.</p>
+<div class="tl">
+<div class="tl-row"><span>입장</span><span class="tl-bar"><i style="left:12.6%;width:5.3%;background:#8FA98B"></i></span><span class="tl-dur">10초</span></div>
+<div class="tl-row"><span>자리 잡기</span><span class="tl-bar"><i style="left:17.9%;width:3.2%;background:#B9C4BD"></i></span><span class="tl-dur">6초</span></div>
+<div class="tl-row"><span>보호자가 곁에</span><span class="tl-bar"><i style="left:21.1%;width:9.5%;background:#5C8A6B"></i></span><span class="tl-dur">18초</span></div>
+<div class="tl-row"><span>보호자가 나감</span><span class="tl-bar"><i style="left:32.1%;width:36.3%;background:#A8703C"></i></span><span class="tl-dur">69초</span></div>
+<div class="tl-row"><span>다시 만남</span><span class="tl-bar"><i style="left:69.5%;width:4.2%;background:#2F6B6B"></i></span><span class="tl-dur">8초</span></div>
+<div class="tl-row"><span>함께 걷기</span><span class="tl-bar"><i style="left:73.7%;width:26.3%;background:#4E8F8C"></i></span><span class="tl-dur">50초</span></div>
+<div class="tl-foot">이날은 예비 촬영이라 구간 길이가 계획과 달랐습니다. 특히 <b>「보호자가 나감」이 계획(15초)보다 훨씬 길었습니다.</b> 본촬영에서는 시간을 맞춥니다.</div>
+</div>
+<h2><span class="num">02</span>기억에 남는 장면</h2>
+<p class="lede">영상에서 가장 또렷하게 보인 것부터 적었습니다.</p>
+<div class="scene"><h3>보호자 곁에 있을 때</h3><div class="when">0분 40초 ~ 0분 58초 · 18초</div>
+<p>보호자가 의자에 앉자 <strong>잠깐 앞에 있다가 곧 자리를 떠났습니다.</strong> 방 오른쪽으로 가서 화면 밖까지 나갔습니다.</p>
+<p>보호자에게 다가가거나 확인하러 돌아오지 않았습니다. <strong>혼자 방을 살피는 쪽이었습니다.</strong></p>
+</div>
+<div class="scene"><h3>보호자가 나갔을 때</h3><div class="when">1분 01초 ~ 2분 10초 · 69초</div>
+<p>보호자가 나가신 쪽으로 가지 않았습니다. <strong>방 곳곳을 다녔습니다.</strong></p>
+<p>짖거나 긁지 않았고 뛰어다니지도 않았습니다. 걸어서 이동하며 냄새를 맡았습니다.</p>
+</div>
+<h2><span class="num">03</span>설문에 적어 주신 것</h2>
+<p class="lede">촬영 전에 답해 주신 28문항입니다. 5점에 가까울수록 「그렇다」 쪽입니다.</p>
+<div class="svy"><h4>보호자님 자신에 대해</h4>
+<div class="srow"><span class="nm">가르치는 방식</span><span class="bar"><i style="width:73%"></i></span><span class="vv">3.7</span></div>
+<div class="srow"><span class="nm">사회화에 들이는 노력</span><span class="bar"><i style="width:80%"></i></span><span class="vv">4.0</span></div>
+<div class="srow"><span class="nm">정서적 친밀감</span><span class="bar"><i style="width:100%"></i></span><span class="vv">5.0</span></div>
+<div class="srow"><span class="nm">감정의 일관성</span><span class="bar"><i style="width:87%"></i></span><span class="vv">4.3</span></div>
+<div class="foot">이런 문항은 대부분의 보호자가 높게 답하십니다 — <b>다른 분과 견주는 값이 아니라, 영상과 맞대 보기 위한 값</b>입니다.</div></div>
+<div class="svy"><h4>반려견에 대해</h4>
+<div class="srow"><span class="nm">사회성 — 낯선 것을 대하는 태도</span><span class="bar"><i style="width:52%"></i></span><span class="vv">2.6</span></div>
+<div class="srow"><span class="nm">떨어졌을 때 불안해하는 정도</span><span class="bar"><i style="width:80%"></i></span><span class="vv">4.0</span></div>
+<div class="srow"><span class="nm">다시 만났을 때 금방 안정되는가</span><span class="bar"><i style="width:100%"></i></span><span class="vv">5.0</span></div>
+</div>
+<h2><span class="num">04</span>다른 분들과 나란히 놓으면</h2>
+<p class="lede">보호자님 답을 다른 분들 옆에 놓아 보았습니다. 진한 점이 보호자님 자리, 작은 점들이 같은 문항에 답해 주신 다른 분들입니다. 2026년 여름부터 지금까지 <b>34분</b>이 모였습니다.</p>
+<div class="note"><b>모인 자리</b> — 7월 29일 7분 · 8월 15일 8분 · 9월 5일 4분 · 9월 13일 6분 · 자가진단 9분. 영역마다 물어본 시기가 달라서 줄마다 사람 수가 조금씩 다릅니다. 각 줄 아래에 실제 인원을 적어 두었습니다. 10월 31일~11월 1일 K-Dog 페스티벌에서 <b>72쌍</b>이 더해지면 백 분을 넘게 됩니다.</div>
+<p style="margin-top:24px"><strong>앞의 네 영역은 원래 척도를 만든 논문과 견줄 수 있습니다.</strong> 이 문항들은 건국대학교 연구진이 개발한 척도(심혜미 등, 2022)를 한 문항도 빼지 않고 그대로 쓰고 있어서, 그 연구의 <b>300명</b>과 같은 자로 잰 값입니다. 옅은 종 모양이 그 300명의 분포입니다.</p>
+<div class="dist"><div class="dist-top"><span class="dist-name">가르치는 방식</span><span class="dist-me">보호자님 3.67</span></div>
+<div class="dist-track">
+<div class="bell"><svg viewBox="0 0 560 40" preserveAspectRatio="none"><path d="M0,40.0 L0.0,40.0 L7.8,40.0 L15.6,40.0 L23.3,40.0 L31.1,40.0 L38.9,40.0 L46.7,40.0 L54.4,40.0 L62.2,39.9 L70.0,39.9 L77.8,39.9 L85.6,39.9 L93.3,39.8 L101.1,39.8 L108.9,39.7 L116.7,39.6 L124.4,39.5 L132.2,39.4 L140.0,39.3 L147.8,39.1 L155.6,38.9 L163.3,38.6 L171.1,38.4 L178.9,38.0 L186.7,37.6 L194.4,37.1 L202.2,36.6 L210.0,36.0 L217.8,35.3 L225.6,34.5 L233.3,33.6 L241.1,32.6 L248.9,31.5 L256.7,30.3 L264.4,29.0 L272.2,27.7 L280.0,26.2 L287.8,24.6 L295.6,23.0 L303.3,21.3 L311.1,19.6 L318.9,17.9 L326.7,16.1 L334.4,14.4 L342.2,12.7 L350.0,11.1 L357.8,9.6 L365.6,8.1 L373.3,6.9 L381.1,5.7 L388.9,4.8 L396.7,4.0 L404.4,3.5 L412.2,3.1 L420.0,3.0 L427.8,3.1 L435.6,3.4 L443.3,4.0 L451.1,4.7 L458.9,5.7 L466.7,6.8 L474.4,8.1 L482.2,9.5 L490.0,11.0 L497.8,12.7 L505.6,14.3 L513.3,16.1 L521.1,17.8 L528.9,19.6 L536.7,21.3 L544.4,23.0 L552.2,24.6 L560.0,26.1 L560.0,40.0 Z" fill="var(--survey)" opacity=".14"/></svg></div>
+<div class="rail"></div>
+<div class="avg" style="left:75.0%"></div>
+<div class="d" style="left:41.8%"></div>
+<div class="d" style="left:50.0%"></div>
+<div class="d" style="left:54.2%"></div>
+<div class="d" style="left:54.2%"></div>
+<div class="d" style="left:58.2%"></div>
+<div class="d" style="left:62.5%"></div>
+<div class="d" style="left:66.8%"></div>
+<div class="d" style="left:66.8%"></div>
+<div class="d" style="left:66.8%"></div>
+<div class="d" style="left:66.8%"></div>
+<div class="d" style="left:70.8%"></div>
+<div class="d" style="left:70.8%"></div>
+<div class="d" style="left:70.8%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:79.2%"></div>
+<div class="d" style="left:79.2%"></div>
+<div class="d" style="left:83.2%"></div>
+<div class="d" style="left:83.2%"></div>
+<div class="d" style="left:83.2%"></div>
+<div class="d" style="left:83.2%"></div>
+<div class="d" style="left:87.5%"></div>
+<div class="d" style="left:87.5%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:95.8%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="me" style="left:66.8%"></div></div>
+<div class="dist-ends"><span>1점</span><span>논문 300명 평균 4.00</span><span>5점</span></div>
+<div class="dist-src">옅은 종 모양 = 심혜미 등(2022) <b>300명</b>의 분포 (평균 4.00 · 표준편차 0.71). 작은 점 = 우리 <b>34분</b> (평균 4.07). 세로선은 논문 300명의 평균 자리입니다.</div>
+</div>
+<div class="dist"><div class="dist-top"><span class="dist-name">사회화에 들이는 노력</span><span class="dist-me">보호자님 4.00</span></div>
+<div class="dist-track">
+<div class="bell"><svg viewBox="0 0 560 40" preserveAspectRatio="none"><path d="M0,40.0 L0.0,37.8 L7.8,37.5 L15.6,37.2 L23.3,36.8 L31.1,36.4 L38.9,36.0 L46.7,35.5 L54.4,35.0 L62.2,34.4 L70.0,33.8 L77.8,33.1 L85.6,32.4 L93.3,31.7 L101.1,30.8 L108.9,30.0 L116.7,29.1 L124.4,28.1 L132.2,27.1 L140.0,26.1 L147.8,25.0 L155.6,23.9 L163.3,22.7 L171.1,21.5 L178.9,20.3 L186.7,19.1 L194.4,17.9 L202.2,16.7 L210.0,15.4 L217.8,14.2 L225.6,13.0 L233.3,11.9 L241.1,10.8 L248.9,9.7 L256.7,8.7 L264.4,7.7 L272.2,6.8 L280.0,6.0 L287.8,5.3 L295.6,4.7 L303.3,4.1 L311.1,3.7 L318.9,3.4 L326.7,3.1 L334.4,3.0 L342.2,3.0 L350.0,3.1 L357.8,3.3 L365.6,3.6 L373.3,4.1 L381.1,4.6 L388.9,5.2 L396.7,5.9 L404.4,6.7 L412.2,7.6 L420.0,8.6 L427.8,9.6 L435.6,10.6 L443.3,11.8 L451.1,12.9 L458.9,14.1 L466.7,15.3 L474.4,16.5 L482.2,17.7 L490.0,19.0 L497.8,20.2 L505.6,21.4 L513.3,22.6 L521.1,23.7 L528.9,24.9 L536.7,25.9 L544.4,27.0 L552.2,28.0 L560.0,29.0 L560.0,40.0 Z" fill="var(--survey)" opacity=".14"/></svg></div>
+<div class="rail"></div>
+<div class="avg" style="left:60.5%"></div>
+<div class="d" style="left:16.8%"></div>
+<div class="d" style="left:25.0%"></div>
+<div class="d" style="left:25.0%"></div>
+<div class="d" style="left:41.8%"></div>
+<div class="d" style="left:50.0%"></div>
+<div class="d" style="left:50.0%"></div>
+<div class="d" style="left:66.8%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:83.2%"></div>
+<div class="d" style="left:83.2%"></div>
+<div class="d" style="left:83.2%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="me" style="left:75.0%"></div></div>
+<div class="dist-ends"><span>1점</span><span>논문 300명 평균 3.42</span><span>5점</span></div>
+<div class="dist-src">옅은 종 모양 = 심혜미 등(2022) <b>300명</b>의 분포 (평균 3.42 · 표준편차 1.02). 작은 점 = 우리 <b>19분</b> (평균 3.81). 세로선은 논문 300명의 평균 자리입니다.</div>
+</div>
+<div class="dist"><div class="dist-top"><span class="dist-name">정서적 친밀감</span><span class="dist-me">보호자님 5.00</span></div>
+<div class="dist-track">
+<div class="bell"><svg viewBox="0 0 560 40" preserveAspectRatio="none"><path d="M0,40.0 L0.0,40.0 L7.8,40.0 L15.6,40.0 L23.3,40.0 L31.1,40.0 L38.9,40.0 L46.7,40.0 L54.4,40.0 L62.2,40.0 L70.0,40.0 L77.8,40.0 L85.6,40.0 L93.3,40.0 L101.1,40.0 L108.9,40.0 L116.7,40.0 L124.4,40.0 L132.2,40.0 L140.0,40.0 L147.8,40.0 L155.6,40.0 L163.3,40.0 L171.1,40.0 L178.9,40.0 L186.7,40.0 L194.4,40.0 L202.2,40.0 L210.0,40.0 L217.8,40.0 L225.6,40.0 L233.3,39.9 L241.1,39.9 L248.9,39.9 L256.7,39.8 L264.4,39.7 L272.2,39.6 L280.0,39.5 L287.8,39.3 L295.6,39.1 L303.3,38.8 L311.1,38.5 L318.9,38.0 L326.7,37.5 L334.4,36.8 L342.2,36.0 L350.0,35.1 L357.8,34.0 L365.6,32.7 L373.3,31.2 L381.1,29.6 L388.9,27.8 L396.7,25.8 L404.4,23.7 L412.2,21.5 L420.0,19.2 L427.8,16.9 L435.6,14.6 L443.3,12.3 L451.1,10.2 L458.9,8.3 L466.7,6.6 L474.4,5.1 L482.2,4.1 L490.0,3.4 L497.8,3.0 L505.6,3.1 L513.3,3.6 L521.1,4.4 L528.9,5.6 L536.7,7.1 L544.4,8.9 L552.2,10.9 L560.0,13.1 L560.0,40.0 Z" fill="var(--survey)" opacity=".14"/></svg></div>
+<div class="rail"></div>
+<div class="avg" style="left:89.3%"></div>
+<div class="d" style="left:50.0%"></div>
+<div class="d" style="left:50.0%"></div>
+<div class="d" style="left:53.5%"></div>
+<div class="d" style="left:67.8%"></div>
+<div class="d" style="left:67.8%"></div>
+<div class="d" style="left:67.8%"></div>
+<div class="d" style="left:71.5%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:78.5%"></div>
+<div class="d" style="left:82.2%"></div>
+<div class="d" style="left:85.8%"></div>
+<div class="d" style="left:85.8%"></div>
+<div class="d" style="left:85.8%"></div>
+<div class="d" style="left:85.8%"></div>
+<div class="d" style="left:85.8%"></div>
+<div class="d" style="left:89.2%"></div>
+<div class="d" style="left:89.2%"></div>
+<div class="d" style="left:92.8%"></div>
+<div class="d" style="left:92.8%"></div>
+<div class="d" style="left:96.5%"></div>
+<div class="d" style="left:96.5%"></div>
+<div class="d" style="left:96.5%"></div>
+<div class="d" style="left:96.5%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="me" style="left:100.0%"></div></div>
+<div class="dist-ends"><span>1점</span><span>논문 300명 평균 4.57</span><span>5점</span></div>
+<div class="dist-src">옅은 종 모양 = 심혜미 등(2022) <b>300명</b>의 분포 (평균 4.57 · 표준편차 0.54). 작은 점 = 우리 <b>34분</b> (평균 4.46). 세로선은 논문 300명의 평균 자리입니다.</div>
+</div>
+<div class="dist"><div class="dist-top"><span class="dist-name">감정의 일관성</span><span class="dist-me">보호자님 4.33</span></div>
+<div class="dist-track">
+<div class="bell"><svg viewBox="0 0 560 40" preserveAspectRatio="none"><path d="M0,40.0 L0.0,40.0 L7.8,40.0 L15.6,40.0 L23.3,40.0 L31.1,40.0 L38.9,40.0 L46.7,40.0 L54.4,40.0 L62.2,40.0 L70.0,39.9 L77.8,39.9 L85.6,39.9 L93.3,39.9 L101.1,39.8 L108.9,39.8 L116.7,39.7 L124.4,39.7 L132.2,39.6 L140.0,39.5 L147.8,39.4 L155.6,39.2 L163.3,39.1 L171.1,38.9 L178.9,38.6 L186.7,38.3 L194.4,38.0 L202.2,37.7 L210.0,37.2 L217.8,36.8 L225.6,36.2 L233.3,35.6 L241.1,34.9 L248.9,34.1 L256.7,33.3 L264.4,32.4 L272.2,31.4 L280.0,30.3 L287.8,29.1 L295.6,27.8 L303.3,26.5 L311.1,25.1 L318.9,23.6 L326.7,22.1 L334.4,20.5 L342.2,19.0 L350.0,17.4 L357.8,15.8 L365.6,14.2 L373.3,12.6 L381.1,11.1 L388.9,9.7 L396.7,8.4 L404.4,7.2 L412.2,6.1 L420.0,5.2 L427.8,4.4 L435.6,3.8 L443.3,3.3 L451.1,3.1 L458.9,3.0 L466.7,3.1 L474.4,3.4 L482.2,3.9 L490.0,4.6 L497.8,5.4 L505.6,6.4 L513.3,7.5 L521.1,8.8 L528.9,10.1 L536.7,11.6 L544.4,13.1 L552.2,14.6 L560.0,16.2 L560.0,40.0 Z" fill="var(--survey)" opacity=".14"/></svg></div>
+<div class="rail"></div>
+<div class="avg" style="left:81.7%"></div>
+<div class="d" style="left:41.8%"></div>
+<div class="d" style="left:41.8%"></div>
+<div class="d" style="left:50.0%"></div>
+<div class="d" style="left:50.0%"></div>
+<div class="d" style="left:50.0%"></div>
+<div class="d" style="left:58.2%"></div>
+<div class="d" style="left:58.2%"></div>
+<div class="d" style="left:58.2%"></div>
+<div class="d" style="left:58.2%"></div>
+<div class="d" style="left:58.2%"></div>
+<div class="d" style="left:66.8%"></div>
+<div class="d" style="left:66.8%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:83.2%"></div>
+<div class="d" style="left:83.2%"></div>
+<div class="d" style="left:83.2%"></div>
+<div class="d" style="left:83.2%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:91.8%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="me" style="left:83.2%"></div></div>
+<div class="dist-ends"><span>1점</span><span>논문 300명 평균 4.27</span><span>5점</span></div>
+<div class="dist-src">옅은 종 모양 = 심혜미 등(2022) <b>300명</b>의 분포 (평균 4.27 · 표준편차 0.78). 작은 점 = 우리 <b>34분</b> (평균 4.14). 세로선은 논문 300명의 평균 자리입니다.</div>
+</div>
+<div class="note">우리 분들의 평균과 논문 300명의 평균이 <b>거의 같습니다</b> — 가르치는 방식 4.07 대 4.00, 정서적 친밀감 4.46 대 4.57, 감정의 일관성 4.14 대 4.27. 다만 <b>사회화에 들이는 노력만 우리 쪽이 눈에 띄게 높습니다</b>(3.81 대 3.42). 두 연구 모두 훈련사와 동물병원을 통해 모인 분들이고, 우리 쪽은 거기에 더해 행사와 교육에 직접 찾아오신 분들이라 사회화에 마음을 더 쓰시는 것으로 보입니다. 그래서 이 그림은 「전체 보호자 중 몇 등」이 아니라 <b>「비슷한 분들 사이에서 어디쯤」</b>으로 읽으셔야 합니다. 점이 왼쪽에 있다고 해서 덜 아끼거나 잘못 키우고 계신 것이 아닙니다. 설문은 「평소에 이런 편인가」를 물은 것이고, 아이마다 사정이 다릅니다.</div>
+<p style="margin-top:26px"><strong>뒤의 세 영역은 견줄 상대가 없습니다.</strong> C-BARQ라는 다른 설문에서 가져온 문항인데, 저희가 골라 쓰고 표현도 고쳤기 때문에 원래 규범과 비교할 수 없습니다. 우리끼리만 놓았습니다.</p>
+<div class="dist"><div class="dist-top"><span class="dist-name">아이 사회성</span><span class="dist-me">보호자님 2.60</span></div>
+<div class="dist-track">
+<div class="rail"></div>
+<div class="avg" style="left:58.2%"></div>
+<div class="d" style="left:10.0%"></div>
+<div class="d" style="left:10.0%"></div>
+<div class="d" style="left:15.0%"></div>
+<div class="d" style="left:20.0%"></div>
+<div class="d" style="left:25.0%"></div>
+<div class="d" style="left:30.0%"></div>
+<div class="d" style="left:35.0%"></div>
+<div class="d" style="left:40.0%"></div>
+<div class="d" style="left:50.0%"></div>
+<div class="d" style="left:55.0%"></div>
+<div class="d" style="left:55.0%"></div>
+<div class="d" style="left:55.0%"></div>
+<div class="d" style="left:55.0%"></div>
+<div class="d" style="left:60.0%"></div>
+<div class="d" style="left:65.0%"></div>
+<div class="d" style="left:70.0%"></div>
+<div class="d" style="left:80.0%"></div>
+<div class="d" style="left:85.0%"></div>
+<div class="d" style="left:85.0%"></div>
+<div class="d" style="left:90.0%"></div>
+<div class="d" style="left:90.0%"></div>
+<div class="d" style="left:90.0%"></div>
+<div class="d" style="left:95.0%"></div>
+<div class="d" style="left:95.0%"></div>
+<div class="d" style="left:95.0%"></div>
+<div class="me" style="left:40.0%"></div></div>
+<div class="dist-ends"><span>1점</span><span>우리 25분 평균 3.33</span><span>5점</span></div>
+<div class="dist-src">작은 점 = 같은 문항에 답해 주신 우리 <b>25분</b>. 세로선은 그 25분의 평균입니다.</div>
+</div>
+<div class="dist"><div class="dist-top"><span class="dist-name">떨어졌을 때 불안해하는 정도</span><span class="dist-me">보호자님 4.00</span></div>
+<div class="dist-track">
+<div class="rail"></div>
+<div class="avg" style="left:46.0%"></div>
+<div class="d" style="left:0.0%"></div>
+<div class="d" style="left:0.0%"></div>
+<div class="d" style="left:0.0%"></div>
+<div class="d" style="left:0.0%"></div>
+<div class="d" style="left:25.0%"></div>
+<div class="d" style="left:25.0%"></div>
+<div class="d" style="left:25.0%"></div>
+<div class="d" style="left:25.0%"></div>
+<div class="d" style="left:37.5%"></div>
+<div class="d" style="left:37.5%"></div>
+<div class="d" style="left:37.5%"></div>
+<div class="d" style="left:37.5%"></div>
+<div class="d" style="left:37.5%"></div>
+<div class="d" style="left:50.0%"></div>
+<div class="d" style="left:50.0%"></div>
+<div class="d" style="left:62.5%"></div>
+<div class="d" style="left:62.5%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:87.5%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="me" style="left:75.0%"></div></div>
+<div class="dist-ends"><span>1점</span><span>우리 25분 평균 2.84</span><span>5점</span></div>
+<div class="dist-src">작은 점 = 같은 문항에 답해 주신 우리 <b>25분</b>. 세로선은 그 25분의 평균입니다.</div>
+</div>
+<div class="dist"><div class="dist-top"><span class="dist-name">다시 만났을 때 안정되는가</span><span class="dist-me">보호자님 5.00</span></div>
+<div class="dist-track">
+<div class="rail"></div>
+<div class="avg" style="left:83.0%"></div>
+<div class="d" style="left:25.0%"></div>
+<div class="d" style="left:50.0%"></div>
+<div class="d" style="left:50.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:75.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="d" style="left:100.0%"></div>
+<div class="me" style="left:100.0%"></div></div>
+<div class="dist-ends"><span>1점</span><span>우리 25분 평균 4.32</span><span>5점</span></div>
+<div class="dist-src">작은 점 = 같은 문항에 답해 주신 우리 <b>25분</b>. 세로선은 그 25분의 평균입니다.</div>
+</div>
+<h2><span class="num">05</span>설문과 영상이 만나는 곳</h2>
+<p class="lede">적어 주신 것과 오늘 본 것을 나란히 놓았습니다.</p>
+<div class="face"><div class="s"><div class="lab">설문에서</div><p>「자리를 비우면 불안해한다」에 4.0을 주셨습니다.</p></div><div class="v"><div class="lab">영상에서</div><p>나가신 쪽으로 가지 않고 방 곳곳을 다녔습니다.</p></div></div>
+<div class="note"><b>어느 쪽이 틀린 것이 아닙니다.</b> 보호자님은 <b>집에서의 모습</b>을 보고 계시고, 오늘 우리가 본 것은 <b>처음 오는 장소에서의 모습</b>입니다. 집에서는 익숙한 냄새와 소리 안에 있지만, <b>밖에서는 기댈 것이 보호자 한 분뿐</b>입니다.</div>
+<h2><span class="num">06</span>행동 동조 — 함께 걸을 때</h2>
+<p class="lede">리드줄 없이 함께 걸은 구간입니다. 개가 보호자에게 맞춘 정도를 쟀습니다.</p>
+<div class="figs">
+<div><div class="fig-lab">가까이 있던 비율</div><div class="fig-num">56<span>%</span></div><div class="fig-sub"><b>4초마다 9번 확인해 5번</b> 몸이 닿을 거리 안에 있었습니다.</div><div class="fig-how">같은 연구에서 개들이 보호자 1 m 안에 머문 시간은 평균 79%였습니다. 화면 왜곡이 있어 정밀한 값은 아닙니다.</div></div>
+<div><div class="fig-lab">움직임을 맞춘 비율</div><div class="fig-num" style="color:var(--ink-3)">—</div><div class="fig-sub">보호자가 걷기 시작하고 멈추는 <b>여섯 국면을 이날 영상에서 가려내지 못했습니다.</b></div><div class="fig-how">본촬영에서는 보호자 마이크 소리로 국면 경계를 잡습니다.</div></div>
+</div>
+<h2><span class="num">07</span>눈금으로 보면</h2>
+<p class="lede">가운데가 편안한 자리입니다. 양쪽 끝은 어느 쪽이든 무리가 있다는 뜻입니다. 이날 본 것만 실었습니다.</p>
+<div class="scale"><div class="scale-top"><span class="scale-name">보호자와의 관계</span></div>
+<div class="track"><div class="rail"></div><div class="mid"></div><div class="dot" style="left:65.0%"></div></div>
+<div class="ends"><span>많이 찾음</span><span>편안함</span><span>찾지 않음</span></div>
+<div class="src">Ainsworth의 「낯선 상황 절차」를 개에게 옮긴 <b>Topál 등(1998)</b>의 관찰 항목을 씁니다.</div></div>
+<h2><span class="num">08</span>해보실 만한 것</h2>
+<p class="lede">해야 하는 일이 아닙니다. 오늘 본 것에서 이어지는 이야기입니다.</p>
+<ol class="todo">
+<li><h4>밖에서는 스스로 잘 지냈습니다</h4><p>보호자가 계실 때도, 나가신 뒤에도 <b>혼자 방을 살피며 시간을 보냈습니다.</b> 낯선 곳에서 이렇게 하는 개는 많지 않습니다.</p></li>
+<li><h4>설문과 다르게 나온 곳이 있습니다</h4><p>「자리를 비우면 불안해한다」에 4.0을 주셨는데, 오늘 밖에서는 그런 모습이 없었습니다. <b>집과 밖이 다를 수 있습니다.</b> 집에서는 익숙한 자리와 냄새가 있어 오히려 빈자리가 크게 느껴집니다.</p></li>
+</ol>
+<div class="fine"><h4>이 리포트가 말할 수 없는 것</h4><ul>
+<li><b>오늘 하루, 3분 12초입니다.</b> 처음 오는 장소에서 한 번 본 모습이라 평소와 다를 수 있습니다.</li>
+<li>사람이 많고 다른 개가 있는 행사장에서 찍었습니다. 조용한 곳이었다면 달랐을 수 있습니다.</li>
+<li>무선 마이크가 준비되지 않아 <b>보호자님의 목소리와 관련된 항목은 보지 못했습니다.</b></li>
+<li>보호자 곁을 일찍 떠나 화면 밖으로 나간 구간이 있어, 그동안의 자세와 꼬리는 보지 못했습니다.</li>
+<li>낯선 사람 구간과 걷기 구간이 이날 절차에 온전히 담기지 않았습니다.</li>
+<li><b>진단이 아닙니다.</b> 걱정되는 점이 있으시면 수의사나 행동 전문가와 상의하세요.</li>
+</ul></div></div>

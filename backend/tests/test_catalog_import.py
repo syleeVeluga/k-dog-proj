@@ -1,6 +1,5 @@
 import hashlib
 import json
-import re
 import unittest
 from collections import Counter
 from pathlib import Path
@@ -20,7 +19,7 @@ class SourceCatalogTests(unittest.TestCase):
     def test_source_hashes_and_counts(self):
         for catalog, count in ((self.behavior, 55), (self.survey, 30)):
             with self.subTest(catalog=catalog.source_filename):
-                source = ROOT / "docs" / catalog.source_filename
+                source = ROOT / "resources/source" / catalog.source_filename
                 self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), catalog.source_sha256)
                 self.assertEqual(len(catalog.items), count)
         self.assertEqual(Counter(item.domain for item in self.behavior.items),
@@ -28,7 +27,7 @@ class SourceCatalogTests(unittest.TestCase):
         self.assertEqual(Counter(item.source_layer for item in self.survey.items), {"원": 16, "C": 8, "영": 6})
 
     def test_every_behavior_text_and_nonblank_option_matches_excel(self):
-        book = load_workbook(ROOT / "docs" / self.behavior.source_filename, read_only=True, data_only=False)
+        book = load_workbook(ROOT / "resources/source" / self.behavior.source_filename, read_only=True, data_only=False)
         try:
             for item in self.behavior.items:
                 with self.subTest(item=item.item_id):
@@ -47,19 +46,8 @@ class SourceCatalogTests(unittest.TestCase):
         finally:
             book.close()
 
-    def test_behavior_ids_and_locations_match_prd_appendix(self):
-        prd = (ROOT / "docs/K-DOG_PRD_v0.4_20260905.md").read_text(encoding="utf-8")
-        rows = re.findall(r"^\| ((?:BS|DOG|OWN)-\d{2}) \| `([^`]+)` (\d+)행 \| ([^|]+) \| ([^|]+) \| ([^|]+) \|$", prd, re.M)
-        self.assertEqual(len(rows), 55)
-        actual = {item.item_id: item for item in self.behavior.items}
-        for item_id, sheet, row, segment, text, domain in rows:
-            item = actual[item_id]
-            with self.subTest(item=item_id):
-                self.assertEqual((item.source_sheet, item.source_row, item.segment, item.text, item.domain),
-                                 (sheet, int(row), segment.strip(), text.strip(), None if domain.strip() == "집계 제외" else domain.strip()))
-
     def test_every_survey_question_and_scoring_note_matches_excel(self):
-        book = load_workbook(ROOT / "docs" / self.survey.source_filename, read_only=True, data_only=False)
+        book = load_workbook(ROOT / "resources/source" / self.survey.source_filename, read_only=True, data_only=False)
         try:
             sheet = book["데이터입력"]
             self.assertEqual(self.survey.response_instructions, sheet["A2"].value)

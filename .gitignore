@@ -23,3 +23,5 @@ playwright-report/
 
 # Generated installation packages
 releases/
+# 삭제 대기 (수동 삭제)
+_to_delete/

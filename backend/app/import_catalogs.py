@@ -105,7 +105,7 @@ def read_survey(path: Path) -> SurveyCatalog:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source-dir", type=Path, default=ROOT / "docs")
+    parser.add_argument("--source-dir", type=Path, default=ROOT / "resources/source")
     parser.add_argument("--check", action="store_true", help="compare existing JSON without writing")
     args = parser.parse_args()
     catalogs = {
