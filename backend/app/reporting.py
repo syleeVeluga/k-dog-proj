@@ -12,7 +12,7 @@ from app.evaluation import Evaluator
 from app.gemini import ProviderError
 from app.media import command, MediaError
 from app.report_models import Narration, ReportArtifact, ReportView
-from app.scoring import behavior_scores
+from app.legacy.scoring_v1 import behavior_scores
 from app.storage import REPO_ROOT, encode, uid
 
 

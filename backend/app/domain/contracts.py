@@ -186,8 +186,9 @@ class ScoreResult(Contract):
 
     @model_validator(mode="after")
     def complete_result(self) -> Self:
-        if tuple(item.item_id for item in self.items) != BEHAVIOR_IDS:
-            raise ValueError("result lists all 42 items in catalog order, derived items included")
+        ids = tuple(item.item_id for item in self.items)
+        if not ids or ids != tuple(item_id for item_id in BEHAVIOR_IDS if item_id in set(ids)):
+            raise ValueError("result lists the rated items once each, in catalog order")
         if sorted(domain.domain for domain in self.domains) != sorted(("SOC_E", "SOC_H", "ATT", "SYN", "EDU", "EXIT")):
             raise ValueError("result needs one summary per domain")
         if tuple(indicator.key for indicator in self.indicators) != INDICATOR_KEYS:

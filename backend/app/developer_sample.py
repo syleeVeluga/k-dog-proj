@@ -11,7 +11,7 @@ from app.gemini import GeminiObserver, ProviderError
 from app.media import command, MediaError
 from app.observation_models import MediaInfo
 from app.reporting import Reporter, make_report
-from app.scoring import RULES, survey_scores
+from app.legacy.scoring_v1 import RULES, survey_scores
 from app.storage import REPO_ROOT
 
 

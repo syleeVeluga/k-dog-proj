@@ -13,7 +13,7 @@ from unittest.mock import patch
 from app.legacy.contracts_v1 import BehaviorCatalog, BranchEvaluation, Evidence, RunInput, SurveyCatalog
 from app.evaluation import Evaluator, configuration, make_evaluation
 from app.gemini import ProviderError
-from app.scoring import RULES, behavior_scores, rounded, survey_scores
+from app.legacy.scoring_v1 import RULES, behavior_scores, rounded, survey_scores
 from app.storage import REPO_ROOT, encode
 from tests import test_observation as observation
 from tests.evaluation_fixtures import evaluation_response

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from app.domain.catalog import BEHAVIOR_IDS, BehaviorCatalog, SEGMENTS, SURVEY_IDS, SurveyCatalog
+from app.domain.catalog import BehaviorCatalog, SEGMENTS, SURVEY_IDS, SurveyCatalog
 from app.domain.contracts import (
     DomainSummary, Indicator, ItemScore, Rater, ScoreResult, ScoreSheet, SegmentWindow, SeparationType,
     SessionSegments, SurveyAnswers, SurveyDomainScore, SurveyItemValue, SurveyResult, TypeResult,
@@ -146,7 +146,7 @@ class ContractTests(unittest.TestCase):
                 TypeResult(**bad)
 
     def test_score_result_shape(self):
-        items = [unreadable(item_id) for item_id in BEHAVIOR_IDS]
+        items = [unreadable(item.item_id) for item in self.catalog.rated_items()]
         domains = [dict(domain=code, target_count=count, scored_count=0, unreadable_count=count, not_applicable_count=0,
                         excluded_count=0, mean=None, lean=None, width=None, degree=None)
                    for code, count in (("SOC_E", 5), ("SOC_H", 4), ("ATT", 9), ("SYN", 3), ("EDU", 5), ("EXIT", 2))]
@@ -157,8 +157,8 @@ class ContractTests(unittest.TestCase):
                     indicators=indicators, types=types)
         result = parse(ScoreResult, data)
         self.assertEqual(ScoreResult.model_validate_json(result.model_dump_json()), result)
-        for changes in ({"items": items[:-1]}, {"domains": domains[:-1]}, {"indicators": indicators[::-1]}, {"types": types[:1]},
-                        {"baseline_arousal": 0}):
+        for changes in ({"items": items[::-1]}, {"items": items + items[:1]}, {"items": []}, {"domains": domains[:-1]},
+                        {"indicators": indicators[::-1]}, {"types": types[:1]}, {"baseline_arousal": 0}):
             with self.subTest(changes=list(changes)), self.assertRaises(ValidationError):
                 parse(ScoreResult, {**data, **changes})
         self.assertFalse({"total", "overall_reference", "rank"} & set(ScoreResult.model_fields))

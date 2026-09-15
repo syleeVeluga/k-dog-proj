@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from app.legacy.validation_v1 import validate_evidence
 from app.legacy.contracts_v1 import BehaviorCatalog, SurveyCatalog
 from app.evaluation import active_configuration, validated_evaluation
-from app.scoring import RULES, behavior_scores, survey_scores
+from app.legacy.scoring_v1 import RULES, behavior_scores, survey_scores
 from app.gemini import configuration
 from app.input_models import Manifest
 from app.intake import selected_session

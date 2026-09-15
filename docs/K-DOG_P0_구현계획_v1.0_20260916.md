@@ -83,7 +83,7 @@ ID 규칙: 시트 순서대로 `BS-01~09`(1_바디시그널 5~13행), `DOG-01~24
 | R1 | 참고 항목 자료형은 B열 문구로 판정: `※횟수`→count, `※0~6`→phase_count, `※자동 계산`→auto_ratio, 그 외→scale | 03 B열 | 7장 1번 |
 | R2 | 냄새 2항목은 3·5만, 시선은 3~5만, 지시 준수·시행 유효성은 1~3만 허용 | 03 C~G 라벨 유무, AE 수식 | 7장 1번 |
 | R3 | 영역 평균(lean의 재료)은 `AY="BI"` 항목만, **폭은 BI·ONE을 함께** 본다 | `여러쌍비교!D6`은 AY 조건 있음, `E6`은 없음 | 수식 그대로 — 확인만 |
-| R4 | 애착 유형의 재료 6개(DOG-05·12·13·14·17, DOG-16 횟수) 중 하나라도 scored가 아니면 유형 없음 | 01 §4 「재료 중 하나라도 미판독이면 유형을 내지 않는다」. 단 엑셀 `M6`은 J18(몸의 중심)을 빈칸 검사에서 빼고 J20 빈칸을 0으로 본다 | **문서와 수식이 다름** — 문서를 따르고 확인 |
+| R4 | 애착 유형의 재료 6개(DOG-05·12·13·14·17, DOG-16 횟수) 중 하나라도 scored가 아니면 유형 없음 | 01 §4 「재료 중 하나라도 미판독이면 유형을 내지 않는다」. 단 엑셀 `M6`은 J20(접근 일관성) 빈칸을 `N()`으로 0으로 본다 | **문서와 수식이 다름** — 문서를 따르고 확인 |
 | R5 | 걷기 시행 유효성 = 3이면 동조율 「무효」(엑셀 `Z6`과 동일) **그리고** 걷기 항목(BS-08·DOG-19·20·21) 을 SYN 집계에서 제외 | 03 3_보호자행동 C13 라벨 「이 시행의 걷기 항목과 동조율 무효」. 엑셀 `P6·Q6`은 제외하지 않음 | **라벨과 수식이 다름** — 라벨을 따르고 확인 |
 | R6 | 무시 지시 준수 = 3이면 무시 항목(DOG-17·18)을 ATT 집계·애착 유형·적응 지표에서 제외 | 03 3_보호자행동 C12 라벨. 엑셀 `V6·M6`은 검사하지 않음 | 위와 같음 |
 | R7 | 설문 「해당 없음」(7~9)과 빈칸은 모두 결측. 영역 평균은 응답한 문항만으로 내고 응답 수/문항 수를 함께 기록 | 04 문항근거 「결측이지 0점이 아니다」 | 평균 방식 확인 |
@@ -285,7 +285,7 @@ SociabilityType = Literal["편안·우호","우호·들뜸","담담·거리둠",
 class TypeResult(Contract): key: Literal["attachment","sociability_person"]; label: str | None; status; reason
 class ScoreResult(Contract):
     sheet_id; catalog_version; scoring_rule_version; rater
-    items: tuple[ItemScore, ...]          # 42개 (DOG-22 계산값 포함)
+    items: tuple[ItemScore, ...]          # 채점자가 입력한 항목(41개)을 카탈로그 순서로. 동조율(DOG-22)은 정수가 아니므로 items가 아니라 indicators.sync_rate에 둔다
     baseline_arousal: int | None
     domains: 6개(DomainCode마다 하나); indicators: 4개; types: 2개
 class SurveyDomainScore(Contract): domain: Literal["A","B","C","E"]; mean: float | None; answered_count; target_count; status: Literal["calculated","partial","missing"]
@@ -365,7 +365,7 @@ def validate_survey_answers(answers: SurveyAnswers, catalog: SurveyCatalog) -> N
 RULES = json.loads(resources/rules/scoring-v2.json)
 def rounded(value: Decimal | None) -> float | None            # ROUND_HALF_UP 2자리 (엑셀 ROUND와 동일)
 def behavior_scores(sheet: ScoreSheet, catalog: BehaviorCatalog, *, mode="production") -> ScoreResult
-    # 1 validate_score_sheet ; 2 무효 규칙으로 제외 집합 산출 ; 3 DOG-22 계산값 생성(status scored/unreadable/… + reason "무효")
+    # 1 validate_score_sheet ; 2 무효 규칙으로 제외 집합 산출 ; 3 동조율은 indicators.sync_rate로(값 없음·무효 사유 포함)
     # 4 영역 6개: mean(BI scored, 제외 밖) → lean=round(mean-3) ; width=max|x-3| (BI+ONE) ; degree=round(mean ONE)
     # 5 지표 4개 ; 6 유형 2개 ; 7 baseline_arousal
 def survey_scores(answers: SurveyAnswers, catalog: SurveyCatalog) -> SurveyResult
@@ -380,9 +380,9 @@ def survey_scores(answers: SurveyAnswers, catalog: SurveyCatalog) -> SurveyResul
 
 | 쌍 | EDU lean/width/degree | SOC_E lean/width | SOC_H 유형/width | ATT 유형/width | SYN lean/width | EXIT lean/width | 적응 | 회복 | 낯선 진정 | 기준 | 동조율 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 천우미 | 0.00 / 0 / 3.00 | −0.20 / 1 | 담담·거리둠 / 1 | 없음(무시 빈칸) / 1 | −0.33 / 1 | 0.00 / 0 | 없음 | 1 | 1 | 없음 | 5/6 |
+| 1 천우미 | 0.00 / 0 / 3.00 | −0.20 / 1 | 담담·거리둠 / 1 (평균 2.75) | 없음(무시 빈칸) / 1 (평균 2.43) | −0.33 / 1 | 0.00 / 0 | 없음 | 1 | 1 | 없음 | 5/6 |
 | 2 김지유 | 없음 | 0.00 / 0 | 없음 | 없음 / 0 | 없음 | 없음 | 없음 | 없음 | 없음 | 없음 | 없음 — 시행 유효성 3이라 `invalid`(엑셀 `Z6`은 국면 수 빈칸을 먼저 보고 빈칸을 낸다. 값은 둘 다 없음, 상태는 무효 우선) |
-| 3 배보경 | 없음 | 0.00 / 0 | 없음 | 없음 / 1 | 없음 | 없음 | 없음 | 없음 | 없음 | 없음 | 없음 |
+| 3 배보경 | 없음 | 0.00 / 0 | 없음 | 없음 / 1 (평균 3.5) | 없음 | 없음 | 없음 | 없음 | 없음 | 없음 | 없음 |
 | 4 최선미 | 전부 없음 | | | | | | | | | | |
 | 5 이하연 · 6 송소연 | 없음 | 0.00 / 0 | 없음 | 없음 | 없음 | 없음 | 없음 | 없음 | 없음 | 없음 | 없음 |
 
