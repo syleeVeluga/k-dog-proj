@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 
 from app.input_models import CaseView, Manifest
+from app.legacy.input_models_v1 import upgrade
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -100,7 +101,26 @@ class Store:
                                (encode(detail), row["change_id"]))
             if "lease_expires_at" in {r[1] for r in db.execute("PRAGMA table_info(steps)")}:
                 db.execute("ALTER TABLE steps DROP COLUMN lease_expires_at")
-            db.execute("PRAGMA user_version=4")
+            if db.execute("PRAGMA user_version").fetchone()[0] < 5:
+                self.migrate_manifests(db)
+            db.execute("PRAGMA user_version=5")
+
+    def migrate_manifests(self, db):
+        """Rewrite intake-1.0 case manifests as intake-2.0 (28-item survey); stored run snapshots stay untouched."""
+        survey_version = json.loads((REPO_ROOT / "resources/catalogs/survey-v2.json").read_text(encoding="utf-8"))["version"]
+        for row in db.execute("SELECT * FROM cases").fetchall():
+            try:
+                data = json.loads(self.path(row["manifest_ref"]).read_bytes())
+            except (OSError, ValueError):
+                continue  # An unreadable manifest keeps failing per case (409 on access) instead of blocking startup.
+            if data.get("schema_version") != "intake-1.0":
+                continue
+            upgraded, _ = upgrade(data, survey_version=survey_version)
+            manifest = Manifest.model_validate(upgraded)
+            manifest.input_revision = row["input_revision"] + 1
+            key, digest = self.write_manifest(manifest)
+            db.execute("UPDATE cases SET input_revision=?, manifest_ref=?, manifest_hash=?, updated_at=? WHERE case_id=?",
+                       (manifest.input_revision, key, digest, now(), row["case_id"]))
 
     @contextmanager
     def connect(self, *, write=False):

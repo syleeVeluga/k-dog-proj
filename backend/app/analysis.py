@@ -9,15 +9,14 @@ from fastapi import HTTPException
 
 from app.legacy.validation_v1 import validate_evidence
 from app.legacy.contracts_v1 import BehaviorCatalog, SurveyCatalog
-from app.evaluation import active_configuration, validated_evaluation
+from app.evaluation import validated_evaluation
 from app.legacy.scoring_v1 import RULES, behavior_scores, survey_scores
-from app.gemini import configuration
-from app.input_models import Manifest
+from app.legacy.input_models_v1 import Manifest
 from app.intake import selected_session
 from app.observation_models import (
     AnalysisView, LedgerArtifact, ObservationArtifact, PreparedInput, RunView, StepView,
 )
-from app.storage import REPO_ROOT, Store, encode, now, uid
+from app.storage import Store, encode, now, uid
 
 
 LEASE_SECONDS = 180
@@ -32,7 +31,11 @@ def digest(value) -> str:
     return hashlib.sha256(encode(value).encode("utf-8")).hexdigest()
 
 
+FROZEN = "55항목 판 분석은 종료되었습니다. 42항목 채점·리포트·내보내기는 다음 판에서 제공합니다."
+
+
 def session_snapshot(row):
+    """Stored runs were created under intake-1.0; read them with the legacy shape only."""
     manifest = Manifest.model_validate_json(row["input_snapshot_json"])
     return manifest, selected_session(manifest, row["session_id"])
 
@@ -97,20 +100,6 @@ def validated_ledger(payload, run_input, video_id, source_run_id=None):
     return artifact
 
 
-def ledger_references(db, row):
-    """Where each video's ledger artifact actually lives, following the run's own reuse."""
-    result = {}
-    for entry in json.loads(row["reuse_manifest_json"]):
-        if entry.get("stage") == "ledger":
-            result[entry["video_id"]] = {"source_run_id": entry["source_run_id"], "step_id": entry["step_id"],
-                                         "output_ref": entry["output_ref"], "output_hash": entry["output_hash"]}
-    for step in db.execute("SELECT * FROM steps WHERE run_id=? AND stage='ledger' AND status='succeeded'",
-                           (row["run_id"],)):
-        result[step["branch_key"]] = {"source_run_id": row["run_id"], "step_id": step["step_id"],
-                                      "output_ref": step["output_ref"], "output_hash": step["output_hash"]}
-    return result
-
-
 def validated_observation(payload, run_input, video_id, source_run_id=None, *, catalog=None,
                           expected_items=None, review=False, measures=None, branch=None):
     artifact = ObservationArtifact.model_validate_json(encode(payload))
@@ -166,99 +155,7 @@ def validated_prepared(row, payload):
 
 
 def enqueue(store: Store, case_id, value, actor):
-    config = configuration()
-    catalog = json.loads((REPO_ROOT / "resources/catalogs/behavior-v1.json").read_text(encoding="utf-8"))
-    config["catalog_version"] = catalog["version"]
-    config["catalog_hash"] = digest(catalog)
-    config["catalog_items"] = [{"item_id": item["item_id"], "text": item["text"], "segment": item["segment"]}
-                               for item in catalog["items"]]
-    config["behavior_catalog"] = catalog
-    config["survey_catalog"] = json.loads((REPO_ROOT / "resources/catalogs/survey-v1.json").read_text(encoding="utf-8"))
-    config["scoring_rules"] = RULES
-    with store.connect(write=True) as db:
-        _, config["evaluation"] = active_configuration(db, config["model"])
-        from app.reporting import active_report_configuration
-        _, config["report"] = active_report_configuration(db, config["model"])
-        from app.settings import apply_snapshot
-        apply_snapshot(store, db, config)
-        case = store.case(db, case_id, expected=value.expected_revision)
-        manifest = store.manifest(case)
-        session = selected_session(manifest, manifest.selected_session_id)
-        if not session.videos:
-            raise HTTPException(422, "선택 촬영 세션에 영상이 없습니다.")
-        if not value.reanalyze:
-            existing = db.execute("SELECT run_id FROM runs WHERE case_id=? AND input_revision=? "
-                                  "AND status IN ('queued','running','retry_wait') ORDER BY created_at DESC LIMIT 1",
-                                  (case_id, case["input_revision"])).fetchone()
-            if existing:
-                return existing["run_id"]
-        reuse = []
-        snapshot = {"input_snapshot_json": manifest.model_dump_json(), "session_id": session.session_id,
-                    "config_snapshot_json": encode(config)}
-        if value.reuse_run_id:
-            source = db.execute("SELECT * FROM runs WHERE run_id=? AND case_id=?",
-                                (value.reuse_run_id, case_id)).fetchone()
-            if not source or related_input(source) != related_input(snapshot):
-                raise HTTPException(409, "재사용할 참가자·세션·영상·관찰 설정이 일치하지 않습니다.")
-            prepared_step = db.execute("SELECT * FROM steps WHERE run_id=? AND stage='prepare' AND status='succeeded'",
-                                       (source["run_id"],)).fetchone()
-            if not prepared_step:
-                raise HTTPException(409, "재사용할 미디어 검사 결과가 없습니다.")
-            prepared = validated_prepared(source, step_payload(store, source, prepared_step))
-            from app.ledger import branch_items
-            frozen = BehaviorCatalog.model_validate_json(encode(config["behavior_catalog"]))
-            direct = bool(config.get("direct_video"))
-            related = digest(related_input(source))
-            reusable = {}
-            # Shared facts must be reused before the branch decisions that were checked against them.
-            for video_id, reference in ledger_references(db, source).items():
-                origin = db.execute("SELECT * FROM runs WHERE run_id=?", (reference["source_run_id"],)).fetchone()
-                step = db.execute("SELECT * FROM steps WHERE step_id=? AND run_id=? AND status='succeeded'",
-                                  (reference["step_id"], reference["source_run_id"])).fetchone()
-                if not origin or not step:
-                    continue
-                artifact = validated_ledger(step_payload(store, origin, step), prepared.run_input, video_id,
-                                            reference["source_run_id"])
-                reusable[video_id] = artifact.measures
-                reuse.append({"stage": "ledger", "video_id": video_id, "branch_key": video_id,
-                              "related_hash": related, **reference})
-            for step in db.execute("SELECT * FROM steps WHERE run_id=? AND stage='observe' AND status='succeeded'", (source["run_id"],)):
-                video_id, branch = split_branch_key(step["branch_key"])
-                if direct and branch and video_id not in reusable:
-                    # Without its ledger the decision cannot be re-checked; re-run that branch.
-                    continue
-                expected = branch_items(branch) if direct and branch else None
-                validated_observation(step_payload(store, source, step), prepared.run_input, video_id,
-                                      catalog=frozen, expected_items=expected,
-                                      measures=reusable.get(video_id), branch=branch)
-                reuse.append({"source_run_id": source["run_id"], "step_id": step["step_id"],
-                              "video_id": video_id, "branch_key": step["branch_key"], "output_ref": step["output_ref"],
-                              "output_hash": step["output_hash"], "related_hash": related})
-            if not reuse:
-                raise HTTPException(409, "재사용할 성공 관찰이 없습니다.")
-            # Reuse evaluation only when every camera observation is directly reusable.
-            if config.get("evaluation_mode") != "per_video" and {entry["video_id"] for entry in reuse} == {m.video_id for m in prepared.media}:
-                source_evidence = tuple(e for artifact in observations(store, db, source, prepared) for e in artifact.evidence)
-                source_config = json.loads(source["config_snapshot_json"])
-                for step in db.execute("SELECT * FROM steps WHERE run_id=? AND stage='evaluate' AND status='succeeded'", (source["run_id"],)):
-                    branch = step["branch_key"]
-                    if evaluation_related(source, branch) != evaluation_related(snapshot, branch):
-                        continue
-                    artifact = validated_evaluation(step_payload(store, source, step), prepared.run_input, branch,
-                        BehaviorCatalog.model_validate_json(encode(source_config["behavior_catalog"])), source_evidence)
-                    if artifact.usage.get("reused"):
-                        continue
-                    reuse.append({"stage": "evaluate", "branch": branch, "source_run_id": source["run_id"],
-                                  "step_id": step["step_id"], "output_ref": step["output_ref"], "output_hash": step["output_hash"],
-                                  "related_hash": digest(evaluation_related(snapshot, branch))})
-        run_id = uid()
-        db.execute("INSERT INTO runs(run_id,case_id,session_id,input_revision,input_snapshot_json,config_snapshot_json,"
-                   "reuse_manifest_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                   (run_id, case_id, session.session_id, case["input_revision"], manifest.model_dump_json(),
-                    encode(config), encode(reuse), "queued", now(), now()))
-        db.execute("UPDATE cases SET display_run_id=? WHERE case_id=?", (run_id, case_id))
-        store.audit(db, actor, run_id, "analysis.start", {"revision": case["input_revision"], "reuse": value.reuse_run_id})
-        return run_id
+    raise HTTPException(409, FROZEN)
 
 
 def check_access(store, db, row):
@@ -506,21 +403,7 @@ def control(store, case_id, run_id, actor, action):
         if not row:
             raise HTTPException(404, "이 참가자의 실행이 아닙니다.")
         if action == "retry":
-            check_access(store, db, row)
-            if row["status"] not in ("partial_failed", "settings_required", "failed"):
-                raise HTTPException(409, "실패한 실행만 재시도할 수 있습니다.")
-            steps = db.execute("SELECT * FROM steps WHERE run_id=? ORDER BY attempt", (run_id,)).fetchall()
-            latest, repairs = {}, {}
-            for step in steps:
-                key = (step["stage"], step["branch_key"])
-                latest[key] = step
-                if json.loads(step["usage_json"]).get("code") in ("observation_schema_invalid", "evaluation_schema_invalid"):
-                    repairs[key] = repairs.get(key, 0) + 1
-            maximum = json.loads(row["config_snapshot_json"]).get("max_attempts", 3)
-            if not any(step["status"] != "succeeded" and step["attempt"] < maximum and repairs.get(key, 0) < 2
-                       for key, step in latest.items()):
-                raise HTTPException(409, "재시도 가능한 실패 단계가 없습니다. 시도·구조 수정 한도와 입력·설정을 확인하세요.")
-            state = "queued"
+            raise HTTPException(409, FROZEN)
         else:
             if row["status"] not in ACTIVE:
                 raise HTTPException(409, "진행 중인 실행만 중지할 수 있습니다.")

@@ -1,41 +1,30 @@
-"""M5 T08–T11: version fencing, secrets, isolated trials and data recovery."""
+"""Developer settings, key vault, backup/restore and offline cleanup — infrastructure kept for the 42-item build."""
 
 import json
 import os
 from pathlib import Path
 import tempfile
-import subprocess
-import sys
 import unittest
 from unittest.mock import patch
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import HTTPException
-from fastapi.testclient import TestClient
 
-from app import maintenance, settings
-from app.api import create_app
-from app.auth import create_user
-from app.input_models import UserCreate
+from app import maintenance
 from app.secrets import credential, protect
 from app.secrets import change as change_key
 from app.storage import Store, encode
-from app.worker import Worker
-from tests import test_observation as observation
-from tests.evaluation_fixtures import FakeEvaluator
-from tests.report_fixtures import FakeReporter
+from tests.support import AppCase
 
 
-class SettingsTests(unittest.TestCase):
-    login = observation.ObservationTests.login
-    delete_case = observation.ObservationTests.delete_case
-    start = observation.ObservationTests.start
-    view = observation.ObservationTests.view
-
+class SettingsTests(AppCase):
     def setUp(self):
-        observation.ObservationTests.setUp(self)
-        with self.store.connect(write=True) as db:
-            create_user(db, UserCreate(username="admin", role="admin", password="Synthetic-test-only-42"))
+        super().setUp()
+        self.env = patch.dict(os.environ, {"KDOG_GEMINI_MODEL": "gemini-test-only", "GEMINI_API_KEY": "synthetic-secret-only"})
+        self.env.start()
+        self.addCleanup(self.env.stop)
+        self.item = self.make_case(event_id="M2")
+        self.base = f"/api/cases/{self.item['case_id']}"
 
     def config(self):
         self.login("developer")
@@ -73,10 +62,7 @@ class SettingsTests(unittest.TestCase):
             self.assertEqual(self.client.get(url).status_code, 403)
         self.assertEqual(self.client.post("/api/admin/backups").status_code, 403)
 
-    def test_draft_activate_restore_and_queued_running_snapshots_stay_frozen(self):
-        queued = self.start()
-        with self.store.connect() as db:
-            old = db.execute("SELECT config_snapshot_json FROM runs WHERE run_id=?", (queued,)).fetchone()[0]
+    def test_draft_activate_restore_and_diff(self):
         first = self.draft()
         config = self.config()["config"]
         config["dog"]["prompt"] += "\n가상 추가 지시."
@@ -86,37 +72,8 @@ class SettingsTests(unittest.TestCase):
         self.assertIn("가상 추가 지시", diff)
         self.activate(second)
         self.assertEqual(self.client.post(f"/api/developer/settings/{first}/activate", json={"expected_active": "legacy"}).status_code, 409)
-        def switch_during_call(media, guard):
-            self.activate(first)
-            self.login("operator")
-            return observation.response(), {"totalTokenCount": 1}
-        self.observer.callback = switch_during_call
-        self.worker.once()
-        with self.store.connect() as db:
-            self.assertEqual(old, db.execute("SELECT config_snapshot_json FROM runs WHERE run_id=?", (queued,)).fetchone()[0])
-        self.assertEqual(self.view()["status"], "scored")
-        new = self.start(reanalyze=True)
-        with self.store.connect() as db:
-            snapshot = json.loads(db.execute("SELECT config_snapshot_json FROM runs WHERE run_id=?", (new,)).fetchone()[0])
-        self.assertEqual(snapshot["settings_version"], first)
-        self.assertNotIn("가상 추가 지시", snapshot["evaluation"]["dog"]["prompt"])
-
-    def test_editing_owner_reuses_observation_and_dog_but_not_owner(self):
-        first = self.draft()
         self.activate(first)
-        self.login("operator")
-        old = self.start()
-        self.worker.once()
-        config = self.config()["config"]
-        config["owner"]["prompt"] += "\n시험 변경"
-        second = self.draft(config)
-        self.activate(second)
-        self.login("operator")
-        new = self.start(reanalyze=True, reuse_run_id=old)
-        with self.store.connect() as db:
-            reuse = json.loads(db.execute("SELECT reuse_manifest_json FROM runs WHERE run_id=?", (new,)).fetchone()[0])
-        self.assertEqual(len([r for r in reuse if r.get("stage", "observe") == "observe"]), 2)
-        self.assertEqual([r["branch"] for r in reuse if r.get("stage") == "evaluate"], ["dog"])
+        self.assertEqual(self.config()["active_version"], first)
 
     def test_config_rejects_unknown_fields_provider_options_and_nonfinite_limits(self):
         data = self.config()
@@ -151,56 +108,31 @@ class SettingsTests(unittest.TestCase):
                                         json={"expected_active": "legacy", "config": {**base, **value}})
             self.assertEqual(response.status_code, 201, response.text)
 
-    def test_inference_settings_version_the_run_snapshot(self):
+    def test_inference_settings_version_the_snapshot(self):
         from app.settings import apply_snapshot
         base = self.config()["config"]
-        # Both paths read these settings, so both must record which values produced a run.
-        for mode in ("per_video", "legacy"):
-            self.pipeline_mode = mode
-            versions = []
-            for value in [{}, {"processing_mode": "agentic"}, {"thinking_level": "high"}, {"media_resolution": "high"}]:
-                version = self.draft({**base, **value})
-                self.activate(version)
-                snapshot = {}
-                with self.store.connect() as db:
-                    apply_snapshot(self.store, db, snapshot)
-                versions.append(snapshot["config_version"])
-                self.assertEqual(snapshot["processing_mode"], value.get("processing_mode", "static"))
-                self.assertEqual(snapshot["thinking_level"], value.get("thinking_level"))
-                self.assertEqual(snapshot["media_resolution"], value.get("media_resolution"))
-            self.assertEqual(len(set(versions)), 4, mode)
+        versions = []
+        for value in [{}, {"processing_mode": "agentic"}, {"thinking_level": "high"}, {"media_resolution": "high"}]:
+            version = self.draft({**base, **value})
+            self.activate(version)
+            snapshot = {}
+            with self.store.connect() as db:
+                apply_snapshot(self.store, db, snapshot)
+            versions.append(snapshot["config_version"])
+            self.assertEqual(snapshot["processing_mode"], value.get("processing_mode", "static"))
+            self.assertEqual(snapshot["thinking_level"], value.get("thinking_level"))
+            self.assertEqual(snapshot["media_resolution"], value.get("media_resolution"))
+        self.assertEqual(len(set(versions)), 4)
 
-    def test_trials_never_create_case_runs_or_change_active_version(self):
+    def test_schema_trials_never_create_case_runs_or_change_active_version(self):
         version = self.draft()
         for stage in ("observe", "dog", "owner", "report"):
             result = self.client.post(f"/api/developer/settings/{version}/trial", json={"stage": stage, "mode": "schema"})
             self.assertEqual(result.json()["status"], "schema_valid")
-        fake = FakeEvaluator()
-        with patch("app.developer_sample.Evaluator", return_value=fake), patch("app.developer_sample.Reporter", return_value=FakeReporter()):
-            for stage in ("dog", "owner", "report"):
-                result = self.client.post(f"/api/developer/settings/{version}/trial", json={"stage": stage, "mode": "provider"})
-                self.assertEqual(result.json()["status"], "provider_valid", result.text)
         self.assertEqual(self.config()["active_version"], "legacy")
         with self.store.connect() as db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM runs").fetchone()[0], 0)
             self.assertEqual(db.execute("SELECT COUNT(*) FROM cases").fetchone()[0], 1)
-
-    def test_frozen_call_budget_stops_parallel_requests_and_preserves_completed_observations(self):
-        config = self.config()["config"]
-        config["max_ai_calls"] = 3
-        config["max_attempts"] = 1
-        self.activate(self.draft(config))
-        self.login("operator")
-        self.start()
-        self.worker.once()
-        result = self.view()
-        self.assertEqual(result["status"], "partial_failed")
-        self.assertEqual(len(result["evidence"]), 2)
-        with self.store.connect() as db:
-            self.assertEqual(db.execute("SELECT SUM(call_reserved) FROM steps").fetchone()[0], 3)
-            self.assertEqual(db.execute("SELECT COUNT(*) FROM steps WHERE stage='evaluate' AND status='succeeded'").fetchone()[0], 1)
-            failed = [json.loads(r[0]) for r in db.execute("SELECT usage_json FROM steps WHERE status='failed'")]
-        self.assertIn("call_budget_exhausted", [f["code"] for f in failed])
 
     @unittest.skipUnless(os.name == "nt", "DPAPI requires Windows")
     def test_key_ciphertext_rotation_revocation_connection_and_no_plaintext_in_backups(self):
@@ -236,11 +168,9 @@ class SettingsTests(unittest.TestCase):
         with self.assertRaises(ProviderError):
             credential(self.store, "gemini")  # Must not fall back to the configured environment key.
 
-    def test_backup_restore_keeps_report_files_and_reapplies_current_deletion_ledger(self):
-        run_id = self.start()
-        self.worker.once()
-        exported = self.client.post("/api/exports", json={"format": "xlsx", "case_id": self.item["case_id"], "run_id": run_id}).json()
-        self.assertEqual(self.client.post(f"/api/exports/{exported['export_id']}/generate").status_code, 200)
+    def test_backup_restore_keeps_inputs_and_reapplies_current_deletion_ledger(self):
+        item = self.upload(self.item).json()
+        saved = self.client.put(self.base + "/survey", json=self.answers(item, 4, not_applicable=("s07",))).json()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             maintenance.backup(self.store, root / "backup", "admin")
@@ -248,12 +178,10 @@ class SettingsTests(unittest.TestCase):
             restored = Store(root / "restored")
             with restored.connect() as db:
                 maintenance.references(restored, db)
-                self.assertEqual(db.execute("SELECT status FROM runs").fetchone()[0], "scored")
-            client = TestClient(create_app(restored.root), base_url="http://127.0.0.1:8000", headers={"X-KDOG-Request": "1"})
-            self.addCleanup(client.close)
-            client.post("/api/auth/login", json={"username": "operator", "password": "Synthetic-test-only-42"})
-            self.assertEqual(client.get(f"/api/exports/{exported['export_id']}/file").status_code, 200)
-            self.delete_case()
+                row = restored.case(db, item["case_id"])
+                manifest = restored.manifest(row)
+            self.assertEqual(manifest.model_dump(), saved["manifest"])
+            self.delete_case(saved)
             maintenance.clean(self.store, purge_deleted=True)
             self.assertNotIn("가상견".encode(), (self.store.root / "kdog.sqlite3").read_bytes())
             self.assertEqual(maintenance.deletion_records(self.store), {("M2", "0001")})
@@ -261,42 +189,7 @@ class SettingsTests(unittest.TestCase):
             recovered = Store(root / "deleted-restored")
             with recovered.connect() as db:
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM cases").fetchone()[0], 0)
-                self.assertEqual(db.execute("SELECT COUNT(*) FROM runs").fetchone()[0], 0)
-                self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='export.snapshot'").fetchone()[0], 0)
             self.assertFalse(any((recovered.root / "videos").glob("*")))
-
-    def test_legacy_backup_migrates_without_rewriting_results_or_restarting_stopped_runs(self):
-        run_id = self.start()
-        self.worker.once()
-        exported = self.client.post("/api/exports", json={"format": "xlsx", "case_id": self.item["case_id"], "run_id": run_id}).json()
-        self.assertEqual(self.client.post(f"/api/exports/{exported['export_id']}/generate").status_code, 200)
-        with self.store.connect(write=True) as db:
-            db.execute("ALTER TABLE cases ADD COLUMN consent_json TEXT")
-            db.execute("UPDATE cases SET consent_json=?", ('{"external_ai":false}',))
-            db.execute("UPDATE runs SET status='stopped'")
-            db.execute("PRAGMA user_version=2")
-            self.store.audit(db, "operator", self.item["case_id"], "access.state", {"consent": {"external_ai": False}, "deletion_requested": False})
-            runs = [dict(r) for r in db.execute("SELECT * FROM runs")]
-            steps = [dict(r) for r in db.execute("SELECT * FROM steps")]
-            refs = maintenance.references(self.store, db)
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            maintenance.backup(self.store, root / "backup", "admin")
-            maintenance.restore(self.store, root / "backup", root / "restored")
-            restored = Store(root / "restored")
-            with restored.connect() as db:
-                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 4)
-                self.assertEqual([dict(r) for r in db.execute("SELECT * FROM runs")], runs)
-                self.assertEqual([dict(r) for r in db.execute("SELECT * FROM steps")], steps)
-                self.assertEqual(maintenance.references(restored, db), refs)
-                self.assertNotIn("consent_json", {r[1] for r in db.execute("PRAGMA table_info(cases)")})
-            client = TestClient(create_app(restored.root), base_url="http://127.0.0.1:8000", headers={"X-KDOG-Request": "1"})
-            self.addCleanup(client.close)
-            client.post("/api/auth/login", json={"username": "operator", "password": "Synthetic-test-only-42"})
-            self.assertEqual(client.get(f"/api/exports/{exported['export_id']}/file").status_code, 200)
-            result = client.get(self.base + "/analysis").json()["runs"][0]
-            self.assertEqual(result["status"], "stopped")
-            self.assertIsNotNone(result["scores"])
 
     def test_backup_corruption_and_path_traversal_rejected_before_destination_creation(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -352,57 +245,6 @@ class SettingsTests(unittest.TestCase):
             maintenance.restore(self.store, root / "backup", root / "recovered")
             recovered = Store(root / "recovered")
             self.assertEqual(maintenance.deletion_records(recovered), {("OLDER", "9999"), ("NEW", "8888")})
-
-    def test_cold_review_corrupt_active_settings_cannot_hide_old_results(self):
-        version = self.draft()
-        self.activate(version)
-        self.login("operator")
-        run_id = self.start()
-        self.worker.once()
-        self.store.path(f"settings/{version}.json").write_text("{}")
-        self.assertEqual(self.view()["status"], "scored")
-        self.assertEqual(self.client.get(f"{self.base}/reports/{run_id}").status_code, 200)
-
-    def test_actual_worker_exit_between_file_and_db_recovers_from_backup_without_recall(self):
-        run_id = self.start()
-        script = '''
-import os, sys
-from pathlib import Path
-from app.storage import Store
-from app.worker import Worker
-import app.worker as module
-from app.maintenance import runtime_lock
-from tests.test_observation import FakeObserver, fake_probe
-from tests.evaluation_fixtures import FakeEvaluator
-from tests.report_fixtures import FakeReporter
-store = Store(Path(sys.argv[1]))
-original = module.adopt
-def interrupted(store, row, step, *args):
-    with store.connect() as db:
-        stage = db.execute('SELECT stage FROM steps WHERE step_id=?', (step['step_id'],)).fetchone()[0]
-    if stage == 'observe':
-        os._exit(91)
-    return original(store, row, step, *args)
-module.adopt = interrupted
-with runtime_lock(store, 'worker'):
-    Worker(store, observer=FakeObserver(), evaluator=FakeEvaluator(), reporter=FakeReporter(), probe=fake_probe).once()
-'''
-        result = subprocess.run([sys.executable, "-X", "utf8", "-c", script, str(self.store.root)],
-            cwd=Path(__file__).resolve().parents[1], capture_output=True, timeout=30,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        self.assertEqual(result.returncode, 91, result.stderr.decode())
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            maintenance.backup(self.store, root / "backup", "admin")
-            maintenance.restore(self.store, root / "backup", root / "recovered")
-            recovered = Store(root / "recovered")
-            observer = observation.FakeObserver()
-            worker = Worker(recovered, observer=observer, evaluator=FakeEvaluator(), reporter=FakeReporter(), probe=observation.fake_probe)
-            self.assertTrue(worker.once())
-            self.assertEqual(len(observer.calls), 1)
-            with recovered.connect() as db:
-                self.assertEqual(db.execute("SELECT status FROM runs WHERE run_id=?", (run_id,)).fetchone()[0], "scored")
-                self.assertEqual(db.execute("SELECT COUNT(*) FROM steps WHERE stage='observe' AND attempt=1 AND status='succeeded'").fetchone()[0], 2)
 
     def test_provider_echoes_are_redacted_even_in_json_escapes_and_request_headers(self):
         from app.gemini import request, BASE

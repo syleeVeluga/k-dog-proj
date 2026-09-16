@@ -1,96 +1,38 @@
-"""M1 integration checks use synthetic bytes, never claim media/AI validation."""
+"""Intake API (intake-2.0): 28-item survey, several video files, session notes, migration from intake-1.0 and the frozen pipeline."""
 
 from io import BytesIO
-from contextlib import contextmanager
 import hashlib
 import json
 import os
-from pathlib import Path
 import socket
 import sqlite3
 import subprocess
 import sys
-import tempfile
 import time
-import unittest
+from contextlib import contextmanager
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient
 import httpx
 from openpyxl import Workbook
 
+from app.analysis import FROZEN, session_snapshot
 from app.api import create_app
-from app.auth import create_user
-from app.input_models import UserCreate
+from app.domain.catalog import SURVEY_IDS
 from app.intake import headers
 from app.storage import REPO_ROOT, Store
+from tests.support import AppCase, PASSWORD
 
 
-PASSWORD = "Synthetic-password-only-42"
-ORIGIN = "http://127.0.0.1:8000"
-
-
-class IntakeTests(unittest.TestCase):
-    def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix="kdog-test-")
-        self.root = Path(self.temp.name)
-        self.app = create_app(self.root)
-        self.store = self.app.state.store
-        with self.store.connect(write=True) as db:
-            for role in ("admin", "operator", "reviewer", "developer"):
-                create_user(db, UserCreate(username=role, password=PASSWORD, role=role))
-        self.client = self.client_for("operator")
-        self.version = self.client.get("/api/catalog/survey").json()["version"]
-
-    def tearDown(self):
-        self.client.close()
-        self.temp.cleanup()
-
-    def client_for(self, role=None):
-        client = TestClient(self.app, base_url=ORIGIN, headers={"X-KDOG-Request": "1"})
-        self.addCleanup(client.close)
-        if role:
-            result = client.post("/api/auth/login", json={"username": role, "password": PASSWORD})
-            self.assertEqual(result.status_code, 200, result.text)
-        return client
-
-    def make_case(self, participant_id="0001", event_id="TEST", dog_name="가상견"):
-        response = self.client.post("/api/cases", json={"participant_id": participant_id,
-                                    "event_id": event_id, "dog_name": dog_name})
-        self.assertEqual(response.status_code, 201, response.text)
-        return response.json()
-
-    def get_case(self, item):
-        return self.client.get(f"/api/cases/{item['case_id']}").json()
-
-    def delete_case(self, item):
-        response = self.client.post(f"/api/cases/{item['case_id']}/deletion", json={
-            "expected_revision": item["input_revision"],
-        })
-        self.assertEqual(response.status_code, 200, response.text)
-
-    def upload(self, item, data=b"synthetic-video-one", camera="CAM-1", name="source.mp4"):
-        return self.client.post(f"/api/cases/{item['case_id']}/videos", content=data, params={
-            "session_id": item["selected_session_id"], "camera_id": camera,
-            "filename": name, "expected_revision": item["input_revision"],
-        })
-
-    def answers(self, item, value=3):
-        return {"expected_revision": item["input_revision"], "session_id": item["selected_session_id"],
-                "survey_version": self.version, "answers": {f"q{i:02}": value for i in range(1, 31)}}
-
-    def test_m1_restart_preserves_one_case_two_files_and_survey(self):
+class IntakeTests(AppCase):
+    def test_restart_preserves_one_case_several_files_and_survey(self):
         item = self.make_case()
-        with tempfile.TemporaryDirectory(prefix="kdog-source-") as source_dir:
-            for i in range(1, 3):
-                source = Path(source_dir) / f"camera{i}.mp4"
-                source.write_bytes(f"synthetic camera {i}".encode())
-                response = self.upload(item, source.read_bytes(), f"CAM-{i}", source.name)
-                self.assertEqual(response.status_code, 201, response.text)
-                item = response.json()
-        payload = self.answers(item)
-        payload["answers"]["q23"] = 5
-        payload["answers"]["q02"] = None
+        for index in range(1, 4):
+            response = self.upload(item, f"synthetic file {index}".encode(), f"file{index}.mp4")
+            self.assertEqual(response.status_code, 201, response.text)
+            item = response.json()
+        payload = self.answers(item, not_applicable=("s07", "s09"))
+        payload["answers"]["s23"] = 5
+        payload["answers"]["s02"] = None
         response = self.client.put(f"/api/cases/{item['case_id']}/survey", json=payload)
         self.assertEqual(response.status_code, 200, response.text)
         saved = response.json()
@@ -99,15 +41,45 @@ class IntakeTests(unittest.TestCase):
         self.client = self.client_for("operator")
         restored = self.get_case(item)
         self.assertEqual(restored, saved)
-        self.assertEqual(restored["participant_id"], "0001")
         session = restored["manifest"]["sessions"][0]
-        self.assertEqual((session["survey"]["q23"], session["survey"]["q02"]), (5, None))
-        self.assertEqual(len(session["videos"]), 2)
+        self.assertEqual(restored["manifest"]["schema_version"], "intake-2.0")
+        self.assertEqual((session["survey"]["s23"], session["survey"]["s02"], session["survey"]["s07"]), (5, None, None))
+        self.assertEqual(session["survey_not_applicable"], ["s07", "s09"])
+        self.assertEqual(session["survey_version"], "catalog-20260913-v2")
+        self.assertEqual(len(session["videos"]), 3)
         for video in session["videos"]:
             response = self.client.get(f"/api/cases/{item['case_id']}/videos/{video['video_id']}")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(hashlib.sha256(response.content).hexdigest(), video["sha256"])
-            self.assertEqual(video["media_status"], "pending_probe")
+
+    def test_survey_strict_validation_not_applicable_and_idempotent_save(self):
+        item = self.make_case()
+        path = f"/api/cases/{item['case_id']}/survey"
+        for invalid in (0, 6, True, "3", 3.5):
+            payload = self.answers(item)
+            payload["answers"]["s23"] = invalid
+            self.assertEqual(self.client.put(path, json=payload).status_code, 422, invalid)
+        payload = self.answers(item)
+        payload["answers"].pop("s28")
+        self.assertEqual(self.client.put(path, json=payload).status_code, 422)
+        payload = self.answers(item)
+        payload["answers"]["q01"] = 4
+        self.assertEqual(self.client.put(path, json=payload).status_code, 422)
+        payload = self.answers(item)
+        payload["survey_version"] = "catalog-20260904-v1"
+        self.assertEqual(self.client.put(path, json=payload).status_code, 422)
+        # 해당 없음 is a missing value: only items 7-9 offer it, and the answer must stay blank.
+        self.assertEqual(self.client.put(path, json=self.answers(item, not_applicable=("s10",))).status_code, 422)
+        answered = self.answers(item, not_applicable=("s08",))
+        answered["answers"]["s08"] = 3
+        self.assertEqual(self.client.put(path, json=answered).status_code, 422)
+        duplicate = self.answers(item, not_applicable=("s08",))
+        duplicate["not_applicable"] = ["s08", "s08"]
+        self.assertEqual(self.client.put(path, json=duplicate).status_code, 422)
+        saved = self.client.put(path, json=self.answers(item, not_applicable=("s08",))).json()
+        again = self.client.put(path, json=self.answers(saved, not_applicable=("s08",))).json()
+        self.assertEqual(saved, again)
+        self.assertEqual(saved["manifest"]["sessions"][0]["survey_not_applicable"], ["s08"])
 
     def test_ids_duplicate_names_and_cross_case_video_access(self):
         first = self.make_case()
@@ -119,45 +91,33 @@ class IntakeTests(unittest.TestCase):
         video = uploaded["manifest"]["sessions"][0]["videos"][0]
         self.assertEqual(self.client.get(f"/api/cases/{second['case_id']}/videos/{video['video_id']}").status_code, 404)
 
-    def test_retake_and_old_revision_are_isolated(self):
+    def test_retake_session_note_and_old_revision_are_isolated(self):
         first = self.make_case()
         first = self.upload(first).json()
         with self.store.connect() as db:
             row = self.store.case(db, first["case_id"])
             old_path = self.store.path(row["manifest_ref"])
             old_bytes = old_path.read_bytes()
+        noted = self.client.put(f"/api/cases/{first['case_id']}/sessions/{first['selected_session_id']}",
+                                json={"expected_revision": first["input_revision"], "note": "마이크 늦게 켬"})
+        self.assertEqual(noted.status_code, 200, noted.text)
+        self.assertEqual(noted.json()["manifest"]["sessions"][0]["note"], "마이크 늦게 켬")
+        for stale in ({"capture_mode": "sequential"}, {"checklist": {"entry": "performed"}}, {"route_note": "x"}):
+            self.assertEqual(self.client.put(f"/api/cases/{first['case_id']}/sessions/{first['selected_session_id']}",
+                                             json={"expected_revision": noted.json()["input_revision"], "note": "", **stale}).status_code, 422)
         second = self.client.post(f"/api/cases/{first['case_id']}/sessions", json={
-            "expected_revision": first["input_revision"], "capture_mode": "sequential", "route_note": "가상 재촬영",
+            "expected_revision": noted.json()["input_revision"], "note": "가상 재촬영",
         }).json()
         self.assertNotEqual(first["selected_session_id"], second["selected_session_id"])
         self.assertEqual(len(second["manifest"]["sessions"][0]["videos"]), 1)
         self.assertEqual(second["manifest"]["sessions"][1]["videos"], [])
+        self.assertEqual(second["manifest"]["sessions"][1]["note"], "가상 재촬영")
         self.assertEqual(self.upload(first).status_code, 409)
         stale_session = self.answers(second)
         stale_session["session_id"] = first["selected_session_id"]
         self.assertEqual(self.client.put(f"/api/cases/{first['case_id']}/survey", json=stale_session).status_code, 409)
         self.assertEqual(old_path.read_bytes(), old_bytes)
         self.assertIsNone(second["manifest"]["display_run_id"])
-
-    def test_survey_strict_validation_and_idempotent_save(self):
-        item = self.make_case()
-        path = f"/api/cases/{item['case_id']}/survey"
-        for invalid in (0, 6, True, "3", 3.5):
-            payload = self.answers(item)
-            payload["answers"]["q23"] = invalid
-            self.assertEqual(self.client.put(path, json=payload).status_code, 422)
-        payload = self.answers(item)
-        payload["answers"].pop("q30")
-        self.assertEqual(self.client.put(path, json=payload).status_code, 422)
-        payload = self.answers(item)
-        payload["answers"]["q31"] = 4
-        self.assertEqual(self.client.put(path, json=payload).status_code, 422)
-        payload = self.answers(item)
-        payload["survey_version"] = "invented"
-        self.assertEqual(self.client.put(path, json=payload).status_code, 422)
-        saved = self.client.put(path, json=self.answers(item)).json()
-        again = self.client.put(path, json=self.answers(saved)).json()
-        self.assertEqual(saved, again)
 
     def test_auth_roles_csrf_host_and_revocation(self):
         anonymous = self.client_for()
@@ -198,9 +158,8 @@ class IntakeTests(unittest.TestCase):
         invalid = client.post("/api/auth/login", json={"username": "operator", "password": {"secret": PASSWORD}})
         self.assertNotIn(PASSWORD, invalid.text)
 
-    def test_registration_without_consent_and_deletion_block_files_after_restart(self):
+    def test_deletion_blocks_files_after_restart_and_upload_rechecks_at_commit(self):
         item = self.make_case()
-        self.assertNotIn("consent", item)
         item = self.upload(item).json()
         video = item["manifest"]["sessions"][0]["videos"][0]
         path = f"/api/cases/{item['case_id']}/videos/{video['video_id']}"
@@ -212,65 +171,23 @@ class IntakeTests(unittest.TestCase):
         self.assertEqual(self.upload(item).status_code, 403)
         self.assertEqual(self.client.get("/api/cases").json(), [])
         self.assertEqual(self.client.get(f"/api/cases/{item['case_id']}").status_code, 403)
+        other = self.make_case("0002")
 
-    def test_upload_rechecks_deletion_at_commit(self):
-        item = self.make_case()
         def body():
             yield b"synthetic prefix"
-            self.delete_case(item)
+            self.delete_case(other)
             yield b"synthetic suffix"
-        self.assertEqual(self.upload(item, body()).status_code, 403)
-        self.assertEqual(list((self.root / "videos").iterdir()), [])
+        self.assertEqual(self.upload(other, body()).status_code, 403)
+        self.assertEqual(len(list((self.root / "videos").iterdir())), 1)
 
-    def test_deletion_requires_writer_current_revision_and_has_no_consent_contract(self):
+    def test_deletion_requires_writer_and_current_revision(self):
         item = self.make_case()
         path = f"/api/cases/{item['case_id']}/deletion"
         for role in ("reviewer", "developer"):
             self.assertEqual(self.client_for(role).post(path, json={"expected_revision": 1}).status_code, 403)
         self.assertEqual(self.client.post(path, json={"expected_revision": 2}).status_code, 409)
-        self.assertEqual(self.client.post(path, json={"expected_revision": 1, "consent": {}}).status_code, 422)
-        schema = self.app.openapi()
-        self.assertNotIn("Consent", schema["components"]["schemas"])
-        self.assertNotIn("/api/cases/{case_id}/access", schema["paths"])
-        self.assertNotIn("consent", schema["components"]["schemas"]["CaseView"]["properties"])
         self.delete_case(item)
         self.assertEqual(self.client.post(path, json={"expected_revision": 1}).status_code, 403)
-
-    def test_legacy_migration_removes_consent_preserves_inputs_and_rolls_back_on_failure(self):
-        items = [self.make_case(participant_id=f"{i:04}") for i in range(3)]
-        with self.store.connect(write=True) as db:
-            before = [dict(row) for row in db.execute("SELECT * FROM cases ORDER BY participant_id")]
-            db.execute("ALTER TABLE cases ADD COLUMN consent_json TEXT")
-            for index, (item, value) in enumerate(zip(items, (None, {"video_analysis": False}, {"video_analysis": True}))):
-                db.execute("UPDATE cases SET consent_json=? WHERE case_id=?", (json.dumps(value) if value else None, item["case_id"]))
-                self.store.audit(db, "operator", item["case_id"], "access.state", {"consent": value, "deletion_requested": index == 2})
-            db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (items[2]["case_id"],))
-            db.execute("PRAGMA user_version=2")
-            db.execute("CREATE TRIGGER fail_migration BEFORE UPDATE ON changes BEGIN SELECT RAISE(ABORT,'synthetic migration failure'); END")
-        with self.assertRaises(sqlite3.IntegrityError):
-            Store(self.root)
-        with self.store.connect(write=True) as db:
-            self.assertIn("consent_json", {r[1] for r in db.execute("PRAGMA table_info(cases)")})
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 2)
-            db.execute("DROP TRIGGER fail_migration")
-        for _ in range(2):
-            migrated = Store(self.root)
-            with migrated.connect() as db:
-                self.assertNotIn("consent_json", {r[1] for r in db.execute("PRAGMA table_info(cases)")})
-                self.assertNotIn("lease_expires_at", {r[1] for r in db.execute("PRAGMA table_info(steps)")})
-                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 4)
-                after = [dict(row) for row in db.execute("SELECT * FROM cases ORDER BY participant_id")]
-                before[2]["deletion_requested"] = 1
-                self.assertEqual(after, before)
-                details = [json.loads(r[0]) for r in db.execute("SELECT detail_json FROM changes WHERE action='access.state'")]
-                self.assertEqual(details, [{"deletion_requested": i == 2} for i in range(3)])
-                self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
-                self.assertEqual(db.execute("PRAGMA foreign_key_check").fetchall(), [])
-            for item in items[:2]:
-                self.assertNotIn("consent", self.get_case(item))
-            self.assertEqual(self.client.get(f"/api/cases/{items[2]['case_id']}").status_code, 403)
-        for item in items[:2]:
-            self.assertEqual(self.upload(item).status_code, 201)
 
     def test_empty_duplicate_and_failed_upload_never_register(self):
         item = self.make_case()
@@ -285,6 +202,12 @@ class IntakeTests(unittest.TestCase):
         self.assertEqual(len(list((self.root / "videos").iterdir())), 1)
         self.assertEqual(self.get_case(item), item)
 
+    def test_video_same_size_corruption_detected(self):
+        item = self.upload(self.make_case()).json()
+        video = item["manifest"]["sessions"][0]["videos"][0]
+        self.store.path(video["storage_ref"]).write_bytes(b"X" * video["size_bytes"])
+        self.assertEqual(self.client.get(f"/api/cases/{item['case_id']}/videos/{video['video_id']}").status_code, 409)
+
     def test_import_preview_errors_normal_rows_and_stale_commit(self):
         data = b"event_id,participant_id,dog_name,reservation_at\nTEST,0001,Synthetic,\nTEST,0001,Duplicate,\nTEST,0002,Other,\n"
         result = self.client.post("/api/imports/preview?kind=participants&format=csv", content=data).json()
@@ -295,15 +218,23 @@ class IntakeTests(unittest.TestCase):
         self.assertEqual(len(self.client.get("/api/cases").json()), 2)
         self.assertEqual(self.client.post("/api/imports/commit", json={"rows": result["rows"]}).status_code, 409)
         columns = headers("survey")
-        data = (",".join(reversed(columns)) + "\n" + ",".join(reversed(["TEST", "0001", self.version, *(["5"] * 30)])) + "\n").encode()
+        self.assertEqual(columns[3:], list(SURVEY_IDS))
+        values = ["TEST", "0001", self.version, *(["5"] * 6), "NA", "", "해당 없음", *(["4"] * 19)]
+        data = (",".join(reversed(columns)) + "\n" + ",".join(reversed(values)) + "\n").encode()
         result = self.client.post("/api/imports/preview?kind=survey&format=csv", content=data).json()
         self.assertEqual(result["errors"], [])
         row = result["rows"][0]
+        self.assertEqual(row["survey"]["not_applicable"], ["s07", "s09"])
+        self.assertEqual((row["survey"]["answers"]["s07"], row["survey"]["answers"]["s08"], row["survey"]["answers"]["s28"]), (None, None, 4))
+        self.assertEqual(len(row["changed_questions"]), 27)
+        self.assertEqual(self.client.post("/api/imports/commit", json={"rows": result["rows"]}).status_code, 200)
+        saved = self.client.get(f"/api/cases/{row['case_id']}").json()["manifest"]["sessions"][0]
+        self.assertEqual((saved["survey"]["s01"], saved["survey_not_applicable"]), (5, ["s07", "s09"]))
         item = self.client.get(f"/api/cases/{row['case_id']}").json()
         self.client.put(f"/api/cases/{row['case_id']}/survey", json=self.answers(item))
         self.assertEqual(self.client.post("/api/imports/commit", json={"rows": result["rows"]}).status_code, 409)
 
-    def test_xlsx_numeric_ids_formulas_and_bad_headers(self):
+    def test_xlsx_numeric_ids_formulas_bad_headers_and_misplaced_na(self):
         workbook = Workbook()
         sheet = workbook.active
         sheet.append(headers("participants"))
@@ -317,11 +248,18 @@ class IntakeTests(unittest.TestCase):
         self.assertEqual(result["rows"][0]["participant"]["participant_id"], "0002")
         self.assertIn("participant_id", result["errors"][0])
         self.make_case()
-        for raw in ("=1+1", "6", "True"):
-            data = (",".join(headers("survey")) + "\n" + ",".join(["TEST", "0001", self.version, raw, *([""] * 29)])).encode()
+        for raw in ("=1+1", "6", "True", "NA"):
+            data = (",".join(headers("survey")) + "\n" + ",".join(["TEST", "0001", self.version, raw, *([""] * 27)])).encode()
             result = self.client.post("/api/imports/preview?kind=survey&format=csv", content=data).json()
-            self.assertIn("q01", result["errors"][0])
-        self.assertEqual(self.client.post("/api/imports/preview?kind=survey&format=csv", content=b"q31\n1").status_code, 422)
+            self.assertIn("s01", result["errors"][0], raw)
+        self.assertEqual(self.client.post("/api/imports/preview?kind=survey&format=csv", content=b"q01\n1").status_code, 422)
+        mapped = json.dumps({"columns": {"event_id": "행사", "participant_id": "번호", "dog_name": "이름"}})
+        response = self.client.post("/api/imports/preview", params={"kind": "participants", "format": "csv", "mapping": mapped},
+                                    content="행사,번호,이름\nMAPPING,0007,가상견\n".encode("utf-8"))
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["rows"][0]["participant_id"], "0007")
+        self.assertEqual(self.client.post("/api/imports/preview", params={"kind": "survey", "format": "csv", "mapping": json.dumps({"horizontal": {"F": "x"}})},
+                                          content=b"a").status_code, 422)
         for format in ("csv", "xlsx"):
             self.assertEqual(self.client.get(f"/api/templates/survey?format={format}").status_code, 200)
 
@@ -332,6 +270,7 @@ class IntakeTests(unittest.TestCase):
             self.assertEqual(tables, {"users", "cases", "runs", "steps", "changes"})
             self.assertEqual(db.execute("PRAGMA foreign_keys").fetchone()[0], 1)
             self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0], "wal")
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 5)
             db.execute("INSERT INTO runs(run_id,case_id,session_id,input_revision,input_snapshot_json,"
                        "config_snapshot_json,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
                        ("run-1", item["case_id"], item["selected_session_id"], 1, "{}", "{}", "queued", "now", "now"))
@@ -346,31 +285,78 @@ class IntakeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             create_app(self.root, public_origin="http://192.168.0.1:8000")
 
-    def test_standard_import_more_than_twenty_and_atomic_conflict(self):
-        text = ",".join(headers("participants")) + "\n"
-        text += "\n".join(f"TEST,{i:04},Synthetic-{i}," for i in range(1, 22))
-        result = self.client.post("/api/imports/preview?kind=participants&format=csv", content=text.encode()).json()
-        self.assertEqual(len(result["rows"]), 21)
-        self.make_case("0021")
-        self.assertEqual(self.client.post("/api/imports/commit", json={"rows": result["rows"]}).status_code, 409)
-        self.assertEqual(len(self.client.get("/api/cases").json()), 1)
-        result = self.client.post("/api/imports/preview?kind=participants&format=csv", content=text.encode()).json()
-        self.assertEqual(len(result["rows"]), 20)
-        self.assertEqual(self.client.post("/api/imports/commit", json={"rows": result["rows"]}).status_code, 200)
-        self.assertEqual(len(self.client.get("/api/cases").json()), 21)
+    def legacy_manifest(self, item, answers):
+        return {"schema_version": "intake-1.0", "case_id": item["case_id"], "event_id": item["event_id"],
+                "participant_id": item["participant_id"], "input_revision": item["input_revision"],
+                "selected_session_id": item["selected_session_id"], "display_run_id": None,
+                "sessions": [{"session_id": item["selected_session_id"], "capture_mode": "sequential", "route_note": "옛 동선 메모",
+                              "survey_version": "catalog-20260904-v1", "survey": answers,
+                              "videos": [{**v, "camera_id": "CAM-1"} for v in item["manifest"]["sessions"][0]["videos"]],
+                              "checklist": {"entry": "performed", "training": "skipped"}}]}
 
-    def test_video_same_size_corruption_and_session_metadata(self):
-        item = self.make_case()
-        response = self.client.put(f"/api/cases/{item['case_id']}/sessions/{item['selected_session_id']}", json={
-            "expected_revision": item["input_revision"], "capture_mode": "simultaneous", "route_note": "가상 동선 기록",
-        })
-        self.assertEqual(response.status_code, 200)
-        item = self.upload(response.json()).json()
-        session = item["manifest"]["sessions"][0]
-        self.assertEqual(session["capture_mode"], "simultaneous")
-        video = session["videos"][0]
-        self.store.path(video["storage_ref"]).write_bytes(b"X" * video["size_bytes"])
-        self.assertEqual(self.client.get(f"/api/cases/{item['case_id']}/videos/{video['video_id']}").status_code, 409)
+    def test_intake_1_0_manifests_migrate_once_and_old_run_snapshots_stay_readable(self):
+        item = self.upload(self.make_case()).json()
+        answers = {f"q{i:02}": None for i in range(1, 31)}
+        answers.update(q01=5, q07=2, q09=4, q13=1, q14=3, q22=2, q25=5, q26=1, q30=4)
+        legacy = self.legacy_manifest(item, answers)
+        raw = json.dumps(legacy, ensure_ascii=False).encode("utf-8")
+        with self.store.connect(write=True) as db:
+            row = self.store.case(db, item["case_id"])
+            key = f"inputs/{item['case_id']}-legacy.json"
+            self.store.path(key).write_bytes(raw)
+            db.execute("UPDATE cases SET manifest_ref=?, manifest_hash=? WHERE case_id=?", (key, hashlib.sha256(raw).hexdigest(), item["case_id"]))
+            db.execute("INSERT INTO runs(run_id,case_id,session_id,input_revision,input_snapshot_json,config_snapshot_json,status,created_at,updated_at) "
+                       "VALUES (?,?,?,?,?,?,?,?,?)", ("legacy-run", item["case_id"], item["selected_session_id"], row["input_revision"],
+                                                    raw.decode("utf-8"), "{}", "scored", "now", "now"))
+            db.execute("PRAGMA user_version=4")
+        for _ in range(2):
+            migrated = Store(self.root)
+            with migrated.connect() as db:
+                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 5)
+                row = migrated.case(db, item["case_id"])
+                manifest = migrated.manifest(row)
+                run = db.execute("SELECT * FROM runs WHERE run_id='legacy-run'").fetchone()
+            self.assertEqual(row["input_revision"], item["input_revision"] + 1)
+            session = manifest.sessions[0]
+            self.assertEqual((session.survey["s01"], session.survey["s10"], session.survey["s14"], session.survey["s22"], session.survey["s26"]), (5, 4, 1, 2, 1))
+            self.assertIsNone(session.survey["s07"])  # new item without an old counterpart stays blank
+            self.assertEqual(session.survey_not_applicable, [])
+            self.assertEqual(session.survey_version, "catalog-20260913-v2")
+            self.assertEqual(session.note, "옛 동선 메모 · 순차 촬영")
+            self.assertEqual(len(session.videos), 1)
+            self.assertEqual(session.videos[0].original_name, "source.mp4")
+            self.assertIn("q07", manifest.migration_note)
+            self.assertIn("q25", manifest.migration_note)
+            self.assertIn("q30", manifest.migration_note)
+            self.assertNotIn("q13", manifest.migration_note)
+            self.assertEqual(json.loads(run["input_snapshot_json"]), legacy)
+            _, old_session = session_snapshot(run)
+            self.assertEqual(old_session.survey["q25"], 5)
+            self.assertEqual(old_session.checklist["entry"], "performed")
+        self.assertTrue(self.store.path(key).exists())
+        self.app = create_app(self.root)
+        self.client = self.client_for("operator")
+        view = self.get_case(item)
+        self.assertEqual(view["manifest"]["schema_version"], "intake-2.0")
+        self.assertEqual(self.client.put(f"/api/cases/{item['case_id']}/survey", json=self.answers(view)).status_code, 200)
+
+    def test_frozen_pipeline_refuses_new_runs_exports_and_reports_but_keeps_reads(self):
+        item = self.upload(self.make_case()).json()
+        base = f"/api/cases/{item['case_id']}"
+        response = self.client.post(f"{base}/analysis", json={"expected_revision": item["input_revision"]})
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["detail"], FROZEN)
+        self.assertEqual(self.client.post("/api/exports", json={"format": "xlsx", "case_id": item["case_id"]}).status_code, 409)
+        self.assertEqual(self.client.post("/api/exports/preview", json={"format": "xlsx", "case_id": item["case_id"]}).status_code, 409)
+        self.assertEqual(self.client.get(f"{base}/analysis").json()["runs"], [])
+        self.assertEqual(self.client.get("/api/exports").json(), [])
+        with self.store.connect(write=True) as db:
+            db.execute("INSERT INTO runs(run_id,case_id,session_id,input_revision,input_snapshot_json,config_snapshot_json,status,created_at,updated_at) "
+                       "VALUES (?,?,?,?,?,?,?,?,?)", ("old-run", item["case_id"], item["selected_session_id"], 1, "{}", "{}", "failed", "now", "now"))
+        self.assertEqual(self.client.post(f"{base}/analysis/old-run/retry").status_code, 409)
+        self.assertEqual(self.client.post(f"{base}/reports/old-run/generate").status_code, 409)
+        with self.store.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM runs").fetchone()[0], 1)
 
     def test_server_process_restart_restores_registered_inputs(self):
         with socket.socket() as listener:
@@ -410,8 +396,8 @@ class IntakeTests(unittest.TestCase):
             with server() as client:
                 self.client = client
                 item = self.make_case()
-                for camera in (1, 2):
-                    response = self.upload(item, f"process synthetic {camera}".encode(), f"CAM-{camera}")
+                for index in (1, 2):
+                    response = self.upload(item, f"process synthetic {index}".encode(), f"process{index}.mp4")
                     self.assertEqual(response.status_code, 201, response.text)
                     item = response.json()
                 response = self.client.put(f"/api/cases/{item['case_id']}/survey", json=self.answers(item, 4))
@@ -428,4 +414,5 @@ class IntakeTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    import unittest
     unittest.main()

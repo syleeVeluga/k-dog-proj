@@ -18,11 +18,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import Field, SecretStr
 
 from app.auth import authenticate, check_password, create_user, password_hash, token_hash, user_view
-from app.analysis import check_access, control, enqueue, step_payload, validated_prepared, view_analysis
-from app.legacy.contracts_v1 import SurveyCatalog
+from app.analysis import FROZEN, check_access, control, step_payload, validated_prepared, view_analysis
+from app.domain.catalog import SurveyCatalog
 from app.input_models import (
-    CaseCreate, CaseEdit, CaseView, ImportColumns, ImportCommit, ImportMapping, ImportPreview, Key, Login, Message, Revision,
-    SessionEdit, SessionMetadata, StoredVideo, SurveyEdit, UserCreate, UserEdit, UserView,
+    CaseCreate, CaseEdit, CaseView, ImportColumns, ImportCommit, ImportMapping, ImportPreview, Key, Login, Message,
+    Revision, SessionEdit, SessionMetadata, StoredVideo, SurveyEdit, UserCreate, UserEdit, UserView,
 )
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
@@ -51,7 +51,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     if origin.hostname not in ("127.0.0.1", "localhost", "::1") and origin.scheme != "https":
         raise ValueError("내부망 접속은 HTTPS origin과 TLS 프록시가 필요합니다.")
     store = Store(data_dir or DEFAULT_DATA)
-    catalog = SurveyCatalog.model_validate_json((REPO_ROOT / "resources/catalogs/survey-v1.json").read_bytes())
+    catalog = SurveyCatalog.model_validate_json((REPO_ROOT / "resources/catalogs/survey-v2.json").read_bytes())
     dummy_password = password_hash(secrets.token_urlsafe(32))
     @asynccontextmanager
     async def lifespan(app):
@@ -188,23 +188,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
 
     @app.post("/api/cases/{case_id}/reports/{run_id}/generate", response_model=Message)
     def request_report(case_id: Key, run_id: Key, user=Depends(reader)):
-        with store.connect(write=True) as db:
-            row = reporting.run_row(store, db, case_id, run_id)
-            if "report" not in json.loads(row["config_snapshot_json"]):
-                raise HTTPException(409, "M4 설명 설정이 없는 이전 실행입니다. 관찰·평가를 재사용한 새 분석을 시작하세요.")
-            view = reporting.report_view(store, db, row)
-            if len(view.result["evaluations"]) != 2:
-                raise HTTPException(409, "두 평가 분기가 준비된 후 설명을 생성하세요.")
-            if row["status"] in ("queued", "running", "retry_wait"):
-                return Message(message="실행이 처리 중입니다.")
-            if view.status in ("ready", "manual"):
-                return Message(message="현재 점수에 맞는 설명이 준비되어 있습니다.")
-            steps = db.execute("SELECT * FROM steps WHERE run_id=? AND stage='report' AND branch_key=?", (run_id, view.source_hash)).fetchall()
-            if len(steps) >= json.loads(row["config_snapshot_json"]).get("max_attempts", 3) or sum(json.loads(s["usage_json"]).get("code") == "evaluation_schema_invalid" for s in steps) >= 2:
-                raise HTTPException(409, "설명 시도 한도에 도달했습니다. 수동 설명 수정 또는 새 실행을 사용하세요.")
-            db.execute("UPDATE runs SET status='queued',claim_token=NULL,lease_expires_at=NULL WHERE run_id=?", (run_id,))
-            store.audit(db, user.username, run_id, "report.request", {"source_hash": view.source_hash})
-        return Message(message="설명 생성을 접수했습니다. 점수는 계속 조회할 수 있습니다.")
+        raise HTTPException(409, FROZEN)
 
     @app.put("/api/cases/{case_id}/reports/{run_id}/image", response_model=ReportView)
     def choose_frame(case_id: Key, run_id: Key, value: FrameEdit, user=Depends(reader)):
@@ -225,11 +209,11 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
 
     @app.post("/api/exports", response_model=ExportView, status_code=201)
     def create_export(value: ExportRequest, user=Depends(reader)):
-        return exports.export_view(exports.capture(store, value, user.username))
+        raise HTTPException(409, FROZEN)
 
     @app.post("/api/exports/preview", response_model=ExportView)
     def preview_export(value: ExportRequest, user=Depends(reader)):
-        return exports.export_view(exports.capture(store, value, user.username, persist=False), "preview")
+        raise HTTPException(409, FROZEN)
 
     @app.get("/api/exports", response_model=list[ExportView])
     def list_exports(case_id: Key | None = None, user=Depends(reader)):
@@ -395,7 +379,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.put("/api/cases/{case_id}/survey", response_model=CaseView)
     def survey(case_id: Key, value: SurveyEdit, user=Depends(writer)):
         with store.connect(write=True) as db:
-            save_survey(store, db, case_id, value, user.username, catalog.version)
+            save_survey(store, db, case_id, value, user.username, catalog)
             return store.view(store.case(db, case_id))
 
     @app.post("/api/cases/{case_id}/deletion", response_model=Message)
@@ -414,7 +398,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             row = store.case(db, case_id, expected=value.expected_revision)
             manifest = store.manifest(row)
             if value.session_id is None:
-                session = new_session(catalog.version, value.capture_mode, value.route_note)
+                session = new_session(catalog.version, value.note)
                 manifest.sessions.append(session)
                 manifest.selected_session_id = session.session_id
             else:
@@ -426,7 +410,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
 
     @app.post("/api/cases/{case_id}/videos", response_model=CaseView, status_code=201)
     async def upload_video(case_id: Key, request: Request,
-                           session_id: Key, camera_id: Key,
+                           session_id: Key,
                            filename: Annotated[str, Query(min_length=1, max_length=200)],
                            expected_revision: Annotated[int, Query(ge=1)], user=Depends(writer)):
         extension = Path(filename).suffix.lower()
@@ -460,7 +444,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 session = selected_session(manifest, session_id)
                 if any(video.sha256 == digest.hexdigest() for video in session.videos):
                     raise HTTPException(409, "이 촬영 세션에 동일한 파일이 이미 등록되어 있습니다.")
-                session.videos.append(StoredVideo(video_id=video_id, camera_id=camera_id,
+                session.videos.append(StoredVideo(video_id=video_id,
                                       original_name=filename, storage_ref=key,
                                       sha256=digest.hexdigest(), size_bytes=size))
                 store.save(db, row, manifest, user.username, "video.register")
@@ -495,10 +479,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             row = store.case(db, case_id, expected=value.expected_revision)
             manifest = store.manifest(row)
             session = selected_session(manifest, session_id)
-            session.capture_mode = value.capture_mode
-            session.route_note = value.route_note
-            if value.checklist is not None:
-                session.checklist = value.checklist
+            session.note = value.note
             store.save(db, row, manifest, user.username, "session.metadata")
             return store.view(store.case(db, case_id))
 
@@ -521,23 +502,16 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 layout = ImportMapping.model_validate_json(mapping) if mapping else None
             except ValidationError:
                 raise HTTPException(422, "열 연결 형식을 확인하세요.") from None
-            return preview(store, db, bytes(data), kind, format, catalog.version, layout)
+            return preview(store, db, bytes(data), kind, format, catalog, layout)
 
     @app.post("/api/imports/columns", response_model=ImportColumns)
-    async def import_columns(request: Request, format: Literal["csv", "xlsx"], sheet: str | None = None,
-                             horizontal: bool = False, user=Depends(writer)):
-        from openpyxl.utils.cell import get_column_letter
+    async def import_columns(request: Request, format: Literal["csv", "xlsx"], sheet: str | None = None, user=Depends(writer)):
         data = bytearray()
         async for chunk in request.stream():
             data.extend(chunk)
             if len(data) > 8 * 1024 * 1024:
                 raise HTTPException(413, "입력 파일은 8 MiB 이하로 나누어 등록하세요.")
         rows = read_rows(bytes(data), format, sheet)
-        if horizontal:
-            if len(rows) < 35:
-                raise HTTPException(422, "원본 설문 데이터입력 시트를 확인하세요.")
-            return {"columns": [{"key": get_column_letter(i + 1), "label": str(rows[4][i] or "이름 없음")} for i in range(5, len(rows[4]))
-                if any(i < len(row) and row[i] not in (None, "") for row in rows[5:35])]}
         return {"columns": [{"key": str(value), "label": str(value)} for value in (rows[0] if rows else []) if value is not None]}
 
     @app.post("/api/imports/commit", response_model=Message)
@@ -552,7 +526,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                     current_case = store.case(db, row.case_id)
                     if (row.event_id, row.participant_id) != (current_case["event_id"], current_case["participant_id"]):
                         raise HTTPException(422, "미리보기 참가자 연결이 일치하지 않습니다.")
-                    save_survey(store, db, row.case_id, row.survey, user.username, catalog.version)
+                    save_survey(store, db, row.case_id, row.survey, user.username, catalog)
                 else:
                     raise HTTPException(422, "참가자 또는 설문 행을 올바르게 지정하세요.")
         return Message(message=f"{len(value.rows)}개 정상 행을 저장했습니다.")
@@ -563,8 +537,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
 
     @app.post("/api/cases/{case_id}/analysis", response_model=AnalysisView, status_code=202)
     def analysis_start(case_id: Key, value: AnalysisRequest, user=Depends(writer)):
-        enqueue(store, case_id, value, user.username)
-        return view_analysis(store, case_id)
+        raise HTTPException(409, FROZEN)
 
     @app.post("/api/cases/{case_id}/analysis/{run_id}/{action}", response_model=AnalysisView)
     def analysis_control(case_id: Key, run_id: Key, action: Literal["retry", "cancel"], user=Depends(writer)):
