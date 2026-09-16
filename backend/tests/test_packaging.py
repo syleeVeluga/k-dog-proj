@@ -1,6 +1,5 @@
 """M6 real process supervision and attempt accounting regressions."""
 
-import json
 import os
 from pathlib import Path
 import socket
@@ -17,9 +16,9 @@ from fastapi import HTTPException
 
 from app.launcher import launch, preflight, process_group
 from app.maintenance import offline
-from app.storage import Store, encode
+from app.storage import Store, encode, now
 from app.usage import summarize, token_meters, validate_prices
-from tests import test_observation as observation
+from tests.support import AppCase
 
 
 def free_port():
@@ -152,14 +151,16 @@ class LauncherTests(unittest.TestCase):
                 process.wait(timeout=10)
 
 
-class UsageTests(unittest.TestCase):
-    setUp = observation.ObservationTests.setUp
-    login = observation.ObservationTests.login
-    start = observation.ObservationTests.start
-
+class UsageTests(AppCase):
     def completed(self):
-        self.start()
-        self.worker.once()
+        """A finished run with five reserved provider calls (two observations, two evaluations, one report), written directly."""
+        item = self.make_case(event_id="M2")
+        with self.store.connect(write=True) as db:
+            db.execute("INSERT INTO runs(run_id,case_id,session_id,input_revision,input_snapshot_json,config_snapshot_json,status,created_at,updated_at) "
+                       "VALUES (?,?,?,?,?,?,?,?,?)", ("run-usage", item["case_id"], item["selected_session_id"], 1, "{}", "{}", "scored", now(), now()))
+            for index, (stage, branch) in enumerate((("observe", "video-1"), ("observe", "video-2"), ("evaluate", "dog"), ("evaluate", "owner"), ("report", "source"))):
+                db.execute("INSERT INTO steps(step_id,run_id,stage,branch_key,attempt,status,usage_json,created_at,updated_at,call_reserved) "
+                           "VALUES (?,?,?,?,1,'succeeded','{}',?,?,1)", (f"step-{index}", "run-usage", stage, branch, now(), now()))
 
     def test_no_prices_is_unknown_and_metadata_is_not_exported(self):
         self.completed()

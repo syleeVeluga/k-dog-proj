@@ -20,9 +20,8 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Table, TableStyle, PageBreak, Spacer
 
-from app.analysis import session_snapshot
-from app.reporting import NOTICE, PENDING, CROSS_PENDING, PRESENTATION, read_saved, report_view, run_row, write_json
-from app.storage import REPO_ROOT, encode, now, uid
+from app.reporting import NOTICE, PRESENTATION, read_saved, run_row
+from app.storage import REPO_ROOT, encode, uid
 
 
 def guard_snapshot(store, db, snapshot):
@@ -30,61 +29,6 @@ def guard_snapshot(store, db, snapshot):
         case = store.case(db, member["case_id"])
         if member["run_id"]:
             run_row(store, db, case["case_id"], member["run_id"])
-
-
-def capture(store, value, actor, *, persist=True):
-    if value.run_id and not value.case_id:
-        raise HTTPException(422, "개별 실행에는 참가자를 지정하세요.")
-    if value.case_ids is not None and (value.case_id or value.event_id or len(set(value.case_ids)) != len(value.case_ids)):
-        raise HTTPException(422, "선택 참가자 목록은 중복 없이 개별/행사 범위와 구분해 지정하세요.")
-    with store.connect(write=persist) as db:
-        if value.case_ids is not None:
-            rows = [store.case(db, case_id) for case_id in sorted(value.case_ids)]
-        else:
-            rows = [store.case(db, value.case_id)] if value.case_id else db.execute(
-                "SELECT * FROM cases WHERE deletion_requested=0 AND (? IS NULL OR event_id=?) ORDER BY event_id,participant_id",
-                (value.event_id, value.event_id)).fetchall()
-        if not rows:
-            raise HTTPException(422, "내보낼 참가자가 없습니다.")
-        members = []
-        for case in rows:
-            run_id = value.run_id or case["display_run_id"]
-            member = {k: case[k] for k in ("case_id", "event_id", "participant_id", "dog_name", "input_revision", "selected_session_id")}
-            member.update(run_id=run_id, status="not_started", revision=None, report=None, image=None, result=None, history=[], explanation_status="not_started")
-            if run_id:
-                row = run_row(store, db, case["case_id"], run_id)
-                # A batch uses only the selected session/current revision display pointer.
-                if not value.run_id and (row["input_revision"], row["session_id"]) != (case["input_revision"], case["selected_session_id"]):
-                    raise HTTPException(409, "현재 표시 실행과 입력 버전이 일치하지 않습니다.")
-                view = report_view(store, db, row)
-                _, session = session_snapshot(row)
-                member["raw_survey"] = session.survey
-                member.update(input_revision=row["input_revision"], selected_session_id=row["session_id"],
-                    status=row["status"], revision=view.revision, report=view.report.model_dump(mode="json") if view.report else None,
-                    history=view.history, result=view.result, explanation_status=view.status)
-                if view.image:
-                    raw = store.path(view.image["ref"]).read_bytes()
-                    if hashlib.sha256(raw).hexdigest() != view.image["hash"]:
-                        raise HTTPException(409, "대표 이미지 해시가 일치하지 않습니다.")
-                    member["image"] = {**{k: v for k, v in view.image.items() if k != "ref"}, "data": base64.b64encode(raw).decode("ascii")}
-            else:
-                # Unprocessed participants still contribute all 55 rows and 30 raw answers.
-                manifest = store.manifest(case)
-                session = next(s for s in manifest.sessions if s.session_id == case["selected_session_id"])
-                member["raw_survey"] = session.survey
-            members.append(member)
-        snapshot = {"schema_version": "1.0", "export_id": uid(), "format": value.format, "individual": bool(value.case_id),
-                    "created_at": now(), "actor": actor, "members": members, "presentation": PRESENTATION,
-                    "catalog": json.loads((REPO_ROOT / "resources/catalogs/behavior-v1.json").read_text(encoding="utf-8")),
-                    "survey_catalog": json.loads((REPO_ROOT / "resources/catalogs/survey-v1.json").read_text(encoding="utf-8")),
-                    "rules": {"notice": NOTICE, "mapping": PENDING, "cross": CROSS_PENDING, "pending": "q23/C-2·DOG-12·OWN-14 계산 보류"}}
-        snapshot["preview_hash"] = hashlib.sha256(encode({"format": value.format, "individual": snapshot["individual"], "members": members}).encode()).hexdigest()
-        if persist:
-            if value.expected_preview_hash and snapshot["preview_hash"] != value.expected_preview_hash:
-                raise HTTPException(409, "미리보기 이후 대상 또는 결과가 변경되었습니다. 대상을 다시 확인하세요.")
-            link = write_json(store, f"exports/{snapshot['export_id']}", snapshot)
-            store.audit(db, actor, snapshot["export_id"], "export.snapshot", link)
-    return snapshot
 
 
 def load_snapshot(store, db, export_id):

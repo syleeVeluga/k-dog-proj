@@ -8,9 +8,10 @@ import { createRoot } from 'react-dom/client';
 import { api } from './api';
 import { mayLeave } from './Editing';
 import { VideoUpload } from './VideoUpload';
-import { SurveyEditor } from './SurveyEditor';
-import { CaseEditor, SessionEditor, stages, completion } from './MetadataEditors';
+import { SurveyView } from './SurveyView';
+import { CaseEditor, SessionEditor } from './MetadataEditors';
 import { Observations, analysisNames } from './Observations';
+import { SURVEY_TOTAL, surveyHandled } from './types';
 import type { Case, Catalog, Role, User } from './types';
 import './style.css';
 import { Importer } from './Importer';
@@ -75,7 +76,7 @@ function App() {
   }, [user]);
   const visible = cases.filter(c => {
     const session = sessionOf(c);
-    const ready = session.videos.length > 0 && Object.values(session.survey).every(v => v !== null);
+    const ready = session.videos.length > 0 && surveyHandled(session) === SURVEY_TOTAL;
     const matches = filter === 'all' || (filter === 'ready' && ready) || (filter === 'missing' && !ready)
       || (filter === 'failed' && ['failed', 'partial_failed', 'settings_required'].includes(c.analysis_status))
       || (filter === 'running' && ['queued', 'running', 'retry_wait'].includes(c.analysis_status))
@@ -118,7 +119,7 @@ function App() {
           <DeveloperSettings onVersionModeChange={setVersionedSettings} />
           {!versionedSettings && <><EvaluationSettings /><ReportSettings /></>}
           <button onClick={() => void run(async () => setNotice((await api<{ message: string }>('/developer/status')).message))}>인증 상태 확인</button>
-        </section> : page === 'import' ? <Importer cases={cases} run={run} catalogVersion={catalog?.version ?? ''} done={async message => { setNotice(message); await reload(); }} />
+        </section> : page === 'import' ? <Importer run={run} catalogVersion={catalog?.version ?? ''} done={async message => { setNotice(message); await reload(); }} />
           : page === 'users' ? <Users run={run} />
           : selected && catalog ? <Detail key={selected.case_id} item={selected} catalog={catalog} writable={writable} run={run}
             back={() => { if (mayLeave()) void run(async () => { setSelected(null); await reload(); }); }} refresh={async message => { await reload(selected.case_id); if (message) setNotice(message); }} />
@@ -134,9 +135,9 @@ function App() {
               <div className="toolbar"><button disabled={!visible.length} onClick={() => setSelectedIds([...new Set([...validSelection, ...visible.map(c => c.case_id)])])}>현재 목록 {visible.length}명 선택</button><button disabled={!validSelection.length} onClick={() => setSelectedIds([])}>선택 해제</button></div>
               <Exports cases={cases} selectedIds={validSelection} />
               <div className="table-wrap"><table><thead><tr><th>선택</th><th>참가자 / 행사</th><th>반려견 / 예약</th><th>설문</th><th>영상</th><th>분석 상태</th><th>자료</th></tr></thead>
-                <tbody>{visible.map(c => { const s = sessionOf(c); const count = Object.values(s.survey).filter(v => v !== null).length;
+                <tbody>{visible.map(c => { const s = sessionOf(c); const count = surveyHandled(s);
                   return <tr key={c.case_id}><td data-label="선택"><label className="check"><input type="checkbox" aria-label={`${c.participant_id} 내보내기 선택`} checked={validSelection.includes(c.case_id)} onChange={e => setSelectedIds(e.target.checked ? [...validSelection, c.case_id] : validSelection.filter(id => id !== c.case_id))} /></label></td><td data-label="참가자 / 행사"><strong className="mono">{c.participant_id}</strong><small>{c.event_id}</small></td><td data-label="반려견 / 예약">{c.dog_name}<small>{c.reservation_at.replace('T', ' ') || '예약 없음'}</small></td>
-                    <td data-label="설문"><span className={count === 30 ? 'tag green' : 'tag'}>{count}/30</span></td><td data-label="영상">{s.videos.length}개</td><td data-label="분석 상태"><span className="muted">{analysisNames[c.analysis_status] ?? '미실행'}</span></td>
+                    <td data-label="설문"><span className={count === SURVEY_TOTAL ? 'tag green' : 'tag'}>{count}/{SURVEY_TOTAL}</span></td><td data-label="영상">{s.videos.length}개</td><td data-label="분석 상태"><span className="muted">{analysisNames[c.analysis_status] ?? '미실행'}</span></td>
                     <td data-label="자료"><button aria-label={`${c.participant_id} 상세 열기`} onClick={() => void run(async () => setSelected(await api<Case>(`/cases/${c.case_id}`)))}>열기 ↗</button></td></tr>;
                 })}</tbody></table>{!visible.length && <div className="empty"><h2>{cases.length ? '조건에 맞는 참가자가 없습니다.' : '첫 참가자를 등록하세요.'}</h2><p>행사와 참가자 ID를 먼저 확인한 뒤 자료를 연결합니다.</p></div>}</div>
               {writable && <details className="panel" open={!cases.length}><summary>참가자 등록</summary>
@@ -181,13 +182,12 @@ function Detail({ item, catalog, writable, run, refresh, back }: {
       <section className="panel"><h2>촬영 세션</h2><label>선택 세션<select aria-label="선택 세션" value={session.session_id} onChange={e => { if (!mayLeave()) return; if (!writable) { setViewSession(e.target.value); return; } void run(async () => {
         await api(`/cases/${item.case_id}/sessions`, 'POST', { expected_revision: item.input_revision, session_id: e.target.value }); await refresh();
       }); }}>{item.manifest.sessions.map((s, i) => <option key={s.session_id} value={s.session_id}>{i + 1}차 촬영 · 영상 {s.videos.length}개</option>)}</select></label>
-        <p className="fine">동시/순차: {({ simultaneous: '동시 촬영', sequential: '순차 촬영', unknown: '미확인' })[session.capture_mode]}<br />{session.route_note || '동선 메모 없음'}</p>
-        <p className="fine">{Object.entries(stages).map(([id, name]) => `${name}: ${completion[session.checklist?.[id] ?? 'unknown']}`).join(' · ')}</p>
+        <p className="fine">{session.note || '촬영 메모 없음'}</p>
+        {item.manifest.migration_note && <p className="fine">{item.manifest.migration_note}</p>}
         {writable && <SessionEditor key={session.session_id} item={item} session={session} run={run} refresh={refresh} />}
         {writable && <details><summary>재촬영 세션 추가</summary><form onSubmit={e => { e.preventDefault(); if (!mayLeave()) return; const value = fields(e); void run(async () => {
           await api(`/cases/${item.case_id}/sessions`, 'POST', { ...value, expected_revision: item.input_revision }); await refresh();
-        }); }}><label>촬영 방식<select name="capture_mode"><option value="unknown">미확인</option><option value="simultaneous">동시 촬영</option><option value="sequential">순차 촬영</option></select></label>
-          <label>동선 메모<textarea name="route_note" maxLength={2000} /></label><p className="fine">이전 촬영은 보존됩니다. 새 세션에는 설문과 영상을 따로 연결하세요.</p><button>새 촬영 시작</button></form></details>}
+        }); }}><label>촬영 메모<textarea name="note" maxLength={2000} /></label><p className="fine">이전 촬영은 보존됩니다. 새 세션에는 설문과 영상을 따로 연결하세요.</p><button>새 촬영 시작</button></form></details>}
       </section>
       {writable && <section className="panel"><h2>자료 관리</h2>
         <CaseEditor item={item} run={run} refresh={refresh} />
@@ -199,13 +199,13 @@ function Detail({ item, catalog, writable, run, refresh, back }: {
       </section>}
     </div>
     <section className="panel" id="videos"><div className="section-title"><h2>영상 자료</h2><span className="mono">{session.videos.length} FILES</span></div>
-      {session.videos.length === 0 && <p className="muted">등록된 영상이 없습니다. 참가자·촬영 세션·카메라를 확인한 후 파일을 선택하세요.</p>}
-      {session.videos.map(v => <div className="video-row" key={v.video_id}><div><strong>{v.original_name}</strong><small>{v.camera_id} · {(v.size_bytes / 1048576).toFixed(2)} MiB · 원본 등록됨</small></div>
+      {session.videos.length === 0 && <p className="muted">등록된 영상이 없습니다. 참가자·촬영 세션을 확인한 후 파일을 선택하세요.</p>}
+      {session.videos.map(v => <div className="video-row" key={v.video_id}><div><strong>{v.original_name}</strong><small>{(v.size_bytes / 1048576).toFixed(2)} MiB · 원본 등록됨</small></div>
         <button onClick={() => setPlaying(`/api/cases/${item.case_id}/videos/${v.video_id}`)}>영상 열기</button></div>)}
       {playing && <div><video src={playing} controls preload="metadata" /><button onClick={() => setPlaying(null)}>재생 닫기</button></div>}
       {writable && <VideoUpload key={session.session_id} item={item} session={session} refresh={refresh} />}
     </section>
-    <SurveyEditor key={session.session_id} item={item} session={session} catalog={catalog} writable={writable} run={run} refresh={refresh} />
+    <SurveyView key={session.session_id} session={session} catalog={catalog} />
     </div>
   </>;
 }

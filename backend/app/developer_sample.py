@@ -40,7 +40,7 @@ def run_sample(store, pipeline, stage):
             info = MediaInfo(video_id="synthetic-video", storage_ref="synthetic/video.mp4", sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
                 size_bytes=path.stat().st_size, duration_sec=2.0, codec="h264", width=320, height=240, audio_status="absent", mime_type="video/mp4", quality_flags=["audio_absent"])
             from app.video_evaluation import context
-            from app.input_models import Session
+            from app.legacy.input_models_v1 import Session
             session = Session(session_id="synthetic-session", capture_mode="unknown", route_note="",
                 survey_version=catalog.version, survey=dict(run.survey), videos=[])
             if stage == "ledger":

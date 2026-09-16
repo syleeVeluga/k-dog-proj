@@ -1,14 +1,16 @@
-"""M1 intake contracts; media properties remain unknown until M2 probing."""
+"""Intake contracts (intake-2.0): 42-item specification sessions — 28-item survey, several video files, free note."""
 
 from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.domain.catalog import SURVEY_IDS
+
 
 Key = Annotated[str, Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")]
 Text = Annotated[str, Field(min_length=1, max_length=200)]
+Note = Annotated[str, Field(max_length=2000)]
 Role = Literal["operator", "reviewer", "admin", "developer"]
-SURVEY_IDS = tuple(f"q{i:02}" for i in range(1, 31))
 
 
 class Model(BaseModel):
@@ -52,36 +54,34 @@ class CaseEdit(Revision):
     reservation_at: str = ""
 
 
-Checklist = dict[Literal["entry", "separation", "training", "play", "exit"], Literal["unknown", "performed", "skipped", "retake"]]
-
-
 class SurveyEdit(Revision):
     session_id: Key
     survey_version: Text
     answers: dict[str, Annotated[int, Field(ge=1, le=5)] | None]
+    not_applicable: list[Key] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def complete(self) -> Self:
         if set(self.answers) != set(SURVEY_IDS):
-            raise ValueError("q01~q30을 모두 포함하고 미응답은 null로 입력하세요.")
+            raise ValueError("s01~s28을 모두 포함하고 미응답은 null로 입력하세요.")
+        if len(set(self.not_applicable)) != len(self.not_applicable) or not set(self.not_applicable) <= set(SURVEY_IDS):
+            raise ValueError("「해당 없음」 문항 ID를 확인하세요.")
+        if any(self.answers[item_id] is not None for item_id in self.not_applicable):
+            raise ValueError("「해당 없음」 문항은 응답을 비워 두세요. 해당 없음은 결측이지 점수가 아닙니다.")
         return self
 
 
 class SessionEdit(Revision):
     session_id: Key | None = None
-    capture_mode: Literal["simultaneous", "sequential", "unknown"] = "unknown"
-    route_note: Annotated[str, Field(max_length=2000)] = ""
+    note: Note = ""
 
 
 class SessionMetadata(Revision):
-    capture_mode: Literal["simultaneous", "sequential", "unknown"]
-    route_note: Annotated[str, Field(max_length=2000)]
-    checklist: Checklist | None = None
+    note: Note
 
 
 class StoredVideo(Model):
     video_id: Key
-    camera_id: Key
     original_name: Text
     storage_ref: str
     sha256: str
@@ -91,16 +91,15 @@ class StoredVideo(Model):
 
 class Session(Model):
     session_id: Key
-    capture_mode: Literal["simultaneous", "sequential", "unknown"]
-    route_note: str
+    note: str
     survey_version: str
     survey: dict[str, int | None]
+    survey_not_applicable: list[str] = Field(default_factory=list)
     videos: list[StoredVideo]
-    checklist: Checklist = Field(default_factory=dict)
 
 
 class Manifest(Model):
-    schema_version: Literal["intake-1.0"] = "intake-1.0"
+    schema_version: Literal["intake-2.0"] = "intake-2.0"
     case_id: Key
     event_id: Key
     participant_id: Key
@@ -108,6 +107,7 @@ class Manifest(Model):
     selected_session_id: Key
     display_run_id: str | None = None
     sessions: list[Session]
+    migration_note: str | None = None
 
 
 class CaseView(Model):
@@ -138,7 +138,6 @@ class ImportRow(Model):
 class ImportMapping(Model):
     sheet: Annotated[str, Field(max_length=100)] | None = None
     columns: dict[str, str] = Field(default_factory=dict)
-    horizontal: dict[str, Key] = Field(default_factory=dict)
 
 
 class ImportColumn(Model):

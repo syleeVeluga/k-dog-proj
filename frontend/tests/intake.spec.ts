@@ -30,7 +30,7 @@ test('shell: favicon and identifier constraints are valid', async ({ page }) => 
   expect(favicon.headers()['content-type']).toContain('image/svg+xml');
 });
 
-test('desktop: registration without consent, two cameras, survey, refresh and retake', async ({ page }, testInfo) => {
+test('desktop: registration, two video files, survey from CSV, refresh and retake', async ({ page }, testInfo) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await login(page);
@@ -42,26 +42,37 @@ test('desktop: registration without consent, two cameras, survey, refresh and re
   await expect(page.getByRole('heading', { name: '자료 사용 동의' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '영상 등록', exact: true })).toBeDisabled();
   await expect(page.getByText('입력 버전 1', { exact: true })).toBeVisible();
-  for (const camera of [1, 2]) {
-    await page.getByLabel('카메라 ID').fill(`CAM-${camera}`);
+  for (const index of [1, 2]) {
     await page.getByLabel('영상 파일', { exact: true }).setInputFiles({
-      name: `synthetic-camera-${camera}.mp4`, mimeType: 'video/mp4', buffer: Buffer.from(`synthetic bytes ${camera}`),
+      name: `synthetic-file-${index}.mp4`, mimeType: 'video/mp4', buffer: Buffer.from(`synthetic bytes ${index}`),
     });
     await page.getByRole('button', { name: '영상 등록', exact: true }).click();
-    await expect(page.getByText(`입력 버전 ${camera + 1}`, { exact: true })).toBeVisible();
+    await expect(page.getByText(`입력 버전 ${index + 1}`, { exact: true })).toBeVisible();
   }
   await page.getByText('설문 원응답', { exact: false }).first().click();
-  for (let i = 1; i <= 30; i++) await page.getByLabel(`q${String(i).padStart(2, '0')} 응답`, { exact: true }).selectOption(i === 23 ? '5' : '3');
-  await page.getByRole('button', { name: '설문 저장', exact: true }).click();
-  await expect(page.getByText('입력 버전 4', { exact: true })).toBeVisible();
+  await expect(page.getByText('설문은 「자료 가져오기」에서 CSV·Excel로 등록합니다.', { exact: false })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('desktop-detail.png'), fullPage: true, animations: 'disabled' });
+  // Surveys are registered from a spreadsheet, never typed item by item.
+  const version = (await (await page.request.get('/api/catalog/survey')).json()).version;
+  const ids = Array.from({ length: 28 }, (_, i) => `s${String(i + 1).padStart(2, '0')}`);
+  const values = ids.map(id => id === 's08' ? 'NA' : id === 's23' ? '5' : '3');
+  await page.getByRole('button', { name: '자료 가져오기', exact: true }).click();
+  await page.getByRole('combobox', { name: '자료 종류' }).selectOption('survey');
+  await page.getByLabel('입력 파일', { exact: true }).setInputFiles({ name: 'synthetic-survey.csv', mimeType: 'text/csv',
+    buffer: Buffer.from(['event_id,participant_id,survey_version,' + ids.join(','), `BROWSER-TEST,0001,${version},` + values.join(',')].join('\n')) });
+  await page.getByRole('button', { name: '검증 미리보기' }).click();
+  await expect(page.getByText('검증 결과 · 정상 1행 / 오류 0행')).toBeVisible();
+  await page.getByRole('button', { name: '정상 1행 저장' }).click();
+  await expect(page.getByText('1개 정상 행을 저장했습니다.', { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { name: '참가자 자료', exact: true })).toBeVisible();
-  await expect(page.getByText('30/30', { exact: true })).toBeVisible();
+  await expect(page.getByText('28/28', { exact: true })).toBeVisible();
   await expect(page.getByRole('cell', { name: '2개', exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('desktop-list.png'), fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: '0001 상세 열기' }).click();
-  await expect(page.getByText('synthetic-camera-2.mp4', { exact: true })).toBeVisible();
+  await expect(page.getByText('synthetic-file-2.mp4', { exact: true })).toBeVisible();
+  await page.getByText('설문 원응답', { exact: false }).first().click();
+  await expect(page.getByText('사회화 시기에 다양한 경험을 하도록 노력했다 · 해당 없음', { exact: false })).toBeVisible();
   await page.getByText('재촬영 세션 추가', { exact: true }).click();
   await page.getByRole('button', { name: '새 촬영 시작' }).click();
   await expect(page.getByText('입력 버전 5', { exact: true })).toBeVisible();
@@ -105,69 +116,6 @@ test('developer session cannot read participant data and reviewer cannot write',
   await expect(page.getByRole('heading', { name: '참가자 자료', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '자료 가져오기', exact: true })).toHaveCount(0);
   expect((await page.request.post('/api/cases', { headers: { 'X-KDOG-Request': '1' }, data: {} })).status()).toBe(403);
-});
-
-test('three views: direct item assessments, merged scores, evidence and 360px', async ({ page }, testInfo) => {
-  await login(page);
-  const request = page.request;
-  const headers = { 'X-KDOG-Request': '1' };
-  let item = await (await request.post('/api/cases', { headers, data: { event_id: 'M2-BROWSER', participant_id: '0099', dog_name: '관찰 검증용 가상견' } })).json();
-  const base = `/api/cases/${item.case_id}`;
-  for (const camera of [1, 2, 3]) {
-    const params = new URLSearchParams({ expected_revision: String(item.input_revision), session_id: item.selected_session_id, camera_id: `CAM-${camera}`, filename: 'synthetic.mp4' });
-    item = await (await request.post(`${base}/videos?${params}`, { headers, data: Buffer.from(`synthetic fixture ${camera}`) })).json();
-  }
-  const session = item.manifest.sessions[0];
-  item = await (await request.put(`${base}/survey`, { headers, data: { expected_revision: item.input_revision,
-    session_id: session.session_id, survey_version: session.survey_version, answers: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`q${String(i + 1).padStart(2, '0')}`, 3])) } })).json();
-  await page.reload();
-  await page.getByRole('button', { name: '0099 상세 열기' }).click();
-  await page.getByRole('button', { name: '분석 시작', exact: true }).click();
-  await expect(page.getByText('관찰 근거 3개', { exact: true })).toBeVisible({ timeout: 15000 });
-  await expect(page.locator('.video-row').getByText('가상 관찰: 입장 시 이동', { exact: true })).toHaveCount(3);
-  const assessments = page.getByLabel('영상별 평가 결과', { exact: true });
-  // Three videos: one shared event ledger plus a dog and an owner branch each.
-  await expect(assessments.locator('details')).toHaveCount(9);
-  const ledger = assessments.locator('details').filter({ hasText: '사건 원장' }).first();
-  await ledger.locator('summary').click();
-  await expect(ledger.getByText('입장 · 그 밖의 사건 · 0.00–1.00초 · 가상 사건: 입장', { exact: true })).toBeVisible();
-  await ledger.locator('summary').click();
-  const branch = assessments.locator('details').filter({ hasText: '반려견·행동신호' }).first();
-  await branch.locator('summary').click();
-  await expect(branch.locator('article')).toHaveCount(36);
-  await expect(assessments.locator('details').filter({ hasText: '보호자 ·' })).toHaveCount(3);
-  await assessments.getByRole('button', { name: 'BS-01 근거 1 재생' }).first().click();
-  await expect(page.locator('section[aria-label="영상 관찰"] video')).toHaveAttribute('src', /#t=1,2$/);
-  await page.getByRole('button', { name: '근거 재생 닫기' }).click();
-  await branch.locator('summary').click();
-  await expect(page.getByText(/반려견 처리 완료 · 유효/)).toBeVisible();
-  await expect(page.getByText(/보호자 처리 완료 · 유효/)).toBeVisible();
-  await expect(page.getByText('원 척도 참고 전체값 3.00', { exact: true })).toBeVisible();
-  await page.getByText('설문 30문항 원응답·환산값', { exact: true }).click();
-  await expect(page.getByText('q23 · C · 원응답 3 → 규칙 미정', { exact: true })).toBeVisible();
-  await page.getByText('설문 30문항 원응답·환산값', { exact: true }).click();
-  await page.getByRole('button', { name: '원본 근거 재생' }).first().click();
-  await expect(page.locator('section[aria-label="영상 관찰"] video')).toHaveAttribute('src', /#t=1,2$/);
-  await page.getByRole('button', { name: '근거 재생 닫기' }).click();
-  await page.screenshot({ path: testInfo.outputPath('m3-scores-desktop.png'), fullPage: true, animations: 'disabled' });
-  await page.reload();
-  await page.getByRole('button', { name: '0099 상세 열기' }).click();
-  await expect(page.getByText('관찰 근거 3개', { exact: true })).toBeVisible();
-  await expect(page.getByText(/반려견 처리 완료 · 유효/)).toBeVisible();
-  await page.setViewportSize({ width: 360, height: 800 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath('m3-scores-mobile.png'), fullPage: true, animations: 'disabled' });
-  await page.getByRole('button', { name: '원본 근거 재생' }).first().click();
-  await expect(page.locator('section[aria-label="영상 관찰"] video')).toHaveCount(1);
-  // A different session requests deletion while this tab keeps a player open.
-  const latest = await (await request.get(base)).json();
-  const deleted = await request.post(`${base}/deletion`, { headers, data: {
-    expected_revision: latest.input_revision,
-  } });
-  expect(deleted.status()).toBe(200);
-  await expect(page.getByText('가상 관찰: 입장 시 이동', { exact: true })).toHaveCount(0);
-  await expect(page.getByLabel('평가·점수 결과', { exact: true })).toHaveCount(0);
-  await expect(page.locator('section[aria-label="영상 관찰"] video')).toHaveCount(0);
 });
 
 test('M3: developer selects independent providers and settings survive reload', async ({ page }, testInfo) => {
