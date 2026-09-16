@@ -47,12 +47,18 @@ class PreprocessTests(AppCase):
         self.session = self.item["manifest"]["sessions"][0]
         self.video_id = self.session["videos"][0]["video_id"]
 
-    def segments(self, windows=WINDOWS, confirm=True, expected=None):
+    def segments(self, windows=WINDOWS, confirm=True, expected=None, with_stimuli=True):
         response = self.client.put(f"/api/cases/{self.item['case_id']}/sessions/{self.session['session_id']}/segments", json={
             "expected_revision": expected or self.item["input_revision"], "video_id": self.video_id, "confirm": confirm,
             "windows": [{"segment": name, "start_sec": start, "end_sec": end} for name, (start, end) in zip(ORDER, windows)]})
         self.assertEqual(response.status_code, 200, response.text)
         self.item = response.json()
+        if with_stimuli and self.item["manifest"]["sessions"][0]["stimuli"] is None:
+            response = self.client.put(f"/api/cases/{self.item['case_id']}/sessions/{self.session['session_id']}/stimuli", json={
+                "expected_revision": self.item["input_revision"], "video_id": self.video_id,
+                "moments": {name: start for name, (start, _) in zip(ORDER, windows) if name in preprocess.RULES["dense_segments"]}})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.item = response.json()
         return self.item
 
     def test_probe_and_cut_clip_keep_audio_and_apply_frame_rate(self):
@@ -95,7 +101,7 @@ class PreprocessTests(AppCase):
     def test_run_writes_hashed_clips_recorded_for_backup_and_cleanup(self):
         self.segments()
         result = preprocess.run(self.store, self.item["case_id"], self.session["session_id"], "operator")
-        self.assertEqual((result["rules_version"], len(result["clips"]), result["source_sha256"]), ("preprocess-v1", 11, self.session["videos"][0]["sha256"]))
+        self.assertEqual((result["rules_version"], len(result["clips"]), result["source_sha256"]), ("preprocess-v2-excel-provisional", 11, self.session["videos"][0]["sha256"]))
         for clip in result["clips"]:
             path = self.store.path(clip["ref"])
             self.assertTrue(clip["ref"].startswith(f"clips/{self.item['case_id']}/"))
@@ -145,6 +151,47 @@ class PreprocessTests(AppCase):
                         cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, encoding="utf-8", timeout=120)
         self.assertNotEqual(denied.returncode, 0)
 
+    def test_excel_event_window_eight_seconds_after_start_and_boundary_policy(self):
+        self.segments(WINDOWS[:4] + [(22.0, 36.0), (36.0, 38.0), (38.0, 42.0), (42.0, 45.0)])
+        path = f"/api/cases/{self.item['case_id']}/sessions/{self.session['session_id']}"
+        saved = self.client.put(path + "/stimuli", json={"expected_revision": self.item["input_revision"], "video_id": self.video_id,
+            "moments": {"entry": 0.0, "alone": 14.5, "stranger": 15.0, "reunion": 30.0}})
+        self.assertEqual(saved.status_code, 200, saved.text)
+        self.item = saved.json()
+        preview = self.client.get(path + "/preprocess").json()
+        dense = {c["segment"]: c for c in preview["planned_clips"] if c["fps"] == 8}
+        self.assertEqual((dense["reunion"]["start_sec"], dense["reunion"]["end_sec"]), (30.0, 35.0))
+        self.assertEqual((dense["entry"]["start_sec"], dense["entry"]["end_sec"]), (0.0, 3.0))
+        self.assertEqual((dense["alone"]["start_sec"], dense["alone"]["end_sec"]), (14.5, 15.0))
+        complete = self.client.post(path + "/preprocess", json={"expected_revision": self.item["input_revision"]})
+        self.assertEqual(complete.status_code, 200, complete.text)
+        result = complete.json()["result"]
+        self.assertEqual(result["stimuli"]["moments"]["reunion"], 30.0)
+        for clip in result["clips"]:
+            self.assertEqual({k: clip[k] for k in ("name", "segment", "start_sec", "end_sec", "fps")},
+                             next(c for c in preview["planned_clips"] if c["name"] == clip["name"]))
+            if clip["segment"] == "reunion":
+                stats = stream_stats(self.store.path(clip["ref"]))
+                self.assertEqual((stats["fps"], stats["audio"]), (float(clip["fps"]), True))
+                self.assertAlmostEqual(stats["duration"], clip["end_sec"] - clip["start_sec"], delta=0.35)
+        from app.input_models import Manifest
+        session = Manifest.model_validate(self.item["manifest"]).sessions[0]
+        # End-exclusive events cannot create empty dense clips. Bad windows are never silently merged.
+        for moment in (None, 21.9, 36.0, 45.0):
+            with self.subTest(moment=moment):
+                altered = session.model_copy(deep=True)
+                altered.stimuli.moments = altered.stimuli.moments.model_copy(update={"reunion": moment})
+                with self.assertRaises(HTTPException):
+                    preprocess.plan(altered)
+        altered = session.model_copy(deep=True)
+        altered.segments.windows[4].start_sec = 21.0
+        with self.assertRaises(HTTPException):
+            preprocess.plan(altered)
+        altered = session.model_copy(deep=True)
+        altered.stimuli.video_id = "different-reference"
+        with self.assertRaises(HTTPException):
+            preprocess.plan(altered)
+
     def test_manual_request_permissions_failure_interruption_and_lock(self):
         path = f"/api/cases/{self.item['case_id']}/sessions/{self.session['session_id']}/preprocess"
         self.assertEqual(self.client.get(path).json()["status"], "not_ready")
@@ -169,6 +216,39 @@ class PreprocessTests(AppCase):
         with maintenance.runtime_lock(self.store, "preprocess"):
             self.assertEqual(self.client.get(path).json()["status"], "running")
         self.assertEqual(self.client.get(path).json()["status"], "interrupted")
+
+    def test_stimulus_times_are_explicit_versioned_and_missing_prevents_processing(self):
+        self.segments(with_stimuli=False)
+        path = f"/api/cases/{self.item['case_id']}/sessions/{self.session['session_id']}/stimuli"
+        self.assertIsNone(self.item["manifest"]["sessions"][0]["stimuli"])
+        payload = {"expected_revision": self.item["input_revision"], "video_id": self.video_id,
+                   "moments": {"entry": 0.0, "alone": None, "stranger": 15.0, "reunion": 30.0}}
+        self.assertEqual(self.client_for("reviewer").put(path, json=payload).status_code, 403)
+        self.assertEqual(self.client.put(path, json={**payload, "video_id": "unknown"}).status_code, 422)
+        for invalid in (-1.0, 46.0, "NaN"):
+            with self.subTest(invalid=invalid):
+                self.assertEqual(self.client.put(path, json={**payload, "moments": {"reunion": invalid}}).status_code, 422)
+        saved = self.client.put(path, json=payload)
+        self.assertEqual(saved.status_code, 200, saved.text)
+        self.item = saved.json()
+        stored = self.item["manifest"]["sessions"][0]["stimuli"]
+        self.assertEqual((stored["video_id"], stored["input_revision"], stored["source"]),
+                         (self.video_id, self.item["input_revision"], "operator_confirmed"))
+        self.assertEqual(stored["moments"]["reunion"], 30.0)  # 8 seconds after reunion segment start.
+        self.assertIsNone(stored["moments"]["alone"])
+        self.assertEqual(self.client.put(path, json=payload).status_code, 409)
+        with self.store.connect() as db:
+            self.assertIsNone(preprocess.latest(self.store, db, self.item["case_id"], self.session["session_id"]))
+        # A partial record cannot silently use segment starts for missing events.
+        from app.input_models import Manifest
+        with self.assertRaises(HTTPException):
+            preprocess.plan(Manifest.model_validate(self.item["manifest"]).sessions[0])
+        # Existing manifests need no fabricated timing during upgrade/read.
+        old = json.loads(json.dumps(self.item["manifest"]))
+        del old["sessions"][0]["stimuli"]
+        self.assertIsNone(Manifest.model_validate(old).sessions[0].stimuli)
+        self.delete_case(self.item)
+        self.assertEqual(self.client.put(path, json={**payload, "expected_revision": self.item["input_revision"]}).status_code, 403)
 
     def test_changed_or_deleted_input_during_cut_never_publishes_success(self):
         self.segments()

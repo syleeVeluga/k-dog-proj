@@ -31,7 +31,7 @@ from app.api import create_app  # noqa: E402
 from app.auth import create_user  # noqa: E402
 from app.input_models import Manifest, UserCreate  # noqa: E402
 from app.intake import headers  # noqa: E402
-from app.maintenance import runtime_lock, status  # noqa: E402
+from app.maintenance import status  # noqa: E402
 
 ORDER = ("entry", "baseline", "alone", "stranger", "reunion", "ignore", "walk", "exit")
 # Segment boundaries as fractions of the reference length, roughly the 01 §3 procedure proportions.
@@ -166,13 +166,16 @@ def rehearse(data_dir: Path, pairs: int, seconds: float, event: str):
             for item in cases.values():
                 session = next(s for s in item["manifest"]["sessions"] if s["session_id"] == item["selected_session_id"])
                 reference_id = next(v["video_id"] for v in session["videos"] if v["original_name"] == "reference.mp4")
-                cases[item["participant_id"]] = call("put", f"/api/cases/{item['case_id']}/sessions/{session['session_id']}/segments", json={
+                item = call("put", f"/api/cases/{item['case_id']}/sessions/{session['session_id']}/segments", json={
                     "expected_revision": item["input_revision"], "video_id": reference_id, "confirm": True, "windows": windows(duration)})
+                cases[item["participant_id"]] = call("put", f"/api/cases/{item['case_id']}/sessions/{session['session_id']}/stimuli", json={
+                    "expected_revision": item["input_revision"], "video_id": reference_id,
+                    "moments": {w["segment"]: w["start_sec"] for w in windows(duration) if w["segment"] in preprocess.RULES["dense_segments"]}})
 
         clips, clip_bytes = 0, 0
-        with timed(stages, "preprocess"), runtime_lock(store, "worker"):
+        with timed(stages, "preprocess"):
             for item in cases.values():
-                result = preprocess.run(store, item["case_id"], item["selected_session_id"], "rehearsal-operator")
+                result = preprocess.execute(store, item["case_id"], item["selected_session_id"], "rehearsal-operator")
                 clips += len(result["clips"])
                 clip_bytes += sum(clip["size_bytes"] for clip in result["clips"])
                 for clip in result["clips"]:

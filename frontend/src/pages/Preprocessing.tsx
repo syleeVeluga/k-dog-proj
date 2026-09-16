@@ -5,7 +5,8 @@ import type { CaseFilterProps } from '../CaseFilters';
 import { SEGMENTS } from '../types';
 import type { Case } from '../types';
 
-type Status = { status: 'ready' | 'not_ready' | 'running' | 'interrupted' | 'failed' | 'complete'; message: string; ready: boolean; outdated: boolean;
+type PlannedClip = { name: string; segment: string; start_sec: number; end_sec: number; fps: number };
+type Status = { status: 'ready' | 'not_ready' | 'running' | 'interrupted' | 'failed' | 'complete'; message: string; readiness_message: string; planned_clips: PlannedClip[]; ready: boolean; outdated: boolean;
   rules_version: string; dense_fps: number; sparse_fps: number; input_revision: number; video_name: string | null;
   result: { input_revision: number; created_at: string; clips: { name: string; segment: string; start_sec: number; end_sec: number; fps: number; ref: string; hash: string }[] } | null };
 
@@ -43,9 +44,11 @@ function PreprocessPanel({ item, writable }: { item: Case; writable: boolean }) 
   return <div className="panel" aria-label="전처리 상태">
     {error && <p role="alert">{error}</p>}
     {loadError && <p role="alert">{loadError}</p>}
-    {state ? <><p>기준 파일: {state.video_name ?? '영상·구간 확인 필요'}</p><p className="fine">규칙 {state.rules_version} · 구간 시작 기준 · 처음 5초 {state.dense_fps} fps / 나머지 {state.sparse_fps} fps · 오디오 유지</p>
-      <p className="fine">자극 순간 기준 창 배치는 고객 확인 대기입니다. 현재 구간 시작 기준 처리를 자극 순간 확정으로 간주하지 않습니다.</p>
+    {state ? <><p>기준 파일: {state.video_name ?? '영상·구간 확인 필요'}</p><p className="fine">규칙 {state.rules_version} · 자극 순간 이후 최대 5초 {state.dense_fps} fps / 나머지 {state.sparse_fps} fps · 오디오 유지</p>
+      <p className="fine">교수 회신 전 Excel 기준 임시 적용입니다. 각 창은 해당 구간 끝에서 자릅니다. 자극 시각 미지정·구간 밖이면 보완해야 실행할 수 있습니다.</p>
       <p role="status">{starting ? '처리 요청 중 · ' : ''}{state.message}</p>
+      {!state.ready && <p role="status">{state.readiness_message}</p>}
+      {state.planned_clips.length > 0 && <details open><summary>실행 전 처리 구간 확인</summary><ul>{state.planned_clips.map(clip => <li key={clip.name}>{SEGMENTS.find(([id]) => id === clip.segment)?.[1]} · {clip.start_sec}~{clip.end_sec}초 · {clip.fps} fps</li>)}</ul></details>}
       {state.outdated && <p role="status">이전 입력 기준 결과입니다. 현재 영상·구간·규칙으로 다시 전처리해야 합니다.</p>}
       {writable ? <button disabled={starting || state.status === 'running' || !state.ready} onClick={() => void start()}>{['failed', 'interrupted', 'complete'].includes(state.status) ? '이 촬영 전처리 다시 시작' : '이 촬영 전처리 시작'}</button> : <p className="fine">교수/검토자는 상태와 결과만 조회합니다.</p>}
       {state.result && <><h2>완료된 결과 {state.result.clips.length}개</h2><p className="fine">입력 버전 {state.result.input_revision} · {state.result.created_at}</p>

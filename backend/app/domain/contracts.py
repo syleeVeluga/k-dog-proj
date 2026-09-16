@@ -28,6 +28,15 @@ SurveyMeanDomain = Literal["A", "B", "C", "E"]
 SeparationLabel = Literal["안정", "불안", "회피 쪽", "무덤덤"]
 
 
+class StimulusMoments(Contract):
+    """Manually observed event times; no pre/post window placement is implied."""
+
+    entry: Nonnegative | None = None
+    alone: Nonnegative | None = None
+    stranger: Nonnegative | None = None
+    reunion: Nonnegative | None = None
+
+
 class ItemScore(Contract):
     item_id: BehaviorId
     score: Annotated[int, Field(ge=0)] | None

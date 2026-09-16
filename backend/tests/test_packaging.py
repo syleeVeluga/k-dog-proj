@@ -69,7 +69,7 @@ class LauncherTests(unittest.TestCase):
     def test_required_files_are_the_42_item_resources_and_exist(self):
         self.assertIn("resources/catalogs/behavior-v2.json", REQUIRED)
         self.assertIn("resources/rules/scoring-v2.json", REQUIRED)
-        self.assertIn("resources/rules/preprocess-v1.json", REQUIRED)
+        self.assertIn("resources/rules/preprocess-v2.json", REQUIRED)
         self.assertIn("resources/catalogs/survey-v1-to-v2.json", REQUIRED)
         self.assertFalse([name for name in REQUIRED if name.endswith(("behavior-v1.json", "survey-v1.json", "scoring-v1.json"))])
         self.assertEqual([name for name in REQUIRED if not (REPO_ROOT / name).is_file() and not name.startswith("frontend/")], [])

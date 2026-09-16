@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
-import { mayLeave, useUnsaved } from '../Editing';
+import { mayLeave, useEditBase, useUnsaved } from '../Editing';
 import { SessionEditor } from '../MetadataEditors';
 import { VideoUpload } from '../VideoUpload';
 import { CaseFilters, matchesCase } from '../CaseFilters';
 import type { CaseFilterProps } from '../CaseFilters';
-import { SEGMENTS, formFields, segmentState, sessionOf } from '../types';
+import { SEGMENTS, STIMULI, formFields, segmentState, sessionOf } from '../types';
 import type { Case, Run, SegmentWindow } from '../types';
 
 type Props = { cases: Case[]; selected: Case | null; select: (item: Case | null) => void; filters: CaseFilterProps; writable: boolean; run: Run; reload: (id?: string) => Promise<void>; notify: (message: string) => void };
@@ -133,5 +133,40 @@ function RecordingPanel({ item, writable, run, refresh, notify, close }: { item:
     </div>}
     <p className="fine">초안 저장도 8구간의 시작·끝 16칸을 모두 입력해야 합니다. 일부 구간만 저장하는 기능은 아직 지원하지 않습니다. 빈칸을 0초로 대신 채우지 마세요.</p>
     <p className="fine">확정하면 채점 단계가 이 시각을 사용합니다. 수정하면 새 입력 버전으로 저장되며 이전 값은 보존됩니다.</p>
+    <StimulusEditor item={item} videoId={videoId} writable={writable} run={run} refresh={refresh} playerReady={playerReady} now={now} />
+  </section>;
+}
+
+function StimulusEditor({ item, videoId, writable, run, refresh, playerReady, now }: {
+  item: Case; videoId: string; writable: boolean; run: Run; refresh: (message?: string) => Promise<void>; playerReady: boolean; now: () => string;
+}) {
+  const session = sessionOf(item); const stored = session.stimuli;
+  const edit = useEditBase({ revision: item.input_revision, video_id: videoId, moments: stored?.video_id === videoId ? stored.moments : null });
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [error, setError] = useState('');
+  const text = (id: typeof STIMULI[number][0]) => values[id] ?? (edit.view.moments?.[id] == null ? '' : toClock(edit.view.moments[id]!));
+  const change = (id: string, value: string) => { edit.change(); setValues(v => ({ ...v, [id]: value })); };
+  function discard() { if (edit.discard()) { setValues({}); setError(''); } }
+  function save() {
+    const entries = STIMULI.map(([id]) => [id, text(id).trim() ? fromClock(text(id)) : null] as const);
+    if (STIMULI.some(([id]) => text(id).trim() && fromClock(text(id)) === null)) { setError('시각은 1:23.4 또는 83.4처럼 입력하세요.'); return; }
+    setError('');
+    void run(async () => {
+      await api(`/cases/${item.case_id}/sessions/${session.session_id}/stimuli`, 'PUT', { expected_revision: edit.view.revision, video_id: edit.view.video_id, moments: Object.fromEntries(entries) });
+      edit.reset(); setValues({}); await refresh('자극 시각을 기록했습니다. 사건 이후 최대 5초 창을 전처리 화면에서 확인하세요.');
+    });
+  }
+  return <section aria-label="자극 시각 기록"><h3>자극 순간 · Excel 기준 임시 적용</h3>
+    <p className="fine">8구간 시작과 다른 사건입니다. 위 영상의 재생 위치를 확인해 각각 기록하세요. 빈칸은 미지정이며, 시각 저장만으로 전처리 창 확정이나 실행이 되지 않습니다.</p>
+    <p className="fine">교수 회신 전까지 사건 이후 5초를 해당 구간 끝에서 잘라 사용합니다. 미지정·사건 없음·판독 불가 시 임의 시각을 넣지 말고 확인하세요. 네 시각을 모두 확인해야 전처리할 수 있습니다.</p>
+    {stored && <p className="fine">기록 출처: 운영자 확인 · 입력 버전 {stored.input_revision} · 기준 파일 {session.videos.find(v => v.video_id === stored.video_id)?.original_name}</p>}
+    {stored && stored.video_id !== videoId && <p role="status">저장된 자극 시각은 다른 기준 영상의 기록입니다. 현재 영상에는 자동 적용하지 않습니다.</p>}
+    {edit.dirty && (edit.view.revision !== item.input_revision || edit.view.video_id !== videoId) && <p role="status">다른 입력 또는 기준 영상이 변경되었습니다. 편집 시작 버전을 유지하며 덮어쓰지 않습니다.</p>}
+    {error && <p role="alert">{error}</p>}
+    <fieldset disabled={!writable || !videoId || edit.view.video_id !== videoId}>
+      {STIMULI.map(([id, label]) => <label key={id}>{label}<span className="toolbar"><input aria-label={`${label} 시각`} value={text(id)} placeholder="미지정" onChange={e => change(id, e.target.value)} />
+        <button type="button" disabled={!playerReady} onClick={() => change(id, now())}>{label} 지금 시각</button></span></label>)}
+    </fieldset>
+    {writable && <div className="toolbar"><button disabled={!videoId || edit.view.video_id !== videoId} onClick={save}>자극 시각 저장</button>{edit.dirty && <button onClick={discard}>자극 입력 버리고 최신 값 보기</button>}</div>}
   </section>;
 }

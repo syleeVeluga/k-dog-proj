@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "version": "preprocess-v2-excel-provisional",
+  "source": "03_행동_채점표_42항목_20260913.xlsx 1_바디시그널!C8·C10: 사건 순간부터 5초 안. 2026-09-16 사용자 지시: 교수 회신 전 Excel 기준 임시 적용.",
+  "dense_fps": 8,
+  "sparse_fps": 2,
+  "dense_segments": [
+    "entry",
+    "alone",
+    "stranger",
+    "reunion"
+  ],
+  "dense_note": "입장·혼자는 Excel의 사건 이후 5초. 낯선 사람·재회에도 같은 길이를 임시 적용한다. 해당 구간 끝에서 자르고, 미지정/구간 밖/끝과 같은 시각은 보완 후 실행한다. 교수 회신 시 재검토.",
+  "video_codec": "libx264",
+  "crf": 20,
+  "keep_audio": true,
+  "audio_note": "구간 경계와 보호자 발화(톤·반복·지시 준수)는 마이크 음성으로 읽으므로 클립에도 오디오를 남긴다.",
+  "scale_height": null,
+  "scale_note": "null이면 해상도를 바꾸지 않는다. 꼬리 판독은 개 머리 60 px 이상이 필요해 함부로 줄이지 않는다(01 §5). 07 장비 사양 문서를 받은 뒤 정한다.",
+  "equirect_crop": null,
+  "equirect_note": "360 equirectangular 원본에서 방향 크롭이 필요하면 {\"yaw\": 도, \"pitch\": 도, \"h_fov\": 도, \"v_fov\": 도, \"width\": px, \"height\": px}로 지정한다. 07 문서와 시험 촬영 전까지는 비워 둔다.",
+  "before_sec": 0.0,
+  "after_sec": 5.0,
+  "boundary_policy": "clip_to_segment",
+  "overlap_policy": "disjoint_segments",
+  "missing_policy": "require_operator_time",
+  "provisional": true
+}

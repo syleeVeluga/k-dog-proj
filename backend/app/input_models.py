@@ -5,6 +5,7 @@ from typing import Annotated, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.domain.catalog import SURVEY_IDS, SegmentId
+from app.domain.contracts import StimulusMoments
 
 
 Key = Annotated[str, Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")]
@@ -122,6 +123,18 @@ class SegmentTimes(Model):
     windows: Annotated[list[SegmentWindowInput], Field(min_length=8, max_length=8)]
 
 
+class StimulusEdit(Revision):
+    video_id: Key
+    moments: StimulusMoments
+
+
+class StimulusTimes(Model):
+    video_id: Key
+    input_revision: Annotated[int, Field(ge=1)]
+    source: Literal["operator_confirmed"] = "operator_confirmed"
+    moments: StimulusMoments
+
+
 class StoredVideo(Model):
     video_id: Key
     original_name: Text
@@ -139,6 +152,7 @@ class Session(Model):
     survey_not_applicable: list[str] = Field(default_factory=list)
     videos: list[StoredVideo]
     segments: SegmentTimes | None = None
+    stimuli: StimulusTimes | None = None
 
 
 class Manifest(Model):
@@ -211,18 +225,22 @@ class Message(Model):
     message: str
 
 
-class PreprocessClip(Model):
+class PreprocessPlannedClip(Model):
     name: str
     segment: SegmentId
     start_sec: float
     end_sec: float
     fps: int
+
+
+class PreprocessClip(PreprocessPlannedClip):
     ref: str
     hash: str
     size_bytes: int
 
 
 class PreprocessResult(Model):
+    stimuli: StimulusTimes | None = None
     schema_version: Literal["1.0"]
     rules_version: str
     case_id: Key
@@ -239,6 +257,8 @@ class PreprocessResult(Model):
 
 
 class PreprocessStatus(Model):
+    readiness_message: str
+    planned_clips: list[PreprocessPlannedClip]
     status: Literal["ready", "not_ready", "running", "interrupted", "failed", "complete"]
     message: str
     ready: bool

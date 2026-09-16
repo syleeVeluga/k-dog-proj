@@ -31,7 +31,7 @@ class RehearsalTests(unittest.TestCase):
             self.assertEqual(set(report["stages_sec"]), {"synthetic_media", "intake_import", "survey_import", "video_register", "segments_confirm", "preprocess"})
             clips = list(Path(temporary).glob("clips/*/*/*/clips.json"))
             self.assertEqual(len(clips), 2)
-            self.assertEqual(json.loads(clips[0].read_text(encoding="utf-8"))["rules_version"], "preprocess-v1")
+            self.assertEqual(json.loads(clips[0].read_text(encoding="utf-8"))["rules_version"], "preprocess-v2-excel-provisional")
 
     def test_cli_refuses_a_non_empty_data_dir(self):
         with tempfile.TemporaryDirectory(prefix="kdog-rehearsal-cli-") as temporary:
