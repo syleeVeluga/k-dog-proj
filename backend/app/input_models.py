@@ -209,3 +209,43 @@ class ImportCommit(Model):
 
 class Message(Model):
     message: str
+
+
+class PreprocessClip(Model):
+    name: str
+    segment: SegmentId
+    start_sec: float
+    end_sec: float
+    fps: int
+    ref: str
+    hash: str
+    size_bytes: int
+
+
+class PreprocessResult(Model):
+    schema_version: Literal["1.0"]
+    rules_version: str
+    case_id: Key
+    session_id: Key
+    input_revision: int
+    video_id: Key
+    source_sha256: str
+    source_duration_sec: float
+    source_width: int
+    source_height: int
+    source_audio: str
+    created_at: str
+    clips: list[PreprocessClip]
+
+
+class PreprocessStatus(Model):
+    status: Literal["ready", "not_ready", "running", "interrupted", "failed", "complete"]
+    message: str
+    ready: bool
+    outdated: bool
+    rules_version: str
+    dense_fps: int
+    sparse_fps: int
+    input_revision: int
+    video_name: str | None
+    result: PreprocessResult | None

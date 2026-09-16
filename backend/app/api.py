@@ -24,6 +24,7 @@ from app.scoring import survey_scores
 from app.input_models import (
     CaseCreate, CaseEdit, CaseView, ImportColumns, ImportCommit, ImportMapping, ImportPreview, Key, Login, Message,
     Revision, SegmentTimes, SegmentsEdit, SessionEdit, SessionMetadata, StoredVideo, SurveyEdit, UserCreate, UserEdit, UserView,
+    PreprocessStatus,
 )
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
@@ -394,6 +395,17 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             session.segments = SegmentTimes(video_id=value.video_id, confirmed=value.confirm, windows=value.windows)
             store.save(db, row, manifest, user.username, "segments.confirm" if value.confirm else "segments.update")
             return store.view(store.case(db, case_id))
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/preprocess", response_model=PreprocessStatus)
+    def preprocessing_status(case_id: Key, session_id: Key, user=Depends(reader)):
+        from app import preprocess
+        return preprocess.status(store, case_id, session_id)
+
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/preprocess", response_model=PreprocessStatus)
+    def preprocessing_start(case_id: Key, session_id: Key, value: Revision, user=Depends(writer)):
+        from app import preprocess
+        preprocess.execute(store, case_id, session_id, user.username, expected_revision=value.expected_revision)
+        return preprocess.status(store, case_id, session_id)
 
     @app.get("/api/templates/{kind}")
     def input_template(kind: Literal["participants", "survey"], format: Literal["csv", "xlsx"] = "csv", user=Depends(writer)):

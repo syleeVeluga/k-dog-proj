@@ -144,3 +144,4 @@ footer { display: flex; justify-content: space-between; gap: 20px; margin-top: 6
   .score-grid { grid-template-columns: 1fr; }
   .section-title { flex-wrap: wrap; }
 }
+.preprocess-manifest { white-space: pre-wrap; overflow-wrap: anywhere; }

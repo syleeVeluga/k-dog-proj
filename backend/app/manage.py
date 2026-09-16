@@ -52,7 +52,6 @@ def main():
         import json
         from fastapi import HTTPException
         from app import preprocess as clips
-        from app.maintenance import runtime_lock
         from app.media import MediaError
         if not (args.data_dir / "kdog.sqlite3").is_file():
             parser.error("현재 데이터 DB가 필요합니다.")
@@ -65,8 +64,7 @@ def main():
             if not case:
                 parser.error("참가자를 찾을 수 없습니다.")
         try:
-            with runtime_lock(store, "worker"):  # offline maintenance (clean/restore) must not run while clips are being written
-                result = clips.run(store, args.case_id, args.session_id or case["selected_session_id"], args.actor)
+            result = clips.execute(store, args.case_id, args.session_id or case["selected_session_id"], args.actor)
         except (HTTPException, MediaError) as exc:
             parser.error(f"전처리 실패: {getattr(exc, 'detail', exc)}")
         print(json.dumps({k: v for k, v in result.items() if k != "clips"} | {"clips": len(result["clips"])}, ensure_ascii=False, indent=2))
