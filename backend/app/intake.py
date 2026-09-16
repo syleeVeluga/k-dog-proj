@@ -205,8 +205,13 @@ def preview(store, db, data, kind, format, catalog: SurveyCatalog, mapping=None)
             if kind == "participants":
                 if existing:
                     raise ValueError("이미 등록된 참가자 ID입니다.")
+                participant = participant_row(value)
+                if participant.sequence_no is not None and db.execute(
+                    "SELECT 1 FROM cases WHERE event_id=? AND sequence_no=?", (pair[0], participant.sequence_no)
+                ).fetchone():
+                    raise ValueError("순번: 이 행사에 이미 등록된 순번입니다. 순번을 고친 뒤 다시 검증하세요.")
                 result.rows.append(ImportRow(row_number=number, source_location=location, event_id=pair[0], participant_id=pair[1],
-                                             participant=participant_row(value)))
+                                             participant=participant))
             else:
                 if existing is None or existing["deletion_requested"]:
                     raise ValueError("등록된 활성 참가자에 연결할 수 없습니다.")
@@ -231,4 +236,15 @@ def preview(store, db, data, kind, format, catalog: SurveyCatalog, mapping=None)
             else:
                 explanation = str(exc)
             result.errors.append(f"{location}: {explanation}")
+    if kind == "participants":
+        by_sequence = {}
+        for row in result.rows:
+            if row.participant.sequence_no is not None:
+                key = (row.event_id, row.participant.sequence_no)
+                by_sequence.setdefault(key, []).append(row.row_number)
+        duplicates = {number for numbers in by_sequence.values() if len(numbers) > 1 for number in numbers}
+        for row in result.rows:
+            if row.row_number in duplicates:
+                result.errors.append(f"{row.row_number}행: 순번: 파일 안에서 같은 행사의 순번이 중복됩니다. 충돌한 행의 순번을 고친 뒤 다시 검증하세요.")
+        result.rows = [row for row in result.rows if row.row_number not in duplicates]
     return result
