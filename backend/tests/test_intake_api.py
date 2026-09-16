@@ -146,6 +146,11 @@ class IntakeTests(AppCase):
         self.assertEqual(confirmed.status_code, 200, confirmed.text)
         self.assertTrue(confirmed.json()["manifest"]["sessions"][0]["segments"]["confirmed"])
         self.assertEqual(confirmed.json()["input_revision"], revision + 1)
+        for invalid in ([{**w, "start_sec": 0.0, "end_sec": 0.0} for w in windows],
+                        [windows[0], {**windows[1], "end_sec": windows[1]["start_sec"]}, *windows[2:]]):
+            rejected = self.client.put(url, json={"expected_revision": revision + 1, "video_id": video_id, "windows": invalid, "confirm": True})
+            self.assertEqual(rejected.status_code, 422)
+            self.assertEqual(self.get_case(item), confirmed.json())
         self.assertEqual(self.client.put(url, json={"expected_revision": revision, "video_id": video_id, "windows": windows}).status_code, 409)
         self.assertEqual(self.client_for("reviewer").put(url, json={"expected_revision": revision + 1, "video_id": video_id, "windows": windows}).status_code, 403)
         # Editing after confirmation is a new revision that reopens the draft; the confirmed revision stays on disk.

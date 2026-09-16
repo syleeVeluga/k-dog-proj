@@ -15,8 +15,8 @@ export function toClock(seconds: number) {
 }
 export function fromClock(text: string): number | null {
   const match = /^(\d+):([0-5]?\d(?:\.\d+)?)$/.exec(text.trim());
-  if (match) return Number(match[1]) * 60 + Number(match[2]);
-  return /^\d+(\.\d+)?$/.test(text.trim()) ? Number(text) : null;
+  const value = match ? Number(match[1]) * 60 + Number(match[2]) : /^\d+(\.\d+)?$/.test(text.trim()) ? Number(text) : NaN;
+  return Number.isFinite(value) ? value : null;
 }
 
 // 촬영 메뉴: 한 쌍의 영상 파일을 여러 개 등록하고, 기준 영상 위에서 8구간 시작·끝 시각을 적어 확정한다(01 §2). 카메라 구분은 없다.
@@ -58,6 +58,9 @@ function RecordingPanel({ item, writable, run, refresh, notify, close }: { item:
   const [ends, setEnds] = useState<string[]>(() => SEGMENTS.map((_, i) => stored ? toClock(stored.windows[i].end_sec) : ''));
   const [dirty, setDirty] = useState(false);
   const [baseRevision, setBaseRevision] = useState(item.input_revision);
+  const [playerReady, setPlayerReady] = useState(false);
+  const [showErrors, setShowErrors] = useState(false);
+  const [checkConfirm, setCheckConfirm] = useState(false);
   const player = useRef<HTMLVideoElement>(null);
   useUnsaved(dirty);
   function loadLatest() {
@@ -65,20 +68,33 @@ function RecordingPanel({ item, writable, run, refresh, notify, close }: { item:
     setClocks(SEGMENTS.map((_, i) => stored ? toClock(stored.windows[i].start_sec) : ''));
     setEnds(SEGMENTS.map((_, i) => stored ? toClock(stored.windows[i].end_sec) : ''));
     setEditing(!stored?.confirmed); setBaseRevision(item.input_revision); setDirty(false);
+    setShowErrors(false);
   }
   useEffect(() => { if (!dirty) loadLatest(); }, [item.input_revision]);
+  useEffect(() => setPlayerReady(false), [videoId]);
   const now = () => player.current ? toClock(Math.round(player.current.currentTime * 10) / 10) : '';
-  function windows(): SegmentWindow[] | string {
+  function windowError(i: number, confirm: boolean): string {
+    const label = SEGMENTS[i][1]; const start = fromClock(clocks[i]); const end = fromClock(ends[i]);
+    if (start === null || end === null) return `${label} 시작·끝을 모두 입력하세요. 예: 1:23.4 (분:초) 또는 83.4초.`;
+    if (end < start || (confirm && end === start)) return `${label} 끝은 시작보다 늦어야 확정할 수 있습니다.`;
+    const prior = i > 0 ? fromClock(ends[i - 1]) : null;
+    if (prior !== null && start < prior) return `${SEGMENTS[i - 1][1]} 끝 ${ends[i - 1]}가 ${label} 시작 ${clocks[i]}보다 늦습니다. 구간 순서를 확인하세요.`;
+    return '';
+  }
+  function windows(confirm: boolean): SegmentWindow[] | string {
     const result: SegmentWindow[] = [];
     for (let i = 0; i < SEGMENTS.length; i++) {
       const start = fromClock(clocks[i]); const end = fromClock(ends[i]);
-      if (start === null || end === null) return `${SEGMENTS[i][1]} 구간의 시각을 m:ss 형식으로 입력하세요.`;
+      const error = windowError(i, confirm);
+      if (error) return error;
+      if (start === null || end === null) return '8구간의 시작·끝을 모두 입력하세요.';
       result.push({ segment: SEGMENTS[i][0], start_sec: start, end_sec: end });
     }
     return result;
   }
   function save(confirm: boolean) {
-    const value = windows();
+    setShowErrors(true); setCheckConfirm(confirm);
+    const value = windows(confirm);
     if (typeof value === 'string') { notify(value); return; }
     void run(async () => {
       const saved = await api<Case>(`/cases/${item.case_id}/sessions/${session.session_id}/segments`, 'PUT', { expected_revision: baseRevision, video_id: videoId, windows: value, confirm });
@@ -102,20 +118,27 @@ function RecordingPanel({ item, writable, run, refresh, notify, close }: { item:
       <label className="check"><input type="radio" name="reference-video" value={v.video_id} checked={videoId === v.video_id} disabled={!editing || !writable} onChange={() => { setVideoId(v.video_id); setDirty(true); }} />구간 기준 영상</label></div>)}
     {writable && <VideoUpload key={session.session_id} item={item} session={session} refresh={refresh} />}
     <div className="section-title"><h3 id="segments">8구간 시각</h3>{stored && <span className={stored.confirmed ? 'tag green' : 'tag'}>{stored.confirmed ? '확정' : '초안'}</span>}</div>
-    {videoId && <video ref={player} src={`/api/cases/${item.case_id}/videos/${videoId}`} controls preload="metadata" />}
+    <p className="fine">8구간 시각은 선택한 파일의 0:00을 기준으로 합니다. 다른 파일은 자동으로 동기화되지 않습니다. 시각 예: 1:23.4 (분:초), 83.4초.</p>
+    {stored && stored.video_id !== videoId && <p role="status">기준 영상이 바뀌었습니다. 기존 8구간 시각을 새 파일에서 모두 재검토하세요.</p>}
+    {editing && stored?.confirmed && <p role="status">아직 저장된 확정본은 유지됩니다. 초안 저장 시 미확정으로 바뀝니다.</p>}
+    {videoId && <video key={videoId} ref={player} src={`/api/cases/${item.case_id}/videos/${videoId}`} controls preload="metadata"
+      onLoadedMetadata={() => setPlayerReady(Number.isFinite(player.current?.duration))} onError={() => setPlayerReady(false)} onEmptied={() => setPlayerReady(false)} />}
     {!session.videos.length && <p className="fine">영상을 먼저 등록하면 재생 위치로 시각을 넣을 수 있습니다.</p>}
-    <fieldset disabled={!writable || !editing}><div className="table-wrap"><table><thead><tr><th>구간</th><th>시작 (m:ss)</th><th>끝 (m:ss)</th></tr></thead>
+    <fieldset disabled={!writable || !editing}><div className="table-wrap"><table><thead><tr><th>구간</th><th>시작 (m:ss)</th><th>끝 (m:ss)</th><th>길이 / 확인</th></tr></thead>
       <tbody>{SEGMENTS.map(([id, label], i) => <tr key={id}><td>{i + 1} {label}</td>
         <td><span className="toolbar"><input aria-label={`${label} 시작`} value={clocks[i]} placeholder="0:00" onChange={e => { setClocks(clocks.map((c, j) => j === i ? e.target.value : c)); setDirty(true); }} />
-          <button type="button" disabled={!videoId} onClick={() => { setClocks(clocks.map((c, j) => j === i ? now() : c)); setDirty(true); }}>지금 시각</button></span></td>
+          <button type="button" disabled={!playerReady} onClick={() => { setClocks(clocks.map((c, j) => j === i ? now() : c)); setDirty(true); }}>지금 시각</button></span></td>
         <td><span className="toolbar"><input aria-label={`${label} 끝`} value={ends[i]} placeholder="0:15" onChange={e => { setEnds(ends.map((c, j) => j === i ? e.target.value : c)); setDirty(true); }} />
-          <button type="button" disabled={!videoId} onClick={() => { setEnds(ends.map((c, j) => j === i ? now() : c)); setDirty(true); }}>지금 시각</button></span></td></tr>)}
+          <button type="button" disabled={!playerReady} onClick={() => { setEnds(ends.map((c, j) => j === i ? now() : c)); setDirty(true); }}>지금 시각</button></span></td>
+        <td>{fromClock(clocks[i]) !== null && fromClock(ends[i]) !== null ? `${(fromClock(ends[i])! - fromClock(clocks[i])!).toFixed(1)}초` : '미입력'}
+          {showErrors && windowError(i, checkConfirm) && <p className="error">{windowError(i, checkConfirm)}</p>}</td></tr>)}
       </tbody></table></div></fieldset>
     {writable && <div className="toolbar">
-      {editing ? <><button type="button" disabled={!videoId} onClick={() => save(false)}>초안 저장</button><button type="button" className="primary" disabled={!videoId} onClick={() => save(true)}>8구간 확정</button></>
-        : <button type="button" onClick={() => { if (mayLeave()) setEditing(true); }}>확정 해제 후 수정</button>}
+      {editing ? <><button type="button" disabled={!videoId} onClick={() => save(false)}>8구간 초안 저장</button><button type="button" className="primary" disabled={!videoId} onClick={() => save(true)}>8구간 확정</button></>
+        : <button type="button" onClick={() => { if (mayLeave()) setEditing(true); }}>확정본 수정 시작</button>}
       {dirty && <p role="status">구간 시각 · 저장 전</p>}
     </div>}
+    <p className="fine">초안 저장도 8구간의 시작·끝 16칸을 모두 입력해야 합니다. 일부 구간만 저장하는 기능은 아직 지원하지 않습니다. 빈칸을 0초로 대신 채우지 마세요.</p>
     <p className="fine">확정하면 채점 단계가 이 시각을 사용합니다. 수정하면 새 입력 버전으로 저장되며 이전 값은 보존됩니다.</p>
   </section>;
 }

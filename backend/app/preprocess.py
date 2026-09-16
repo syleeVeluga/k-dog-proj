@@ -23,10 +23,14 @@ def plan(session, rules=RULES):
     """Clip specs for the reference file: dense window then sparse remainder for stimulus segments, one sparse clip otherwise."""
     if session.segments is None or not session.segments.confirmed:
         raise HTTPException(409, "8구간 시각을 확정한 뒤 전처리할 수 있습니다.")
+    try:
+        SessionSegments(session_id=session.session_id, video_id=session.segments.video_id, windows=tuple(
+            {"segment": w.segment, "start_sec": w.start_sec, "end_sec": w.end_sec, "source": "operator_confirmed"}
+            for w in session.segments.windows))
+    except ValueError as exc:
+        raise HTTPException(422, "8구간의 끝은 시작보다 늦고 절차 순서대로 겹치지 않아야 합니다. 구간을 보완해 다시 확정하세요.") from exc
     clips = []
     for window in session.segments.windows:
-        if window.end_sec <= window.start_sec:
-            continue  # zero-length segment: nothing to cut, the scorer sees it as missing
         if window.segment in rules["dense_segments"]:
             dense_end = min(window.start_sec + rules["window_sec"], window.end_sec)
             clips.append({"name": f"{window.segment}-dense", "segment": window.segment, "start_sec": window.start_sec,
