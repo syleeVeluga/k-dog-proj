@@ -71,7 +71,7 @@ uv run --locked python -X utf8 -m app.import_catalogs --customer-dir "D:/referen
 
 ## 전처리 (FFmpeg)
 
-확정한 8구간으로 기준 영상을 잘라 채점 단계가 읽을 불변 클립을 만든다. 규칙은 `resources/rules/preprocess-v1.json`(자극 창 4곳 5초는 8 fps, 나머지 2 fps, 오디오 유지, 해상도·360 크롭은 07 장비 문서 뒤 결정)에 있다. 지금은 명령줄로 실행한다.
+확정한 8구간으로 기준 영상을 잘라 채점 단계가 읽을 불변 클립을 만든다. 규칙은 `resources/rules/preprocess-v2.json`(자극 창 4곳 5초는 8 fps, 나머지 2 fps, 오디오 유지, 해상도·360 크롭은 07 장비 문서 뒤 결정)에 있다. 촬영에서 네 자극 시각을 기록한 뒤 전처리 메뉴 또는 CLI로 명시적으로 실행한다. Excel C8·C10의 사건 이후 5초를 기준으로 4개 창에 임시 적용하고, 해당 구간 끝에서 자른다. 미지정/구간 밖/끝과 같은 사건 시각은 보완 후 실행한다. 교수 회신은 별도 확인 요청에 대기 상태로 보존한다.
 
 ```powershell
 # backend/에서 실행. --actor는 활성 운영자·관리자 계정.
@@ -82,7 +82,7 @@ uv run --locked python -X utf8 -m app.manage --data-dir "D:/kdog-data" preproces
 
 ## 패키징·리허설
 
-릴리즈 ZIP은 커밋된 깨끗한 작업 트리에서 만든다. `git ls-files`의 `backend/app/**/*.py`와 `resources/` JSON·폰트, `frontend/dist`, 설치 스크립트, 루트 `README.md`·`pyproject.toml`·`uv.lock`·`PILOT_OPERATIONS.md`만 담고 자료·키·테스트·개발 문서는 넣지 않는다. `app.launcher.REQUIRED`가 실행 전 확인하는 파일은 42항목 판 카탈로그(`behavior-v2`·`survey-v2`)·`scoring-v2.json`·`preprocess-v1.json`·폰트·화면 빌드다.
+릴리즈 ZIP은 커밋된 깨끗한 작업 트리에서 만든다. `git ls-files`의 `backend/app/**/*.py`와 `resources/` JSON·폰트, `frontend/dist`, 설치 스크립트, 루트 `README.md`·`pyproject.toml`·`uv.lock`·`PILOT_OPERATIONS.md`만 담고 자료·키·테스트·개발 문서는 넣지 않는다. `app.launcher.REQUIRED`가 실행 전 확인하는 파일은 42항목 판 카탈로그(`behavior-v2`·`survey-v2`)·`scoring-v2.json`·`preprocess-v2.json`·폰트·화면 빌드다.
 
 ```powershell
 # 저장소 루트에서 실행
@@ -92,7 +92,7 @@ python -X utf8 scripts/verify_release.py "releases/kdog-v0.2.0-windows-x64.zip"
 
 `verify_release`는 ZIP을 새 한글·공백 경로에 풀어 손상 파일 거절, 새 가상환경 설치, HTTP 로그인·접수·재시작 후 재조회, 감독 프로세스 종료를 확인한다. 현재 Windows 호스트에서의 검증이며 깨끗한 OS·별도 PC 검증을 대체하지 않는다.
 
-촬영 당일 흐름 리허설은 합성 영상 72쌍으로 접수 가져오기 → 설문 가져오기 → 영상 파일 2개 등록 → 8구간 확정 → 전처리를 끝까지 돌리고 단계별 시간·용량·클립 수·해시를 JSON으로 낸다. 임시 폴더(또는 `--data-dir`로 지정한 새 빈 폴더)만 쓰고 운영 자료는 열지 않는다. `tests/test_rehearsal.py`가 2쌍으로 같은 코드를 시험한다.
+촬영 당일 흐름 리허설은 합성 영상 72쌍으로 접수 가져오기 → 설문 가져오기 → 영상 파일 2개 등록 → 8구간 확정·합성 자극 시각 기록 → 전처리를 끝까지 돌리고 단계별 시간·용량·클립 수·해시를 JSON으로 낸다. 임시 폴더(또는 `--data-dir`로 지정한 새 빈 폴더)만 쓰고 운영 자료는 열지 않는다. `tests/test_rehearsal.py`가 2쌍으로 같은 코드를 시험한다.
 
 ```powershell
 # backend/에서 실행 (httpx는 개발 의존성)

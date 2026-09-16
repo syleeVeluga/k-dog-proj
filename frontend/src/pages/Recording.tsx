@@ -153,12 +153,12 @@ function StimulusEditor({ item, videoId, writable, run, refresh, playerReady, no
     setError('');
     void run(async () => {
       await api(`/cases/${item.case_id}/sessions/${session.session_id}/stimuli`, 'PUT', { expected_revision: edit.view.revision, video_id: edit.view.video_id, moments: Object.fromEntries(entries) });
-      edit.reset(); setValues({}); await refresh('자극 시각을 기록했습니다. 전처리 창 배치는 고객 확인 대기입니다.');
+      edit.reset(); setValues({}); await refresh('자극 시각을 기록했습니다. 사건 이후 최대 5초 창을 전처리 화면에서 확인하세요.');
     });
   }
-  return <section aria-label="자극 시각 기록"><h3>자극 순간 · 창 배치 확인 필요</h3>
+  return <section aria-label="자극 시각 기록"><h3>자극 순간 · Excel 기준 임시 적용</h3>
     <p className="fine">8구간 시작과 다른 사건입니다. 위 영상의 재생 위치를 확인해 각각 기록하세요. 빈칸은 미지정이며, 시각 저장만으로 전처리 창 확정이나 실행이 되지 않습니다.</p>
-    <p className="fine">사건 전후 길이·경계·중첩·판독 불가 처리는 고객 확인 대기입니다. 현재 전처리는 구간 시작 기준이며 이 시각을 아직 사용하지 않습니다.</p>
+    <p className="fine">교수 회신 전까지 사건 이후 5초를 해당 구간 끝에서 잘라 사용합니다. 미지정·사건 없음·판독 불가 시 임의 시각을 넣지 말고 확인하세요. 네 시각을 모두 확인해야 전처리할 수 있습니다.</p>
     {stored && <p className="fine">기록 출처: 운영자 확인 · 입력 버전 {stored.input_revision} · 기준 파일 {session.videos.find(v => v.video_id === stored.video_id)?.original_name}</p>}
     {stored && stored.video_id !== videoId && <p role="status">저장된 자극 시각은 다른 기준 영상의 기록입니다. 현재 영상에는 자동 적용하지 않습니다.</p>}
     {edit.dirty && (edit.view.revision !== item.input_revision || edit.view.video_id !== videoId) && <p role="status">다른 입력 또는 기준 영상이 변경되었습니다. 편집 시작 버전을 유지하며 덮어쓰지 않습니다.</p>}

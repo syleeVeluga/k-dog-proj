@@ -225,18 +225,22 @@ class Message(Model):
     message: str
 
 
-class PreprocessClip(Model):
+class PreprocessPlannedClip(Model):
     name: str
     segment: SegmentId
     start_sec: float
     end_sec: float
     fps: int
+
+
+class PreprocessClip(PreprocessPlannedClip):
     ref: str
     hash: str
     size_bytes: int
 
 
 class PreprocessResult(Model):
+    stimuli: StimulusTimes | None = None
     schema_version: Literal["1.0"]
     rules_version: str
     case_id: Key
@@ -253,6 +257,8 @@ class PreprocessResult(Model):
 
 
 class PreprocessStatus(Model):
+    readiness_message: str
+    planned_clips: list[PreprocessPlannedClip]
     status: Literal["ready", "not_ready", "running", "interrupted", "failed", "complete"]
     message: str
     ready: bool

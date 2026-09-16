@@ -1,6 +1,6 @@
 """Local FFmpeg preprocessing: cut the confirmed eight segments of the reference file into immutable, hashed clips.
 
-Stimulus windows (first seconds of 입장·혼자·낯선·재회) are kept at a dense frame rate, the rest sparse (01 §5). Nothing here
+Operator-recorded stimulus windows are kept at a dense frame rate, the rest sparse (Excel provisional rule). Nothing here
 scores anything; the clips are the input the AI 채점 단계 (P2) will read instead of the multi-gigabyte original.
 """
 
@@ -16,11 +16,11 @@ from app.intake import selected_session
 from app.media import MediaError, cut_clip, probe
 from app.storage import REPO_ROOT, encode, now, uid
 
-RULES = json.loads((REPO_ROOT / "resources/rules/preprocess-v1.json").read_text(encoding="utf-8"))
+RULES = json.loads((REPO_ROOT / "resources/rules/preprocess-v2.json").read_text(encoding="utf-8"))
 
 
 def plan(session, rules=RULES):
-    """Clip specs for the reference file: dense window then sparse remainder for stimulus segments, one sparse clip otherwise."""
+    """Tile each segment without overlaps: sparse before the event, dense event window, sparse remainder."""
     if session.segments is None or not session.segments.confirmed:
         raise HTTPException(409, "8구간 시각을 확정한 뒤 전처리할 수 있습니다.")
     try:
@@ -30,10 +30,19 @@ def plan(session, rules=RULES):
     except ValueError as exc:
         raise HTTPException(422, "8구간의 끝은 시작보다 늦고 절차 순서대로 겹치지 않아야 합니다. 구간을 보완해 다시 확정하세요.") from exc
     clips = []
+    if session.stimuli is None or session.stimuli.video_id != session.segments.video_id:
+        raise HTTPException(409, "구간 기준 영상의 자극 시각 4개를 촬영 화면에서 기록하세요.")
     for window in session.segments.windows:
         if window.segment in rules["dense_segments"]:
-            dense_end = min(window.start_sec + rules["window_sec"], window.end_sec)
-            clips.append({"name": f"{window.segment}-dense", "segment": window.segment, "start_sec": window.start_sec,
+            moment = getattr(session.stimuli.moments, window.segment)
+            if moment is None or not window.start_sec <= moment < window.end_sec:
+                raise HTTPException(422, "자극 시각 4개는 각 해당 구간의 시작 이상, 끝 미만이어야 합니다. 미지정·사건 없음·판독 불가는 임의로 채우지 말고 확인하세요.")
+            dense_start = max(window.start_sec, moment - rules["before_sec"])
+            dense_end = min(moment + rules["after_sec"], window.end_sec)
+            if dense_start > window.start_sec:
+                clips.append({"name": f"{window.segment}-sparse-before", "segment": window.segment, "start_sec": window.start_sec,
+                              "end_sec": dense_start, "fps": rules["sparse_fps"]})
+            clips.append({"name": f"{window.segment}-dense", "segment": window.segment, "start_sec": dense_start,
                           "end_sec": dense_end, "fps": rules["dense_fps"]})
             if dense_end < window.end_sec:
                 clips.append({"name": f"{window.segment}-sparse", "segment": window.segment, "start_sec": dense_end,
@@ -79,7 +88,8 @@ def run(store, case_id, session_id, actor, rules=RULES, *, expected_revision=Non
     result = {"schema_version": "1.0", "rules_version": rules["version"], "case_id": case_id, "session_id": session_id,
               "input_revision": row["input_revision"], "video_id": video.video_id, "source_sha256": video.sha256,
               "source_duration_sec": info["duration_sec"], "source_width": info["width"], "source_height": info["height"],
-              "source_audio": info["audio_status"], "created_at": now(), "clips": outputs}
+              "source_audio": info["audio_status"], "created_at": now(), "clips": outputs,
+              "stimuli": session.stimuli.model_dump()}
     manifest_ref = f"{folder}/clips.json"
     data = encode(result).encode("utf-8")
     with store.path(manifest_ref).open("xb") as handle:
@@ -140,13 +150,15 @@ def status(store, case_id, session_id):
         entry = next(((e["action"], json.loads(e["detail_json"])) for e in entries if json.loads(e["detail_json"]).get("session_id") == session_id), None)
         latest_start = db.execute("SELECT detail_json FROM changes WHERE action='preprocess.started' ORDER BY rowid DESC LIMIT 1").fetchone()
     video = next((v for v in session.videos if session.segments and v.video_id == session.segments.video_id), None)
+    planned_clips = []
     try:
-        plan(session)
+        planned_clips = plan(session)
         ready = video is not None and manifest.selected_session_id == session_id
         message = "실행 가능합니다. 기준 영상과 처리 규칙을 확인한 뒤 시작하세요." if ready else "운영자가 이 촬영 회차를 저장 대상으로 선택해야 합니다."
     except HTTPException as exc:
         ready, message = False, exc.detail
     state = "ready" if ready else "not_ready"
+    readiness_message = message
     if entry:
         action, detail = entry
         if action == "preprocess.started":
@@ -164,6 +176,6 @@ def status(store, case_id, session_id):
         else:
             state, message = "complete", "전처리가 완료되었습니다."
     outdated = bool(result and (result["input_revision"] != row["input_revision"] or result["rules_version"] != RULES["version"] or not video or result["source_sha256"] != video.sha256))
-    return {"status": state, "message": message, "ready": ready, "outdated": outdated,
+    return {"status": state, "message": message, "readiness_message": readiness_message, "planned_clips": planned_clips, "ready": ready, "outdated": outdated,
             "rules_version": RULES["version"], "dense_fps": RULES["dense_fps"], "sparse_fps": RULES["sparse_fps"],
             "input_revision": row["input_revision"], "video_name": video.original_name if video else None, "result": result}

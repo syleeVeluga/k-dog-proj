@@ -37,6 +37,9 @@ test('명시적 전처리 시작과 재시도, 교수 조회 및 이전 입력 �
     await stimulus.getByRole('button', { name: '재회 접촉 지금 시각' }).click();
     await expect(stimulus.getByLabel('재회 접촉 시각')).toHaveValue('0:04.5');
     const savedStimulus = page.waitForResponse(r => r.url().endsWith('/stimuli') && r.request().method() === 'PUT');
+    await stimulus.getByLabel('낯선 바닥 첫 접촉 시각').fill('0');
+    await stimulus.getByLabel('보호자 퇴실 동작 시각').fill('2');
+    await stimulus.getByLabel('낯선 사람 입장 시각').fill('3');
     await stimulus.getByRole('button', { name: '자극 시각 저장', exact: true }).click();
     item = await (await savedStimulus).json();
     expect(item.manifest.sessions[0].stimuli.moments.reunion).toBe(4.5);
@@ -49,8 +52,10 @@ test('명시적 전처리 시작과 재시도, 교수 조회 및 이전 입력 �
     const panel = page.getByLabel('전처리 상태', { exact: true });
     await expect(panel).toContainText('실행 가능합니다');
     expect(requests).toBe(0);
+    await expect(panel).toContainText('4.5~5초 · 8 fps');
+    await expect(panel).toContainText('Excel 기준 임시 적용');
     await panel.getByRole('button', { name: '이 촬영 전처리 시작', exact: true }).click();
-    await expect(panel.getByRole('heading', { name: '완료된 결과 8개' })).toBeVisible({ timeout: 30000 });
+    await expect(panel.getByRole('heading', { name: '완료된 결과 9개' })).toBeVisible({ timeout: 30000 });
     await expect(panel.getByRole('button', { name: '이 촬영 전처리 다시 시작' })).toBeEnabled();
     expect(requests).toBe(1);
     await panel.getByRole('button', { name: '이 촬영 전처리 다시 시작' }).click();
