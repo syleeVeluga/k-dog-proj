@@ -90,8 +90,8 @@ P1은 10월 31일 현장에서 반드시 돌아야 하는 것 — **접수 · �
 | 파일 | 구분 | 내용 |
 | --- | --- | --- |
 | `backend/app/api.py` | 변경 | `GET /cases/{id}/survey/result` → `app.scoring.survey_scores`(P0) 결과(`SurveyResult`). 저장 시 계산하지 않고 조회 시 계산(설문은 결정적) |
-| `frontend/src/pages/Survey.tsx` | 신설 | 설문 메뉴 = CSV·Excel 가져오기(양식 다운로드·미리보기·저장, 지금의 Importer 설문 부분을 이 메뉴로 옮김) + 참가자별 등록 현황(n/28·미응답 문항·해당 없음) + 영역별 응답 수와 분리 유형 이름 조회(숫자 점수·총점 없음, 01 §6) |
-| `frontend/tests/survey.spec.ts` | 신설 | CSV·XLSX 가져오기(NA 포함)·오류 행·현황 표시·결과 조회 |
+| `frontend/src/pages/Survey.tsx` | 신설 | 설문 메뉴 = CSV·Excel 가져오기(`Importer`를 설문 종류로 고정해 포함; 「자료 가져오기」에서도 여전히 가능) + 참가자별 등록 현황(n/28·미응답 수·해당 없음 수) + 영역별 응답 수와 분리 유형 이름 조회(화면에는 숫자 점수·총점 없음, 01 §6; API `GET /cases/{id}/survey/result`는 계약 그대로 평균값도 담음) |
+| `frontend/tests/survey.spec.ts` | 신설 | CSV 가져오기(NA 포함)·오류 행·현황 표시·결과 조회·768px·검토자 읽기 전용 (XLSX 경로는 백엔드 시험이 담당) |
 | `backend/tests/test_intake_api.py` | 변경 | `/survey/result` 계약·부분 응답·NA |
 
 ## 5. PR-8 촬영 메뉴

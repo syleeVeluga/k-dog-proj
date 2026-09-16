@@ -3,13 +3,12 @@ import { api } from '../api';
 import { mayLeave } from '../Editing';
 import { Observations } from '../Observations';
 import { CaseEditor, SessionEditor } from '../MetadataEditors';
-import { SurveyView } from '../SurveyView';
 import { VideoUpload } from '../VideoUpload';
 import { formFields, sessionOf } from '../types';
-import type { Case, Catalog, Run } from '../types';
+import type { Case, Run } from '../types';
 
-export function CaseDetail({ item, catalog, writable, run, refresh, back }: {
-  item: Case; catalog: Catalog; writable: boolean; run: Run; refresh: (message?: string) => Promise<void>; back: () => void;
+export function CaseDetail({ item, writable, run, refresh, back }: {
+  item: Case; writable: boolean; run: Run; refresh: (message?: string) => Promise<void>; back: () => void;
 }) {
   const [viewSession, setViewSession] = useState(item.selected_session_id);
   const [view, setView] = useState<'analysis' | 'report'>('analysis');
@@ -32,7 +31,7 @@ export function CaseDetail({ item, catalog, writable, run, refresh, back }: {
     <nav className="section-nav" aria-label="참가자 업무">
       <button aria-current={view === 'analysis' ? 'page' : undefined} onClick={() => changeView('analysis')}>자료·이전 분석</button>
       <button aria-current={view === 'report' ? 'page' : undefined} onClick={() => changeView('report')}>보고서</button>
-      {view === 'analysis' && <><a href="#videos">영상 자료</a><a href="#survey">설문</a><a href="#sessions">촬영 세션</a></>}
+      {view === 'analysis' && <><a href="#videos">영상 자료</a><a href="#sessions">촬영 세션</a></>}
     </nav>
     <Observations item={item} writable={writable} view={view} />
     <div hidden={view !== 'analysis'}>
@@ -63,7 +62,7 @@ export function CaseDetail({ item, catalog, writable, run, refresh, back }: {
       {playing && <div><video src={playing} controls preload="metadata" /><button onClick={() => setPlaying(null)}>재생 닫기</button></div>}
       {writable && <VideoUpload key={session.session_id} item={item} session={session} refresh={refresh} />}
     </section>
-    <SurveyView key={session.session_id} session={session} catalog={catalog} />
+    <p className="fine">설문 등록 현황과 결과는 「설문」 메뉴에서 봅니다.</p>
     </div>
   </>;
 }

@@ -6,15 +6,15 @@ import { analysisNames } from '../Observations';
 import { ParticipantFields, participantValue } from '../ParticipantFields';
 import { CaseDetail } from './CaseDetail';
 import { SURVEY_TOTAL, sessionOf, surveyHandled } from '../types';
-import type { Case, Catalog, Run, User } from '../types';
+import type { Case, Run, User } from '../types';
 
 type Props = {
-  user: User; cases: Case[]; catalog: Catalog | null; selected: Case | null; writable: boolean; run: Run;
+  user: User; cases: Case[]; selected: Case | null; writable: boolean; run: Run;
   reload: (id?: string) => Promise<void>; select: (item: Case | null) => void; status: string; notify: (message: string) => void;
 };
 
 // 접수 메뉴: 참가자 목록·등록·상세. 설문은 자료 가져오기, 영상·구간은 촬영 메뉴(PR-8)가 맡는다.
-export function Intake({ user, cases, catalog, selected, writable, run, reload, select, status, notify }: Props) {
+export function Intake({ user, cases, selected, writable, run, reload, select, status, notify }: Props) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [eventFilter, setEventFilter] = useState('');
@@ -28,7 +28,7 @@ export function Intake({ user, cases, catalog, selected, writable, run, reload, 
       && (!eventFilter || c.event_id === eventFilter) && matches;
   }).sort((a, b) => (a.sequence_no ?? 1e9) - (b.sequence_no ?? 1e9) || a.participant_id.localeCompare(b.participant_id));
 
-  if (selected && catalog) return <CaseDetail key={selected.case_id} item={selected} catalog={catalog} writable={writable} run={run}
+  if (selected) return <CaseDetail key={selected.case_id} item={selected} writable={writable} run={run}
     back={() => { if (mayLeave()) void run(async () => { select(null); await reload(); }); }}
     refresh={async message => { await reload(selected.case_id); if (message) notify(message); }} />;
 

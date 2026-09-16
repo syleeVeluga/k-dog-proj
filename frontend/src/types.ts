@@ -44,3 +44,9 @@ export type ImportRow = {
   survey: { expected_revision: number; answers: Record<string, number | null>; not_applicable: string[] } | null;
 };
 export type Preview = { rows: ImportRow[]; errors: string[] };
+export type SurveyResult = {
+  status: 'calculated' | 'partial' | 'unregistered';
+  domains: { domain: 'A' | 'B' | 'C' | 'E'; answered_count: number; target_count: number; status: 'calculated' | 'partial' | 'missing' }[];
+  separation: { label: string | null; status: 'calculated' | 'missing'; reason: string | null };
+  items: { item_id: string; raw: number | null; not_applicable: boolean }[];
+};
