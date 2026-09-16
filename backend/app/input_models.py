@@ -194,6 +194,8 @@ class ImportColumn(Model):
 
 class ImportColumns(Model):
     columns: list[ImportColumn]
+    sheets: list[str] = Field(default_factory=list)
+    selected_sheet: str | None = None
 
 
 class ImportPreview(Model):

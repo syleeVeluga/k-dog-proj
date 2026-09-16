@@ -29,7 +29,7 @@ export function Survey({ cases, selected, select, filters, catalog, writable, ru
       <div className="count"><strong>{registered.toString().padStart(2, '0')}</strong><span>설문 완료 / {cases.length}명</span></div></section>
     {!selected && writable && <details className="panel" open={registered < cases.length}><summary>설문 파일 가져오기 (CSV·Excel)</summary>
       <p className="fine">열은 <span className="mono">event_id, participant_id, survey_version, s01 … s28</span>이며 7~9번은 <span className="mono">NA</span>로 「해당 없음」을 표시합니다. 양식은 아래에서 내려받습니다.</p>
-      <Importer fixedKind="survey" run={run} catalogVersion={catalog?.version ?? ''} done={async message => { notify(message); await reload(); }} />
+      <Importer fixedKind="survey" run={run} catalog={catalog} catalogVersion={catalog?.version ?? ''} done={async message => { notify(message); await reload(); }} />
     </details>}
     {!selected && <><CaseFilters cases={cases} {...filters} /><div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자</th><th>반려견 / 보호자</th><th>설문</th><th>미응답</th><th>해당 없음</th><th>현황</th></tr></thead>
       <tbody>{sorted.map(c => { const s = sessionOf(c); const count = surveyHandled(s); const missing = SURVEY_TOTAL - count;
@@ -43,7 +43,8 @@ export function Survey({ cases, selected, select, filters, catalog, writable, ru
     {selected && session && catalog && <section className="panel" aria-label="설문 현황">
       <div className="section-title"><h2>{selected.dog_name} · {selected.participant_id}</h2><button onClick={() => select(null)}>닫기</button></div>
       {result ? <>
-        <p className="fine">등록 상태: {({ calculated: '전 문항 응답', partial: '일부 미응답', unregistered: '미등록' })[result.status]} · 총점은 만들지 않습니다.</p>
+        <p className="fine">등록 {surveyHandled(session)}/28 · 응답 {Object.values(session.survey).filter(v => v !== null).length} · 해당 없음 {session.survey_not_applicable.length} · 미응답 {28 - surveyHandled(session)} · 총점은 만들지 않습니다.</p>
+        {session.survey_not_applicable.length > 0 && <p className="fine">A 영역은 해당 없음 {session.survey_not_applicable.length}개를 제외하고 계산합니다. 해당 없음은 등록된 응답 상태이며 0점이나 미응답이 아닙니다.</p>}
         <div className="score-grid">{result.domains.map(d => <div className="score-card" key={d.domain}><strong>{d.domain}. {surveyDomains[d.domain]}</strong><p>응답 {d.answered_count}/{d.target_count}{d.answered_count < d.target_count && ` · 미응답·해당 없음 ${d.target_count - d.answered_count}`}</p></div>)}
           <div className="score-card"><strong>D. {surveyDomains.D}</strong><p>분리 유형: {result.separation.label ?? `없음 (${result.separation.reason ?? '미응답'})`}</p></div></div>
       </> : resultError ? <p className="error" role="alert">{resultError}</p> : <p role="status">결과 조회 중…</p>}
