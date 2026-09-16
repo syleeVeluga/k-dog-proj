@@ -125,6 +125,37 @@ class IntakeTests(AppCase):
         self.assertEqual(self.client_for("reviewer").get(path).status_code, 200)
         self.assertEqual(self.client_for("developer").get(path).status_code, 403)
 
+    def test_segments_are_saved_as_draft_then_confirmed_against_a_registered_file(self):
+        item = self.upload(self.make_case()).json()
+        session = item["manifest"]["sessions"][0]
+        video_id = session["videos"][0]["video_id"]
+        url = f"/api/cases/{item['case_id']}/sessions/{session['session_id']}/segments"
+        order = ["entry", "baseline", "alone", "stranger", "reunion", "ignore", "walk", "exit"]
+        windows = [{"segment": name, "start_sec": float(i * 20), "end_sec": float(i * 20 + 15)} for i, name in enumerate(order)]
+        self.assertIsNone(session["segments"])
+        draft = self.client.put(url, json={"expected_revision": item["input_revision"], "video_id": video_id, "windows": windows})
+        self.assertEqual(draft.status_code, 200, draft.text)
+        saved = draft.json()["manifest"]["sessions"][0]["segments"]
+        self.assertEqual((saved["video_id"], saved["confirmed"], saved["windows"][7]["segment"], saved["windows"][7]["end_sec"]), (video_id, False, "exit", 155.0))
+        revision = draft.json()["input_revision"]
+        for bad in ({"windows": windows[:7]}, {"windows": windows[::-1]}, {"windows": [{**windows[0], "end_sec": 25.0}] + windows[1:]},
+                    {"windows": [{**windows[0], "start_sec": -1.0}] + windows[1:]}, {"video_id": "missing"}, {"windows": [{**w, "segment": "entry"} for w in windows]}):
+            response = self.client.put(url, json={"expected_revision": revision, "video_id": video_id, "windows": windows, **bad})
+            self.assertEqual(response.status_code, 422, (bad, response.text))
+        confirmed = self.client.put(url, json={"expected_revision": revision, "video_id": video_id, "windows": windows, "confirm": True})
+        self.assertEqual(confirmed.status_code, 200, confirmed.text)
+        self.assertTrue(confirmed.json()["manifest"]["sessions"][0]["segments"]["confirmed"])
+        self.assertEqual(confirmed.json()["input_revision"], revision + 1)
+        self.assertEqual(self.client.put(url, json={"expected_revision": revision, "video_id": video_id, "windows": windows}).status_code, 409)
+        self.assertEqual(self.client_for("reviewer").put(url, json={"expected_revision": revision + 1, "video_id": video_id, "windows": windows}).status_code, 403)
+        # Editing after confirmation is a new revision that reopens the draft; the confirmed revision stays on disk.
+        reopened = self.client.put(url, json={"expected_revision": revision + 1, "video_id": video_id, "windows": [{**windows[0], "end_sec": 14.0}] + windows[1:]})
+        self.assertEqual(reopened.status_code, 200, reopened.text)
+        self.assertEqual((reopened.json()["input_revision"], reopened.json()["manifest"]["sessions"][0]["segments"]["confirmed"]), (revision + 2, False))
+        with self.store.connect() as db:
+            actions = [r[0] for r in db.execute("SELECT action FROM changes WHERE action LIKE 'segments.%' ORDER BY rowid")]
+        self.assertEqual(actions, ["segments.update", "segments.confirm", "segments.update"])
+
     def test_ids_duplicate_names_and_cross_case_video_access(self):
         first = self.make_case()
         second = self.make_case("0002")

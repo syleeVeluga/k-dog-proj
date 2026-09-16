@@ -20,11 +20,11 @@ from pydantic import Field, SecretStr
 from app.auth import authenticate, check_password, create_user, password_hash, token_hash, user_view
 from app.analysis import FROZEN, check_access, control, step_payload, validated_prepared, view_analysis
 from app.domain.catalog import SurveyCatalog
-from app.domain.contracts import SurveyAnswers, SurveyResult
+from app.domain.contracts import SessionSegments, SurveyAnswers, SurveyResult
 from app.scoring import survey_scores
 from app.input_models import (
     CaseCreate, CaseEdit, CaseView, ImportColumns, ImportCommit, ImportMapping, ImportPreview, Key, Login, Message,
-    Revision, SessionEdit, SessionMetadata, StoredVideo, SurveyEdit, UserCreate, UserEdit, UserView,
+    Revision, SegmentTimes, SegmentsEdit, SessionEdit, SessionMetadata, StoredVideo, SurveyEdit, UserCreate, UserEdit, UserView,
 )
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
@@ -494,6 +494,25 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             session = selected_session(manifest, session_id)
             session.note = value.note
             store.save(db, row, manifest, user.username, "session.metadata")
+            return store.view(store.case(db, case_id))
+
+    @app.put("/api/cases/{case_id}/sessions/{session_id}/segments", response_model=CaseView)
+    def session_segments(case_id: Key, session_id: Key, value: SegmentsEdit, user=Depends(writer)):
+        """Store the eight segment windows against one registered file; confirming locks them for scoring (변경검토 §5)."""
+        with store.connect(write=True) as db:
+            row = store.case(db, case_id, expected=value.expected_revision)
+            manifest = store.manifest(row)
+            session = selected_session(manifest, session_id)
+            if value.video_id not in {video.video_id for video in session.videos}:
+                raise HTTPException(422, "이 촬영 세션에 등록된 영상이 아닙니다.")
+            try:
+                SessionSegments(session_id=session_id, video_id=value.video_id, windows=tuple(
+                    {"segment": window.segment, "start_sec": window.start_sec, "end_sec": window.end_sec,
+                     "source": "operator_confirmed" if value.confirm else "operator_draft"} for window in value.windows))
+            except ValueError as exc:
+                raise HTTPException(422, "8구간은 절차 순서대로, 끝이 시작보다 늦고 서로 겹치지 않아야 합니다.") from exc
+            session.segments = SegmentTimes(video_id=value.video_id, confirmed=value.confirm, windows=value.windows)
+            store.save(db, row, manifest, user.username, "segments.confirm" if value.confirm else "segments.update")
             return store.view(store.case(db, case_id))
 
     @app.get("/api/templates/{kind}")

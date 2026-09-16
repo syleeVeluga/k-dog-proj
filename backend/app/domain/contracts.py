@@ -75,7 +75,7 @@ class SegmentWindow(Contract):
     segment: SegmentId
     start_sec: Nonnegative
     end_sec: Nonnegative
-    source: Literal["ai_proposed", "operator_confirmed"]
+    source: Literal["ai_proposed", "operator_draft", "operator_confirmed"]
 
     @model_validator(mode="after")
     def ordered(self) -> Self:

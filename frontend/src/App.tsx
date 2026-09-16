@@ -9,15 +9,17 @@ import { Importer } from './Importer';
 import { Users } from './Users';
 import { Intake } from './pages/Intake';
 import { Survey } from './pages/Survey';
+import { Recording } from './pages/Recording';
 import { formFields, roleNames } from './types';
 import type { Case, Catalog, Role, Run, User } from './types';
 import './style.css';
 
-type Page = 'intake' | 'survey' | 'import' | 'users';
+type Page = 'intake' | 'survey' | 'recording' | 'import' | 'users';
 // 대메뉴 하나가 PR 하나다: 접수(PR-6) · 설문(PR-7) · 촬영(PR-8) · 자료 가져오기 · 직원 계정.
 const menu: { page: Page; label: string; roles: Role[] }[] = [
   { page: 'intake', label: '접수', roles: ['operator', 'reviewer', 'admin'] },
   { page: 'survey', label: '설문', roles: ['operator', 'reviewer', 'admin'] },
+  { page: 'recording', label: '촬영', roles: ['operator', 'reviewer', 'admin'] },
   { page: 'import', label: '자료 가져오기', roles: ['operator', 'admin'] },
   { page: 'users', label: '직원 계정', roles: ['admin'] },
 ];
@@ -109,6 +111,7 @@ export function App() {
           : page === 'import' ? <Importer run={run} catalogVersion={catalog?.version ?? ''} done={async message => { setNotice(message); await reload(); }} />
           : page === 'users' ? <Users run={run} />
           : page === 'survey' ? <Survey cases={cases} catalog={catalog} writable={!!writable} run={run} reload={reload} notify={setNotice} />
+          : page === 'recording' ? <Recording cases={cases} writable={!!writable} run={run} reload={reload} notify={setNotice} />
           : <Intake user={user} cases={cases} selected={selected} writable={!!writable} run={run} reload={reload}
               select={setSelected} status={connectionError || `3초마다 자동 갱신 · 마지막 조회 ${updatedAt}`} notify={setNotice} />}
       </fieldset>

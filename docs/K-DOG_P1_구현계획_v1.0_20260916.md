@@ -100,10 +100,10 @@ P1은 10월 31일 현장에서 반드시 돌아야 하는 것 — **접수 · �
 
 | 파일 | 구분 | 내용 |
 | --- | --- | --- |
-| `backend/app/input_models.py` | 변경 | `Session.segments: SegmentTimes \| None`; `SegmentTimes{video_id, windows: 8개 {segment, start_sec, end_sec, source}}` — 구조 검증은 `domain.contracts.SessionSegments`로 위임. `SegmentsEdit{expected_revision, session_id, video_id, windows, confirm: bool}` |
+| `backend/app/input_models.py` | 변경 | `Session.segments: SegmentTimes \| None`; `SegmentTimes{video_id, confirmed, windows: 8개 {segment, start_sec, end_sec}}` — 구조 검증은 `domain.contracts.SessionSegments`로 위임(초안은 `operator_draft`, 확정은 `operator_confirmed`). `SegmentsEdit{expected_revision, video_id, windows, confirm: bool}`(세션은 경로에서) |
 | `backend/app/api.py` | 변경 | `PUT /cases/{id}/sessions/{sid}/segments`; `confirm=true`면 `source`를 전부 `operator_confirmed`로. 기준 영상(`video_id`)은 운영자가 등록된 파일 중에서 고른다 |
-| `frontend/src/pages/Recording.tsx` | 신설 | 참가자 선택 → 영상 파일 여러 개 등록(파일별 진행·표시 이름, 카메라 구분 입력 없음) → 기준 영상 선택 → 8구간 시각 입력(mm:ss, 재생기 옆에 「지금 시각 넣기」 버튼) → 확정. 구간 경계는 마이크 음성으로 잡으므로(01 §2) 영상 재생기에 오디오 유지 |
-| `frontend/src/VideoUpload.tsx` | 변경 | 페이지에 흡수(다중 파일 대기열, 카메라 입력 제거) |
+| `frontend/src/pages/Recording.tsx` | 신설 | 참가자 선택 → 영상 파일 여러 개 등록(파일별 진행, 카메라 구분 입력 없음) → 기준 영상 선택 → 8구간 시각 입력(m:ss, 재생기 위치로 「지금 시각」 버튼) → 초안 저장 / 확정(입력 잠금, 「확정 해제 후 수정」으로 새 revision). 촬영 메모·재촬영 세션 추가도 이 메뉴로 옮김. 구간 경계는 마이크 음성으로 잡으므로(01 §2) 영상 재생기에 오디오 유지 |
+| `frontend/src/VideoUpload.tsx` | 변경 | PR-5에서 카메라 입력을 이미 제거했으므로 그대로 `Recording`에 포함 |
 | `frontend/tests/recording.spec.ts` | 신설 | 파일 세 개 등록·부분 실패 재시도, 8구간 입력·순서 오류 거절·확정 잠금 |
 | `backend/tests/test_intake_api.py` | 변경 | segments 저장·겹침 거절·확정 후 수정은 새 revision |
 
