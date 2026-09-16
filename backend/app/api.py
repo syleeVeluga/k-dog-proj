@@ -1,4 +1,4 @@
-"""Local-first M1 API. All participant media is served through authorization."""
+"""Local-first intake API (접수·설문·촬영·계정·개발자 키). All participant media is served through authorization."""
 
 import hashlib
 import json
@@ -18,7 +18,6 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import Field, SecretStr
 
 from app.auth import authenticate, check_password, create_user, password_hash, token_hash, user_view
-from app.analysis import FROZEN, check_access, control, step_payload, validated_prepared, view_analysis
 from app.domain.catalog import SurveyCatalog
 from app.domain.contracts import SessionSegments, SurveyAnswers, SurveyResult
 from app.scoring import survey_scores
@@ -28,12 +27,7 @@ from app.input_models import (
 )
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
-from app.observation_models import AnalysisRequest, AnalysisView
-from app.evaluation import active_configuration
-from app.evaluation_models import SettingsEdit, SettingsView
-from app.gemini import configuration as observation_configuration
-from app.report_models import ExportRequest, ExportView, FrameEdit, ReportSettingsEdit, ReportSettingsView, ReportView, ReviewEdit
-from app import exports, reporting, settings
+from app import settings
 from app import secrets as vault
 from app.input_models import Model
 
@@ -154,131 +148,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def recovery_status(user=Depends(administrator)):
         from app.maintenance import status
         return status(store)
-
-    def report_settings_view(db):
-        version, config = reporting.active_report_configuration(db, observation_configuration()["model"])
-        if settings.active(db) != "legacy":
-            version, pipeline = settings.current(store, db)
-            config = pipeline.report.model_dump()
-        return ReportSettingsView(version=version, selection={"provider": config["provider"], "model": config["model"]},
-            key_available=vault.available(store, config["provider"]))
-
-    @app.get("/api/developer/report", response_model=ReportSettingsView)
-    def report_settings(user=Depends(developer)):
-        with store.connect() as db:
-            return report_settings_view(db)
-
-    @app.put("/api/developer/report", response_model=ReportSettingsView)
-    def save_report_settings(value: ReportSettingsEdit, user=Depends(developer)):
-        with store.connect(write=True) as db:
-            if settings.active(db) != "legacy":
-                raise HTTPException(409, "버전 편집 화면에서 초안과 운영 적용을 사용하세요.")
-            if report_settings_view(db).version != value.expected_version:
-                raise HTTPException(409, "설명 설정이 변경되었습니다. 새로 조회하세요.")
-            version = uid()
-            store.audit(db, user.username, version, "report.configure", {"version": version, "selection": value.selection.model_dump()})
-            return report_settings_view(db)
-
-    @app.get("/api/cases/{case_id}/reports/{run_id}", response_model=ReportView)
-    def get_report(case_id: Key, run_id: Key, user=Depends(reader)):
-        with store.connect(write=True) as db:
-            return reporting.report_view(store, db, reporting.run_row(store, db, case_id, run_id))
-
-    @app.put("/api/cases/{case_id}/reports/{run_id}", response_model=ReportView)
-    def edit_report(case_id: Key, run_id: Key, value: ReviewEdit, user=Depends(reader)):
-        return reporting.edit_review(store, case_id, run_id, value, user.username)
-
-    @app.post("/api/cases/{case_id}/reports/{run_id}/generate", response_model=Message)
-    def request_report(case_id: Key, run_id: Key, user=Depends(reader)):
-        raise HTTPException(409, FROZEN)
-
-    @app.put("/api/cases/{case_id}/reports/{run_id}/image", response_model=ReportView)
-    def choose_frame(case_id: Key, run_id: Key, value: FrameEdit, user=Depends(reader)):
-        return reporting.save_frame(store, case_id, run_id, value, user.username)
-
-    @app.get("/api/cases/{case_id}/reports/{run_id}/image")
-    def report_image(case_id: Key, run_id: Key, user=Depends(reader)):
-        with store.connect() as db:
-            reporting.run_row(store, db, case_id, run_id)
-            selected = reporting.revision_state(store, db, run_id)["image"]
-            if not selected:
-                raise HTTPException(404, "대표 이미지가 없습니다.")
-            raw = store.path(selected["ref"]).read_bytes()
-            if hashlib.sha256(raw).hexdigest() != selected["hash"]:
-                raise HTTPException(409, "대표 이미지 해시가 일치하지 않습니다.")
-            reporting.run_row(store, db, case_id, run_id)
-            return Response(raw, media_type="image/png")
-
-    @app.post("/api/exports", response_model=ExportView, status_code=201)
-    def create_export(value: ExportRequest, user=Depends(reader)):
-        raise HTTPException(409, FROZEN)
-
-    @app.post("/api/exports/preview", response_model=ExportView)
-    def preview_export(value: ExportRequest, user=Depends(reader)):
-        raise HTTPException(409, FROZEN)
-
-    @app.get("/api/exports", response_model=list[ExportView])
-    def list_exports(case_id: Key | None = None, user=Depends(reader)):
-        result = []
-        with store.connect() as db:
-            for row in db.execute("SELECT target FROM changes WHERE action='export.snapshot' ORDER BY rowid DESC"):
-                try:
-                    snapshot = exports.load_snapshot(store, db, row["target"])
-                except HTTPException as exc:
-                    if exc.status_code == 403:
-                        continue
-                    raise
-                if case_id and (not snapshot["individual"] or snapshot["members"][0]["case_id"] != case_id):
-                    continue
-                ready = db.execute("SELECT 1 FROM changes WHERE target=? AND action='export.file'", (row["target"],)).fetchone()
-                result.append(exports.export_view(snapshot, "ready" if ready else "snapshot"))
-        return result
-
-    @app.post("/api/exports/{export_id}/generate", response_model=Message)
-    def generate_export(export_id: Key, user=Depends(reader)):
-        exports.generate(store, export_id, user.username)
-        return Message(message="파일이 준비되었습니다.")
-
-    @app.get("/api/exports/{export_id}/file")
-    def download_export(export_id: Key, user=Depends(reader)):
-        with store.connect() as db:
-            snapshot = exports.load_snapshot(store, db, export_id)
-            row = db.execute("SELECT detail_json FROM changes WHERE target=? AND action='export.file' ORDER BY rowid DESC LIMIT 1", (export_id,)).fetchone()
-            if not row:
-                raise HTTPException(409, "파일 생성을 먼저 요청하세요.")
-            link = json.loads(row[0])
-            path = store.path(link["ref"])
-            raw = path.read_bytes()
-            if hashlib.sha256(raw).hexdigest() != link["hash"]:
-                raise HTTPException(409, "내보내기 파일 해시가 일치하지 않습니다.")
-            exports.guard_snapshot(store, db, snapshot)
-            return Response(raw, media_type={".pdf": "application/pdf", ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".zip": "application/zip"}[path.suffix],
-                            headers={"Content-Disposition": f'attachment; filename="kdog-{export_id}{path.suffix}"'})
-
-    def settings_view(db):
-        version, config = active_configuration(db, observation_configuration()["model"])
-        if settings.active(db) != "legacy":
-            version, pipeline = settings.current(store, db)
-            config = {branch: getattr(pipeline, branch).model_dump() for branch in ("dog", "owner")}
-        return SettingsView(version=version, branches={branch: {"provider": c["provider"], "model": c["model"]}
-            for branch, c in config.items()}, key_available={branch: vault.available(store, c["provider"]) for branch, c in config.items()})
-
-    @app.get("/api/developer/evaluation", response_model=SettingsView)
-    def evaluation_settings(user=Depends(developer)):
-        with store.connect() as db:
-            return settings_view(db)
-
-    @app.put("/api/developer/evaluation", response_model=SettingsView)
-    def save_evaluation_settings(value: SettingsEdit, user=Depends(developer)):
-        with store.connect(write=True) as db:
-            if settings.active(db) != "legacy":
-                raise HTTPException(409, "버전 편집 화면에서 초안과 운영 적용을 사용하세요.")
-            current = settings_view(db)
-            if value.expected_version != current.version:
-                raise HTTPException(409, "평가 설정이 변경되었습니다. 새로고침 후 다시 적용하세요.")
-            version = uid()
-            store.audit(db, user.username, version, "evaluation.configure", {"version": version, "branches": value.branches.model_dump()})
-            return settings_view(db)
 
     @app.post("/api/auth/login", response_model=UserView)
     def login(value: Login, response: Response):
@@ -562,40 +431,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 else:
                     raise HTTPException(422, "참가자 또는 설문 행을 올바르게 지정하세요.")
         return Message(message=f"{len(value.rows)}개 정상 행을 저장했습니다.")
-
-    @app.get("/api/cases/{case_id}/analysis", response_model=AnalysisView)
-    def analysis_status(case_id: Key, user=Depends(reader)):
-        return view_analysis(store, case_id)
-
-    @app.post("/api/cases/{case_id}/analysis", response_model=AnalysisView, status_code=202)
-    def analysis_start(case_id: Key, value: AnalysisRequest, user=Depends(writer)):
-        raise HTTPException(409, FROZEN)
-
-    @app.post("/api/cases/{case_id}/analysis/{run_id}/{action}", response_model=AnalysisView)
-    def analysis_control(case_id: Key, run_id: Key, action: Literal["retry", "cancel"], user=Depends(writer)):
-        control(store, case_id, run_id, user.username, action)
-        return view_analysis(store, case_id)
-
-    @app.get("/api/cases/{case_id}/analysis/{run_id}/videos/{video_id}")
-    def observation_video(case_id: Key, run_id: Key, video_id: Key, user=Depends(reader)):
-        with store.connect() as db:
-            row = db.execute("SELECT * FROM runs WHERE case_id=? AND run_id=?", (case_id, run_id)).fetchone()
-            if not row:
-                raise HTTPException(404, "이 참가자의 실행이 아닙니다.")
-            check_access(store, db, row)
-            step = db.execute("SELECT * FROM steps WHERE run_id=? AND stage='prepare' AND status='succeeded'", (run_id,)).fetchone()
-            if not step:
-                raise HTTPException(409, "미디어 검사가 완료되지 않았습니다.")
-            prepared = validated_prepared(row, step_payload(store, row, step))
-            media = next((m for m in prepared.media if m.video_id == video_id), None)
-            if not media:
-                raise HTTPException(404, "이 실행의 영상이 아닙니다.")
-            path = store.path(media.storage_ref)
-            with path.open("rb") as handle:
-                if hashlib.file_digest(handle, "sha256").hexdigest() != media.sha256:
-                    raise HTTPException(409, "재생 영상 해시가 일치하지 않습니다.")
-            check_access(store, db, row)
-            return FileResponse(path, media_type=media.mime_type, filename=f"{video_id}{path.suffix}", content_disposition_type="inline")
 
     build = REPO_ROOT / "frontend/dist"
     if build.is_dir():

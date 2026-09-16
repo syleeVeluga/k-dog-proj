@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Notification } from './Notification';
-import { EvaluationSettings } from './EvaluationSettings';
 import { DeveloperSettings, Recovery } from './DeveloperSettings';
-import { ReportSettings } from './Reports';
 import { api } from './api';
 import { mayLeave } from './Editing';
 import { Importer } from './Importer';
@@ -35,7 +33,6 @@ export function App() {
   const [selected, setSelected] = useState<Case | null>(null);
   const [updatedAt, setUpdatedAt] = useState('');
   const [connectionError, setConnectionError] = useState('');
-  const [versionedSettings, setVersionedSettings] = useState(false);
   const [page, setPage] = useState<Page>('intake');
   const writable = user?.role === 'operator' || user?.role === 'admin';
 
@@ -104,8 +101,7 @@ export function App() {
       {busy && <Notification kind="working" message="처리 중입니다… 파일 업로드 중에는 이 화면을 유지하세요." />}
       <fieldset disabled={busy} className="workspace">
         {user.role === 'developer' ? <section><p className="eyebrow">개발자 전용</p><h1>개발 설정</h1>
-          <DeveloperSettings onVersionModeChange={setVersionedSettings} />
-          {!versionedSettings && <><EvaluationSettings /><ReportSettings /></>}
+          <DeveloperSettings />
           <button onClick={() => void run(async () => setNotice((await api<{ message: string }>('/developer/status')).message))}>인증 상태 확인</button>
         </section>
           : page === 'import' ? <Importer run={run} catalogVersion={catalog?.version ?? ''} done={async message => { setNotice(message); await reload(); }} />

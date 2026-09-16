@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('M5: developer draft, isolated schema trial, apply, restore and key secrecy at 360px', async ({ page }, testInfo) => {
+test('developer keys: register, test, revoke without leaking the secret; staff never see the panel', async ({ page }, testInfo) => {
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');
@@ -8,53 +8,25 @@ test('M5: developer draft, isolated schema trial, apply, restore and key secrecy
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   const panel = page.locator('.developer-settings');
-  await expect(panel.getByLabel('단계 프롬프트')).toBeVisible();
-  // Agentic navigation owns its own sampling, so the frame rate must not stay editable.
-  await panel.getByLabel('영상 처리 방식').selectOption('agentic');
-  await expect(panel.getByLabel('관찰 FPS')).toBeDisabled();
-  await panel.getByLabel('추론 수준').selectOption('high');
-  await panel.getByLabel('편집 단계').selectOption('ledger');
+  await expect(panel.getByRole('heading', { name: '공급자 키 관리' })).toBeVisible();
   await expect(panel.getByLabel('단계 프롬프트')).toHaveCount(0);
-  await expect(panel.getByText('사건 원장의 프롬프트는 프로그램이 소유하며 편집하지 않습니다.', { exact: false })).toBeVisible();
-  await panel.getByLabel('편집 단계').selectOption('video');
-  await panel.getByLabel('추론 수준').selectOption('');
-  await panel.getByLabel('영상 처리 방식').selectOption('static');
-  await expect(panel.getByLabel('관찰 FPS')).toBeEnabled();
-  const before = await (await page.request.get('/api/developer/settings')).json();
-  await panel.getByLabel('편집 단계').selectOption('dog');
-  await panel.getByLabel('단계 프롬프트').fill('가상 브라우저 시험: 확정 항목·근거만 사용합니다.');
-  await panel.getByRole('button', { name: '새 초안 저장', exact: true }).click();
-  await expect(page.getByRole('status').filter({ hasText: '초안을 저장했습니다. 운영 버전은 유지됩니다.' })).toBeVisible();
-  const first = await panel.getByLabel('저장 버전').inputValue();
-  expect((await (await page.request.get('/api/developer/settings')).json()).active_version).toBe(before.active_version);
-  await panel.getByRole('button', { name: '스키마 시험', exact: true }).click();
-  await expect(panel.getByText('시험 결과: schema_valid')).toBeVisible();
-  await panel.getByRole('button', { name: '선택 버전 운영 적용·복원' }).click();
-  await expect(page.getByRole('status').filter({ hasText: '선택 버전을 운영 적용·복원했습니다. 기존 분석은 고정 설정을 유지합니다.' })).toBeVisible();
-  expect((await (await page.request.get('/api/developer/settings')).json()).active_version).toBe(first);
-  await panel.getByLabel('단계 프롬프트').fill('두 번째 가상 시험 초안');
-  await panel.getByRole('button', { name: '새 초안 저장', exact: true }).click();
-  await expect(page.getByRole('status').filter({ hasText: '초안을 저장했습니다. 운영 버전은 유지됩니다.' })).toBeVisible();
-  await panel.getByRole('button', { name: '선택 버전 운영 적용·복원' }).click();
-  await expect(page.getByRole('status').filter({ hasText: '선택 버전을 운영 적용·복원했습니다. 기존 분석은 고정 설정을 유지합니다.' })).toBeVisible();
-  await panel.getByLabel('저장 버전').selectOption(first);
-  await expect(panel.getByLabel('단계 프롬프트')).toHaveValue('가상 브라우저 시험: 확정 항목·근거만 사용합니다.');
-  await panel.getByRole('button', { name: '선택 버전 운영 적용·복원' }).click();
-  await expect.poll(async () => (await (await page.request.get('/api/developer/settings')).json()).active_version).toBe(first);
   await panel.getByLabel('키 공급자').selectOption('gemini');
   const secret = 'synthetic-browser-m5-not-a-real-key';
   await panel.getByLabel('새 API 키').fill(secret);
   await panel.getByRole('button', { name: '키 등록·교체', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: '키를 보호하여 저장했습니다.' })).toBeVisible();
   await expect(panel.getByLabel('새 API 키')).toHaveValue('');
+  await expect(panel.getByText('gemini · 등록됨', { exact: true })).toBeVisible();
   expect(await page.locator('body').innerText()).not.toContain(secret);
   expect(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }))).not.toContain(secret);
   expect(await (await page.request.get('/api/developer/settings')).text()).not.toContain(secret);
+  await page.route('**/api/developer/keys/gemini/test', route => route.fulfill({ json: { provider: 'gemini', reference: 'x', status: '연결 성공' } }));
+  await panel.getByRole('button', { name: '키 연결 시험', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '연결 시험: 연결 성공' })).toBeVisible();
   await panel.getByRole('button', { name: '선택 공급자 키 폐기', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: '키를 폐기했습니다.' })).toBeVisible();
-  await panel.screenshot({ path: testInfo.outputPath('m5-settings-desktop.png') });
+  await panel.screenshot({ path: testInfo.outputPath('keys-desktop.png') });
   await page.setViewportSize({ width: 360, height: 800 });
-  await panel.screenshot({ path: testInfo.outputPath('m5-settings-mobile.png') });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: '로그아웃' }).click();
   await page.getByLabel('계정', { exact: true }).fill('operator');

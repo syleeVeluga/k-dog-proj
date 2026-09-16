@@ -124,23 +124,3 @@ test('developer session cannot read participant data and reviewer cannot write',
   await expect(page.getByRole('button', { name: '자료 가져오기', exact: true })).toHaveCount(0);
   expect((await page.request.post('/api/cases', { headers: { 'X-KDOG-Request': '1' }, data: {} })).status()).toBe(403);
 });
-
-test('M3: developer selects independent providers and settings survive reload', async ({ page }, testInfo) => {
-  await login(page, 'developer');
-  await page.getByLabel('반려견 평가 공급자', { exact: true }).selectOption('openai');
-  await page.getByLabel('반려견 평가 모델', { exact: true }).fill('gpt-fixture-only');
-  await page.getByLabel('보호자 평가 공급자', { exact: true }).selectOption('anthropic');
-  await page.getByLabel('보호자 평가 모델', { exact: true }).fill('claude-fixture-only');
-  await page.getByRole('button', { name: '새 실행에 평가 설정 적용' }).click();
-  await expect(page.getByText('새 실행에 적용했습니다. 기존 실행 설정은 보존됩니다.', { exact: true })).toBeVisible();
-  await page.reload();
-  await expect(page.getByLabel('반려견 평가 공급자', { exact: true })).toHaveValue('openai');
-  await expect(page.getByLabel('보호자 평가 모델', { exact: true })).toHaveValue('claude-fixture-only');
-  await page.screenshot({ path: testInfo.outputPath('m3-developer-settings.png'), fullPage: true, animations: 'disabled' });
-  for (const branch of ['반려견', '보호자']) {
-    await page.getByLabel(`${branch} 평가 공급자`, { exact: true }).selectOption('gemini');
-    await page.getByLabel(`${branch} 평가 모델`, { exact: true }).fill('gemini-test-only');
-  }
-  await page.getByRole('button', { name: '새 실행에 평가 설정 적용' }).click();
-  await expect(page.getByText('새 실행에 적용했습니다. 기존 실행 설정은 보존됩니다.', { exact: true })).toBeVisible();
-});

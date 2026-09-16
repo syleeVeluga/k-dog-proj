@@ -53,21 +53,6 @@ class ProviderState(Model):
     model: str
 
 
-class ProviderSelection(ProviderState):
-    provider: Literal["gemini", "openai", "anthropic"]
-    model: Annotated[str, Field(max_length=150, pattern=r"^([a-zA-Z0-9][a-zA-Z0-9._-]*)?$")]
-
-
-class BranchSettings(Model):
-    dog: ProviderSelection
-    owner: ProviderSelection
-
-
-class SettingsEdit(Model):
-    expected_version: str
-    branches: BranchSettings
-
-
 class BranchState(Model):
     dog: ProviderState
     owner: ProviderState
