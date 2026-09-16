@@ -15,7 +15,7 @@ from unittest.mock import patch
 import httpx
 from openpyxl import Workbook
 
-from app.analysis import FROZEN, session_snapshot
+from app.analysis import session_snapshot
 from app.api import create_app
 from app.domain.catalog import SURVEY_IDS
 from app.intake import headers
@@ -433,23 +433,17 @@ class IntakeTests(AppCase):
         self.assertEqual(view["manifest"]["schema_version"], "intake-2.0")
         self.assertEqual(self.client.put(f"/api/cases/{item['case_id']}/survey", json=self.answers(view)).status_code, 200)
 
-    def test_frozen_pipeline_refuses_new_runs_exports_and_reports_but_keeps_reads(self):
+    def test_legacy_analysis_report_and_export_routes_are_gone(self):
         item = self.upload(self.make_case()).json()
         base = f"/api/cases/{item['case_id']}"
-        response = self.client.post(f"{base}/analysis", json={"expected_revision": item["input_revision"]})
-        self.assertEqual(response.status_code, 409)
-        self.assertEqual(response.json()["detail"], FROZEN)
-        self.assertEqual(self.client.post("/api/exports", json={"format": "xlsx", "case_id": item["case_id"]}).status_code, 409)
-        self.assertEqual(self.client.post("/api/exports/preview", json={"format": "xlsx", "case_id": item["case_id"]}).status_code, 409)
-        self.assertEqual(self.client.get(f"{base}/analysis").json()["runs"], [])
-        self.assertEqual(self.client.get("/api/exports").json(), [])
-        with self.store.connect(write=True) as db:
-            db.execute("INSERT INTO runs(run_id,case_id,session_id,input_revision,input_snapshot_json,config_snapshot_json,status,created_at,updated_at) "
-                       "VALUES (?,?,?,?,?,?,?,?,?)", ("old-run", item["case_id"], item["selected_session_id"], 1, "{}", "{}", "failed", "now", "now"))
-        self.assertEqual(self.client.post(f"{base}/analysis/old-run/retry").status_code, 409)
-        self.assertEqual(self.client.post(f"{base}/reports/old-run/generate").status_code, 409)
-        with self.store.connect() as db:
-            self.assertEqual(db.execute("SELECT COUNT(*) FROM runs").fetchone()[0], 1)
+        for method, path in (("post", f"{base}/analysis"), ("get", f"{base}/analysis"), ("post", f"{base}/analysis/x/retry"),
+                             ("get", f"{base}/reports/x"), ("post", f"{base}/reports/x/generate"), ("post", "/api/exports"),
+                             ("post", "/api/exports/preview"), ("get", "/api/exports"), ("get", "/api/developer/evaluation"), ("get", "/api/developer/report")):
+            response = getattr(self.client, method)(path, **({"json": {}} if method == "post" else {}))
+            # The SPA static mount answers unknown paths: GET → 404, other methods → 405. Either way no API route handles them.
+            self.assertIn(response.status_code, (404, 405), (method, path, response.status_code))
+        routes = {getattr(route, "path", "") for route in self.client.app.routes}
+        self.assertFalse({route for route in routes if "/analysis" in route or "/reports/" in route or "/exports" in route or route.endswith(("/evaluation", "/report"))})
 
     def test_server_process_restart_restores_registered_inputs(self):
         with socket.socket() as listener:

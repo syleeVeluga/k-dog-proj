@@ -16,7 +16,7 @@ from app.intake import selected_session
 from app.observation_models import (
     AnalysisView, LedgerArtifact, ObservationArtifact, PreparedInput, RunView, StepView,
 )
-from app.storage import Store, encode, now, uid
+from app.storage import encode, now, uid
 
 
 LEASE_SECONDS = 180
@@ -29,9 +29,6 @@ def later(seconds) -> str:
 
 def digest(value) -> str:
     return hashlib.sha256(encode(value).encode("utf-8")).hexdigest()
-
-
-FROZEN = "55항목 판 분석은 종료되었습니다. 42항목 채점·리포트·내보내기는 다음 판에서 제공합니다."
 
 
 def session_snapshot(row):
@@ -152,10 +149,6 @@ def validated_prepared(row, payload):
         if (video.duration_sec, video.audio_status) != (media.duration_sec, media.audio_status):
             raise ValueError("prepared media properties mismatch")
     return prepared
-
-
-def enqueue(store: Store, case_id, value, actor):
-    raise HTTPException(409, FROZEN)
 
 
 def check_access(store, db, row):
@@ -394,19 +387,3 @@ def view_analysis(store, case_id):
         ready = False
     return AnalysisView(configured=ready, message="영상 분석 설정 준비됨 · 실행별 평가 방식과 연결 설정을 사용합니다." if ready
                         else "개발자 설정 필요 · Gemini 모델과 키를 설정한 worker가 필요합니다.", runs=result)
-
-
-def control(store, case_id, run_id, actor, action):
-    with store.connect(write=True) as db:
-        store.case(db, case_id)
-        row = db.execute("SELECT * FROM runs WHERE run_id=? AND case_id=?", (run_id, case_id)).fetchone()
-        if not row:
-            raise HTTPException(404, "이 참가자의 실행이 아닙니다.")
-        if action == "retry":
-            raise HTTPException(409, FROZEN)
-        else:
-            if row["status"] not in ACTIVE:
-                raise HTTPException(409, "진행 중인 실행만 중지할 수 있습니다.")
-            state = "stopped"
-        db.execute("UPDATE runs SET status=?,claim_token=NULL,lease_expires_at=NULL,updated_at=? WHERE run_id=?", (state, now(), run_id))
-        store.audit(db, actor, run_id, "analysis." + action, {})

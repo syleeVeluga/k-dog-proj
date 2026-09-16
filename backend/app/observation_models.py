@@ -5,18 +5,13 @@ from typing import Annotated, Literal
 from pydantic import Field
 
 from app.legacy.contracts_v1 import BehaviorId, Evidence, RunInput
-from app.input_models import Key, Model, Revision
+from app.input_models import Model
 from app.legacy.contracts_v1 import CatalogItem, ScoreResult
 from app.evaluation_models import EvaluationArtifact, SurveyResult
 from app.video_models import LedgerEvent, VideoDecision, VideoItem
 
 
 SEGMENTS = ("entry", "separation", "reunion", "training", "play", "exit", "unknown")
-
-
-class AnalysisRequest(Revision):
-    reanalyze: bool = False
-    reuse_run_id: Key | None = None
 
 
 class Observation(Model):

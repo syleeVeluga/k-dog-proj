@@ -2,7 +2,6 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { api } from '../api';
 import { mayLeave } from '../Editing';
-import { analysisNames } from '../Observations';
 import { ParticipantFields, participantValue } from '../ParticipantFields';
 import { CaseDetail } from './CaseDetail';
 import { SURVEY_TOTAL, segmentState, sessionOf, surveyHandled } from '../types';
@@ -49,7 +48,7 @@ export function Intake({ user, cases, selected, writable, run, reload, select, s
       <label>행사 필터<select value={eventFilter} onChange={e => setEventFilter(e.target.value)}><option value="">모든 행사</option>{[...new Set(cases.map(c => c.event_id))].map(id => <option key={id}>{id}</option>)}</select></label>
       <button onClick={() => void run(() => reload())}>새로고침</button></div>
     <p className="fine" role="status">{status} · 표시 {visible.length}명</p>
-    <div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자 / 행사</th><th>반려견 / 보호자</th><th>동의</th><th>설문</th><th>영상</th><th>구간</th><th>분석 상태</th><th>자료</th></tr></thead>
+    <div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자 / 행사</th><th>반려견 / 보호자</th><th>동의</th><th>설문</th><th>영상</th><th>구간</th><th>자료</th></tr></thead>
       <tbody>{visible.map(c => { const s = sessionOf(c); const count = surveyHandled(s);
         return <tr key={c.case_id}><td data-label="순번"><strong className="mono">{c.sequence_no ?? '—'}</strong></td>
           <td data-label="참가자 / 행사"><strong className="mono">{c.participant_id}</strong><small>{c.event_id}</small></td>
@@ -57,7 +56,6 @@ export function Intake({ user, cases, selected, writable, run, reload, select, s
           <td data-label="동의"><span className={c.consent_confirmed ? 'tag green' : 'tag'}>{c.consent_confirmed ? '확인' : '미확인'}</span></td>
           <td data-label="설문"><span className={count === SURVEY_TOTAL ? 'tag green' : 'tag'}>{count}/{SURVEY_TOTAL}</span></td><td data-label="영상">{s.videos.length}개</td>
           <td data-label="구간">{({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(s)]}</td>
-          <td data-label="분석 상태"><span className="muted">{analysisNames[c.analysis_status] ?? '미실행'}</span></td>
           <td data-label="자료"><button aria-label={`${c.participant_id} 상세 열기`} onClick={() => void run(async () => select(await api<Case>(`/cases/${c.case_id}`)))}>열기 ↗</button></td></tr>;
       })}</tbody></table>{!visible.length && <div className="empty"><h2>{cases.length ? '조건에 맞는 참가자가 없습니다.' : '첫 참가자를 등록하세요.'}</h2><p>행사와 참가자 ID를 먼저 확인한 뒤 자료를 연결합니다.</p></div>}</div>
     {writable && <details className="panel" open={!cases.length}><summary>참가자 등록</summary>

@@ -1,12 +1,10 @@
 """S6 review requests and program-owned report provenance."""
 
-from typing import Annotated, Literal
-import json
-from pydantic import Field, field_validator
+from typing import Annotated
+from pydantic import Field
 
-from app.legacy.contracts_v1 import ItemEvaluation, ReportResult, ReportText
-from app.input_models import Key, Model
-from app.evaluation_models import ProviderSelection, ProviderState
+from app.legacy.contracts_v1 import ReportResult, ReportText
+from app.input_models import Model
 
 
 class Narration(Model):
@@ -16,52 +14,10 @@ class Narration(Model):
     tips: Annotated[list[ReportText], Field(min_length=1, max_length=2)]
 
 
-class ReviewEdit(Model):
-    expected_revision: Annotated[int, Field(ge=1)]
-    expected_source_hash: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
-    reason: Annotated[str, Field(min_length=1, max_length=2000, pattern=r"\S")]
-    item: ItemEvaluation | None = None
-    narration: Narration | None = None
-
-    @field_validator("item", "narration", mode="before")
-    @classmethod
-    def json_contracts(cls, value, info):
-        if isinstance(value, dict):
-            contract = ItemEvaluation if info.field_name == "item" else Narration
-            return contract.model_validate_json(json.dumps(value))
-        return value
-
-
-class FrameEdit(Model):
-    expected_revision: Annotated[int, Field(ge=1)]
-    video_id: Key
-    second: Annotated[float, Field(ge=0)]
-
-
 class ReportArtifact(Model):
     source_hash: str
     report: ReportResult
     usage: dict[str, int | str | bool]
-
-
-class ReportSettingsEdit(Model):
-    expected_version: str
-    selection: ProviderSelection
-
-
-class ReportSettingsView(Model):
-    version: str
-    selection: ProviderState
-    key_available: bool
-
-
-class ExportRequest(Model):
-    format: Literal["pdf", "xlsx", "csv"]
-    case_id: Key | None = None
-    run_id: Key | None = None
-    event_id: Key | None = None
-    case_ids: Annotated[list[Key], Field(min_length=1, max_length=10000)] | None = None
-    expected_preview_hash: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")] | None = None
 
 
 class ExportMember(Model):

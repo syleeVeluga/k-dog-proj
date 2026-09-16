@@ -405,7 +405,7 @@ def survey_scores(answers: SurveyAnswers, catalog: SurveyCatalog) -> SurveyResul
 | PR-7 | 설문 메뉴 | 28문항 입력·「해당 없음」·즉시 계산 표시(숫자 아님, 영역 채우기). `SurveyEditor.tsx` 교체, `intake.py` 28문항 API | PR-2·PR-4·PR-5 |
 | PR-8 | 촬영 메뉴 | 카메라 2대 파일 연결, 8구간 시각 입력·확정, 확정 전 채점 잠금. `VideoUpload.tsx` 확장 + 새 `Segments.tsx` | PR-5 |
 | PR-9 | 전처리 | `media.py`: 구간 절단·equirectangular 크롭·창별 fps. 산출물 불변 파일·해시. 9월 13일 영상으로 시험 | PR-8, 07 장비 문서 |
-| PR-10 | 옛 화면 제거 | `Scores/Reports/Observations/VideoAssessments` 및 그에 묶인 API·legacy 조각 삭제. 옛 run 읽기 전용 뷰만 유지 | PR-6~8 |
+| PR-10 | 옛 화면 제거 | `Scores/Reports/Observations/VideoAssessments` 및 그에 묶인 API·legacy 조각 삭제. 옛 run 읽기 전용 뷰만 유지 (실제: 읽기 뷰 라우트도 함께 제거 — P1 계획 §6 PR-10 행 참조) | PR-6~8 |
 | PR-11 | 패키징 | `launcher.required`·`build_release`·설치 패키지 갱신, 72쌍 접수→절단→저장 리허설 | PR-9·PR-10 |
 
 ## 9. 완료 기준 요약
