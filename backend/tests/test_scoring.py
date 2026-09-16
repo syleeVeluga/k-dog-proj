@@ -86,6 +86,20 @@ class ScoringTests(unittest.TestCase):
         cautious = self.result({"OWN-09": 2, "DOG-21": 6})
         self.assertEqual(self.indicator(cautious, "sync_rate").value, 1.0)
 
+    def test_sync_phase_and_validity_matrix_current_r5_interpretation(self):
+        # 03 여러쌍비교!Z6, 3_보호자행동!E13; real conflicting input: 05 K13=3 / K25 blank.
+        # Explicit expectations preserve current behavior pending customer question 2-가.
+        # Only (None, 3) differs from the literal Z6 blank-first order; do not silently change it.
+        cases = ((3, 1, "calculated", 0.5), (3, 2, "calculated", 0.5),
+                 (3, 3, "invalid", None), (3, None, "calculated", 0.5),
+                 (None, 1, "missing", None), (None, 2, "missing", None),
+                 (None, 3, "invalid", None), (None, None, "missing", None))
+        for phases, validity, status, value in cases:
+            with self.subTest(phases=phases, validity=validity):
+                scores = {key: score for key, score in (("DOG-21", phases), ("OWN-09", validity)) if score is not None}
+                actual = self.indicator(self.result(scores), "sync_rate")
+                self.assertEqual((actual.status, actual.value), (status, value))
+
     def test_attachment_type_branches(self):
         base = {"DOG-17": 3, "DOG-05": 3, "DOG-12": 3, "DOG-14": 3, "DOG-13": 3, "DOG-16": 0}
         cases = (

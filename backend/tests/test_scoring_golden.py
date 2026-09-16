@@ -1,4 +1,8 @@
-"""Golden test: the six 2026-09-13 pairs in 05 scored with scoring-v2 must match 03 `여러쌍비교!D6:Z6` evaluated by hand."""
+"""05 inputs against hand-calculated 03 formula values plus explicit R4–R6 interpretation states.
+
+This is not an Excel-engine recalculation test. R5 makes pair 2 invalid despite a blank phase count;
+03 여러쌍비교!Z6 checks the blank first. Customer confirmation remains pending.
+"""
 
 import unittest
 from pathlib import Path
@@ -16,8 +20,10 @@ PAIRS = ("천우미", "김지유", "배보경", "최선미", "이하연", "송�
 NONE = {"mean": None, "lean": None, "width": None, "degree": None}
 EMPTY_DOMAINS = {domain: NONE for domain in ("EDU", "SOC_E", "SOC_H", "ATT", "SYN", "EXIT")}
 MISSING = ("missing", None)
-# Expected values follow the workbook formulas: D/G/P/S lean = ROUND(mean(BI)-3, 2); E/H/K/N/Q/T width = max|x-3| over
+# Numeric expectations follow 03 여러쌍비교: D/G/P/S lean = ROUND(mean(BI)-3, 2); E/H/K/N/Q/T width = max|x-3| over
 # BI and ONE items; F/I/L/O/R/U degree = ROUND(mean(ONE), 2); J/M types; V/W/X distance differences; Z = phases/6.
+# Inputs: 05 sheets 1–3, J:O and each catalog item's source_row. R4 missing-material types and R5 invalid/excluded
+# states are document/label interpretations, not literal formula results. R6 does not fire (05 J12:O12 blank).
 EXPECTED = {
     "천우미": {
         "domains": {
@@ -33,7 +39,7 @@ EXPECTED = {
         "types": {"attachment": MISSING, "sociability_person": ("calculated", "담담·거리둠")},
         "baseline": None,
     },
-    "김지유": {  # DOG-01 = 3, DOG-05 = 3, DOG-06 = 3, OWN-06 = 3, OWN-09 = 3 (걷기 시행 무효)
+    "김지유": {  # 05 3_보호자행동!K13=3, 2_개행동!K25 blank: R5 invalid-first; literal 03 Z6 would be blank.
         "domains": {**EMPTY_DOMAINS, "SOC_E": {"mean": 3.0, "lean": 0.0, "width": 0, "degree": None},
                     "ATT": {"mean": 3.0, "lean": 0.0, "width": 0, "degree": None}},
         "indicators": {"adaptation": MISSING, "recovery": MISSING, "stranger_calming": MISSING, "sync_rate": ("invalid", None)},
@@ -89,6 +95,25 @@ class GoldenTests(unittest.TestCase):
     def setUpClass(cls):
         cls.catalog = BehaviorCatalog.model_validate_json((ROOT / "resources/catalogs/behavior-v2.json").read_bytes())
         cls.sheets = read_pairs(cls.catalog)
+
+    def test_source_cells_distinguish_formula_from_interpretation(self):
+        book = load_workbook(WORKBOOK, data_only=False)
+        try:
+            self.assertEqual(book["3_보호자행동"]["K13"].value, 3)
+            self.assertIsNone(book["2_개행동"]["K25"].value)
+            self.assertEqual([book["2_개행동"][f"{c}20"].value for c in "JKLMNO"], [0, None, None, None, None, None])
+            self.assertEqual([book["3_보호자행동"][f"{c}12"].value for c in "JKLMNO"], [None] * 6)
+        finally:
+            book.close()
+        book = load_workbook(CUSTOMER_DIR / "03_행동_채점표_42항목_20260913.xlsx", data_only=False)
+        try:
+            self.assertEqual(book["여러쌍비교"]["Z6"].value,
+                             '=IF(\'2_개행동\'!$J$25="","",IF(\'3_보호자행동\'!$J$13=3,"무효",\'2_개행동\'!$J$25/6))')
+            self.assertEqual([book["3_보호자행동"][f"{c}4"].value for c in "CDE"], ["1", "2", "3"])
+            self.assertIn("무시 항목 무효", book["3_보호자행동"]["E12"].value)
+            self.assertIn("걷기 항목과 동조율 무효", book["3_보호자행동"]["E13"].value)
+        finally:
+            book.close()
 
     def test_pair_inputs_are_the_filled_cells_of_the_workbook(self):
         # 00 문서의 「35 / 42」는 참고 열 표기이고, 05 시트 1~3의 채점 대상 41칸 중 채워진 칸은 아래와 같다.

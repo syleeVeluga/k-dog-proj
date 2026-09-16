@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-K-DOG is an operator-facing dog/guardian assessment application. The current code implements the superseded 55-item specification (2026-09-04); the domain layer is being rebuilt for the customer's 42-item specification (2026-09-13) while the infrastructure layer is kept. `docs/` contains:
+K-DOG is an operator-facing dog/guardian assessment application. P0 and P1 for the customer's 42-item specification (2026-09-13) are implemented: validated domain contracts/scoring, 28-item survey, intake, recording and preprocessing. The 55-item routes and screens were removed in PR-10; read-only legacy modules remain for worker imports until P2 replaces that pipeline. R1–R9 customer confirmations are still pending. `docs/` contains:
 
 - `K-DOG_변경검토_v1.0_20260915.md`: the transition decision — what is reused, what is rewritten, schedule, open customer questions. Read first.
 - `K-DOG_P0_구현계획_v1.0_20260916.md`: the file-level plan for PR-0 to PR-4 (catalog 42, survey 28, contracts v2, scoring v2 with golden tests), the item-ID table, and the rule interpretations (R1–R9) that still need customer confirmation.
