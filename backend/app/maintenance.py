@@ -35,6 +35,8 @@ def runtime_lock(store, name):
                 import fcntl
                 fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
+            if name == "preprocess":
+                raise HTTPException(409, "다른 전처리가 실행 중입니다. 완료 상태를 확인한 뒤 다시 시도하세요.") from None
             raise HTTPException(409, "API·worker 또는 유지보수 작업이 실행 중입니다. 종료 후 다시 시도하세요.") from None
         try:
             yield
@@ -49,7 +51,7 @@ def runtime_lock(store, name):
 @contextmanager
 def offline(store):
     with ExitStack() as stack:
-        for name in ("maintenance", "api", "worker"):
+        for name in ("maintenance", "api", "worker", "preprocess"):
             stack.enter_context(runtime_lock(store, name))
         yield
 

@@ -8,16 +8,18 @@ import { Users } from './Users';
 import { Intake } from './pages/Intake';
 import { Survey } from './pages/Survey';
 import { Recording } from './pages/Recording';
+import { Preprocessing } from './pages/Preprocessing';
 import { formFields, roleNames } from './types';
 import type { Case, Catalog, Role, Run, User } from './types';
 import './style.css';
 
-type Page = 'intake' | 'survey' | 'recording' | 'import' | 'users' | 'data';
+type Page = 'intake' | 'survey' | 'recording' | 'import' | 'users' | 'data' | 'preprocess';
 // 대메뉴 하나가 PR 하나다: 접수(PR-6) · 설문(PR-7) · 촬영(PR-8) · 자료 가져오기 · 직원 계정.
 const menu: { page: Page; label: string; roles: Role[] }[] = [
   { page: 'intake', label: '접수', roles: ['operator', 'reviewer', 'admin'] },
   { page: 'survey', label: '설문', roles: ['operator', 'reviewer', 'admin'] },
   { page: 'recording', label: '촬영', roles: ['operator', 'reviewer', 'admin'] },
+  { page: 'preprocess', label: '전처리', roles: ['operator', 'reviewer', 'admin'] },
   { page: 'import', label: '자료 가져오기', roles: ['operator', 'admin'] },
   { page: 'users', label: '직원 계정', roles: ['admin'] },
   { page: 'data', label: '자료 관리', roles: ['admin'] },
@@ -119,7 +121,7 @@ export function App() {
       <Notification message={notice} onClose={() => setNotice('')} />
       {unavailableCases > 0 && user.role !== 'developer' && <p role="alert">입력 자료 검증에 실패한 참가자 {unavailableCases}명은 목록에서 제외되었습니다. 운영 관리자에게 원본 저장소 확인을 요청하세요. 다른 참가자는 계속 사용할 수 있습니다.</p>}
       {busy && <Notification kind="working" message="처리 중입니다… 파일 업로드 중에는 이 화면을 유지하세요." />}
-      {selected && ['intake', 'survey', 'recording'].includes(page) && <section className="panel" aria-label="선택 참가자">
+      {selected && ['intake', 'survey', 'recording', 'preprocess'].includes(page) && <section className="panel" aria-label="선택 참가자">
         <h2 ref={contextTitle} tabIndex={-1}>{selected.event_id} / {selected.participant_id} / {selected.dog_name} / {selected.manifest.sessions.findIndex(s => s.session_id === selected.selected_session_id) + 1}차 촬영</h2>
         <label>{writable ? '저장 대상 회차 선택' : '조회 회차 선택'}<select aria-label="선택 세션" disabled={busy} value={selected.selected_session_id} onChange={e => {
           const id = e.target.value; if (!mayLeave()) return;
@@ -128,7 +130,7 @@ export function App() {
         }}>{selected.manifest.sessions.map((s, i) => <option key={s.session_id} value={s.session_id}>{i + 1}차 촬영 · 영상 {s.videos.length}개</option>)}</select></label>
         <p className="fine">{writable ? '회차 선택은 저장 대상을 변경합니다. 이전 설문·영상·구간은 보존되며 새 회차에 복사하지 않습니다.' : '조회만 변경합니다. 운영자의 저장 대상과 입력 버전은 바뀌지 않습니다.'}</p>
         {writable && current?.selected_session_id !== selected.selected_session_id && <p role="status">다른 요청이 저장 대상 회차를 변경했습니다. 현재 화면의 회차를 확인하고 선택 세션에서 저장 대상을 다시 선택하세요.</p>}
-        <div className="toolbar"><button onClick={() => { if (mayLeave()) setSelected(null); }}>전체 목록으로 돌아가기</button><button onClick={() => go('survey')}>설문 보기</button><button onClick={() => go('recording')}>촬영 자료 보기</button></div>
+        <div className="toolbar"><button onClick={() => { if (mayLeave()) setSelected(null); }}>전체 목록으로 돌아가기</button><button onClick={() => go('survey')}>설문 보기</button><button onClick={() => go('recording')}>촬영 자료 보기</button><button onClick={() => go('preprocess')}>전처리 상태 보기</button></div>
       </section>}
       <fieldset disabled={busy} className="workspace">
         {user.role === 'developer' ? <section><p className="eyebrow">개발자 전용</p><h1>개발 설정</h1>
@@ -138,6 +140,7 @@ export function App() {
           : page === 'import' ? <Importer run={run} catalog={catalog} catalogVersion={catalog?.version ?? ''} done={async message => { setNotice(message); await reload(); }} />
           : page === 'users' ? <Users run={run} />
           : page === 'data' ? <section><h1>자료 관리</h1><Recovery /></section>
+          : page === 'preprocess' ? <Preprocessing cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} />
           : page === 'survey' ? <Survey cases={cases} selected={selected} select={setSelected} filters={filters} catalog={catalog} writable={!!writable} run={run} reload={reload} notify={setNotice} />
           : page === 'recording' ? <Recording cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} run={run} reload={reload} notify={setNotice} />
           : <Intake user={user} cases={cases} selected={selected} writable={!!writable} run={run} reload={reload}
