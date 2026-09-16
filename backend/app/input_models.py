@@ -11,6 +11,10 @@ Key = Annotated[str, Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-
 Text = Annotated[str, Field(min_length=1, max_length=200)]
 Note = Annotated[str, Field(max_length=2000)]
 Role = Literal["operator", "reviewer", "admin", "developer"]
+# 04 설문지 머리 칸. 연락처는 받지 않는다(01 §7).
+Sex = Literal["암", "수", "중성화", "미기재"]
+Size = Literal["소형", "중형", "대형", "미기재"]
+Adoption = Literal["분양", "입양", "기타", "미기재"]
 
 
 class Model(BaseModel):
@@ -37,7 +41,25 @@ class UserView(Model):
     active: bool
 
 
-class CaseCreate(Model):
+class DogProfile(Model):
+    breed: Annotated[str, Field(max_length=100)] = ""
+    sex: Sex = "미기재"
+    age_years: Annotated[int, Field(ge=0, le=30)] | None = None
+    size: Size = "미기재"
+    years_together: Annotated[str, Field(max_length=50)] = ""
+    adoption_route: Adoption = "미기재"
+
+
+class Participant(Model):
+    """Intake fields beyond the identifiers: 순번, 동의 확인, 보호자명, 반려견 정보 (01 §1 ①)."""
+
+    sequence_no: Annotated[int, Field(ge=1, le=9999)] | None = None
+    consent_confirmed: bool = False
+    guardian_name: Annotated[str, Field(max_length=100)] = ""
+    dog: DogProfile = Field(default_factory=DogProfile)
+
+
+class CaseCreate(Participant):
     event_id: Key
     participant_id: Key
     dog_name: Text
@@ -48,7 +70,7 @@ class Revision(Model):
     expected_revision: Annotated[int, Field(ge=1)]
 
 
-class CaseEdit(Revision):
+class CaseEdit(Revision, Participant):
     participant_id: Key
     dog_name: Text
     reservation_at: str = ""
@@ -117,6 +139,10 @@ class CaseView(Model):
     participant_id: str
     dog_name: str
     reservation_at: str
+    sequence_no: int | None
+    consent_confirmed: bool
+    guardian_name: str
+    dog: DogProfile
     input_revision: int
     selected_session_id: str
     deletion_requested: bool

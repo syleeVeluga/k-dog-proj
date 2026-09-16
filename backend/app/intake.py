@@ -29,11 +29,12 @@ def create_case(store, db, value: CaseCreate, actor: str, version: str):
                         selected_session_id=session.session_id, sessions=[session])
     key, digest = store.write_manifest(manifest)
     db.execute(
-        "INSERT INTO cases(case_id,event_id,participant_id,dog_name,reservation_at,"
-        "input_revision,selected_session_id,manifest_ref,manifest_hash,created_at,updated_at) "
-        "VALUES (?,?,?,?,?,1,?,?,?,?,?)",
-        (manifest.case_id, value.event_id, value.participant_id, value.dog_name,
-         value.reservation_at, session.session_id, key, digest, now(), now()),
+        "INSERT INTO cases(case_id,event_id,participant_id,dog_name,reservation_at,sequence_no,consent_confirmed,guardian_name,"
+        "dog_profile_json,input_revision,selected_session_id,manifest_ref,manifest_hash,created_at,updated_at) "
+        "VALUES (?,?,?,?,?,?,?,?,?,1,?,?,?,?,?)",
+        (manifest.case_id, value.event_id, value.participant_id, value.dog_name, value.reservation_at,
+         value.sequence_no, int(value.consent_confirmed), value.guardian_name, value.dog.model_dump_json(),
+         session.session_id, key, digest, now(), now()),
     )
     store.audit(db, actor, manifest.case_id, "case.create", {"revision": 1})
     return manifest.case_id
@@ -63,10 +64,42 @@ def save_survey(store, db, case_id, value: SurveyEdit, actor, catalog: SurveyCat
     store.save(db, row, manifest, actor, "survey.update")
 
 
+PROFILE_COLUMNS = ("dog_breed", "dog_sex", "dog_age_years", "dog_size", "years_together", "adoption_route")
+TRUE_TOKENS = ("1", "Y", "y", "예", "동의", "true", "True", "O")
+
+
 def headers(kind):
     if kind == "participants":
-        return ["event_id", "participant_id", "dog_name", "reservation_at"]
+        return ["event_id", "participant_id", "dog_name", "reservation_at", "sequence_no", "consent_confirmed", "guardian_name", *PROFILE_COLUMNS]
     return ["event_id", "participant_id", "survey_version", *SURVEY_IDS]
+
+
+def required_columns(kind):
+    """A participants file may omit the optional 접수 columns; a survey file must carry every item."""
+    return {"event_id", "participant_id", "dog_name"} if kind == "participants" else set(headers(kind))
+
+
+def participant_row(value):
+    """Map spreadsheet cells to CaseCreate: blanks mean 「미기재」, never a guessed value."""
+    def text(key):
+        raw = value.get(key)
+        return "" if raw is None else str(raw).strip()
+
+    def integer(key):
+        raw = value.get(key)
+        if raw is None or raw == "":
+            return None
+        if type(raw) is int or (type(raw) is str and raw.strip().isdigit()):
+            return int(raw)
+        raise ValueError(f"{key}: 정수만 허용됩니다.")
+
+    return CaseCreate.model_validate({
+        "event_id": value["event_id"], "participant_id": value["participant_id"], "dog_name": value["dog_name"],
+        "reservation_at": text("reservation_at"), "sequence_no": integer("sequence_no"),
+        "consent_confirmed": text("consent_confirmed") in TRUE_TOKENS, "guardian_name": text("guardian_name"),
+        "dog": {"breed": text("dog_breed"), "sex": text("dog_sex") or "미기재", "age_years": integer("dog_age_years"),
+                "size": text("dog_size") or "미기재", "years_together": text("years_together"), "adoption_route": text("adoption_route") or "미기재"},
+    })
 
 
 def template(kind, format):
@@ -122,8 +155,7 @@ def mapped_rows(rows, kind, version, mapping):
     source = list(mapping.columns.values())
     if len(source) != len(set(source)) or any(rows[0].count(name) != 1 for name in source):
         raise HTTPException(422, "각 원본 열을 중복 없이 연결하세요.")
-    required = set(expected) - {"survey_version", "reservation_at"}
-    if not required.issubset(mapping.columns):
+    if not required_columns(kind) - {"survey_version"} <= set(mapping.columns):
         raise HTTPException(422, "모든 필수 열과 28문항을 연결하세요.")
     return [expected, *[[row[rows[0].index(mapping.columns[name])] if name in mapping.columns and rows[0].index(mapping.columns[name]) < len(row)
                         else version if name == "survey_version" else "" for name in expected] for row in rows[1:]]]
@@ -150,8 +182,8 @@ def preview(store, db, data, kind, format, catalog: SurveyCatalog, mapping=None)
     if not rows or len(rows) > 10001:
         raise HTTPException(422, "헤더와 최대 10,000개 입력 행이 필요합니다.")
     columns = rows[0]
-    if len(columns) != len(set(columns)) or set(columns) != set(headers(kind)):
-        raise HTTPException(422, "표준 양식의 열을 사용하세요. 열 순서 변경은 허용됩니다.")
+    if len(columns) != len(set(columns)) or not set(columns) <= set(headers(kind)) or not required_columns(kind) <= set(columns):
+        raise HTTPException(422, "표준 양식의 열을 사용하세요. 열 순서 변경은 허용되며 참가자 양식의 접수 열은 생략할 수 있습니다.")
     result = ImportPreview(rows=[], errors=[])
     seen = set()
     for number, values in enumerate(rows[1:], 2):
@@ -173,9 +205,8 @@ def preview(store, db, data, kind, format, catalog: SurveyCatalog, mapping=None)
             if kind == "participants":
                 if existing:
                     raise ValueError("이미 등록된 참가자 ID입니다.")
-                value["reservation_at"] = value.get("reservation_at") or ""
                 result.rows.append(ImportRow(row_number=number, source_location=location, event_id=pair[0], participant_id=pair[1],
-                                             participant=CaseCreate.model_validate(value)))
+                                             participant=participant_row(value)))
             else:
                 if existing is None or existing["deletion_requested"]:
                     raise ValueError("등록된 활성 참가자에 연결할 수 없습니다.")

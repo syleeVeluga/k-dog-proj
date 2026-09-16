@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException
 
-from app.input_models import CaseView, Manifest
+from app.input_models import CaseView, DogProfile, Manifest
 from app.legacy.input_models_v1 import upgrade
 
 
@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS cases (
     case_id TEXT PRIMARY KEY, event_id TEXT NOT NULL, participant_id TEXT NOT NULL,
     dog_name TEXT NOT NULL, reservation_at TEXT NOT NULL,
+    sequence_no INTEGER, consent_confirmed INTEGER NOT NULL DEFAULT 0 CHECK(consent_confirmed IN (0,1)),
+    guardian_name TEXT NOT NULL DEFAULT '', dog_profile_json TEXT NOT NULL DEFAULT '{}',
     input_revision INTEGER NOT NULL CHECK(input_revision > 0),
     selected_session_id TEXT NOT NULL, display_run_id TEXT,
     manifest_ref TEXT NOT NULL UNIQUE, manifest_hash TEXT NOT NULL,
@@ -103,7 +105,14 @@ class Store:
                 db.execute("ALTER TABLE steps DROP COLUMN lease_expires_at")
             if db.execute("PRAGMA user_version").fetchone()[0] < 5:
                 self.migrate_manifests(db)
-            db.execute("PRAGMA user_version=5")
+            columns = {r[1] for r in db.execute("PRAGMA table_info(cases)")}
+            for name, definition in (("sequence_no", "INTEGER"), ("consent_confirmed", "INTEGER NOT NULL DEFAULT 0"),
+                                     ("guardian_name", "TEXT NOT NULL DEFAULT ''"), ("dog_profile_json", "TEXT NOT NULL DEFAULT '{}'")):
+                if name not in columns:
+                    db.execute(f"ALTER TABLE cases ADD COLUMN {name} {definition}")
+            # 순번은 행사 안에서 하나씩; 비어 있을 수는 있다.
+            db.execute("CREATE UNIQUE INDEX IF NOT EXISTS cases_sequence ON cases(event_id, sequence_no) WHERE sequence_no IS NOT NULL")
+            db.execute("PRAGMA user_version=6")
 
     def migrate_manifests(self, db):
         """Rewrite intake-1.0 case manifests as intake-2.0 (28-item survey); stored run snapshots stay untouched."""
@@ -183,9 +192,10 @@ class Store:
         return CaseView(
             analysis_status=run["status"] if run else "not_started",
             **{name: row[name] for name in (
-                "case_id", "event_id", "participant_id", "dog_name", "reservation_at",
+                "case_id", "event_id", "participant_id", "dog_name", "reservation_at", "sequence_no", "guardian_name",
                 "input_revision", "selected_session_id",
             )},
+            consent_confirmed=bool(row["consent_confirmed"]), dog=DogProfile.model_validate_json(row["dog_profile_json"]),
             deletion_requested=bool(row["deletion_requested"]), manifest=self.manifest(row),
         )
 

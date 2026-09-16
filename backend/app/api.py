@@ -370,9 +370,12 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             manifest = store.manifest(row)
             manifest.participant_id = value.participant_id
             store.save(db, row, manifest, user.username, "case.update")
-            db.execute("UPDATE cases SET participant_id=?,dog_name=?,reservation_at=? WHERE case_id=?",
-                       (value.participant_id, value.dog_name, value.reservation_at, case_id))
-            store.audit(db, user.username, case_id, "case.identity", {"before": {k: row[k] for k in ("participant_id", "dog_name", "reservation_at")},
+            db.execute("UPDATE cases SET participant_id=?,dog_name=?,reservation_at=?,sequence_no=?,consent_confirmed=?,guardian_name=?,dog_profile_json=? WHERE case_id=?",
+                       (value.participant_id, value.dog_name, value.reservation_at, value.sequence_no, int(value.consent_confirmed),
+                        value.guardian_name, value.dog.model_dump_json(), case_id))
+            store.audit(db, user.username, case_id, "case.identity", {
+                "before": {**{k: row[k] for k in ("participant_id", "dog_name", "reservation_at", "sequence_no", "guardian_name")},
+                           "consent_confirmed": bool(row["consent_confirmed"]), "dog": json.loads(row["dog_profile_json"])},
                 "after": value.model_dump(exclude={"expected_revision"})})
             return store.view(store.case(db, case_id))
 

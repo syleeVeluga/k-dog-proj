@@ -36,10 +36,17 @@ test('desktop: registration, two video files, survey from CSV, refresh and retak
   await login(page);
   await page.getByLabel('행사 ID', { exact: true }).fill('BROWSER-TEST');
   await page.getByLabel('참가자 ID', { exact: true }).fill('0001');
+  await page.getByLabel('순번', { exact: true }).fill('1');
   await page.getByLabel('반려견 이름').fill('검증용 가상견');
+  await page.getByLabel('보호자명', { exact: true }).fill('가상 보호자');
+  await page.getByLabel('견종', { exact: true }).fill('보더콜리');
+  await page.getByRole('combobox', { name: '성별' }).selectOption('암');
+  await page.getByLabel('나이(세)', { exact: true }).fill('4');
+  await page.getByLabel('촬영 영상·설문 사용 동의 확인').check();
   await page.getByRole('button', { name: '참가자 저장' }).click();
   await expect(page.getByRole('heading', { name: '검증용 가상견' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '자료 사용 동의' })).toHaveCount(0);
+  await expect(page.getByText('가상 보호자 님 · 보더콜리 · 암 · 4세', { exact: true })).toBeVisible();
+  await expect(page.getByText('동의 확인', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '영상 등록', exact: true })).toBeDisabled();
   await expect(page.getByText('입력 버전 1', { exact: true })).toBeVisible();
   for (const index of [1, 2]) {
@@ -65,8 +72,9 @@ test('desktop: registration, two video files, survey from CSV, refresh and retak
   await page.getByRole('button', { name: '정상 1행 저장' }).click();
   await expect(page.getByText('1개 정상 행을 저장했습니다.', { exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('heading', { name: '참가자 자료', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '접수', exact: true })).toBeVisible();
   await expect(page.getByText('28/28', { exact: true })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '1', exact: true })).toBeVisible();
   await expect(page.getByRole('cell', { name: '2개', exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('desktop-list.png'), fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: '0001 상세 열기' }).click();
@@ -94,7 +102,7 @@ test('360px: standard CSV preview, row errors, save and detail access', async ({
   await expect(page.getByText('검증 결과 · 정상 1행 / 오류 1행')).toBeVisible();
   await page.getByRole('button', { name: '정상 1행 저장' }).click();
   await expect(page.getByText('1개 정상 행을 저장했습니다.', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '참가자', exact: true }).click();
+  await page.getByRole('button', { name: '접수', exact: true }).click();
   await page.getByLabel('검색', { exact: true }).fill('0002');
   await page.getByRole('button', { name: '0002 상세 열기' }).click();
   await expect(page.getByRole('heading', { name: '모바일 가상견' })).toBeVisible();
@@ -103,7 +111,7 @@ test('360px: standard CSV preview, row errors, save and detail access', async ({
   await page.getByText('삭제 요청 접수', { exact: true }).click();
   await page.getByLabel('삭제 요청됨', { exact: true }).check();
   await page.getByRole('button', { name: '삭제 요청 저장' }).click();
-  await expect(page.getByRole('heading', { name: '참가자 자료', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '접수', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '0002 상세 열기' })).toHaveCount(0);
 });
 
@@ -113,7 +121,7 @@ test('developer session cannot read participant data and reviewer cannot write',
   expect((await page.request.get('/api/cases')).status()).toBe(403);
   await page.getByRole('button', { name: '로그아웃' }).click();
   await login(page, 'reviewer');
-  await expect(page.getByRole('heading', { name: '참가자 자료', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '접수', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '자료 가져오기', exact: true })).toHaveCount(0);
   expect((await page.request.post('/api/cases', { headers: { 'X-KDOG-Request': '1' }, data: {} })).status()).toBe(403);
 });

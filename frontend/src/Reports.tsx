@@ -7,7 +7,6 @@ import type { Video } from './types';
 import { mayLeave, useEditBase } from './Editing';
 import { Exports } from './Exports';
 import presentation from '../../resources/report-presentation-v1.json';
-export { Exports } from './Exports';
 const topicTitle = (slot: number) => `${presentation.topics.find(t => t.slot === slot)?.title ?? `평가 주제 ${slot}`} (잠정)`;
 
 type TextPart = { text: string; evidence_ids: string[] };
