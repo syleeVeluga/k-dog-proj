@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api } from './api';
+import { api, ApiError } from './api';
 import type { Preview } from './types';
 
 export function Importer({ run, done, catalogVersion, fixedKind }: { run: (work: () => Promise<void>) => Promise<void>;
@@ -16,7 +16,7 @@ export function Importer({ run, done, catalogVersion, fixedKind }: { run: (work:
     : ['event_id', 'participant_id', ...Array.from({ length: 28 }, (_, i) => `s${String(i + 1).padStart(2, '0')}`)];
   const labels: Record<string, string> = { event_id: '행사 ID', participant_id: '참가자 ID', dog_name: '반려견 이름', reservation_at: '예약 시각 (선택)', sequence_no: '순번 (선택)',
     consent_confirmed: '동의 확인 (선택)', guardian_name: '보호자명 (선택)', dog_breed: '견종 (선택)', dog_sex: '성별 (선택)', dog_age_years: '나이 (선택)', dog_size: '크기 (선택)', years_together: '함께 산 기간 (선택)', adoption_route: '입양 경로 (선택)' };
-  const required = ['event_id', 'participant_id', 'dog_name'];
+  const required = kind === 'participants' ? ['event_id', 'participant_id', 'dog_name'] : canonical;
   function clear() { setColumns([]); setMapping({}); setResult(null); }
   return <section>{!fixedKind && <><p className="eyebrow">자료 연결</p><h1>자료 가져오기</h1><p className="muted">CSV·Excel을 연결·검증한 뒤 정상 행을 저장합니다.</p></>}
     <div className="panel">{!fixedKind && <label>자료 종류<select value={kind} onChange={e => { setKind(e.target.value); setMode('standard'); clear(); }}><option value="participants">참가자</option><option value="survey">설문 원응답</option></select></label>}
@@ -38,7 +38,7 @@ export function Importer({ run, done, catalogVersion, fixedKind }: { run: (work:
           const found = await api<{ columns: { key: string; label: string }[] }>(`/imports/columns?${query}`, 'POST', file);
           setColumns(found.columns); setMapping({}); setResult(null);
         })}>연결할 열 불러오기</button>
-          <div className="form-grid">{columns.length > 0 && canonical.map(field => <label key={field}>{labels[field] ?? `${field} 문항`}<select value={mapping[field] ?? ''} required={required.includes(field) || field.startsWith('s')} onChange={e => { const next = { ...mapping }; if (e.target.value) next[field] = e.target.value; else delete next[field]; setMapping(next); setResult(null); }}>
+          <div className="form-grid">{columns.length > 0 && canonical.map(field => <label key={field}>{labels[field] ?? `${field} 문항`}<select value={mapping[field] ?? ''} required={required.includes(field)} onChange={e => { const next = { ...mapping }; if (e.target.value) next[field] = e.target.value; else delete next[field]; setMapping(next); setResult(null); }}>
               <option value="">원본 열 선택</option>{columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}</select></label>)}</div>
         </>}
         <button disabled={mode !== 'standard' && !Object.keys(mapping).length}>검증 미리보기</button>
@@ -52,7 +52,14 @@ export function Importer({ run, done, catalogVersion, fixedKind }: { run: (work:
           <details><summary>원응답·변경 문항 확인</summary><p>{row.changed_questions?.join(', ') || '동일 응답'}</p><p className="fine mono">{Object.entries(row.survey.answers).map(([q, answer]) => `${q}: ${row.survey!.not_applicable.includes(q) ? '해당 없음' : answer ?? '미응답'}`).join(' · ')}</p></details></>}
       </li>)}</ul>
       <button className="primary" disabled={!result.rows.length} onClick={() => void run(async () => {
-        const saved = await api<{ message: string }>('/imports/commit', 'POST', { rows: result.rows }); setResult(null); await done(saved.message);
+        let saved: { message: string };
+        try {
+          saved = await api<{ message: string }>('/imports/commit', 'POST', { rows: result.rows });
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 409) { setResult(null); throw new Error('미리보기 이후 등록 자료가 변경되었거나 순번이 중복되었습니다. 저장된 행은 없습니다. 검증 미리보기를 다시 실행하세요.'); }
+          throw error;
+        }
+        setResult(null); await done(saved.message);
       })}>정상 {result.rows.length}행 저장</button><p className="fine">오류 행은 저장되지 않습니다. 미리보기 이후 자료가 변경되면 새로 검증해야 합니다.</p>
     </div>}
   </section>;

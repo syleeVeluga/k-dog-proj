@@ -310,6 +310,23 @@ class IntakeTests(AppCase):
         self.client.put(f"/api/cases/{row['case_id']}/survey", json=self.answers(item))
         self.assertEqual(self.client.post("/api/imports/commit", json={"rows": result["rows"]}).status_code, 409)
 
+    def test_import_sequence_conflicts_preview_and_commit_race(self):
+        self.client.post("/api/cases", json={"event_id": "TEST", "participant_id": "existing", "dog_name": "합성", "sequence_no": 1})
+        data = "event_id,participant_id,dog_name,sequence_no\nTEST,a,A,1\nTEST,b,B,2\nTEST,c,C,2\nTEST,d,D,\nTEST,e,E,\nOTHER,f,F,1\n"
+        result = self.client.post("/api/imports/preview?kind=participants&format=csv", content=data.encode()).json()
+        self.assertEqual([row["participant_id"] for row in result["rows"]], ["d", "e", "f"])
+        self.assertEqual(len(result["errors"]), 3)
+        self.assertTrue(all(any(f"{number}행" in error for error in result["errors"]) for number in (2, 3, 4)))
+        self.assertEqual(self.client.post("/api/imports/commit", json={"rows": result["rows"]}).status_code, 200)
+        data = "event_id,participant_id,dog_name,sequence_no\nTEST,first,First,3\nTEST,last,Last,4\n"
+        result = self.client.post("/api/imports/preview?kind=participants&format=csv", content=data.encode()).json()
+        self.assertEqual(result["errors"], [])
+        self.client.post("/api/cases", json={"event_id": "TEST", "participant_id": "racer", "dog_name": "합성", "sequence_no": 4})
+        self.assertEqual(self.client.post("/api/imports/commit", json={"rows": result["rows"]}).status_code, 409)
+        ids = [item["participant_id"] for item in self.client.get("/api/cases").json()]
+        self.assertNotIn("first", ids)
+        self.assertNotIn("last", ids)
+
     def test_xlsx_numeric_ids_formulas_bad_headers_and_misplaced_na(self):
         workbook = Workbook()
         sheet = workbook.active
