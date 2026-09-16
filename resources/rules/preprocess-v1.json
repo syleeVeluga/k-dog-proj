@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "version": "preprocess-v1",
+  "source": "01_개발_요구사항 §5 「구간 전체를 고프레임으로 볼 필요는 없습니다」, 변경검토 §5 영상 용량",
+  "window_sec": 5.0,
+  "dense_fps": 8,
+  "sparse_fps": 2,
+  "dense_segments": ["entry", "alone", "stranger", "reunion"],
+  "dense_note": "자극 직후 5초 창 4곳: 낯선 바닥을 처음 밟는 순간(입장 시작), 보호자가 나가는 순간(혼자 시작), 낯선 사람이 들어오는 순간(낯선 시작), 재회 접촉(재회 시작). 몸 털기(0.5초 동작)는 8 fps 이상이 필요하다.",
+  "video_codec": "libx264",
+  "crf": 20,
+  "keep_audio": true,
+  "audio_note": "구간 경계와 보호자 발화(톤·반복·지시 준수)는 마이크 음성으로 읽으므로 클립에도 오디오를 남긴다.",
+  "scale_height": null,
+  "scale_note": "null이면 해상도를 바꾸지 않는다. 꼬리 판독은 개 머리 60 px 이상이 필요해 함부로 줄이지 않는다(01 §5). 07 장비 사양 문서를 받은 뒤 정한다.",
+  "equirect_crop": null,
+  "equirect_note": "360 equirectangular 원본에서 방향 크롭이 필요하면 {\"yaw\": 도, \"pitch\": 도, \"h_fov\": 도, \"v_fov\": 도, \"width\": px, \"height\": px}로 지정한다. 07 문서와 시험 촬영 전까지는 비워 둔다."
+}

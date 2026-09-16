@@ -40,10 +40,37 @@ def main():
     clean = sub.add_parser("clean", help="API·worker 종료 후 미참조 파일 정리")
     clean.add_argument("--purge-deleted", action="store_true", help="삭제 요청된 참가자 DB·파일도 영구 삭제")
     sub.add_parser("recovery-status")
+    preprocess = sub.add_parser("preprocess", help="확정한 8구간으로 기준 영상을 잘라 불변 클립을 만든다 (FFmpeg)")
+    preprocess.add_argument("case_id")
+    preprocess.add_argument("--session-id", help="비우면 현재 선택 세션")
+    preprocess.add_argument("--actor", required=True, help="기록에 사용할 활성 운영자·관리자 계정")
     usage = sub.add_parser("usage-report", help="행사·참가자·시도별 사용량과 명시한 단가 추정 JSON")
     usage.add_argument("--event-id")
     usage.add_argument("--prices", type=Path, help="통화·출처·모델별 계량 단가 JSON")
     args = parser.parse_args()
+    if args.command == "preprocess":
+        import json
+        from fastapi import HTTPException
+        from app import preprocess as clips
+        from app.maintenance import runtime_lock
+        from app.media import MediaError
+        if not (args.data_dir / "kdog.sqlite3").is_file():
+            parser.error("현재 데이터 DB가 필요합니다.")
+        store = Store(args.data_dir)
+        with store.connect() as db:
+            actor = db.execute("SELECT username FROM users WHERE username=? AND role IN ('operator','admin') AND active=1", (args.actor,)).fetchone()
+            if not actor:
+                parser.error("활성 운영자 또는 운영 관리자 계정이 필요합니다.")
+            case = db.execute("SELECT selected_session_id FROM cases WHERE case_id=?", (args.case_id,)).fetchone()
+            if not case:
+                parser.error("참가자를 찾을 수 없습니다.")
+        try:
+            with runtime_lock(store, "worker"):  # offline maintenance (clean/restore) must not run while clips are being written
+                result = clips.run(store, args.case_id, args.session_id or case["selected_session_id"], args.actor)
+        except (HTTPException, MediaError) as exc:
+            parser.error(f"전처리 실패: {getattr(exc, 'detail', exc)}")
+        print(json.dumps({k: v for k, v in result.items() if k != "clips"} | {"clips": len(result["clips"])}, ensure_ascii=False, indent=2))
+        return
     if args.command == "usage-report":
         import json
         from app.usage import summarize
