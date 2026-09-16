@@ -103,8 +103,8 @@ class Store:
                                (encode(detail), row["change_id"]))
             if "lease_expires_at" in {r[1] for r in db.execute("PRAGMA table_info(steps)")}:
                 db.execute("ALTER TABLE steps DROP COLUMN lease_expires_at")
-            if db.execute("PRAGMA user_version").fetchone()[0] < 5:
-                self.migrate_manifests(db)
+            # Retry intact legacy inputs even after a previous startup skipped a damaged case.
+            self.migrate_manifests(db)
             columns = {r[1] for r in db.execute("PRAGMA table_info(cases)")}
             for name, definition in (("sequence_no", "INTEGER"), ("consent_confirmed", "INTEGER NOT NULL DEFAULT 0"),
                                      ("guardian_name", "TEXT NOT NULL DEFAULT ''"), ("dog_profile_json", "TEXT NOT NULL DEFAULT '{}'")):
@@ -119,13 +119,22 @@ class Store:
         survey_version = json.loads((REPO_ROOT / "resources/catalogs/survey-v2.json").read_text(encoding="utf-8"))["version"]
         for row in db.execute("SELECT * FROM cases").fetchall():
             try:
-                data = json.loads(self.path(row["manifest_ref"]).read_bytes())
-            except (OSError, ValueError):
+                raw = self.path(row["manifest_ref"]).read_bytes()
+                if hashlib.sha256(raw).hexdigest() != row["manifest_hash"]:
+                    continue
+                data = json.loads(raw)
+                if not isinstance(data, dict) or data.get("schema_version") != "intake-1.0":
+                    continue
+                fields = ("case_id", "event_id", "participant_id", "selected_session_id", "input_revision")
+                if any(data.get(field) != row[field] for field in fields):
+                    continue
+                upgraded, _ = upgrade(data, survey_version=survey_version)
+                manifest = Manifest.model_validate(upgraded)
+                session_ids = [session.session_id for session in manifest.sessions]
+                if manifest.selected_session_id not in session_ids or len(set(session_ids)) != len(session_ids):
+                    continue
+            except (OSError, ValueError, HTTPException):
                 continue  # An unreadable manifest keeps failing per case (409 on access) instead of blocking startup.
-            if data.get("schema_version") != "intake-1.0":
-                continue
-            upgraded, _ = upgrade(data, survey_version=survey_version)
-            manifest = Manifest.model_validate(upgraded)
             manifest.input_revision = row["input_revision"] + 1
             key, digest = self.write_manifest(manifest)
             db.execute("UPDATE cases SET input_revision=?, manifest_ref=?, manifest_hash=?, updated_at=? WHERE case_id=?",
@@ -160,9 +169,12 @@ class Store:
             raise HTTPException(409, "입력 파일을 읽을 수 없습니다. 저장소를 확인하세요.") from exc
         if hashlib.sha256(data).hexdigest() != row["manifest_hash"]:
             raise HTTPException(409, "입력 파일 해시가 일치하지 않습니다.")
-        value = Manifest.model_validate_json(data)
-        if (value.case_id, value.input_revision, value.selected_session_id) != (
-            row["case_id"], row["input_revision"], row["selected_session_id"]
+        try:
+            value = Manifest.model_validate_json(data)
+        except ValueError as exc:
+            raise HTTPException(409, "입력 자료 검증 또는 이관이 완료되지 않았습니다. 원본 저장소를 확인한 뒤 앱을 다시 시작하세요.") from exc
+        if (value.case_id, value.event_id, value.participant_id, value.input_revision, value.selected_session_id) != (
+            row["case_id"], row["event_id"], row["participant_id"], row["input_revision"], row["selected_session_id"]
         ):
             raise HTTPException(409, "입력 참조가 일치하지 않습니다.")
         return value

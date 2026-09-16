@@ -219,9 +219,18 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         return catalog
 
     @app.get("/api/cases", response_model=list[CaseView])
-    def cases(user=Depends(reader)):
+    def cases(response: Response, user=Depends(reader)):
+        values, unavailable = [], 0
         with store.connect() as db:
-            return [store.view(row) for row in db.execute("SELECT * FROM cases WHERE deletion_requested=0 ORDER BY created_at DESC")]
+            for row in db.execute("SELECT * FROM cases WHERE deletion_requested=0 ORDER BY created_at DESC"):
+                try:
+                    values.append(store.view(row))
+                except HTTPException as exc:
+                    if exc.status_code != 409:
+                        raise
+                    unavailable += 1
+        response.headers["X-KDOG-Unavailable-Cases"] = str(unavailable)
+        return values
 
     @app.post("/api/cases", response_model=CaseView, status_code=201)
     def add_case(value: CaseCreate, user=Depends(writer)):
