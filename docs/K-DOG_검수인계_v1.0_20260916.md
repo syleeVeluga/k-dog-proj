@@ -63,7 +63,7 @@ npm ci ; npm run build ; npm run test:e2e                              # e2e 9�
 
 ## 6. 알려진 한계·미완 (결함으로 다시 보고하지 않아도 됨)
 
-- **계산 규칙 해석 R1~R9 고객 확인 대기.** 특히 R4·R5·R6은 문서와 엑셀 수식이 다르며 현재는 문서·라벨을 따른다. 05 예비촬영 6쌍에서는 발동하지 않아 골든 테스트로 판별할 수 없다.
+- **계산 규칙 해석 R1~R9 고객 확인 대기.** 특히 R4·R5·R6은 문서와 엑셀 수식이 다르며 현재는 문서·라벨을 따른다. R5는 05 `3_보호자행동!K13=3`에서 발동해 동조율 invalid·SYN 제외 3개를 기대한다. `2_개행동!K25` 빈칸을 먼저 보는 03 Z6과 상태 우선순위가 다르다. R6은 J12:O12가 빈칸이라 미발동이다. R4의 접근 일관성은 J20=0 한 쌍만 값이 있고 K20:O20은 빈칸이며 다른 재료도 결측이어서 경계 전부를 골든 자료만으로 판별할 수 없다.
 - **07 장비 사양 문서 미수령.** `preprocess-v1.json`의 `scale_height`·`equirect_crop`은 null이다.
 - **리허설·시험은 합성 320×240 영상.** 현장 5.7K 원본의 처리 시간·용량은 미측정.
 - **설치 검증은 이 Windows 호스트의 새 폴더·새 venv까지.** 깨끗한 OS·별도 PC 검증 없음.
@@ -75,10 +75,10 @@ npm ci ; npm run build ; npm run test:e2e                              # e2e 9�
 
 ## 7. 검수 관점 제안 (우선순위 순)
 
-1. **계산 정확성.** `app/scoring.py`가 `scoring-v2.json`과 03 엑셀 `여러쌍비교!D6:Z6` 수식을 그대로 옮겼는지. 골든 테스트 `tests/test_scoring_golden.py`의 기대값이 05 엑셀 값과 같은지 직접 대조. 반올림은 엑셀이 ROUND하는 자리에서만 half-up인지. R1~R9 이외의 **암묵적 해석**이 코드에 숨어 있지 않은지(있다면 규칙 파일로 빼야 함).
+1. **계산 정확성.** `app/scoring.py`가 `scoring-v2.json`과 03 엑셀 `여러쌍비교!D6:Z6` 수치 계산과 R4~R6 채택 해석의 상태 분기를 구분했는지. 골든 테스트 `tests/test_scoring_golden.py`의 기대값을 05 입력 셀·03 수식 셀·해석 번호와 직접 대조. Excel 엔진으로 수식을 재계산한 시험은 아니다. 반올림은 엑셀이 ROUND하는 자리에서만 half-up인지. R1~R9 이외의 **암묵적 해석**이 코드에 숨어 있지 않은지(있다면 규칙 파일로 빼야 함).
 2. **카탈로그 이관.** `app/import_catalogs.py`가 03 엑셀 구조(4행 헤더, 9·24·9행, AD 영역코드, AY 척도)와 04 설문지(1~28, 7~9 해당 없음)를 검증하고 실패 시 멈추는지. `behavior-v2.json`의 42항목·`survey-v2.json`의 28문항이 원본과 하나하나 맞는지(특히 라벨·허용 점수·자료형).
 3. **입력 계약과 저장.** `input_models.py`(`intake-2.0`)와 `frontend/src/types.ts`가 필드·리터럴 값에서 일치하는지. `storage.py` 마이그레이션(user_version 4→6)이 옛 폴더를 손상 없이 올리고 `migration_note`에 버린 응답을 기록하는지. revision 충돌(409)이 모든 쓰기 라우트에 있는지. 삭제 요청 상태가 파일 제공을 막는지.
-4. **8구간·전처리.** `SessionSegments` 검증(절차 순서, 겹침 없음, 끝>시작, 영상 길이 안)이 API 경로와 전처리 경로 양쪽에서 같은 규칙인지. `preprocess.run`의 해시 검증, 불변 파일(`xb` 열기), 감사 기록이 백업·정리에 반영되는지(`maintenance.MANAGED`에 `clips`). `manage.py preprocess`가 `worker` 잠금을 잡는 이유가 문서와 같은지.
+4. **8구간·전처리.** `SessionSegments` 검증(절차 순서, 겹침 없음, 끝>시작, 영상 길이 안)이 API 경로와 전처리 경로 양쪽에서 같은 규칙인지. `preprocess.run`의 해시 검증, 불변 파일(`xb` 열기), 감사 기록이 백업·정리에 반영되는지(`maintenance.MANAGED`에 `clips`). A08 이후 `manage.py preprocess`와 API가 전처리 전용 잠금을 공유하고 런처 worker와 공존하며 정리·복원을 차단하는지.
 5. **권한·안전.** 모든 `/api/cases/*` 쓰기가 `writer`(operator·admin), 읽기가 `reader`인지. 영상 파일 제공이 해시 재검증 후 인증된 사용자에게만 되는지. 키가 응답·로그·localStorage에 새지 않는지(e2e `settings.spec.ts`가 검사). 업로드 크기·확장자 제한.
 6. **가져오기.** 참가자·설문 CSV/XLSX 미리보기→커밋 흐름에서 열 매핑(`ImportMapping`)이 필수 열을 강제하는지, Excel 숫자 ID를 자동 변환하지 않는지, 「해당 없음」 토큰이 7~9에만 허용되는지, 같은 답 재가져오기가 idempotent인지.
 7. **문서 대조.** `PILOT_OPERATIONS.md`의 화면 라벨·명령이 `frontend/src/pages/*.tsx`·`manage.py`와 정확히 같은지. 「카메라」「동결」「55항목 화면」 같은 옛 표현이 새 문서에 남지 않았는지(`app/legacy` 설명과 변경검토의 역사 서술은 예외).
