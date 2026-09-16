@@ -33,6 +33,7 @@ export function App() {
   const [selected, setSelected] = useState<Case | null>(null);
   const [updatedAt, setUpdatedAt] = useState('');
   const [connectionError, setConnectionError] = useState('');
+  const [unavailableCases, setUnavailableCases] = useState(0);
   const [page, setPage] = useState<Page>('intake');
   const writable = user?.role === 'operator' || user?.role === 'admin';
 
@@ -51,10 +52,12 @@ export function App() {
     setPage(next); setSelected(null);
   }
   useEffect(() => {
-    const clear = () => { setUser(null); setCases([]); setSelected(null); setCatalog(null); };
+    const clear = () => { setUser(null); setCases([]); setSelected(null); setCatalog(null); setUnavailableCases(0); };
+    const unavailable = (event: Event) => setUnavailableCases((event as CustomEvent<number>).detail);
+    window.addEventListener('kdog-unavailable-cases', unavailable);
     window.addEventListener('kdog-session-expired', clear);
     api<User>('/auth/me').then(setUser).catch(() => {}).finally(() => setChecking(false));
-    return () => window.removeEventListener('kdog-session-expired', clear);
+    return () => { window.removeEventListener('kdog-session-expired', clear); window.removeEventListener('kdog-unavailable-cases', unavailable); };
   }, []);
   useEffect(() => {
     if (user && user.role !== 'developer') void run(async () => {
@@ -98,6 +101,7 @@ export function App() {
       </nav>}
       <Notification message={error} kind="error" onClose={() => setError('')} />
       <Notification message={notice} onClose={() => setNotice('')} />
+      {unavailableCases > 0 && user.role !== 'developer' && <p role="alert">입력 자료 검증에 실패한 참가자 {unavailableCases}명은 목록에서 제외되었습니다. 운영 관리자에게 원본 저장소 확인을 요청하세요. 다른 참가자는 계속 사용할 수 있습니다.</p>}
       {busy && <Notification kind="working" message="처리 중입니다… 파일 업로드 중에는 이 화면을 유지하세요." />}
       <fieldset disabled={busy} className="workspace">
         {user.role === 'developer' ? <section><p className="eyebrow">개발자 전용</p><h1>개발 설정</h1>

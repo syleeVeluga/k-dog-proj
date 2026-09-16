@@ -433,6 +433,50 @@ class IntakeTests(AppCase):
         self.assertEqual(view["manifest"]["schema_version"], "intake-2.0")
         self.assertEqual(self.client.put(f"/api/cases/{item['case_id']}/survey", json=self.answers(view)).status_code, 200)
 
+    def test_damaged_legacy_inputs_stay_unmigrated_and_retry_after_repair(self):
+        healthy = self.make_case(participant_id="healthy")
+        for field in ("hash", "case_id", "event_id", "participant_id", "selected_session_id", "input_revision", "sessions", "shape"):
+            with self.subTest(field=field):
+                item = self.make_case(participant_id=field)
+                legacy = self.legacy_manifest(item, {f"q{i:02}": 1 for i in range(1, 31)})
+                original = json.dumps(legacy, ensure_ascii=False).encode("utf-8")
+                if field == "hash":
+                    legacy["sessions"][0]["survey"]["q01"] = 5
+                elif field == "sessions":
+                    legacy["sessions"] = []
+                elif field == "shape":
+                    legacy["sessions"][0]["videos"] = "invalid"
+                else:
+                    legacy[field] = 999 if field == "input_revision" else "wrong"
+                damaged = json.dumps(legacy, ensure_ascii=False).encode("utf-8")
+                digest = hashlib.sha256(original if field == "hash" else damaged).hexdigest()
+                key = f"inputs/{item['case_id']}-legacy.json"
+                self.store.path(key).write_bytes(damaged)
+                with self.store.connect(write=True) as db:
+                    db.execute("UPDATE cases SET manifest_ref=?,manifest_hash=? WHERE case_id=?", (key, digest, item["case_id"]))
+                    db.execute("PRAGMA user_version=4")
+                for _ in range(2):
+                    restarted = Store(self.root)
+                    with restarted.connect() as db:
+                        row = restarted.case(db, item["case_id"])
+                        self.assertEqual((row["manifest_ref"], row["manifest_hash"], row["input_revision"]),
+                                         (key, digest, item["input_revision"]))
+                    self.assertEqual(self.store.path(key).read_bytes(), damaged)
+                    self.assertEqual(self.client.get(f"/api/cases/{item['case_id']}").status_code, 409)
+                    self.assertEqual(self.client.get(f"/api/cases/{healthy['case_id']}").status_code, 200)
+                    listing = self.client.get("/api/cases")
+                    self.assertEqual(listing.status_code, 200)
+                    self.assertEqual(listing.headers["X-KDOG-Unavailable-Cases"], "1")
+                    self.assertIn(healthy["case_id"], [value["case_id"] for value in listing.json()])
+                # Simulate an administrator restoring the verified backup, without changing schema version.
+                self.store.path(key).write_bytes(original)
+                with self.store.connect(write=True) as db:
+                    db.execute("UPDATE cases SET manifest_hash=? WHERE case_id=?", (hashlib.sha256(original).hexdigest(), item["case_id"]))
+                Store(self.root)
+                migrated = self.get_case(item)
+                self.assertEqual(migrated["input_revision"], item["input_revision"] + 1)
+                self.assertEqual(migrated["manifest"]["sessions"][0]["survey"]["s01"], 1)
+
     def test_legacy_analysis_report_and_export_routes_are_gone(self):
         item = self.upload(self.make_case()).json()
         base = f"/api/cases/{item['case_id']}"

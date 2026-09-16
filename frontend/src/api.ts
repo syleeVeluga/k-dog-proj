@@ -15,5 +15,8 @@ export async function api<T>(path: string, method = 'GET', data?: unknown): Prom
     if (response.status === 401 && path !== '/auth/login') window.dispatchEvent(new Event('kdog-session-expired'));
     throw new ApiError(typeof error.detail === 'string' ? error.detail : '입력 형식을 확인하세요.', response.status);
   }
+  if (path === '/cases' && method === 'GET') {
+    window.dispatchEvent(new CustomEvent('kdog-unavailable-cases', { detail: Number(response.headers.get('X-KDOG-Unavailable-Cases') ?? 0) }));
+  }
   return response.json();
 }
