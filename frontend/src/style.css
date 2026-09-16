@@ -18,7 +18,7 @@ header { min-height: 96px; padding: 22px max(24px, calc((100vw - 1180px) / 2)); 
 .plain:hover { background: transparent; color: #4f6e53; }
 .account { display: flex; align-items: center; gap: 20px; font-size: 13px; }
 main { max-width: 1228px; margin: auto; padding: 0 24px; }
-nav { display: flex; gap: 24px; padding: 20px 0; border-bottom: 1px solid #eaeaea; }
+nav { display: flex; flex-wrap: wrap; gap: 24px; padding: 20px 0; border-bottom: 1px solid #eaeaea; }
 nav button { padding: 8px 0; border: 0; background: transparent; border-radius: 0; color: #656960; }
 nav button[aria-current] { color: #292c29; border-bottom: 2px solid #292c29; font-weight: 700; }
 fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }

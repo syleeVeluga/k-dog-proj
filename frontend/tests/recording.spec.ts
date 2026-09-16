@@ -53,6 +53,7 @@ test('회차 초기화와 자동 조회 중 편집 revision 보호', async ({ pa
   await expect(panel.getByText(/다른 변경이 저장됨/)).toBeVisible();
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('1:30');
   page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: '전체 목록으로 돌아가기' }).click();
   await page.getByRole('button', { name: 'freeze 촬영 열기' }).click();
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('');
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toBeEnabled();
@@ -105,10 +106,10 @@ test('촬영 menu: several files with a partial failure, eight segment times, or
   await panel.getByLabel('기준 끝', { exact: true }).fill('0:35');
   await panel.getByRole('button', { name: '8구간 초안 저장', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: '초안으로 저장했습니다' })).toBeVisible();
-  await expect(row.getByRole('cell', { name: '초안', exact: true })).toBeVisible();
+  await expect(panel.getByText('초안', { exact: true })).toBeVisible();
   await panel.getByRole('button', { name: '8구간 확정', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: '확정했습니다' })).toBeVisible();
-  await expect(row.getByRole('cell', { name: '확정', exact: true })).toBeVisible();
+  await expect(panel.getByText('확정', { exact: true })).toBeVisible();
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toBeDisabled();
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('2:35.0');
   await page.screenshot({ path: testInfo.outputPath('recording-confirmed.png'), fullPage: true, animations: 'disabled' });

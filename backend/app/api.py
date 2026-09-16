@@ -266,11 +266,13 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             return store.view(store.case(db, case_id))
 
     @app.get("/api/cases/{case_id}/survey/result", response_model=SurveyResult)
-    def survey_result(case_id: Key, user=Depends(reader)):
+    def survey_result(case_id: Key, session_id: Key | None = None, user=Depends(reader)):
         """Deterministic, so it is computed on read: domain answer counts and the separation type, never a total (01 §6)."""
         with store.connect() as db:
             manifest = store.manifest(store.case(db, case_id))
-        session = selected_session(manifest, manifest.selected_session_id)
+        session = next((item for item in manifest.sessions if item.session_id == (session_id or manifest.selected_session_id)), None)
+        if session is None:
+            raise HTTPException(422, "이 참가자의 촬영 회차가 아닙니다.")
         return survey_scores(SurveyAnswers(answers=session.survey, not_applicable=tuple(session.survey_not_applicable)), catalog)
 
     @app.post("/api/cases/{case_id}/deletion", response_model=Message)

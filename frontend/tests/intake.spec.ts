@@ -44,14 +44,14 @@ test('desktop: registration, two video files, survey from CSV, refresh and retak
   await page.getByLabel('나이(세)', { exact: true }).fill('4');
   await page.getByLabel('촬영 영상·설문 사용 동의 확인').check();
   await page.getByRole('button', { name: '참가자 저장' }).click();
-  await expect(page.getByRole('heading', { name: '검증용 가상견' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '검증용 가상견', exact: true })).toBeVisible();
   await expect(page.getByText('가상 보호자 님 · 보더콜리 · 암 · 4세', { exact: true })).toBeVisible();
   await expect(page.getByText('동의 확인', { exact: true })).toBeVisible();
   await expect(page.getByText('입력 버전 1', { exact: true })).toBeVisible();
   await expect(page.getByText('영상 등록·8구간 시각·촬영 메모·재촬영은 「촬영」 메뉴에서', { exact: false })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('desktop-detail.png'), fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: '촬영', exact: true }).click();
-  await page.getByRole('button', { name: '0001 촬영 열기' }).click();
+
   await expect(page.getByRole('button', { name: '영상 등록', exact: true })).toBeDisabled();
   await page.getByLabel('영상 파일', { exact: true }).setInputFiles([1, 2].map(index => ({ name: `synthetic-file-${index}.mp4`, mimeType: 'video/mp4', buffer: Buffer.from(`synthetic bytes ${index}`) })));
   await page.getByRole('button', { name: '영상 등록', exact: true }).click();
@@ -77,12 +77,13 @@ test('desktop: registration, two video files, survey from CSV, refresh and retak
   await page.screenshot({ path: testInfo.outputPath('desktop-list.png'), fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: '촬영', exact: true }).click();
   await page.getByRole('button', { name: '0001 촬영 열기' }).click();
+
   await expect(page.getByText('synthetic-file-2.mp4', { exact: true })).toBeVisible();
   await page.getByText('재촬영 세션 추가', { exact: true }).click();
   await page.getByRole('button', { name: '새 촬영 시작' }).click();
   await expect(page.getByText('0 FILES', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '접수', exact: true }).click();
-  await page.getByRole('button', { name: '0001 상세 열기' }).click();
+
   await expect(page.getByText('입력 버전 5', { exact: true })).toBeVisible();
   await page.getByLabel('선택 세션', { exact: true }).selectOption({ index: 0 });
   await expect(page.getByText('영상 2개 · 구간 없음', { exact: false })).toBeVisible();
@@ -104,7 +105,7 @@ test('360px: standard CSV preview, row errors, save and detail access', async ({
   await page.getByRole('button', { name: '접수', exact: true }).click();
   await page.getByLabel('검색', { exact: true }).fill('0002');
   await page.getByRole('button', { name: '0002 상세 열기' }).click();
-  await expect(page.getByRole('heading', { name: '모바일 가상견' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '모바일 가상견', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('mobile-detail.png'), fullPage: true, animations: 'disabled' });
   await page.getByText('삭제 요청 접수', { exact: true }).click();

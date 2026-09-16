@@ -161,6 +161,19 @@ class IntakeTests(AppCase):
             actions = [r[0] for r in db.execute("SELECT action FROM changes WHERE action LIKE 'segments.%' ORDER BY rowid")]
         self.assertEqual(actions, ["segments.update", "segments.confirm", "segments.update"])
 
+    def test_reviewer_reads_older_survey_without_changing_selected_session(self):
+        item = self.make_case()
+        first_session = item["selected_session_id"]
+        item = self.client.put(f"/api/cases/{item['case_id']}/survey", json=self.answers(item)).json()
+        item = self.client.post(f"/api/cases/{item['case_id']}/sessions", json={"expected_revision": item["input_revision"]}).json()
+        reviewer = self.client_for("reviewer")
+        result = reviewer.get(f"/api/cases/{item['case_id']}/survey/result", params={"session_id": first_session})
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()["status"], "calculated")
+        self.assertEqual(reviewer.get(f"/api/cases/{item['case_id']}/survey/result").json()["status"], "unregistered")
+        self.assertEqual(self.get_case(item), item)
+        self.assertEqual(reviewer.get(f"/api/cases/{item['case_id']}/survey/result?session_id=missing").status_code, 422)
+
     def test_ids_duplicate_names_and_cross_case_video_access(self):
         first = self.make_case()
         second = self.make_case("0002")

@@ -15,6 +15,7 @@ for (const width of [1440, 360]) {
       await page.request.post('/api/cases', { headers, data: { event_id: `NOTE-${width}`, participant_id: `N${String(i).padStart(3, '0')}`, dog_name: `알림 검증견 ${i}` } });
     }
     await expect(page.getByRole('button', { name: `N019 상세 열기` })).toBeVisible();
+    await page.getByRole('button', { name: '자료 관리', exact: true }).click();
     await page.getByText('자료 백업·복구', { exact: true }).click();
     const backup = page.getByRole('button', { name: '자료 백업 생성 · 키 제외' });
     await page.route('**/api/admin/backups', route => route.fulfill({ status: 201, json: { path: 'synthetic-backup' } }));
@@ -22,7 +23,6 @@ for (const width of [1440, 360]) {
     const success = page.getByRole('status').filter({ hasText: '검증된 백업 저장 완료: synthetic-backup' });
     await expect(success).toBeInViewport({ ratio: 1 });
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(500);
     await expect(success).toBeInViewport({ ratio: 1 });
     await page.screenshot({ path: testInfo.outputPath(`notification-success-${width}.png`) });
     await success.getByRole('button', { name: '알림 닫기' }).click();

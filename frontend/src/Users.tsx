@@ -8,6 +8,7 @@ export function Users({ run }: { run: Run }) {
   const refresh = async () => setUsers(await api<User[]>('/admin/users'));
   useEffect(() => { void run(refresh); }, []);
   return <section><p className="eyebrow">STAFF ACCESS</p><h1>직원 계정</h1><p className="muted">역할 변경·비활성화 시 해당 계정의 로그인 세션이 만료됩니다.</p>
+    <p className="fine">운영자는 접수·설문 가져오기·촬영 자료를 저장합니다. 교수/검토자는 참가자와 촬영 회차를 읽기만 합니다. 운영 관리자는 직원 계정과 자료 백업도 관리합니다.</p>
     <div className="panel">{users.map(user => <form className="toolbar user-row" key={user.username} onSubmit={e => { e.preventDefault(); const value = formFields(e.currentTarget); void run(async () => {
       await api(`/admin/users/${user.username}`, 'PATCH', { role: value.role, active: value.active === 'on' }); await refresh();
     }); }}><strong>{user.username}</strong><label>역할<select name="role" defaultValue={user.role}>{(['operator', 'reviewer', 'admin'] as const).map(role => <option key={role} value={role}>{roleNames[role]}</option>)}</select></label>
