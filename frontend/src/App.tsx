@@ -135,7 +135,7 @@ export function App() {
           <DeveloperSettings />
           <button onClick={() => void run(async () => setNotice((await api<{ message: string }>('/developer/status')).message))}>인증 상태 확인</button>
         </section>
-          : page === 'import' ? <Importer run={run} catalogVersion={catalog?.version ?? ''} done={async message => { setNotice(message); await reload(); }} />
+          : page === 'import' ? <Importer run={run} catalog={catalog} catalogVersion={catalog?.version ?? ''} done={async message => { setNotice(message); await reload(); }} />
           : page === 'users' ? <Users run={run} />
           : page === 'data' ? <section><h1>자료 관리</h1><Recovery /></section>
           : page === 'survey' ? <Survey cases={cases} selected={selected} select={setSelected} filters={filters} catalog={catalog} writable={!!writable} run={run} reload={reload} notify={setNotice} />

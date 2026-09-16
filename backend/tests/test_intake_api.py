@@ -328,6 +328,27 @@ class IntakeTests(AppCase):
         self.client.put(f"/api/cases/{row['case_id']}/survey", json=self.answers(item))
         self.assertEqual(self.client.post("/api/imports/commit", json={"rows": result["rows"]}).status_code, 409)
 
+    def test_import_consent_typos_and_explicit_xlsx_sheet(self):
+        for consent, valid in (("예", True), ("1", True), ("", True), ("오타", False)):
+            result = self.client.post("/api/imports/preview?kind=participants&format=csv",
+                content=f"event_id,participant_id,dog_name,consent_confirmed\nTEST,new,합성,{consent}\n".encode()).json()
+            self.assertEqual(len(result["rows"]), int(valid))
+            if not valid:
+                self.assertIn("동의 확인", result["errors"][0])
+        workbook = Workbook()
+        workbook.active.title = "설명"
+        workbook.active.append(["설명 시트"])
+        sheet = workbook.create_sheet("입력")
+        sheet.append(["event_id", "participant_id", "dog_name"])
+        sheet.append(["TEST", "0007", "합성"])
+        output = BytesIO()
+        workbook.save(output)
+        workbook.close()
+        columns = self.client.post("/api/imports/columns?format=xlsx", content=output.getvalue()).json()
+        self.assertEqual((columns["sheets"], columns["selected_sheet"]), (["설명", "입력"], "설명"))
+        result = self.client.post("/api/imports/preview?kind=participants&format=xlsx&sheet=입력", content=output.getvalue()).json()
+        self.assertEqual((result["errors"], result["rows"][0]["participant_id"]), ([], "0007"))
+
     def test_import_sequence_conflicts_preview_and_commit_race(self):
         self.client.post("/api/cases", json={"event_id": "TEST", "participant_id": "existing", "dog_name": "합성", "sequence_no": 1})
         data = "event_id,participant_id,dog_name,sequence_no\nTEST,a,A,1\nTEST,b,B,2\nTEST,c,C,2\nTEST,d,D,\nTEST,e,E,\nOTHER,f,F,1\n"

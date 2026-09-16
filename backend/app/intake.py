@@ -66,6 +66,7 @@ def save_survey(store, db, case_id, value: SurveyEdit, actor, catalog: SurveyCat
 
 PROFILE_COLUMNS = ("dog_breed", "dog_sex", "dog_age_years", "dog_size", "years_together", "adoption_route")
 TRUE_TOKENS = ("1", "Y", "y", "예", "동의", "true", "True", "O")
+FALSE_TOKENS = ("", "0", "N", "n", "아니오", "미확인", "false", "False", "X")
 
 
 def headers(kind):
@@ -93,10 +94,13 @@ def participant_row(value):
             return int(raw)
         raise ValueError(f"{key}: 정수만 허용됩니다.")
 
+    consent = text("consent_confirmed")
+    if consent not in TRUE_TOKENS + FALSE_TOKENS:
+        raise ValueError("동의 확인(consent_confirmed): 확인은 예 또는 1, 미확인은 빈칸으로 고친 뒤 다시 검증하세요.")
     return CaseCreate.model_validate({
         "event_id": value["event_id"], "participant_id": value["participant_id"], "dog_name": value["dog_name"],
         "reservation_at": text("reservation_at"), "sequence_no": integer("sequence_no"),
-        "consent_confirmed": text("consent_confirmed") in TRUE_TOKENS, "guardian_name": text("guardian_name"),
+        "consent_confirmed": consent in TRUE_TOKENS, "guardian_name": text("guardian_name"),
         "dog": {"breed": text("dog_breed"), "sex": text("dog_sex") or "미기재", "age_years": integer("dog_age_years"),
                 "size": text("dog_size") or "미기재", "years_together": text("years_together"), "adoption_route": text("adoption_route") or "미기재"},
     })
@@ -122,7 +126,7 @@ def template(kind, format):
     return output.getvalue()
 
 
-def read_rows(data: bytes, format: str, sheet_name=None):
+def read_rows(data: bytes, format: str, sheet_name=None, layout=None):
     if format == "csv":
         try:
             return list(csv.reader(StringIO(data.decode("utf-8-sig")), strict=True))
@@ -137,6 +141,8 @@ def read_rows(data: bytes, format: str, sheet_name=None):
         workbook = load_workbook(BytesIO(data), read_only=True, data_only=False)
         try:
             sheet = workbook[sheet_name] if sheet_name else workbook.active
+            if layout is not None:
+                layout.update(sheets=workbook.sheetnames, selected_sheet=sheet.title)
             if (sheet.max_row or 0) > 10001 or (sheet.max_column or 0) > 100:
                 raise ValueError("too many cells")
             return [list(row) for row in sheet.iter_rows(values_only=True)]
@@ -174,9 +180,9 @@ def parse_answer(question, raw, catalog):
     raise ValueError(f"{question}: 1~5, 빈칸, 또는 7~9번의 NA만 허용됩니다.")
 
 
-def preview(store, db, data, kind, format, catalog: SurveyCatalog, mapping=None):
+def preview(store, db, data, kind, format, catalog: SurveyCatalog, mapping=None, sheet_name=None):
     version = catalog.version
-    rows = read_rows(data, format, mapping.sheet if mapping else None)
+    rows = read_rows(data, format, mapping.sheet if mapping else sheet_name)
     if rows and mapping:
         rows = mapped_rows(rows, kind, version, mapping)
     if not rows or len(rows) > 10001:
@@ -232,7 +238,11 @@ def preview(store, db, data, kind, format, catalog: SurveyCatalog, mapping=None)
                     case_id=existing["case_id"], survey=survey, session_label=f"{index + 1}차 촬영", changed_questions=changed))
         except (ValueError, ValidationError) as exc:
             if isinstance(exc, ValidationError):
-                explanation = "; ".join(".".join(map(str, e["loc"])) + ": " + e["msg"] for e in exc.errors())
+                hints = {"sequence_no": "순번은 1~9999 정수 또는 빈칸", "age_years": "나이는 0~30 정수 또는 빈칸",
+                         "event_id": "행사 ID는 영문·숫자·밑줄·하이픈", "participant_id": "참가자 ID는 영문·숫자·밑줄·하이픈",
+                         "dog_name": "반려견 이름은 1~200자", "sex": "성별은 암/수/중성화/미기재",
+                         "size": "크기는 소형/중형/대형/미기재", "adoption_route": "입양 경로는 분양/입양/기타/미기재"}
+                explanation = "; ".join(".".join(map(str, e["loc"])) + ": " + hints.get(str(e["loc"][-1]), "입력 형식과 길이를 확인") + "로 고친 뒤 다시 검증하세요." for e in exc.errors())
             else:
                 explanation = str(exc)
             result.errors.append(f"{location}: {explanation}")

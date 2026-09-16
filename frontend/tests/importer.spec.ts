@@ -17,9 +17,16 @@ for (const format of ['csv', 'xlsx']) {
     await page.getByRole('button', { name: '자료 가져오기', exact: true }).click();
     await page.getByLabel('입력 양식').selectOption('mapped');
     const event = `MAP-${format}`;
-    const buffer = format === 'csv' ? Buffer.from(`행사,번호,이름\n${event},0001,합성견\n`) : execFileSync('../backend/.venv/Scripts/python.exe', ['-c', `import io,sys; from openpyxl import Workbook; w=Workbook(); s=w.active; s.append(['행사','번호','이름']); s.append(['${event}','0001','합성견']); b=io.BytesIO(); w.save(b); sys.stdout.buffer.write(b.getvalue())`]);
+    const buffer = format === 'csv' ? Buffer.from(`행사,번호,이름\n${event},0001,합성견\n`) : execFileSync('../backend/.venv/Scripts/python.exe', ['-c', `import io,sys; from openpyxl import Workbook; w=Workbook(); w.active.title='안내'; w.active.append(['설명']); s=w.create_sheet('실제입력'); s.append(['행사','번호','이름']); s.append(['${event}','0001','합성견']); b=io.BytesIO(); w.save(b); sys.stdout.buffer.write(b.getvalue())`]);
     await page.getByLabel('입력 파일').setInputFiles({ name: `minimal.${format}`, mimeType: 'application/octet-stream', buffer });
     await page.getByRole('button', { name: '연결할 열 불러오기' }).click();
+    if (format === 'xlsx') {
+      await expect(page.getByLabel('Excel 시트', { exact: true })).toHaveValue('안내');
+      await page.getByLabel('Excel 시트', { exact: true }).selectOption('실제입력');
+      await page.getByRole('button', { name: '연결할 열 불러오기' }).click();
+    } else {
+      await expect(page.getByText('Excel 시트 불러오기', { exact: true })).toHaveCount(0);
+    }
     await page.getByRole('combobox', { name: '행사 ID', exact: true }).selectOption('행사');
     await page.getByRole('combobox', { name: '참가자 ID', exact: true }).selectOption('번호');
     await page.getByRole('combobox', { name: '반려견 이름', exact: true }).selectOption('이름');

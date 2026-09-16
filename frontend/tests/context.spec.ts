@@ -34,7 +34,7 @@ test('72명 목록에서 업무 맥락 유지 및 교수의 회차 조회는 읽
     await expect(context.getByRole('heading')).toBeInViewport();
     await page.getByLabel('선택 세션', { exact: true }).selectOption(firstSession);
     await page.getByRole('button', { name: '설문 보기', exact: true }).click();
-    await expect(page.getByLabel('설문 현황')).toContainText('전 문항 응답');
+    await expect(page.getByLabel('설문 현황')).toContainText('등록 28/28 · 응답 28 · 해당 없음 0 · 미응답 0');
     await expect(context).toContainText('1차 촬영');
     await page.getByRole('button', { name: '촬영 자료 보기', exact: true }).click();
     await expect(page.getByLabel('촬영 자료')).toContainText('1차 촬영');

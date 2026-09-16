@@ -402,7 +402,8 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
 
     @app.post("/api/imports/preview", response_model=ImportPreview)
     async def import_preview(request: Request, kind: Literal["participants", "survey"],
-                             format: Literal["csv", "xlsx"], mapping: Annotated[str | None, Query(max_length=20000)] = None, user=Depends(writer)):
+                             format: Literal["csv", "xlsx"], mapping: Annotated[str | None, Query(max_length=20000)] = None,
+                             sheet: str | None = None, user=Depends(writer)):
         data = bytearray()
         async for chunk in request.stream():
             data.extend(chunk)
@@ -414,7 +415,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 layout = ImportMapping.model_validate_json(mapping) if mapping else None
             except ValidationError:
                 raise HTTPException(422, "열 연결 형식을 확인하세요.") from None
-            return preview(store, db, bytes(data), kind, format, catalog, layout)
+            return preview(store, db, bytes(data), kind, format, catalog, layout, sheet_name=sheet)
 
     @app.post("/api/imports/columns", response_model=ImportColumns)
     async def import_columns(request: Request, format: Literal["csv", "xlsx"], sheet: str | None = None, user=Depends(writer)):
@@ -423,8 +424,9 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             data.extend(chunk)
             if len(data) > 8 * 1024 * 1024:
                 raise HTTPException(413, "입력 파일은 8 MiB 이하로 나누어 등록하세요.")
-        rows = read_rows(bytes(data), format, sheet)
-        return {"columns": [{"key": str(value), "label": str(value)} for value in (rows[0] if rows else []) if value is not None]}
+        layout = {}
+        rows = read_rows(bytes(data), format, sheet, layout)
+        return {**layout, "columns": [{"key": str(value), "label": str(value)} for value in (rows[0] if rows else []) if value is not None]}
 
     @app.post("/api/imports/commit", response_model=Message)
     def commit_import(value: ImportCommit, user=Depends(writer)):
