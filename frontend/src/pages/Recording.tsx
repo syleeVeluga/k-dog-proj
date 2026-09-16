@@ -101,7 +101,7 @@ function RecordingPanel({ item, writable, run, refresh, notify, close }: { item:
     {dirty && baseRevision !== item.input_revision && <div role="status"><p>다른 변경이 저장됨 · 현재 입력은 편집 시작 버전 {baseRevision}을 유지합니다. 그대로 저장하면 충돌로 거절됩니다.</p>
       <button onClick={() => { if (window.confirm('구간의 미저장 입력을 버리고 최신 값으로 바꾸시겠습니까?')) loadLatest(); }}>최신 값 불러오기</button>
       <button onClick={() => notify('현재 입력을 유지합니다. 다른 저장값을 덮어쓰지 않습니다.')}>입력 유지</button></div>}
-    {writable && <SessionEditor key={session.session_id} item={item} session={session} run={run} refresh={refresh} />}
+    {writable && <SessionEditor item={item} session={session} run={run} refresh={refresh} />}
     {writable && <details><summary>재촬영 세션 추가</summary><form onSubmit={e => { e.preventDefault(); if (!mayLeave()) return; const value = formFields(e.currentTarget); void run(async () => {
       await api(`/cases/${item.case_id}/sessions`, 'POST', { ...value, expected_revision: item.input_revision }); setDirty(false); await refresh('새 촬영 세션을 시작했습니다.');
     }); }}><label>촬영 메모<textarea name="note" maxLength={2000} /></label><p className="fine">이전 촬영의 영상·구간은 보존됩니다.</p><button>새 촬영 시작</button></form></details>}
@@ -109,7 +109,7 @@ function RecordingPanel({ item, writable, run, refresh, notify, close }: { item:
     {session.videos.length === 0 && <p className="muted">등록된 영상이 없습니다. 파일을 여러 개 선택해 한 번에 등록할 수 있습니다.</p>}
     {session.videos.map(v => <div className="video-row" key={v.video_id}><div><strong>{v.original_name}</strong><small>{(v.size_bytes / 1048576).toFixed(2)} MiB · 원본 등록됨</small></div>
       <label className="check"><input type="radio" name="reference-video" value={v.video_id} checked={videoId === v.video_id} disabled={!editing || !writable} onChange={() => { setVideoId(v.video_id); setDirty(true); }} />구간 기준 영상</label></div>)}
-    {writable && <VideoUpload key={session.session_id} item={item} session={session} refresh={refresh} />}
+    {writable && <VideoUpload item={item} session={session} refresh={refresh} />}
     <div className="section-title"><h3 id="segments">8구간 시각</h3>{stored && <span className={stored.confirmed ? 'tag green' : 'tag'}>{stored.confirmed ? '확정' : '초안'}</span>}</div>
     <p className="fine">8구간 시각은 선택한 파일의 0:00을 기준으로 합니다. 다른 파일은 자동으로 동기화되지 않습니다. 시각 예: 1:23.4 (분:초), 83.4초.</p>
     {stored && stored.video_id !== videoId && <p role="status">기준 영상이 바뀌었습니다. 기존 8구간 시각을 새 파일에서 모두 재검토하세요.</p>}
