@@ -22,6 +22,7 @@ test('회차 초기화와 자동 조회 중 편집 revision 보호', async ({ pa
   await panel.getByLabel('퇴장 끝', { exact: true }).fill('0:40');
   item = await (await page.request.put(endpoint, { headers, data: { expected_revision: item.input_revision, video_id: videoId, windows: windows.map(w => ({ ...w, start_sec: w.start_sec + 50, end_sec: w.end_sec + 50 })), confirm: true } })).json();
   await expect(panel.getByText(/다른 변경이 저장됨/)).toBeVisible();
+  await expect(panel.locator('summary').filter({ hasText: '현재 촬영 메모 수정' })).toHaveCount(1);
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('0:40');
   const conflict = page.waitForResponse(r => r.url().endsWith('/segments') && r.request().method() === 'PUT');
   await panel.getByRole('button', { name: '8구간 초안 저장', exact: true }).click();
