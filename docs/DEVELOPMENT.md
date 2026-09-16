@@ -1,6 +1,6 @@
 # K-DOG 개발 실행 안내
 
-> 2026-09-16 기준. 도메인 층(카탈로그·계약·계산)과 입력 계약은 42항목 판(2026-09-13)이고, 55항목 판 분석 파이프라인은 동결된 채 P2에서 대체된다. 방향·범위·일정은 [변경 검토](K-DOG_변경검토_v1.0_20260915.md)를, 고객 요구사항은 `docs/최종 고객 문서/`를 따른다. 이 문서는 개발 환경과 검증 명령만 다룬다.
+> 2026-09-16 기준. 도메인 층(카탈로그·계약·계산)·입력 계약·화면은 42항목 판(2026-09-13)이고, 55항목 판 분석 파이프라인의 화면·라우트는 제거됐으며 남은 모듈은 P2에서 대체된다. 방향·범위·일정은 [변경 검토](K-DOG_변경검토_v1.0_20260915.md)를, 고객 요구사항은 `docs/최종 고객 문서/`를 따른다. 이 문서는 개발 환경과 검증 명령만 다룬다.
 
 ## 구성
 
@@ -79,6 +79,25 @@ uv run --locked python -X utf8 -m app.manage --data-dir "D:/kdog-data" preproces
 ```
 
 산출물은 `clips/<case>/<session>/<batch>/`의 mp4와 `clips.json`(원본 해시·길이·클립별 구간·fps·해시)이며, `changes`의 `preprocess.complete` 기록이 이 파일들을 참조해 백업·정리 대상에 포함시킨다. 구간이 기준 영상 길이를 넘으면 422, 확정 전이면 409로 거절한다.
+
+## 패키징·리허설
+
+릴리즈 ZIP은 커밋된 깨끗한 작업 트리에서 만든다. `git ls-files`의 `backend/app/**/*.py`와 `resources/` JSON·폰트, `frontend/dist`, 설치 스크립트, 루트 `README.md`·`pyproject.toml`·`uv.lock`·`PILOT_OPERATIONS.md`만 담고 자료·키·테스트·개발 문서는 넣지 않는다. `app.launcher.REQUIRED`가 실행 전 확인하는 파일은 42항목 판 카탈로그(`behavior-v2`·`survey-v2`)·`scoring-v2.json`·`preprocess-v1.json`·폰트·화면 빌드다.
+
+```powershell
+# 저장소 루트에서 실행
+python -X utf8 scripts/build_release.py "releases/kdog-v0.2.0-windows-x64.zip"
+python -X utf8 scripts/verify_release.py "releases/kdog-v0.2.0-windows-x64.zip"
+```
+
+`verify_release`는 ZIP을 새 한글·공백 경로에 풀어 손상 파일 거절, 새 가상환경 설치, HTTP 로그인·접수·재시작 후 재조회, 감독 프로세스 종료를 확인한다. 현재 Windows 호스트에서의 검증이며 깨끗한 OS·별도 PC 검증을 대체하지 않는다.
+
+촬영 당일 흐름 리허설은 합성 영상 72쌍으로 접수 가져오기 → 설문 가져오기 → 영상 파일 2개 등록 → 8구간 확정 → 전처리를 끝까지 돌리고 단계별 시간·용량·클립 수·해시를 JSON으로 낸다. 임시 폴더(또는 `--data-dir`로 지정한 새 빈 폴더)만 쓰고 운영 자료는 열지 않는다. `tests/test_rehearsal.py`가 2쌍으로 같은 코드를 시험한다.
+
+```powershell
+# backend/에서 실행 (httpx는 개발 의존성)
+uv run --locked python -X utf8 ../scripts/rehearsal.py --pairs 72 --report "D:/tmp/rehearsal.json"
+```
 
 ## legacy
 

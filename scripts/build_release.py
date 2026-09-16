@@ -24,9 +24,6 @@ def build(destination):
         name.startswith("backend/app/") and name.endswith(".py") or
         name.startswith("resources/") and Path(name).suffix in (".json", ".ttf", ".txt", ".md")
     )}
-    # New application files are included before the release commit, without globbing secrets.
-    for name in ("launcher.py", "usage.py"):
-        files[f"backend/app/{name}"] = ROOT / "backend/app" / name
     for name in ("README.md", "backend/pyproject.toml", "backend/uv.lock", "docs/PILOT_OPERATIONS.md"):
         files[name] = ROOT / name
     for name in ("Install.cmd", "Start.cmd", "install.ps1"):

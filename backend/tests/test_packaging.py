@@ -14,7 +14,8 @@ from urllib.request import build_opener, ProxyHandler
 
 from fastapi import HTTPException
 
-from app.launcher import launch, preflight, process_group
+from app.launcher import REQUIRED, launch, preflight, process_group
+from app.storage import REPO_ROOT
 from app.maintenance import offline
 from app.storage import Store, encode, now
 from app.usage import summarize, token_meters, validate_prices
@@ -64,6 +65,14 @@ class LauncherTests(unittest.TestCase):
                 if handle:
                     kernel.CloseHandle(handle)
                 child.stdin.close()
+
+    def test_required_files_are_the_42_item_resources_and_exist(self):
+        self.assertIn("resources/catalogs/behavior-v2.json", REQUIRED)
+        self.assertIn("resources/rules/scoring-v2.json", REQUIRED)
+        self.assertIn("resources/rules/preprocess-v1.json", REQUIRED)
+        self.assertIn("resources/catalogs/survey-v1-to-v2.json", REQUIRED)
+        self.assertFalse([name for name in REQUIRED if name.endswith(("behavior-v1.json", "survey-v1.json", "scoring-v1.json"))])
+        self.assertEqual([name for name in REQUIRED if not (REPO_ROOT / name).is_file() and not name.startswith("frontend/")], [])
 
     def test_preflight_rejects_missing_media_tools(self):
         with patch("app.launcher.shutil.which", return_value=None):
