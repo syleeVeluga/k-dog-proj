@@ -81,6 +81,31 @@ class IntakeTests(AppCase):
         self.assertEqual(saved, again)
         self.assertEqual(saved["manifest"]["sessions"][0]["survey_not_applicable"], ["s08"])
 
+    def test_intake_fields_sequence_uniqueness_and_edit(self):
+        profile = {"breed": "보더콜리", "sex": "암", "age_years": 4, "size": "중형", "years_together": "3년", "adoption_route": "입양"}
+        response = self.client.post("/api/cases", json={"event_id": "TEST", "participant_id": "0001", "dog_name": "천우미", "sequence_no": 1,
+                                                        "consent_confirmed": True, "guardian_name": "가상 보호자", "dog": profile})
+        self.assertEqual(response.status_code, 201, response.text)
+        item = response.json()
+        self.assertEqual((item["sequence_no"], item["consent_confirmed"], item["guardian_name"], item["dog"]), (1, True, "가상 보호자", profile))
+        plain = self.make_case("0002")
+        self.assertEqual((plain["sequence_no"], plain["consent_confirmed"], plain["guardian_name"], plain["dog"]["sex"], plain["dog"]["age_years"]),
+                         (None, False, "", "미기재", None))
+        self.assertEqual(self.client.post("/api/cases", json={"event_id": "TEST", "participant_id": "0003", "dog_name": "중복 순번", "sequence_no": 1}).status_code, 409)
+        self.assertEqual(self.client.post("/api/cases", json={"event_id": "OTHER", "participant_id": "0003", "dog_name": "다른 행사", "sequence_no": 1}).status_code, 201)
+        for bad in ({"sequence_no": 0}, {"dog": {**profile, "sex": "female"}}, {"dog": {**profile, "age_years": 31}}, {"contact": "010"}, {"guardian_contact": "010"}):
+            self.assertEqual(self.client.post("/api/cases", json={"event_id": "TEST", "participant_id": "0009", "dog_name": "x", **bad}).status_code, 422, bad)
+        edited = self.client.put(f"/api/cases/{plain['case_id']}", json={"expected_revision": plain["input_revision"], "participant_id": "0002", "dog_name": "정정견",
+                                                                          "sequence_no": 2, "consent_confirmed": True, "guardian_name": "정정 보호자", "dog": profile})
+        self.assertEqual(edited.status_code, 200, edited.text)
+        self.assertEqual((edited.json()["sequence_no"], edited.json()["guardian_name"], edited.json()["dog"]["breed"]), (2, "정정 보호자", "보더콜리"))
+        self.assertEqual(self.client.put(f"/api/cases/{plain['case_id']}", json={"expected_revision": edited.json()["input_revision"], "participant_id": "0002",
+                                                                                  "dog_name": "정정견", "sequence_no": 1}).status_code, 409)
+        with self.store.connect() as db:
+            detail = json.loads(db.execute("SELECT detail_json FROM changes WHERE action='case.identity'").fetchone()[0])
+        self.assertEqual((detail["before"]["sequence_no"], detail["after"]["sequence_no"], detail["after"]["dog"]["sex"]), (None, 2, "암"))
+        self.assertNotIn("contact", json.dumps(self.client.app.openapi()["components"]["schemas"]["CaseView"]["properties"]))
+
     def test_ids_duplicate_names_and_cross_case_video_access(self):
         first = self.make_case()
         second = self.make_case("0002")
@@ -213,6 +238,7 @@ class IntakeTests(AppCase):
         result = self.client.post("/api/imports/preview?kind=participants&format=csv", content=data).json()
         self.assertEqual(len(result["rows"]), 2)
         self.assertIn("3행", result["errors"][0])
+        self.assertEqual((result["rows"][0]["participant"]["sequence_no"], result["rows"][0]["participant"]["dog"]["sex"]), (None, "미기재"))
         response = self.client.post("/api/imports/commit", json={"rows": result["rows"]})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(len(self.client.get("/api/cases").json()), 2)
@@ -247,6 +273,15 @@ class IntakeTests(AppCase):
         self.assertEqual(len(result["rows"]), 1)
         self.assertEqual(result["rows"][0]["participant"]["participant_id"], "0002")
         self.assertIn("participant_id", result["errors"][0])
+        full = ",".join(headers("participants")) + "\nTEST,0005,접수견,,7,예,보호자,푸들,수,3,소형,2년,분양\nTEST,0006,오류견,,x,,,,,,,,\nTEST,0007,오류견2,,,,,,중성화,abc,,,\n"
+        result = self.client.post("/api/imports/preview?kind=participants&format=csv", content=full.encode("utf-8")).json()
+        self.assertEqual(len(result["rows"]), 1)
+        row = result["rows"][0]["participant"]
+        self.assertEqual((row["sequence_no"], row["consent_confirmed"], row["guardian_name"], row["dog"]), (7, True, "보호자",
+                         {"breed": "푸들", "sex": "수", "age_years": 3, "size": "소형", "years_together": "2년", "adoption_route": "분양"}))
+        self.assertTrue(any("sequence_no" in error for error in result["errors"]))
+        self.assertTrue(any("dog_age_years" in error for error in result["errors"]))
+        self.assertEqual(self.client.post("/api/imports/preview?kind=participants&format=csv", content=b"event_id,participant_id,dog_name,contact\nT,1,x,010").status_code, 422)
         self.make_case()
         for raw in ("=1+1", "6", "True", "NA"):
             data = (",".join(headers("survey")) + "\n" + ",".join(["TEST", "0001", self.version, raw, *([""] * 27)])).encode()
@@ -260,6 +295,14 @@ class IntakeTests(AppCase):
         self.assertEqual(response.json()["rows"][0]["participant_id"], "0007")
         self.assertEqual(self.client.post("/api/imports/preview", params={"kind": "survey", "format": "csv", "mapping": json.dumps({"horizontal": {"F": "x"}})},
                                           content=b"a").status_code, 422)
+        # A mapped survey file has no survey_version column; the catalog version is applied for it.
+        survey_mapping = json.dumps({"columns": {"event_id": "행사", "participant_id": "번호", **{item_id: f"문항{i}" for i, item_id in enumerate(SURVEY_IDS, 1)}}})
+        header = "행사,번호," + ",".join(f"문항{i}" for i in range(1, 29))
+        mapped_survey = self.client.post("/api/imports/preview", params={"kind": "survey", "format": "csv", "mapping": survey_mapping},
+                                         content=(header + "\nTEST,0001," + ",".join(["4"] * 6 + ["NA"] + ["4"] * 21) + "\n").encode("utf-8"))
+        self.assertEqual(mapped_survey.status_code, 200, mapped_survey.text)
+        self.assertEqual(mapped_survey.json()["errors"], [])
+        self.assertEqual(mapped_survey.json()["rows"][0]["survey"]["not_applicable"], ["s07"])
         for format in ("csv", "xlsx"):
             self.assertEqual(self.client.get(f"/api/templates/survey?format={format}").status_code, 200)
 
@@ -270,7 +313,7 @@ class IntakeTests(AppCase):
             self.assertEqual(tables, {"users", "cases", "runs", "steps", "changes"})
             self.assertEqual(db.execute("PRAGMA foreign_keys").fetchone()[0], 1)
             self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0], "wal")
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 5)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 6)
             db.execute("INSERT INTO runs(run_id,case_id,session_id,input_revision,input_snapshot_json,"
                        "config_snapshot_json,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
                        ("run-1", item["case_id"], item["selected_session_id"], 1, "{}", "{}", "queued", "now", "now"))
@@ -312,7 +355,7 @@ class IntakeTests(AppCase):
         for _ in range(2):
             migrated = Store(self.root)
             with migrated.connect() as db:
-                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 5)
+                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 6)
                 row = migrated.case(db, item["case_id"])
                 manifest = migrated.manifest(row)
                 run = db.execute("SELECT * FROM runs WHERE run_id='legacy-run'").fetchone()

@@ -71,7 +71,7 @@ uv run --locked python -X utf8 -m app.import_catalogs --customer-dir "D:/referen
 
 ## legacy
 
-옛 55항목 판 계약·문맥 검증·계산·입력 형태는 `app.legacy`(`contracts_v1`·`validation_v1`·`scoring_v1`·`input_models_v1`)에 읽기 전용으로 있다. 55항목 분석 파이프라인은 **동결**되어 새 실행·재시도·내보내기 생성·설명 생성 요청은 409(`analysis.FROZEN`)로 거절되고, 저장된 옛 run은 조회만 된다. 입력 계약은 `intake-2.0`(설문 `s01`~`s28`·「해당 없음」·촬영 메모 `note`·카메라 구분 없는 영상 파일 목록)이며, 설문은 CSV·Excel 가져오기로만 등록하고, 옛 `intake-1.0` 자료 폴더는 `Store` 첫 실행 때 자동 이관된다(`migration_note`에 버린 응답 기록). 자세한 범위는 [P1 구현 계획](K-DOG_P1_구현계획_v1.0_20260916.md) §2. 저장된 옛 run을 읽는 worker·API·리포트가 아직 이를 import하며, 각 모듈이 42항목 판으로 교체되는 PR에서 함께 삭제한다. legacy에 기능을 추가하지 않는다.
+옛 55항목 판 계약·문맥 검증·계산·입력 형태는 `app.legacy`(`contracts_v1`·`validation_v1`·`scoring_v1`·`input_models_v1`)에 읽기 전용으로 있다. 55항목 분석 파이프라인은 **동결**되어 새 실행·재시도·내보내기 생성·설명 생성 요청은 409(`analysis.FROZEN`)로 거절되고, 저장된 옛 run은 조회만 된다. 입력 계약은 `intake-2.0`(설문 `s01`~`s28`·「해당 없음」·촬영 메모 `note`·카메라 구분 없는 영상 파일 목록)이며, 접수 항목으로 순번(행사 안에서 유일)·동의 확인·보호자명·반려견 정보(`cases.dog_profile_json`: 견종·성별·나이·크기·함께 산 기간·입양 경로)를 받되 연락처는 받지 않는다(01 §7). 참가자 CSV/XLSX 양식의 접수 열은 생략할 수 있다(빈칸=미기재). DB `user_version`은 6이다. 설문은 CSV·Excel 가져오기로만 등록하고, 옛 `intake-1.0` 자료 폴더는 `Store` 첫 실행 때 자동 이관된다(`migration_note`에 버린 응답 기록). 자세한 범위는 [P1 구현 계획](K-DOG_P1_구현계획_v1.0_20260916.md) §2. 저장된 옛 run을 읽는 worker·API·리포트가 아직 이를 import하며, 각 모듈이 42항목 판으로 교체되는 PR에서 함께 삭제한다. legacy에 기능을 추가하지 않는다.
 
 저장 계층은 검증 후 직렬화한 JSON을 불변 입력 파일로 저장하고 수정 시 새 revision을 만든다. 기본 도메인 검증은 새 run 자체의 관찰만 허용하며, `app.analysis`가 같은 참가자·세션·관련 입력/설정 해시와 명시적 reuse manifest를 확인한 경우에만 이전 관찰의 근거 ID를 연결한다. 이 원칙(불변 산출물·점유 토큰·삭제 상태 재확인·revision 고정·관찰 부족과 규칙 미정의 구분)은 42항목 판에서도 유지한다.
 
