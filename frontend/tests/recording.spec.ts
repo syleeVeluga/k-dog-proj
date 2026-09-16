@@ -18,13 +18,13 @@ test('회차 초기화와 자동 조회 중 편집 revision 보호', async ({ pa
   await page.getByRole('button', { name: '촬영', exact: true }).click();
   await page.getByRole('button', { name: 'freeze 촬영 열기' }).click();
   const panel = page.getByLabel('촬영 자료');
-  await panel.getByRole('button', { name: '확정 해제 후 수정' }).click();
+  await panel.getByRole('button', { name: '확정본 수정 시작' }).click();
   await panel.getByLabel('퇴장 끝', { exact: true }).fill('0:40');
   item = await (await page.request.put(endpoint, { headers, data: { expected_revision: item.input_revision, video_id: videoId, windows: windows.map(w => ({ ...w, start_sec: w.start_sec + 50, end_sec: w.end_sec + 50 })), confirm: true } })).json();
   await expect(panel.getByText(/다른 변경이 저장됨/)).toBeVisible();
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('0:40');
   const conflict = page.waitForResponse(r => r.url().endsWith('/segments') && r.request().method() === 'PUT');
-  await panel.getByRole('button', { name: '초안 저장', exact: true }).click();
+  await panel.getByRole('button', { name: '8구간 초안 저장', exact: true }).click();
   expect((await conflict).status()).toBe(409);
   let persisted = await (await page.request.get(`/api/cases/${item.case_id}`)).json();
   expect(persisted.manifest.sessions[0].segments.windows[7].end_sec).toBe(89);
@@ -46,7 +46,7 @@ test('회차 초기화와 자동 조회 중 편집 revision 보호', async ({ pa
   persisted = await (await page.request.post(`/api/cases/${item.case_id}/videos`, { headers, params: { session_id: secondId, expected_revision: persisted.input_revision, filename: 'second.mp4' }, data: Buffer.from('synthetic') })).json();
   persisted = await (await page.request.post(`/api/cases/${item.case_id}/sessions`, { headers, data: { session_id: sessionId, expected_revision: persisted.input_revision } })).json();
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('1:29.0');
-  await panel.getByRole('button', { name: '확정 해제 후 수정' }).click();
+  await panel.getByRole('button', { name: '확정본 수정 시작' }).click();
   await panel.getByLabel('퇴장 끝', { exact: true }).fill('1:30');
   page.once('dialog', dialog => dialog.dismiss());
   persisted = await (await page.request.post(`/api/cases/${item.case_id}/sessions`, { headers, data: { session_id: secondId, expected_revision: persisted.input_revision } })).json();
@@ -63,7 +63,7 @@ test('회차 초기화와 자동 조회 중 편집 revision 보호', async ({ pa
   await page.getByRole('button', { name: '촬영', exact: true }).click();
   await page.getByRole('button', { name: 'freeze 촬영 열기' }).click();
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toBeDisabled();
-  await expect(panel.getByRole('button', { name: '초안 저장', exact: true })).toHaveCount(0);
+  await expect(panel.getByRole('button', { name: '8구간 초안 저장', exact: true })).toHaveCount(0);
   expect((await page.request.put(endpoint, { headers, data: { expected_revision: persisted.input_revision, video_id: videoId, windows, confirm: false } })).status()).toBe(403);
 });
 
@@ -100,10 +100,10 @@ test('촬영 menu: several files with a partial failure, eight segment times, or
     await panel.getByLabel(`${label} 끝`, { exact: true }).fill(`${Math.floor((i * 20 + 15) / 60)}:${String((i * 20 + 15) % 60).padStart(2, '0')}`);
   }
   await panel.getByLabel('기준 끝', { exact: true }).fill('0:45');  // overlaps 혼자 0:40
-  await panel.getByRole('button', { name: '초안 저장', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('8구간은 절차 순서대로');
+  await panel.getByRole('button', { name: '8구간 초안 저장', exact: true }).click();
+  await expect(panel.getByText('기준 끝 0:45가 혼자 시작 0:40보다 늦습니다. 구간 순서를 확인하세요.', { exact: true })).toBeVisible();
   await panel.getByLabel('기준 끝', { exact: true }).fill('0:35');
-  await panel.getByRole('button', { name: '초안 저장', exact: true }).click();
+  await panel.getByRole('button', { name: '8구간 초안 저장', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: '초안으로 저장했습니다' })).toBeVisible();
   await expect(row.getByRole('cell', { name: '초안', exact: true })).toBeVisible();
   await panel.getByRole('button', { name: '8구간 확정', exact: true }).click();
@@ -116,11 +116,26 @@ test('촬영 menu: several files with a partial failure, eight segment times, or
   await page.getByRole('button', { name: '촬영', exact: true }).click();
   await page.getByRole('button', { name: '0021 촬영 열기' }).click();
   await expect(page.getByLabel('촬영 자료').getByLabel('입장 시작', { exact: true })).toBeDisabled();
-  await page.getByLabel('촬영 자료').getByRole('button', { name: '확정 해제 후 수정' }).click();
+  await page.getByLabel('촬영 자료').getByRole('button', { name: '확정본 수정 시작' }).click();
   await expect(page.getByLabel('촬영 자료').getByLabel('입장 시작', { exact: true })).toBeEnabled();
+  await expect(panel.getByText('아직 저장된 확정본은 유지됩니다. 초안 저장 시 미확정으로 바뀝니다.', { exact: true })).toBeVisible();
   const item = (await (await page.request.get('/api/cases')).json()).find((c: { participant_id: string }) => c.participant_id === '0021');
   expect(item.manifest.sessions[0].segments.confirmed).toBe(true);
   expect(item.manifest.sessions[0].segments.windows[7]).toEqual({ segment: 'exit', start_sec: 140, end_sec: 155 });
+  await expect(panel.getByRole('button', { name: '지금 시각', exact: true }).first()).toBeDisabled();
+  await panel.getByLabel('퇴장 끝', { exact: true }).fill('2:20');
+  await panel.getByRole('button', { name: '8구간 확정', exact: true }).click();
+  await expect(panel.getByText('퇴장 끝은 시작보다 늦어야 확정할 수 있습니다.', { exact: true })).toBeVisible();
+  await panel.getByLabel('퇴장 끝', { exact: true }).fill('2:36');
+  await panel.getByRole('button', { name: '8구간 초안 저장', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '초안으로 저장했습니다' })).toBeVisible();
+  let saved = await (await page.request.get(`/api/cases/${item.case_id}`)).json();
+  expect(saved.manifest.sessions[0].segments.confirmed).toBe(false);
+  await panel.getByRole('button', { name: '8구간 확정', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '8구간 시각을 확정했습니다.' })).toBeVisible();
+  await expect(panel.getByLabel('퇴장 끝', { exact: true })).toBeDisabled();
+  saved = await (await page.request.get(`/api/cases/${item.case_id}`)).json();
+  expect(saved.manifest.sessions[0].segments.confirmed).toBe(true);
   await page.setViewportSize({ width: 768, height: 1024 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

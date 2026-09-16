@@ -81,6 +81,8 @@ class SegmentWindow(Contract):
     def ordered(self) -> Self:
         if self.end_sec < self.start_sec:
             raise ValueError("segment end precedes start")
+        if self.source == "operator_confirmed" and self.end_sec == self.start_sec:
+            raise ValueError("confirmed segment must have positive duration")
         return self
 
 

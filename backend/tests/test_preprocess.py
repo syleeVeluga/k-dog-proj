@@ -82,6 +82,14 @@ class PreprocessTests(AppCase):
         unconfirmed = manifest.sessions[0].model_copy(update={"segments": manifest.sessions[0].segments.model_copy(update={"confirmed": False})})
         with self.assertRaises(HTTPException):
             preprocess.plan(unconfirmed)
+        # Old stored confirmations with empty windows must never become successful zero-clip batches.
+        for empty_indices in ([0], list(range(8))):
+            damaged = manifest.sessions[0].model_copy(deep=True)
+            for index in empty_indices:
+                damaged.segments.windows[index].end_sec = damaged.segments.windows[index].start_sec
+            with self.assertRaises(HTTPException) as rejected:
+                preprocess.plan(damaged)
+            self.assertEqual(rejected.exception.status_code, 422)
 
     def test_run_writes_hashed_clips_recorded_for_backup_and_cleanup(self):
         self.segments()
