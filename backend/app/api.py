@@ -24,7 +24,7 @@ from app.scoring import survey_scores
 from app.input_models import (
     CaseCreate, CaseEdit, CaseView, ImportColumns, ImportCommit, ImportMapping, ImportPreview, Key, Login, Message,
     Revision, SegmentTimes, SegmentsEdit, SessionEdit, SessionMetadata, StoredVideo, SurveyEdit, UserCreate, UserEdit, UserView,
-    PreprocessStatus,
+    PreprocessStatus, StimulusEdit, StimulusTimes,
 )
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
@@ -394,6 +394,32 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 raise HTTPException(422, "8구간은 절차 순서대로, 끝이 시작보다 늦고 서로 겹치지 않아야 합니다.") from exc
             session.segments = SegmentTimes(video_id=value.video_id, confirmed=value.confirm, windows=value.windows)
             store.save(db, row, manifest, user.username, "segments.confirm" if value.confirm else "segments.update")
+            return store.view(store.case(db, case_id))
+
+    @app.put("/api/cases/{case_id}/sessions/{session_id}/stimuli", response_model=CaseView)
+    def session_stimuli(case_id: Key, session_id: Key, value: StimulusEdit, user=Depends(writer)):
+        from app.domain.validation import validate_stimulus_moments
+        from app.media import MediaError, probe
+        with store.connect() as db:
+            row = store.case(db, case_id, expected=value.expected_revision)
+            session = selected_session(store.manifest(row), session_id)
+            video = next((v for v in session.videos if v.video_id == value.video_id), None)
+            if video is None:
+                raise HTTPException(422, "이 촬영 세션에 등록된 영상이 아닙니다.")
+        try:
+            source = store.path(video.storage_ref)
+            with source.open("rb") as handle:
+                if hashlib.file_digest(handle, "sha256").hexdigest() != video.sha256:
+                    raise HTTPException(409, "기준 영상 해시가 등록 당시와 다릅니다.")
+            validate_stimulus_moments(value.moments, probe(source)["duration_sec"])
+        except (MediaError, OSError, ValueError) as exc:
+            raise HTTPException(422, "자극 시각과 기준 영상 길이·형식·파일 접근 상태를 확인하세요.") from exc
+        with store.connect(write=True) as db:
+            row = store.case(db, case_id, expected=value.expected_revision)
+            manifest = store.manifest(row)
+            session = selected_session(manifest, session_id)
+            session.stimuli = StimulusTimes(video_id=value.video_id, input_revision=value.expected_revision + 1, moments=value.moments)
+            store.save(db, row, manifest, user.username, "stimuli.update")
             return store.view(store.case(db, case_id))
 
     @app.get("/api/cases/{case_id}/sessions/{session_id}/preprocess", response_model=PreprocessStatus)

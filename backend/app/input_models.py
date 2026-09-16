@@ -5,6 +5,7 @@ from typing import Annotated, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.domain.catalog import SURVEY_IDS, SegmentId
+from app.domain.contracts import StimulusMoments
 
 
 Key = Annotated[str, Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")]
@@ -122,6 +123,18 @@ class SegmentTimes(Model):
     windows: Annotated[list[SegmentWindowInput], Field(min_length=8, max_length=8)]
 
 
+class StimulusEdit(Revision):
+    video_id: Key
+    moments: StimulusMoments
+
+
+class StimulusTimes(Model):
+    video_id: Key
+    input_revision: Annotated[int, Field(ge=1)]
+    source: Literal["operator_confirmed"] = "operator_confirmed"
+    moments: StimulusMoments
+
+
 class StoredVideo(Model):
     video_id: Key
     original_name: Text
@@ -139,6 +152,7 @@ class Session(Model):
     survey_not_applicable: list[str] = Field(default_factory=list)
     videos: list[StoredVideo]
     segments: SegmentTimes | None = None
+    stimuli: StimulusTimes | None = None
 
 
 class Manifest(Model):

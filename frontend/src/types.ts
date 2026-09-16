@@ -12,10 +12,14 @@ export type SegmentId = 'entry' | 'baseline' | 'alone' | 'stranger' | 'reunion' 
 export const SEGMENTS: [SegmentId, string][] = [['entry', '입장'], ['baseline', '기준'], ['alone', '혼자'], ['stranger', '낯선 사람'], ['reunion', '재회'], ['ignore', '무시'], ['walk', '걷기'], ['exit', '퇴장']];
 export type SegmentWindow = { segment: SegmentId; start_sec: number; end_sec: number };
 export type SegmentTimes = { video_id: string; confirmed: boolean; windows: SegmentWindow[] };
+export const STIMULI = [['entry', '낯선 바닥 첫 접촉'], ['alone', '보호자 퇴실 동작'], ['stranger', '낯선 사람 입장'], ['reunion', '재회 접촉']] as const;
+export type StimulusMoments = Record<typeof STIMULI[number][0], number | null>;
+export type StimulusTimes = { video_id: string; input_revision: number; source: 'operator_confirmed'; moments: StimulusMoments };
 export type Session = {
   session_id: string; note: string;
   survey_version: string; survey: Record<string, number | null>; survey_not_applicable: string[]; videos: Video[];
   segments: SegmentTimes | null;
+  stimuli: StimulusTimes | null;
 };
 export const segmentState = (session: Session): 'none' | 'draft' | 'confirmed' => !session.segments ? 'none' : session.segments.confirmed ? 'confirmed' : 'draft';
 export type DogProfile = {

@@ -170,6 +170,39 @@ class PreprocessTests(AppCase):
             self.assertEqual(self.client.get(path).json()["status"], "running")
         self.assertEqual(self.client.get(path).json()["status"], "interrupted")
 
+    def test_stimulus_times_are_explicit_versioned_and_do_not_define_windows(self):
+        self.segments()
+        path = f"/api/cases/{self.item['case_id']}/sessions/{self.session['session_id']}/stimuli"
+        self.assertIsNone(self.item["manifest"]["sessions"][0]["stimuli"])
+        payload = {"expected_revision": self.item["input_revision"], "video_id": self.video_id,
+                   "moments": {"entry": 0.0, "alone": None, "stranger": 15.0, "reunion": 30.0}}
+        self.assertEqual(self.client_for("reviewer").put(path, json=payload).status_code, 403)
+        self.assertEqual(self.client.put(path, json={**payload, "video_id": "unknown"}).status_code, 422)
+        for invalid in (-1.0, 46.0, "NaN"):
+            with self.subTest(invalid=invalid):
+                self.assertEqual(self.client.put(path, json={**payload, "moments": {"reunion": invalid}}).status_code, 422)
+        saved = self.client.put(path, json=payload)
+        self.assertEqual(saved.status_code, 200, saved.text)
+        self.item = saved.json()
+        stored = self.item["manifest"]["sessions"][0]["stimuli"]
+        self.assertEqual((stored["video_id"], stored["input_revision"], stored["source"]),
+                         (self.video_id, self.item["input_revision"], "operator_confirmed"))
+        self.assertEqual(stored["moments"]["reunion"], 30.0)  # 8 seconds after reunion segment start.
+        self.assertIsNone(stored["moments"]["alone"])
+        self.assertEqual(self.client.put(path, json=payload).status_code, 409)
+        with self.store.connect() as db:
+            self.assertIsNone(preprocess.latest(self.store, db, self.item["case_id"], self.session["session_id"]))
+        # The unconfirmed placement rule must NOT pretend to use the recorded event.
+        from app.input_models import Manifest
+        clips = preprocess.plan(Manifest.model_validate(self.item["manifest"]).sessions[0])
+        self.assertEqual(next(c["start_sec"] for c in clips if c["name"] == "reunion-dense"), 22.0)
+        # Existing manifests need no fabricated timing during upgrade/read.
+        old = json.loads(json.dumps(self.item["manifest"]))
+        del old["sessions"][0]["stimuli"]
+        self.assertIsNone(Manifest.model_validate(old).sessions[0].stimuli)
+        self.delete_case(self.item)
+        self.assertEqual(self.client.put(path, json={**payload, "expected_revision": self.item["input_revision"]}).status_code, 403)
+
     def test_changed_or_deleted_input_during_cut_never_publishes_success(self):
         self.segments()
         path = f"/api/cases/{self.item['case_id']}/sessions/{self.session['session_id']}/preprocess"

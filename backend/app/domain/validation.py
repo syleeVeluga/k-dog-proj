@@ -3,7 +3,7 @@
 from typing import Literal
 
 from .catalog import BehaviorCatalog, SurveyCatalog
-from .contracts import ScoreSheet, SessionSegments, SurveyAnswers
+from .contracts import ScoreSheet, SessionSegments, StimulusMoments, SurveyAnswers
 
 
 def validate_score_sheet(
@@ -30,6 +30,11 @@ def validate_score_sheet(
 def validate_segments(segments: SessionSegments, duration_sec: float) -> None:
     if segments.windows[-1].end_sec > duration_sec:
         raise ValueError("segments exceed the recording length")
+
+
+def validate_stimulus_moments(moments: StimulusMoments, duration_sec: float) -> None:
+    if any(value is not None and value > duration_sec for value in moments.model_dump(exclude={"schema_version"}).values()):
+        raise ValueError("자극 시각은 기준 영상 길이 안에 있어야 합니다.")
 
 
 def validate_survey_answers(answers: SurveyAnswers, catalog: SurveyCatalog) -> None:
