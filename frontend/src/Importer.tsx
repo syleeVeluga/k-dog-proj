@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { api } from './api';
 import type { Preview } from './types';
 
-export function Importer({ run, done, catalogVersion }: { run: (work: () => Promise<void>) => Promise<void>;
-  done: (message: string) => Promise<void>; catalogVersion: string }) {
-  const [kind, setKind] = useState('participants');
+export function Importer({ run, done, catalogVersion, fixedKind }: { run: (work: () => Promise<void>) => Promise<void>;
+  done: (message: string) => Promise<void>; catalogVersion: string; fixedKind?: 'participants' | 'survey' }) {
+  const [kind, setKind] = useState<string>(fixedKind ?? 'participants');
   const [mode, setMode] = useState('standard');
   const [sheet, setSheet] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -18,8 +18,8 @@ export function Importer({ run, done, catalogVersion }: { run: (work: () => Prom
     consent_confirmed: '동의 확인 (선택)', guardian_name: '보호자명 (선택)', dog_breed: '견종 (선택)', dog_sex: '성별 (선택)', dog_age_years: '나이 (선택)', dog_size: '크기 (선택)', years_together: '함께 산 기간 (선택)', adoption_route: '입양 경로 (선택)' };
   const required = ['event_id', 'participant_id', 'dog_name'];
   function clear() { setColumns([]); setMapping({}); setResult(null); }
-  return <section><p className="eyebrow">자료 연결</p><h1>자료 가져오기</h1><p className="muted">CSV·Excel을 연결·검증한 뒤 정상 행을 저장합니다.</p>
-    <div className="panel"><label>자료 종류<select value={kind} onChange={e => { setKind(e.target.value); setMode('standard'); clear(); }}><option value="participants">참가자</option><option value="survey">설문 원응답</option></select></label>
+  return <section>{!fixedKind && <><p className="eyebrow">자료 연결</p><h1>자료 가져오기</h1><p className="muted">CSV·Excel을 연결·검증한 뒤 정상 행을 저장합니다.</p></>}
+    <div className="panel">{!fixedKind && <label>자료 종류<select value={kind} onChange={e => { setKind(e.target.value); setMode('standard'); clear(); }}><option value="participants">참가자</option><option value="survey">설문 원응답</option></select></label>}
       <p className="links"><a href={`/api/templates/${kind}?format=csv`}>CSV 양식 다운로드</a><a href={`/api/templates/${kind}?format=xlsx`}>Excel 양식 다운로드</a></p>
       <p className="fine">ID는 텍스트로 입력하세요. 설문은 등록된 참가자의 현재 촬영 세션에 연결됩니다. 설문 열은 s01~s28이며 7~9번은 NA로 「해당 없음」을 표시할 수 있습니다.</p>
       {kind === 'survey' && mode === 'standard' && <p className="fine">표준 양식 survey_version: <strong className="mono">{catalogVersion}</strong>. 열 연결은 확정 버전을 자동 적용합니다.</p>}

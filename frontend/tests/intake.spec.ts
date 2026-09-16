@@ -56,8 +56,7 @@ test('desktop: registration, two video files, survey from CSV, refresh and retak
     await page.getByRole('button', { name: '영상 등록', exact: true }).click();
     await expect(page.getByText(`입력 버전 ${index + 1}`, { exact: true })).toBeVisible();
   }
-  await page.getByText('설문 원응답', { exact: false }).first().click();
-  await expect(page.getByText('설문은 「자료 가져오기」에서 CSV·Excel로 등록합니다.', { exact: false })).toBeVisible();
+  await expect(page.getByText('설문 등록 현황과 결과는 「설문」 메뉴에서 봅니다.', { exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('desktop-detail.png'), fullPage: true, animations: 'disabled' });
   // Surveys are registered from a spreadsheet, never typed item by item.
   const version = (await (await page.request.get('/api/catalog/survey')).json()).version;
@@ -79,8 +78,6 @@ test('desktop: registration, two video files, survey from CSV, refresh and retak
   await page.screenshot({ path: testInfo.outputPath('desktop-list.png'), fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: '0001 상세 열기' }).click();
   await expect(page.getByText('synthetic-file-2.mp4', { exact: true })).toBeVisible();
-  await page.getByText('설문 원응답', { exact: false }).first().click();
-  await expect(page.getByText('사회화 시기에 다양한 경험을 하도록 노력했다 · 해당 없음', { exact: false })).toBeVisible();
   await page.getByText('재촬영 세션 추가', { exact: true }).click();
   await page.getByRole('button', { name: '새 촬영 시작' }).click();
   await expect(page.getByText('입력 버전 5', { exact: true })).toBeVisible();

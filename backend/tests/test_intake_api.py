@@ -106,6 +106,25 @@ class IntakeTests(AppCase):
         self.assertEqual((detail["before"]["sequence_no"], detail["after"]["sequence_no"], detail["after"]["dog"]["sex"]), (None, 2, "암"))
         self.assertNotIn("contact", json.dumps(self.client.app.openapi()["components"]["schemas"]["CaseView"]["properties"]))
 
+    def test_survey_result_counts_and_separation_type_without_totals(self):
+        item = self.make_case()
+        path = f"/api/cases/{item['case_id']}/survey/result"
+        empty = self.client.get(path).json()
+        self.assertEqual((empty["status"], empty["separation"]["status"], [d["answered_count"] for d in empty["domains"]]), ("unregistered", "missing", [0, 0, 0, 0]))
+        payload = self.answers(item, 4, not_applicable=("s08",))
+        payload["answers"].update(s22=5, s23=3, s24=5, s26=1)
+        item = self.client.put(f"/api/cases/{item['case_id']}/survey", json=payload).json()
+        result = self.client.get(path).json()
+        self.assertEqual(result["status"], "partial")
+        domains = {d["domain"]: (d["answered_count"], d["target_count"], d["status"]) for d in result["domains"]}
+        self.assertEqual(domains, {"A": (8, 9, "partial"), "B": (5, 5, "calculated"), "C": (7, 7, "calculated"), "E": (3, 3, "calculated")})
+        self.assertEqual((result["separation"]["label"], result["separation"]["resistance"], result["separation"]["recovery"]), ("안정", 4.0, 5))
+        self.assertTrue(next(i for i in result["items"] if i["item_id"] == "s08")["not_applicable"])
+        self.assertEqual(next(i for i in result["items"] if i["item_id"] == "s26")["converted"], 5)
+        self.assertFalse({"total", "overall_reference"} & set(result))
+        self.assertEqual(self.client_for("reviewer").get(path).status_code, 200)
+        self.assertEqual(self.client_for("developer").get(path).status_code, 403)
+
     def test_ids_duplicate_names_and_cross_case_video_access(self):
         first = self.make_case()
         second = self.make_case("0002")

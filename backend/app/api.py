@@ -20,6 +20,8 @@ from pydantic import Field, SecretStr
 from app.auth import authenticate, check_password, create_user, password_hash, token_hash, user_view
 from app.analysis import FROZEN, check_access, control, step_payload, validated_prepared, view_analysis
 from app.domain.catalog import SurveyCatalog
+from app.domain.contracts import SurveyAnswers, SurveyResult
+from app.scoring import survey_scores
 from app.input_models import (
     CaseCreate, CaseEdit, CaseView, ImportColumns, ImportCommit, ImportMapping, ImportPreview, Key, Login, Message,
     Revision, SessionEdit, SessionMetadata, StoredVideo, SurveyEdit, UserCreate, UserEdit, UserView,
@@ -384,6 +386,14 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         with store.connect(write=True) as db:
             save_survey(store, db, case_id, value, user.username, catalog)
             return store.view(store.case(db, case_id))
+
+    @app.get("/api/cases/{case_id}/survey/result", response_model=SurveyResult)
+    def survey_result(case_id: Key, user=Depends(reader)):
+        """Deterministic, so it is computed on read: domain answer counts and the separation type, never a total (01 §6)."""
+        with store.connect() as db:
+            manifest = store.manifest(store.case(db, case_id))
+        session = selected_session(manifest, manifest.selected_session_id)
+        return survey_scores(SurveyAnswers(answers=session.survey, not_applicable=tuple(session.survey_not_applicable)), catalog)
 
     @app.post("/api/cases/{case_id}/deletion", response_model=Message)
     def request_deletion(case_id: Key, value: Revision, user=Depends(writer)):
