@@ -22,7 +22,14 @@ export function fromClock(text: string): number | null {
 // 촬영 메뉴: 한 쌍의 영상 파일을 여러 개 등록하고, 기준 영상 위에서 8구간 시작·끝 시각을 적어 확정한다(01 §2). 카메라 구분은 없다.
 export function Recording({ cases, writable, run, reload, notify }: Props) {
   const [selectedId, setSelectedId] = useState('');
+  const [sessionId, setSessionId] = useState('');
   const selected = cases.find(c => c.case_id === selectedId) ?? null;
+  const observedSession = useRef('');
+  useEffect(() => {
+    if (!selected || observedSession.current === selected.selected_session_id) return;
+    observedSession.current = selected.selected_session_id;
+    if (mayLeave()) setSessionId(selected.selected_session_id);
+  }, [selected?.selected_session_id]);
   const sorted = [...cases].sort((a, b) => (a.sequence_no ?? 1e9) - (b.sequence_no ?? 1e9) || a.participant_id.localeCompare(b.participant_id));
   const confirmed = cases.filter(c => segmentState(sessionOf(c)) === 'confirmed').length;
   return <>
@@ -35,9 +42,9 @@ export function Recording({ cases, writable, run, reload, notify }: Props) {
           <td data-label="반려견 / 보호자">{c.dog_name}<small>{c.guardian_name ? `${c.guardian_name} 님` : '보호자명 없음'}</small></td>
           <td data-label="영상">{s.videos.length}개</td>
           <td data-label="구간"><span className={state === 'confirmed' ? 'tag green' : 'tag'}>{({ none: '없음', draft: '초안', confirmed: '확정' })[state]}</span></td>
-          <td data-label="작업"><button aria-label={`${c.participant_id} 촬영 열기`} aria-current={c.case_id === selectedId ? 'true' : undefined} onClick={() => { if (mayLeave()) setSelectedId(c.case_id); }}>열기 ↗</button></td></tr>;
+          <td data-label="작업"><button aria-label={`${c.participant_id} 촬영 열기`} aria-current={c.case_id === selectedId ? 'true' : undefined} onClick={() => { if (mayLeave()) { setSelectedId(c.case_id); setSessionId(c.selected_session_id); observedSession.current = c.selected_session_id; } }}>열기 ↗</button></td></tr>;
       })}</tbody></table>{!cases.length && <div className="empty"><h2>등록된 참가자가 없습니다.</h2><p>접수 메뉴에서 참가자를 먼저 등록하세요.</p></div>}</div>
-    {selected && <RecordingPanel key={selected.case_id} item={selected} writable={writable} run={run} notify={notify}
+    {selected && sessionId && <RecordingPanel key={`${selected.case_id}:${sessionId}`} item={{ ...selected, selected_session_id: sessionId }} writable={writable} run={run} notify={notify}
       refresh={async message => { await reload(); if (message) notify(message); }} close={() => { if (mayLeave()) setSelectedId(''); }} />}
   </>;
 }
@@ -50,9 +57,16 @@ function RecordingPanel({ item, writable, run, refresh, notify, close }: { item:
   const [clocks, setClocks] = useState<string[]>(() => SEGMENTS.map((_, i) => stored ? toClock(stored.windows[i].start_sec) : ''));
   const [ends, setEnds] = useState<string[]>(() => SEGMENTS.map((_, i) => stored ? toClock(stored.windows[i].end_sec) : ''));
   const [dirty, setDirty] = useState(false);
+  const [baseRevision, setBaseRevision] = useState(item.input_revision);
   const player = useRef<HTMLVideoElement>(null);
   useUnsaved(dirty);
-  useEffect(() => { if (!session.videos.some(v => v.video_id === videoId)) setVideoId(session.videos[0]?.video_id ?? ''); }, [session.videos.length]);
+  function loadLatest() {
+    setVideoId(stored?.video_id ?? session.videos[0]?.video_id ?? '');
+    setClocks(SEGMENTS.map((_, i) => stored ? toClock(stored.windows[i].start_sec) : ''));
+    setEnds(SEGMENTS.map((_, i) => stored ? toClock(stored.windows[i].end_sec) : ''));
+    setEditing(!stored?.confirmed); setBaseRevision(item.input_revision); setDirty(false);
+  }
+  useEffect(() => { if (!dirty) loadLatest(); }, [item.input_revision]);
   const now = () => player.current ? toClock(Math.round(player.current.currentTime * 10) / 10) : '';
   function windows(): SegmentWindow[] | string {
     const result: SegmentWindow[] = [];
@@ -67,17 +81,20 @@ function RecordingPanel({ item, writable, run, refresh, notify, close }: { item:
     const value = windows();
     if (typeof value === 'string') { notify(value); return; }
     void run(async () => {
-      await api(`/cases/${item.case_id}/sessions/${session.session_id}/segments`, 'PUT', { expected_revision: item.input_revision, video_id: videoId, windows: value, confirm });
+      const saved = await api<Case>(`/cases/${item.case_id}/sessions/${session.session_id}/segments`, 'PUT', { expected_revision: baseRevision, video_id: videoId, windows: value, confirm });
       setClocks(value.map(w => toClock(w.start_sec))); setEnds(value.map(w => toClock(w.end_sec)));
-      setDirty(false); setEditing(!confirm); await refresh(confirm ? '8구간 시각을 확정했습니다.' : '8구간 시각을 초안으로 저장했습니다.');
+      setBaseRevision(saved.input_revision); setDirty(false); setEditing(!confirm); await refresh(confirm ? '8구간 시각을 확정했습니다.' : '8구간 시각을 초안으로 저장했습니다.');
     });
   }
   return <section className="panel" aria-label="촬영 자료">
     <div className="section-title"><h2>{item.dog_name} · {item.participant_id}{item.sequence_no !== null && ` · 순번 ${item.sequence_no}`}</h2><button onClick={close}>닫기</button></div>
     <p className="fine">{item.manifest.sessions.findIndex(s => s.session_id === session.session_id) + 1}차 촬영 · 입력 버전 {item.input_revision} · {session.note || '촬영 메모 없음'}</p>
+    {dirty && baseRevision !== item.input_revision && <div role="status"><p>다른 변경이 저장됨 · 현재 입력은 편집 시작 버전 {baseRevision}을 유지합니다. 그대로 저장하면 충돌로 거절됩니다.</p>
+      <button onClick={() => { if (window.confirm('구간의 미저장 입력을 버리고 최신 값으로 바꾸시겠습니까?')) loadLatest(); }}>최신 값 불러오기</button>
+      <button onClick={() => notify('현재 입력을 유지합니다. 다른 저장값을 덮어쓰지 않습니다.')}>입력 유지</button></div>}
     {writable && <SessionEditor key={session.session_id} item={item} session={session} run={run} refresh={refresh} />}
     {writable && <details><summary>재촬영 세션 추가</summary><form onSubmit={e => { e.preventDefault(); if (!mayLeave()) return; const value = formFields(e.currentTarget); void run(async () => {
-      await api(`/cases/${item.case_id}/sessions`, 'POST', { ...value, expected_revision: item.input_revision }); await refresh('새 촬영 세션을 시작했습니다.');
+      await api(`/cases/${item.case_id}/sessions`, 'POST', { ...value, expected_revision: item.input_revision }); setDirty(false); await refresh('새 촬영 세션을 시작했습니다.');
     }); }}><label>촬영 메모<textarea name="note" maxLength={2000} /></label><p className="fine">이전 촬영의 영상·구간은 보존됩니다.</p><button>새 촬영 시작</button></form></details>}
     <div className="section-title"><h3 id="videos">영상 파일</h3><span className="mono">{session.videos.length} FILES</span></div>
     {session.videos.length === 0 && <p className="muted">등록된 영상이 없습니다. 파일을 여러 개 선택해 한 번에 등록할 수 있습니다.</p>}
