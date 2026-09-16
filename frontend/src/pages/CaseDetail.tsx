@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../api';
 import { mayLeave } from '../Editing';
 import { Observations } from '../Observations';
-import { CaseEditor, SessionEditor } from '../MetadataEditors';
-import { VideoUpload } from '../VideoUpload';
-import { formFields, sessionOf } from '../types';
+import { CaseEditor } from '../MetadataEditors';
+import { segmentState, sessionOf } from '../types';
 import type { Case, Run } from '../types';
 
 export function CaseDetail({ item, writable, run, refresh, back }: {
@@ -13,8 +12,6 @@ export function CaseDetail({ item, writable, run, refresh, back }: {
   const [viewSession, setViewSession] = useState(item.selected_session_id);
   const [view, setView] = useState<'analysis' | 'report'>('analysis');
   const session = item.manifest.sessions.find(s => s.session_id === (writable ? item.selected_session_id : viewSession)) ?? sessionOf(item);
-  const [playing, setPlaying] = useState<string | null>(null);
-  useEffect(() => { setPlaying(null); }, [session.session_id, view]);
   function changeView(next: 'analysis' | 'report') {
     setView(next);
     document.getElementById('analysis')?.scrollIntoView({ block: 'start' });
@@ -31,7 +28,6 @@ export function CaseDetail({ item, writable, run, refresh, back }: {
     <nav className="section-nav" aria-label="참가자 업무">
       <button aria-current={view === 'analysis' ? 'page' : undefined} onClick={() => changeView('analysis')}>자료·이전 분석</button>
       <button aria-current={view === 'report' ? 'page' : undefined} onClick={() => changeView('report')}>보고서</button>
-      {view === 'analysis' && <><a href="#videos">영상 자료</a><a href="#sessions">촬영 세션</a></>}
     </nav>
     <Observations item={item} writable={writable} view={view} />
     <div hidden={view !== 'analysis'}>
@@ -39,12 +35,9 @@ export function CaseDetail({ item, writable, run, refresh, back }: {
       <section className="panel"><h2>촬영 세션</h2><label>선택 세션<select aria-label="선택 세션" value={session.session_id} onChange={e => { if (!mayLeave()) return; if (!writable) { setViewSession(e.target.value); return; } void run(async () => {
         await api(`/cases/${item.case_id}/sessions`, 'POST', { expected_revision: item.input_revision, session_id: e.target.value }); await refresh();
       }); }}>{item.manifest.sessions.map((s, i) => <option key={s.session_id} value={s.session_id}>{i + 1}차 촬영 · 영상 {s.videos.length}개</option>)}</select></label>
-        <p className="fine">{session.note || '촬영 메모 없음'}</p>
+        <p className="fine">영상 {session.videos.length}개 · 구간 {({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(session)]} · {session.note || '촬영 메모 없음'}</p>
         {item.manifest.migration_note && <p className="fine">{item.manifest.migration_note}</p>}
-        {writable && <SessionEditor key={session.session_id} item={item} session={session} run={run} refresh={refresh} />}
-        {writable && <details><summary>재촬영 세션 추가</summary><form onSubmit={e => { e.preventDefault(); if (!mayLeave()) return; const value = formFields(e.currentTarget); void run(async () => {
-          await api(`/cases/${item.case_id}/sessions`, 'POST', { ...value, expected_revision: item.input_revision }); await refresh();
-        }); }}><label>촬영 메모<textarea name="note" maxLength={2000} /></label><p className="fine">이전 촬영은 보존됩니다. 새 세션에는 설문과 영상을 따로 연결하세요.</p><button>새 촬영 시작</button></form></details>}
+        <p className="fine">영상 등록·8구간 시각·촬영 메모·재촬영은 「촬영」 메뉴에서, 설문은 「설문」 메뉴에서 다룹니다.</p>
       </section>
       {writable && <section className="panel"><h2>자료 관리</h2>
         <CaseEditor item={item} run={run} refresh={refresh} />
@@ -55,14 +48,6 @@ export function CaseDetail({ item, writable, run, refresh, back }: {
           <button>삭제 요청 저장</button></form></details>
       </section>}
     </div>
-    <section className="panel" id="videos"><div className="section-title"><h2>영상 자료</h2><span className="mono">{session.videos.length} FILES</span></div>
-      {session.videos.length === 0 && <p className="muted">등록된 영상이 없습니다. 참가자·촬영 세션을 확인한 후 파일을 선택하세요.</p>}
-      {session.videos.map(v => <div className="video-row" key={v.video_id}><div><strong>{v.original_name}</strong><small>{(v.size_bytes / 1048576).toFixed(2)} MiB · 원본 등록됨</small></div>
-        <button onClick={() => setPlaying(`/api/cases/${item.case_id}/videos/${v.video_id}`)}>영상 열기</button></div>)}
-      {playing && <div><video src={playing} controls preload="metadata" /><button onClick={() => setPlaying(null)}>재생 닫기</button></div>}
-      {writable && <VideoUpload key={session.session_id} item={item} session={session} refresh={refresh} />}
-    </section>
-    <p className="fine">설문 등록 현황과 결과는 「설문」 메뉴에서 봅니다.</p>
     </div>
   </>;
 }

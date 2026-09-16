@@ -47,17 +47,16 @@ test('desktop: registration, two video files, survey from CSV, refresh and retak
   await expect(page.getByRole('heading', { name: '검증용 가상견' })).toBeVisible();
   await expect(page.getByText('가상 보호자 님 · 보더콜리 · 암 · 4세', { exact: true })).toBeVisible();
   await expect(page.getByText('동의 확인', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '영상 등록', exact: true })).toBeDisabled();
   await expect(page.getByText('입력 버전 1', { exact: true })).toBeVisible();
-  for (const index of [1, 2]) {
-    await page.getByLabel('영상 파일', { exact: true }).setInputFiles({
-      name: `synthetic-file-${index}.mp4`, mimeType: 'video/mp4', buffer: Buffer.from(`synthetic bytes ${index}`),
-    });
-    await page.getByRole('button', { name: '영상 등록', exact: true }).click();
-    await expect(page.getByText(`입력 버전 ${index + 1}`, { exact: true })).toBeVisible();
-  }
-  await expect(page.getByText('설문 등록 현황과 결과는 「설문」 메뉴에서 봅니다.', { exact: true })).toBeVisible();
+  await expect(page.getByText('영상 등록·8구간 시각·촬영 메모·재촬영은 「촬영」 메뉴에서', { exact: false })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('desktop-detail.png'), fullPage: true, animations: 'disabled' });
+  await page.getByRole('button', { name: '촬영', exact: true }).click();
+  await page.getByRole('button', { name: '0001 촬영 열기' }).click();
+  await expect(page.getByRole('button', { name: '영상 등록', exact: true })).toBeDisabled();
+  await page.getByLabel('영상 파일', { exact: true }).setInputFiles([1, 2].map(index => ({ name: `synthetic-file-${index}.mp4`, mimeType: 'video/mp4', buffer: Buffer.from(`synthetic bytes ${index}`) })));
+  await page.getByRole('button', { name: '영상 등록', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '2개 저장 · 0개 실패 · 0개 대기' })).toBeVisible();
+  await expect(page.getByText('2 FILES', { exact: true })).toBeVisible();
   // Surveys are registered from a spreadsheet, never typed item by item.
   const version = (await (await page.request.get('/api/catalog/survey')).json()).version;
   const ids = Array.from({ length: 28 }, (_, i) => `s${String(i + 1).padStart(2, '0')}`);
@@ -76,14 +75,17 @@ test('desktop: registration, two video files, survey from CSV, refresh and retak
   await expect(page.getByRole('cell', { name: '1', exact: true })).toBeVisible();
   await expect(page.getByRole('cell', { name: '2개', exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('desktop-list.png'), fullPage: true, animations: 'disabled' });
-  await page.getByRole('button', { name: '0001 상세 열기' }).click();
+  await page.getByRole('button', { name: '촬영', exact: true }).click();
+  await page.getByRole('button', { name: '0001 촬영 열기' }).click();
   await expect(page.getByText('synthetic-file-2.mp4', { exact: true })).toBeVisible();
   await page.getByText('재촬영 세션 추가', { exact: true }).click();
   await page.getByRole('button', { name: '새 촬영 시작' }).click();
-  await expect(page.getByText('입력 버전 5', { exact: true })).toBeVisible();
   await expect(page.getByText('0 FILES', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '접수', exact: true }).click();
+  await page.getByRole('button', { name: '0001 상세 열기' }).click();
+  await expect(page.getByText('입력 버전 5', { exact: true })).toBeVisible();
   await page.getByLabel('선택 세션', { exact: true }).selectOption({ index: 0 });
-  await expect(page.getByText('2 FILES', { exact: true })).toBeVisible();
+  await expect(page.getByText('영상 2개 · 구간 없음', { exact: false })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

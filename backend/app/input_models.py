@@ -4,7 +4,7 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.domain.catalog import SURVEY_IDS
+from app.domain.catalog import SURVEY_IDS, SegmentId
 
 
 Key = Annotated[str, Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")]
@@ -102,6 +102,26 @@ class SessionMetadata(Revision):
     note: Note
 
 
+class SegmentWindowInput(Model):
+    segment: SegmentId
+    start_sec: Annotated[float, Field(ge=0)]
+    end_sec: Annotated[float, Field(ge=0)]
+
+
+class SegmentsEdit(Revision):
+    """8구간 시작·끝 시각(01 §2). 구조 검증은 domain.contracts.SessionSegments가 한다."""
+
+    video_id: Key
+    windows: Annotated[list[SegmentWindowInput], Field(min_length=8, max_length=8)]
+    confirm: bool = False
+
+
+class SegmentTimes(Model):
+    video_id: Key
+    confirmed: bool
+    windows: Annotated[list[SegmentWindowInput], Field(min_length=8, max_length=8)]
+
+
 class StoredVideo(Model):
     video_id: Key
     original_name: Text
@@ -118,6 +138,7 @@ class Session(Model):
     survey: dict[str, int | None]
     survey_not_applicable: list[str] = Field(default_factory=list)
     videos: list[StoredVideo]
+    segments: SegmentTimes | None = None
 
 
 class Manifest(Model):

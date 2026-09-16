@@ -7,10 +7,17 @@ export type Video = {
   video_id: string; original_name: string;
   size_bytes: number; sha256: string; media_status: 'pending_probe';
 };
+export type SegmentId = 'entry' | 'baseline' | 'alone' | 'stranger' | 'reunion' | 'ignore' | 'walk' | 'exit';
+// Procedure order and Korean labels (01 §2); the backend contract fixes the same order.
+export const SEGMENTS: [SegmentId, string][] = [['entry', '입장'], ['baseline', '기준'], ['alone', '혼자'], ['stranger', '낯선 사람'], ['reunion', '재회'], ['ignore', '무시'], ['walk', '걷기'], ['exit', '퇴장']];
+export type SegmentWindow = { segment: SegmentId; start_sec: number; end_sec: number };
+export type SegmentTimes = { video_id: string; confirmed: boolean; windows: SegmentWindow[] };
 export type Session = {
   session_id: string; note: string;
   survey_version: string; survey: Record<string, number | null>; survey_not_applicable: string[]; videos: Video[];
+  segments: SegmentTimes | null;
 };
+export const segmentState = (session: Session): 'none' | 'draft' | 'confirmed' => !session.segments ? 'none' : session.segments.confirmed ? 'confirmed' : 'draft';
 export type DogProfile = {
   breed: string; sex: '암' | '수' | '중성화' | '미기재'; age_years: number | null;
   size: '소형' | '중형' | '대형' | '미기재'; years_together: string; adoption_route: '분양' | '입양' | '기타' | '미기재';
