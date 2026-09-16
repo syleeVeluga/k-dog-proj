@@ -113,7 +113,7 @@ P1은 10월 31일 현장에서 반드시 돌아야 하는 것 — **접수 · �
 
 | PR | 내용 | 파일(예정) | 의존 |
 | --- | --- | --- | --- |
-| PR-9 전처리 | `media.py`에 구간 절단(`cut_segment`), equirectangular 방향 크롭(`crop_equirect`), 창별 fps 재샘플(`resample`)을 추가하고, worker에 `preprocess` 단계(쌍당 8구간×카메라 → 불변 클립 파일·해시). 자극 창 4곳 8~10 fps, 나머지 1~2 fps(01 §5). 07 장비 사양 문서 도착 전에는 9월 13일 리프레임 영상 규격으로 시험 | `media.py`, `worker.py`(단계 등록), `storage.py`(clips 폴더), `tests/test_media.py`(ffmpeg 합성 클립) | PR-8, 07 문서 |
+| PR-9 전처리 | `media.probe`·`media.cut_clip`(구간 절단·fps·오디오 유지·선택적 다운스케일·v360 equirectangular 크롭)과 `app/preprocess.py`(확정 구간으로 기준 영상만 절단 — 다른 파일은 동기 오프셋이 없어 원본 유지; 자극 창 4곳 5초 8 fps, 나머지 2 fps; `clips/<case>/<session>/<batch>/` 불변 파일 + `clips.json` 해시; `preprocess.complete` 감사로 백업·정리 참조), `manage.py preprocess` CLI. worker 단계 편입은 P2 채점 파이프라인에서. 규칙은 `resources/rules/preprocess-v1.json` | `media.py`, `preprocess.py`, `manage.py`, `maintenance.MANAGED`, `tests/test_preprocess.py`(ffmpeg 합성 45초 영상) | PR-8, 07 문서 |
 | PR-10 옛 화면 제거 | `Observations`·`Scores`·`Reports`·`VideoAssessments`·`EvidencePlayer`·`Exports`·`EvaluationSettings`와 `CaseDetail`의 분석·보고서 부분 삭제, 동결된 API 라우트 중 화면이 쓰지 않는 것 정리, `DeveloperSettings`는 키 관리만 남김 | frontend 8개 파일, `api.py` | PR-6~8 |
 | PR-11 패키징·리허설 | `launcher.required`(v2 카탈로그·`scoring-v2.json`), `build_release`, `README`·`PILOT_OPERATIONS` 갱신, 합성 영상으로 72쌍 접수→설문→파일 연결→구간→전처리 리허설 스크립트, v0.2.0 시험 릴리즈 | `launcher.py`, `scripts/`, docs | PR-9·10 |
 

@@ -69,6 +69,17 @@ uv run --locked python -X utf8 -m app.import_catalogs --customer-dir "D:/referen
 
 `tests/test_scoring_golden.py`가 05 예비촬영 6쌍의 입력으로 위 수식을 손으로 계산한 값과 프로그램 출력을 대조한다. 이것이 42항목 판 계산의 기준선이며, 규칙 파일을 바꾸면 이 시험의 기대값도 함께 바꿔야 한다.
 
+## 전처리 (FFmpeg)
+
+확정한 8구간으로 기준 영상을 잘라 채점 단계가 읽을 불변 클립을 만든다. 규칙은 `resources/rules/preprocess-v1.json`(자극 창 4곳 5초는 8 fps, 나머지 2 fps, 오디오 유지, 해상도·360 크롭은 07 장비 문서 뒤 결정)에 있다. 지금은 명령줄로 실행한다.
+
+```powershell
+# backend/에서 실행. --actor는 활성 운영자·관리자 계정.
+uv run --locked python -X utf8 -m app.manage --data-dir "D:/kdog-data" preprocess <case_id> --actor manager
+```
+
+산출물은 `clips/<case>/<session>/<batch>/`의 mp4와 `clips.json`(원본 해시·길이·클립별 구간·fps·해시)이며, `changes`의 `preprocess.complete` 기록이 이 파일들을 참조해 백업·정리 대상에 포함시킨다. 구간이 기준 영상 길이를 넘으면 422, 확정 전이면 409로 거절한다.
+
 ## legacy
 
 옛 55항목 판 계약·문맥 검증·계산·입력 형태는 `app.legacy`(`contracts_v1`·`validation_v1`·`scoring_v1`·`input_models_v1`)에 읽기 전용으로 있다. 55항목 분석 파이프라인은 **동결**되어 새 실행·재시도·내보내기 생성·설명 생성 요청은 409(`analysis.FROZEN`)로 거절되고, 저장된 옛 run은 조회만 된다. 입력 계약은 `intake-2.0`(설문 `s01`~`s28`·「해당 없음」·촬영 메모 `note`·카메라 구분 없는 영상 파일 목록·기준 영상 위의 8구간 시작·끝 시각 `segments`와 확정 여부)이며, 접수 항목으로 순번(행사 안에서 유일)·동의 확인·보호자명·반려견 정보(`cases.dog_profile_json`: 견종·성별·나이·크기·함께 산 기간·입양 경로)를 받되 연락처는 받지 않는다(01 §7). 참가자 CSV/XLSX 양식의 접수 열은 생략할 수 있다(빈칸=미기재). DB `user_version`은 6이다. 설문은 CSV·Excel 가져오기로만 등록하고, 옛 `intake-1.0` 자료 폴더는 `Store` 첫 실행 때 자동 이관된다(`migration_note`에 버린 응답 기록). 자세한 범위는 [P1 구현 계획](K-DOG_P1_구현계획_v1.0_20260916.md) §2. 저장된 옛 run을 읽는 worker·API·리포트가 아직 이를 import하며, 각 모듈이 42항목 판으로 교체되는 PR에서 함께 삭제한다. legacy에 기능을 추가하지 않는다.
