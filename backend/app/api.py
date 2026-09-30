@@ -19,7 +19,8 @@ from pydantic import Field, SecretStr
 
 from app.auth import authenticate, check_password, create_user, password_hash, token_hash, user_view
 from app.domain.catalog import SurveyCatalog
-from app.domain.catalog_v3 import SurveyCatalogV3
+from app.domain.catalog_v3 import BehaviorCatalogV3, SurveyCatalogV3
+from app.domain.sheets_v3 import SheetDocumentV3
 from app.domain.contracts import SessionSegments, SurveyAnswers, SurveyResult
 from app.scoring import survey_scores
 from app.survey_v3 import SurveyResultV3, survey_scores_v3
@@ -31,6 +32,7 @@ from app.input_models import (
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
 from app import settings
+from app import sheets
 from app import secrets as vault
 from app.input_models import Model
 from app.input_models_v3 import CaseCreateV3, CaseEditV3, CaseViewV3, ImportCommitV3, ImportPreviewV3, ImportMappingV3, SurveyEditV3, RecordingEditV3, PreprocessStatusV3
@@ -473,6 +475,55 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def preprocessing_status(case_id: Key, session_id: Key, user=Depends(reader)):
         from app import preprocess
         return preprocess.status(store, case_id, session_id)
+
+    @app.get("/api/catalog/behavior-v3", response_model=BehaviorCatalogV3)
+    def behavior_catalog(user=Depends(reader)):
+        return sheets.CATALOG
+
+    @app.get("/api/scoring/accounts", response_model=list[UserView])
+    def scoring_accounts(user=Depends(writer)):
+        with store.connect() as db:
+            return [user_view(row) for row in db.execute("SELECT * FROM users WHERE active=1 AND role IN ('operator','reviewer','admin') ORDER BY username")]
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/sheets", response_model=list[sheets.SheetSummaryV3])
+    def scoring_sheets(case_id: Key, session_id: Key, user=Depends(reader)):
+        return sheets.list_sheets(store, case_id, session_id, user)
+
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/sheets", response_model=sheets.SheetSummaryV3, status_code=201)
+    def scoring_assign(case_id: Key, session_id: Key, value: sheets.SheetAssignmentV3, user=Depends(writer)):
+        return sheets.assign(store, case_id, session_id, value, user)
+
+    @app.get("/api/sheets/{sheet_id}", response_model=sheets.SheetViewV3)
+    def scoring_sheet(sheet_id: Key, user=Depends(reader)):
+        return sheets.view(store, sheet_id, user)
+
+    @app.get("/api/sheets/{sheet_id}/revisions/{revision}", response_model=SheetDocumentV3)
+    def scoring_revision(sheet_id: Key, revision: Annotated[int, Field(ge=1)], user=Depends(reader)):
+        return sheets.revision(store, sheet_id, revision, user)
+
+    @app.put("/api/sheets/{sheet_id}", response_model=sheets.SheetSummaryV3)
+    def scoring_save(sheet_id: Key, value: sheets.SheetEditV3, user=Depends(reader)):
+        return sheets.revise(store, sheet_id, value, user, "save")
+
+    @app.post("/api/sheets/{sheet_id}/submit", response_model=sheets.SheetSummaryV3)
+    def scoring_submit(sheet_id: Key, value: sheets.SheetReasonV3, user=Depends(reader)):
+        return sheets.revise(store, sheet_id, value, user, "submit")
+
+    @app.post("/api/sheets/{sheet_id}/reopen", response_model=sheets.SheetSummaryV3)
+    def scoring_reopen(sheet_id: Key, value: sheets.SheetReasonV3, user=Depends(writer)):
+        return sheets.revise(store, sheet_id, value, user, "reopen")
+
+    @app.patch("/api/sheets/{sheet_id}/assignment", response_model=sheets.SheetSummaryV3)
+    def scoring_active(sheet_id: Key, value: sheets.SheetActiveV3, user=Depends(writer)):
+        return sheets.revise(store, sheet_id, value, user, "assignment")
+
+    @app.post("/api/sheets/{sheet_id}/grants", response_model=sheets.SheetSummaryV3)
+    def scoring_grant(sheet_id: Key, value: sheets.SheetGrantV3, user=Depends(writer)):
+        return sheets.grant(store, sheet_id, value, user)
+
+    @app.post("/api/sheets/{sheet_id}/reveal", response_model=sheets.SheetRevealResultV3)
+    def scoring_reveal(sheet_id: Key, value: sheets.SheetRevealV3, user=Depends(reader)):
+        return sheets.revise(store, sheet_id, value, user, "reveal")
 
     @app.post("/api/cases/{case_id}/sessions/{session_id}/preprocess", response_model=PreprocessStatusV3)
     def preprocessing_start(case_id: Key, session_id: Key, value: Revision, user=Depends(writer)):
