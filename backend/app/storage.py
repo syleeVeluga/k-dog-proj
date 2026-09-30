@@ -90,6 +90,15 @@ CREATE TABLE IF NOT EXISTS score_grants (
     granted_by TEXT NOT NULL REFERENCES users(username), reason TEXT NOT NULL,
     PRIMARY KEY(viewer_sheet_id, ref)
 );
+CREATE TABLE IF NOT EXISTS basic_results (
+    result_id TEXT PRIMARY KEY, sheet_id TEXT NOT NULL REFERENCES score_sheets(sheet_id),
+    case_id TEXT NOT NULL REFERENCES cases(case_id), session_id TEXT NOT NULL,
+    revision INTEGER NOT NULL CHECK(revision > 0),
+    manifest_ref TEXT NOT NULL UNIQUE, manifest_hash TEXT NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS immutable_basic_input
+BEFORE UPDATE OF sheet_id,case_id,session_id ON basic_results
+BEGIN SELECT RAISE(ABORT, 'basic result input identity is immutable'); END;
 CREATE TRIGGER IF NOT EXISTS immutable_score_assignment
 BEFORE UPDATE OF case_id,session_id,assigned_username,rater_id,rater_name,source_hash ON score_sheets
 BEGIN SELECT RAISE(ABORT, 'score assignment and input are immutable'); END;
@@ -136,7 +145,7 @@ class Store:
             # 순번은 행사 안에서 하나씩; 비어 있을 수는 있다.
             db.execute("CREATE UNIQUE INDEX IF NOT EXISTS cases_sequence ON cases(event_id, sequence_no) WHERE sequence_no IS NOT NULL")
             self.migrate_manifests_v3(db)
-            db.execute("PRAGMA user_version=8")
+            db.execute("PRAGMA user_version=9")
 
     def migrate_manifests(self, db):
         """Rewrite intake-1.0 case manifests as intake-2.0 (28-item survey); stored run snapshots stay untouched."""

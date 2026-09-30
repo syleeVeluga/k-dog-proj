@@ -12,7 +12,7 @@ const phaseIds = ['move_1', 'stop_1', 'move_2', 'stop_2', 'move_3', 'stop_3'];
 const events: [string, string, SegmentId | null][] = [
   ['floor_contact', '바닥 첫 접촉', 'entry'], ['object_near', '물건1m 진입', 'entry'], ['object_stop', '물건 앞 정지 (끝도 기록)', 'entry'], ['object_contact', '첫 코 접촉', 'entry'],
   ['object_removed', '물건 제거', null], ['guardian_speech', '보호자 말', null], ['guardian_gesture', '보호자 손짓', null],
-  ['staff_signal', '직원 신호 (예정 접촉 신호 포함)', null], ['food', '먹이', null], ['route_deviation', '경로 이탈', null],
+  ['staff_signal', '직원 신호 (예정 접촉 신호 포함)', null], ['staff_stop', '직원 중단 신호', null], ['food', '먹이', null], ['route_deviation', '경로 이탈', null],
   ['occlusion', '가림', null], ['audio_loss', '녹음 손상 (실제 범위)', null], ['welfare_stop', '중단', null], ['welfare_action', '중단 뒤 조치', null],
   ['reunion_name', '재회 실제 부름', 'reunion'], ['reunion_contact_start', '재회 실제 접촉 시작', 'reunion'], ['reunion_contact_end', '재회 실제 접촉 끝', 'reunion'],
   ['stranger_gate_wait', '안전문 밖 대기', 'stranger'], ['stranger_enter', '요원 입실', 'stranger'], ['stranger_approach', '요원 접근', 'stranger'],

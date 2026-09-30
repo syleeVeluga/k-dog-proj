@@ -269,6 +269,10 @@ def validate_observations(doc, observations, *, complete=False):
     windows = {window.window_id: window for window in doc.source.windows}
     offsets = {offset.video_id: offset.offset_seconds for offset in doc.source.session.recording.video_offsets if offset.confirmed}
     for item in sheet.observations:
+        if item.vocalization:
+            vocal_video = item.vocalization.video_id
+            if vocal_video not in videos or vocal_video != doc.source.session.recording.video_id and vocal_video not in offsets:
+                raise HTTPException(422, "청취 원본은 입력 snapshot의 기준 영상 또는 동기화 확정 영상이어야 합니다.")
         if complete and item.status == "observed" and not item.evidence:
             raise HTTPException(422, f"{item.code}: 관찰한 값의 실제 영상·창 근거를 기록하세요.")
         for evidence in item.evidence:
