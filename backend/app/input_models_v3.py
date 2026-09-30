@@ -67,6 +67,8 @@ class RunCreateV3(Revision):
     request_id: Key
     preprocess_ref: Annotated[str, Field(pattern=r"^clips/[^\\]+/clips\.json$")]
     preprocess_hash: Hash
+    settings_version: str | None = None
+    reuse_run_id: Key | None = None
 
 
 class RunActionV3(Model):
@@ -108,7 +110,13 @@ class PreprocessPlannedClipV3(Model):
     video_id: Key
 
 
+class PreprocessPointerV3(Model):
+    ref: str
+    hash: str
+
+
 class PreprocessStatusV3(PreprocessStatus):
+    result_pointer: PreprocessPointerV3 | None = None
     planned_clips: list[PreprocessPlannedClipV3 | PreprocessPlannedClip]
     dense_fps: int | None
     sparse_fps: int | None

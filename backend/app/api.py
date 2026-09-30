@@ -33,7 +33,7 @@ from app.input_models import (
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
 from app import settings
-from app import sheets, judgements, run_v3
+from app import sheets, judgements, run_v3, scoring_ai, settings_v3
 from app.input_models_v3 import RunCreateV3, RunActionV3, RunViewV3
 from app import secrets as vault
 from app.input_models import Model
@@ -118,9 +118,21 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     administrator = roles("admin")
     developer = roles("developer")
 
+    @app.get("/api/scoring-ai/status", response_model=scoring_ai.AiReadinessV3)
+    def scoring_ai_status(user=Depends(reader)):
+        return scoring_ai.readiness(store)
+
     @app.post("/api/cases/{case_id}/sessions/{session_id}/runs-v3", response_model=RunViewV3, status_code=201)
     def new_run_v3(case_id: Key, session_id: Key, value: RunCreateV3, user=Depends(writer)):
-        return run_v3.enqueue(store, case_id, session_id, value, user, None)
+        return scoring_ai.start(store, case_id, session_id, value, user)
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/runs-v3", response_model=list[RunViewV3])
+    def runs_v3(case_id: Key, session_id: Key, user=Depends(reader)):
+        with store.connect() as db:
+            case = store.case(db, case_id)
+            selected_session(store.manifest(case), session_id)
+            ids = [row[0] for row in db.execute("SELECT run_id FROM runs WHERE case_id=? AND session_id=? AND kind='scoring_v3' ORDER BY created_at DESC", (case_id, session_id))]
+        return [run_v3.view(store, run_id, user) for run_id in ids]
 
     @app.get("/api/runs-v3/{run_id}", response_model=RunViewV3)
     def run_status_v3(run_id: Key, user=Depends(reader)):
@@ -137,6 +149,26 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.get("/api/developer/settings", response_model=settings.SettingsView)
     def developer_settings(user=Depends(developer)):
         return settings.view(store)
+
+    @app.get("/api/developer/settings-v3", response_model=settings_v3.AiSettingsViewV3)
+    def ai_settings_v3(user=Depends(developer)):
+        return settings_v3.view(store)
+
+    @app.post("/api/developer/settings-v3/drafts", response_model=settings.Version, status_code=201)
+    def ai_draft_v3(value: settings_v3.AiDraftV3, user=Depends(developer)):
+        return settings_v3.save(store, value, user.username)
+
+    @app.get("/api/developer/settings-v3/{version}", response_model=settings_v3.AiDifferenceV3)
+    def ai_difference_v3(version: Key, user=Depends(developer)):
+        return settings_v3.difference(store, version)
+
+    @app.post("/api/developer/settings-v3/{version}/activate", response_model=settings.ActiveVersion)
+    def ai_activate_v3(version: Key, value: settings_v3.AiActivateV3, user=Depends(developer)):
+        return settings_v3.activate(store, version, value, user.username)
+
+    @app.post("/api/developer/settings-v3/{version}/trial", response_model=settings_v3.AiTrialResultV3)
+    def ai_trial_v3(version: Key, value: settings_v3.AiTrialV3, user=Depends(developer)):
+        return settings_v3.trial(store, version, value, user.username)
 
     @app.post("/api/developer/settings/drafts", status_code=201, response_model=settings.Version)
     def draft_settings(value: settings.DraftEdit, user=Depends(developer)):
@@ -539,9 +571,9 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def scoring_grant(sheet_id: Key, value: sheets.SheetGrantV3, user=Depends(writer)):
         return sheets.grant(store, sheet_id, value, user)
 
-    @app.post("/api/sheets/{sheet_id}/reveal", response_model=sheets.SheetRevealResultV3)
+    @app.post("/api/sheets/{sheet_id}/reveal", response_model=scoring_ai.AiRevealResultV3)
     def scoring_reveal(sheet_id: Key, value: sheets.SheetRevealV3, user=Depends(reader)):
-        return sheets.revise(store, sheet_id, value, user, "reveal")
+        return scoring_ai.reveal(store, sheet_id, value, user)
 
     @app.get("/api/sheets/{sheet_id}/basic-results", response_model=list[judgements.ResultSummaryV3])
     def basic_results(sheet_id: Key, user=Depends(reader)):

@@ -1,10 +1,10 @@
 import { Notification } from './Notification';
 import { useEffect, useState } from 'react';
 import { api } from './api';
+import { AiSettings } from './AiSettings';
 
 type Keys = { keys: { provider: string; available: boolean; reference: string }[] };
 
-// 개발자 화면은 공급자 키 관리만 남긴다. 55항목 단계의 프롬프트·파이프라인 편집기는 PR-10에서 제거했고, 채점 단계 설정은 P2에서 다시 정한다.
 export function DeveloperSettings() {
   const [data, setData] = useState<Keys | null>(null);
   const [busy, setBusy] = useState(false);
@@ -18,8 +18,8 @@ export function DeveloperSettings() {
     try { await action(); } catch (e) { setError(e instanceof Error ? e.message : '작업에 실패했습니다.'); }
     finally { setBusy(false); }
   }
-  return <section className="panel developer-settings"><h2>공급자 키 관리</h2>
-    <p className="fine">Windows 실행 계정의 DPAPI로 보호합니다. 등록 후 원문은 조회할 수 없습니다. 폐기하면 환경 변수 키로 자동 복귀하지 않습니다. 채점 단계의 모델·프롬프트 설정은 42항목 채점 파이프라인과 함께 제공됩니다.</p>
+  return <><section className="panel developer-settings"><h2>공급자 키 관리</h2>
+    <p className="fine">Windows 실행 계정의 DPAPI로 보호합니다. 등록 후 원문은 조회할 수 없습니다. 폐기하면 환경 변수 키로 자동 복귀하지 않습니다. 신판 AI 설정은 아래에서 별도로 저장·활성화합니다.</p>
     <Notification message={error} kind="error" onClose={() => setError('')} /><Notification message={message} onClose={() => setMessage('')} />
     {data && <fieldset disabled={busy}>
       <ul>{data.keys.map(k => <li key={k.provider}>{k.provider} · {k.available ? '등록됨' : '개발자 설정 필요'}</li>)}</ul>
@@ -35,7 +35,7 @@ export function DeveloperSettings() {
         })}>선택 공급자 키 폐기</button></div>
       </form>
     </fieldset>}
-  </section>;
+  </section><AiSettings /></>;
 }
 
 export function Recovery() {

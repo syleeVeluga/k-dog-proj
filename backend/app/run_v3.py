@@ -17,7 +17,7 @@ from app.sheets import manager
 from app.storage import encode, now, uid
 
 KINDS = ("scoring_v3", "report_v3")
-TERMINAL = ("succeeded", "failed", "stopped", "settings_required")
+TERMINAL = ("succeeded", "partial_failed", "failed", "stopped", "settings_required")
 
 
 def verify_files(store, snapshot):
@@ -133,6 +133,10 @@ def enqueue(store, case_id, session_id, value, user, config, *, reuse=(), enable
     with store.connect(write=True) as db:
         manager(user, db)
         current = store.case(db, case_id, expected=value.expected_revision)
+        if config.active_settings_version is not None:
+            from app.settings_v3 import active
+            if active(db) != config.active_settings_version:
+                raise HTTPException(409, "실행 접수 중 활성 AI 설정이 변경되었습니다.")
         if (current["manifest_ref"], current["manifest_hash"]) != (row["manifest_ref"], row["manifest_hash"]):
             raise HTTPException(409, "실행 접수 중 입력이 바뀌었습니다.")
         try:
@@ -213,7 +217,12 @@ def process(worker, row):
     config = RunConfigV3.model_validate_json(row["config_snapshot_json"])
     assets(snapshot)
     verify_files(worker.store, snapshot)
-    if worker.v3_work is None:
+    handler = worker.v3_work
+    if handler is None:
+        from app import scoring_ai
+        if config.version == scoring_ai.VERSION:
+            handler = lambda snapshot, group, row: scoring_ai.handler(worker, snapshot, group, row)
+    if handler is None:
         finish(worker, row, "settings_required", "v3_provider_inactive")
         return
     entries = tuple(ReuseV3.model_validate_json(encode(entry)) for entry in json.loads(row["reuse_manifest_json"]))
@@ -223,7 +232,11 @@ def process(worker, row):
     complete = True
     for group in config.stages:
         entry = next((entry for entry in entries if (entry.stage, entry.key) == (group.stage, group.key)), None)
-        validate, work = worker.v3_work(snapshot, group, row)
+        try:
+            validate, work = handler(snapshot, group, row)
+        except DependenciesPending:
+            complete = False
+            continue
         if entry:
             with worker.store.connect() as db:
                 source = db.execute("SELECT * FROM runs WHERE run_id=?", (entry.source_run_id,)).fetchone()
@@ -239,7 +252,13 @@ def process(worker, row):
     verify_files(worker.store, snapshot)
     with worker.store.connect() as db:
         retry_wait = db.execute("SELECT 1 FROM steps WHERE run_id=? AND status='retry_wait' LIMIT 1", (row["run_id"],)).fetchone()
-    finish(worker, row, "succeeded" if complete else "retry_wait" if retry_wait else "failed", None)
+    with worker.store.connect() as db:
+        published = db.execute("SELECT 1 FROM steps WHERE run_id=? AND stage='publish_v3' AND status='succeeded'", (row["run_id"],)).fetchone()
+    finish(worker, row, "succeeded" if complete else "retry_wait" if retry_wait else "partial_failed" if published else "failed", None)
+
+
+class DependenciesPending(Exception):
+    pass
 
 
 def finish(worker, row, status, code):
@@ -250,5 +269,5 @@ def finish(worker, row, status, code):
             raise HTTPException(409, "오래된 실행을 완료할 수 없습니다.")
         step = db.execute("SELECT * FROM steps WHERE run_id=? AND status='succeeded' ORDER BY rowid DESC LIMIT 1", (row["run_id"],)).fetchone()
         db.execute("UPDATE runs SET status=?,failure_code=?,result_ref=?,result_hash=?,claim_token=NULL,lease_expires_at=NULL,updated_at=? WHERE run_id=?",
-                   (status, code, step["output_ref"] if step and status == "succeeded" else None,
-                    step["output_hash"] if step and status == "succeeded" else None, now(), row["run_id"]))
+                   (status, code, step["output_ref"] if step and status in ("succeeded", "partial_failed") else None,
+                    step["output_hash"] if step and status in ("succeeded", "partial_failed") else None, now(), row["run_id"]))

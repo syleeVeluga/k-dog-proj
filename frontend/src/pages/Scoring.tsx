@@ -8,6 +8,8 @@ import { formFields, sessionOf } from '../types';
 import type { Case, User } from '../types';
 import type { BehaviorCatalog, BehaviorItem, Evidence, Observation, SheetDocument, SheetSummary, SheetView } from '../ScoringTypes';
 import { BasicResults } from '../BasicResults';
+import type { ResultView } from '../BasicResults';
+import { AiRuns } from '../AiRuns';
 
 const statusNames = { observed: '관찰한 원값', unobserved: '미관찰/판독 불가', no_opportunity: '기회 없음', not_performed: '미실시' };
 const purposeNames: Record<string, string> = { independent: '독립 원자료', review: '공개 후 검수', consensus: '합의 기록' };
@@ -57,6 +59,7 @@ function ScoringWorkspace({ item, user }: { item: Case; user: User }) {
     finally { setBusy(false); }
   }
   return <div className="panel" aria-label="평가 배정">
+    <AiRuns item={item} manager={manager} />
     <Notification message={error} kind="error" onClose={() => setError('')} /><Notification message={notice} onClose={() => setNotice('')} />
     <p className="fine">Q07 배정/공개 정책 확인 대기 · 평가 계정과 평가자 ID를 명시합니다. 임의 이름의 대리 입력과 제출 직후 자동 공개는 허용하지 않습니다.</p>
     {manager && <details><summary>평가자 배정</summary><form onSubmit={event => {
@@ -83,7 +86,7 @@ function ManagerActions({ row, rows, busy, work }: { row: SheetSummary; rows: Sh
   const path = `/sheets/${row.sheet_id}`;
   return <details><summary>{row.rater_name} 배정/공개 관리</summary><label>작업 사유<input value={reason} onChange={event => setReason(event.target.value)} /></label>
     <div className="toolbar">
-      {row.state === 'submitted' && <button disabled={busy || !reason.trim() || !row.active} onClick={() => void work(() => api(path + '/reopen', 'POST', { expected_revision: row.revision, reason }))}>이 시트 재개방</button>}
+      {row.state === 'submitted' && row.rater_kind === 'human' && <button disabled={busy || !reason.trim() || !row.active} onClick={() => void work(() => api(path + '/reopen', 'POST', { expected_revision: row.revision, reason }))}>이 시트 재개방</button>}
       <button disabled={busy || !reason.trim()} onClick={() => void work(() => api(path + '/assignment', 'PATCH', { expected_revision: row.revision, reason, active: !row.active }))}>{row.active ? '배정 취소' : '배정 재활성'}</button>
     </div>
     <label>명시 공개할 다른 완료본<select value={target} onChange={event => setTarget(event.target.value)}><option value="">완료 시트 선택</option>{rows.filter(other => other.sheet_id !== row.sheet_id && other.state === 'submitted' && other.active && other.source_hash === row.source_hash).map(other => <option key={other.sheet_id} value={other.sheet_id}>{other.rater_name} r{other.revision}</option>)}</select></label>
@@ -100,6 +103,7 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [revealed, setRevealed] = useState<SheetDocument | null>(null);
+  const [aiResults, setAiResults] = useState<ResultView['document'][]>([]);
   const [historical, setHistorical] = useState<SheetDocument | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const edit = useEditBase(latest);
@@ -147,8 +151,14 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
     {writable && <div className="toolbar"><button disabled={busy || !edit.dirty} onClick={() => void work(() => api(path, 'PUT', { expected_revision: view.summary.revision, observations }))}>채점 초안 저장</button>
       <button disabled={busy || edit.dirty} onClick={() => void work(() => api(path + '/submit', 'POST', { expected_revision: view.summary.revision, reason: `평가자 ${purposeNames[doc.purpose]} 제출` }))}>{purposeNames[doc.purpose]} 제출·잠금</button>
       <button disabled={busy || !edit.dirty} onClick={() => { if (edit.discard() && latest) setObservations(latest.document.sheet.observations); }}>미저장 입력 버리고 최신 조회</button></div>}
-    {!historical && view.grants.length > 0 && <details><summary>명시 공개된 완료본</summary><p>열면 현재 시트에 노출 이력을 기록합니다. 이미 제출한 독립 원본은 보존되며 이후 수정은 검수 기록입니다.</p>{view.grants.map(grant => <button key={grant.ref} disabled={busy || edit.dirty || doc.state !== 'submitted'} onClick={() => void work(async () => { const result = await api<{ target: SheetDocument }>(path + '/reveal', 'POST', { expected_revision: view.summary.revision, ref: grant.ref }); setRevealed(result.target); })}>공개 완료본 r{grant.revision} 열고 노출 기록</button>)}</details>}
+    {!historical && view.grants.length > 0 && <details><summary>명시 공개된 완료본</summary><p>열면 현재 시트에 노출 이력을 기록합니다. 이미 제출한 독립 원본은 보존되며 이후 수정은 검수 기록입니다.</p>{view.grants.map(grant => <button key={grant.ref} disabled={busy || edit.dirty || doc.state !== 'submitted'} onClick={() => void work(async () => { const result = await api<{ target: SheetDocument; results: ResultView['document'][] }>(path + '/reveal', 'POST', { expected_revision: view.summary.revision, ref: grant.ref }); setRevealed(result.target); setAiResults(result.results); })}>공개 완료본 r{grant.revision} 열고 노출 기록</button>)}</details>}
     {!historical && revealed && <details open><summary>{revealed.rater_name} 공개 완료본 r{revealed.revision}</summary><ul>{revealed.sheet.observations.map(value => <li key={value.code}>{value.code} · {value.value ?? value.reason} · {statusNames[value.status]}</li>)}</ul></details>}
+    {!historical && revealed && aiResults.map((result, i) => <details key={i}><summary>공개 AI 기본 계산·판정 · {result.rule_version}</summary>
+      <ul>{result.decisions.map(value => <li key={value.key}>{value.key} · {value.label ?? '보류'} · {value.status} · {value.reason}<p>근거 {value.evidence_codes.join(', ')} · 반대 근거 {value.counter_note ?? JSON.stringify(value.counter_evidence)}</p></li>)}</ul>
+      <p>교육태도 배점 비율 {result.calculations.owner.ratios?.join(' / ') ?? '자료 부족'} · {result.calculations.owner.reason}</p>
+      <ul>{result.calculations.values.map(value => <li key={value.key}>{value.key} · {value.value ?? value.reason} · {value.status}</li>)}</ul>
+      <details><summary>원관찰·실제 사용 근거·계산 전체</summary><pre>{JSON.stringify(result.calculations, null, 2)}</pre></details>
+    </details>)}
     <BasicResults sheetId={sheetId} input={historical ? view.document.previous.find(ref => ref.revision === doc.revision)! : { sheet_id: sheetId, revision: doc.revision, ref: view.summary.manifest_ref, hash: view.summary.manifest_hash }} blocked={busy || edit.dirty} />
     <details><summary>고정 입력·revision/hash·노출 인계 정보</summary><pre>{JSON.stringify({ sheet_id: sheetId, revision: doc.revision, ref: historical ? view.document.previous.find(ref => ref.revision === doc.revision)?.ref : view.summary.manifest_ref, hash: historical ? view.document.previous.find(ref => ref.revision === doc.revision)?.hash : view.summary.manifest_hash, source_hash: doc.source_hash, input: doc.source.input, initial_submission: doc.initial_submission, exposures: doc.exposures }, null, 2)}</pre></details>
   </section>;

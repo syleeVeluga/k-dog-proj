@@ -42,9 +42,11 @@ AGGREGATE_METERS = ("total_tokens",)
 
 def token_meters(value, prefix=""):
     meters = {}
-    for key, item in value.items():
+    entries = value.items() if isinstance(value, dict) else enumerate(value) if isinstance(value, list) else []
+    for key, item in entries:
+        key = str(key)
         name = prefix + key
-        if isinstance(item, dict):
+        if isinstance(item, (dict, list)):
             meters.update(token_meters(item, name + "."))
         elif "token" in name.lower() and type(item) is int and item >= 0:
             meters[name] = item
@@ -74,7 +76,7 @@ def summarize(store, *, event_id=None, prices=None):
         records = []
         config = json.loads(run["config_snapshot_json"])
         for step in by_run[run["run_id"]]:
-            if step["stage"] not in ("ledger", "observe", "review_video", "evaluate", "report"):
+            if step["stage"] not in ("ledger", "observe", "review_video", "evaluate", "report", "score_v3", "judge_v3"):
                 continue
             if json.loads(step["usage_json"]).get("program_merge"):
                 continue
@@ -89,9 +91,13 @@ def summarize(store, *, event_id=None, prices=None):
             selected = config if step["stage"] in ("ledger", "observe", "review_video") else (
                 config.get("report", {}) if step["stage"] == "report" else
                 config.get("evaluation", {}).get(step["branch_key"], {}))
+            if run["kind"] == "scoring_v3":
+                selected = next((group for group in config.get("stages", []) if (group["stage"], group["key"]) == (step["stage"], step["branch_key"])), {})
             provider = usage.get("provider", selected.get("provider", "gemini" if step["stage"] in ("ledger", "observe", "review_video") else "unknown"))
             model = usage.get("model", selected.get("model", "unknown"))
-            meters = token_meters(usage)
+            # V3 preserves original nested meters and copied roll-ups for old consumers.
+            # Count only the provider tree when it exists, avoiding duplicate copies.
+            meters = token_meters(usage["provider_usage"]) if isinstance(usage.get("provider_usage"), dict) else token_meters(usage)
             uncertain = bool(usage.get("billing_uncertain")) or step["status"] in ("running", "abandoned")
             rates = (prices or {}).get("models", {}).get(f"{provider}/{model}")
             cost = None

@@ -2,7 +2,9 @@ from fractions import Fraction
 import json
 import unittest
 
-from app.scoring_v3 import calculate, owner_ratio_gate, owner_threshold, vocal_category
+from app.scoring_v3 import VOCAL_SEGMENTS, calculate, owner_ratio_gate, owner_threshold, vocal_category
+from app.preprocess_v3 import CATALOG, window_plan
+from app.input_models_v3 import SessionV3
 from tests.scoring_fixtures_v3 import event, fixture
 
 
@@ -84,6 +86,21 @@ class ScoringV3Tests(unittest.TestCase):
         self.assertEqual(self.values({**raw, "개54": None})["AX"].status, "missing")
         self.assertEqual(self.values({**raw, "보14": 3})["AW"].status, "invalid")
         self.assertEqual(self.values({"개5": 0, "보14": 1})["AW"].status, "missing")
+
+    def test_vocal_denominators_follow_each_original_catalog_window(self):
+        for code, segment in VOCAL_SEGMENTS.items():
+            self.assertEqual(next(item.windows for item in CATALOG.items if item.code == code), (segment,))
+        data = fixture({code: {"value": 1, "vocalization": {"video_id": "video1", "listened_seconds": duration,
+            "cumulative_vocal_seconds": duration / 4, "whole_interval_judged": True, "note": "원본 구간 전체"}}
+            for code, duration in (("개49", 30), ("개50", 20))}).model_dump(mode="json")
+        data["source"]["session"]["recording"]["segments"][-1]["end_sec"] = 250
+        data["source"]["windows"] = window_plan(SessionV3.model_validate_json(json.dumps(data["source"]["session"])))['windows']
+        doc = type(fixture({})).model_validate_json(json.dumps(data))
+        values = {item.code: item for item in calculate(doc, audio_available={"stranger": 30, "exit": 20, "walk": 0}).vocalizations}
+        self.assertEqual(values["개49"].actual_interval_seconds, 30)
+        self.assertEqual(values["개50"].actual_interval_seconds, 20)
+        self.assertEqual(values["개49"].result.status, "calculated")
+        self.assertEqual(values["개50"].result.status, "calculated")
 
     def test_owner_scene_means_opportunities_zero_points_and_safety_exclusions(self):
         raw = {"보6": -2, "보9": -2, "보22": 2, "보38": 2}

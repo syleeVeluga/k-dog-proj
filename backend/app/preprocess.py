@@ -220,4 +220,5 @@ def status(store, case_id, session_id):
     return {"status": state, "message": message, "readiness_message": readiness_message, "planned_clips": planned_clips, "ready": ready, "outdated": outdated,
             "rules_version": rules["version"], "dense_fps": rules.get("dense_fps"), "sparse_fps": rules.get("sparse_fps"),
             "observation_windows": observation_windows, "provisional": rules.get("provisional", False), "provisional_reason": rules.get("provisional_reason"),
-            "input_revision": row["input_revision"], "video_name": video.original_name if video else None, "result": result}
+            "input_revision": row["input_revision"], "video_name": video.original_name if video else None, "result": result,
+            **({"result_pointer": {"ref": entry[1]["ref"], "hash": entry[1]["hash"]} if result and entry and entry[0] == "preprocess.complete" and state == "complete" else None} if current_v3 else {})}

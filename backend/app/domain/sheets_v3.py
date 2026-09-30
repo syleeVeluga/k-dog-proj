@@ -11,6 +11,8 @@ from app.domain.preprocess_v3 import InputPointerV3, WindowV3
 from app.input_models_v3 import SessionV3
 from app.input_models import Key
 
+AI_ACCOUNT = "kdog-ai-service"
+
 
 class SheetReferenceV3(ContractV3):
     sheet_id: Identifier
@@ -58,6 +60,8 @@ class SheetDocumentV3(ContractV3):
     previous: tuple[SheetReferenceV3, ...] = ()
     initial_submission: SheetReferenceV3 | None = None
     exposures: tuple[SheetReferenceV3, ...] = ()
+    ai_run_id: Identifier | None = None
+    ai_failures: dict[str, str] = {}
 
     @model_validator(mode="after")
     def identity(self) -> Self:
