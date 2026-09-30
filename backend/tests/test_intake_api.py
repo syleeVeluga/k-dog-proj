@@ -401,8 +401,8 @@ class IntakeTests(AppCase):
         self.assertEqual(response.json()["rows"][0]["participant_id"], "0007")
         self.assertEqual(self.client.post("/api/imports/preview", params={"kind": "survey", "format": "csv", "mapping": json.dumps({"horizontal": {"F": "x"}})},
                                           content=b"a").status_code, 422)
-        # A mapped survey file has no survey_version column; the catalog version is applied for it.
-        survey_mapping = json.dumps({"columns": {"event_id": "행사", "participant_id": "번호", **{item_id: f"문항{i}" for i, item_id in enumerate(SURVEY_IDS, 1)}}})
+        # A mapped survey file has no survey_version column; the original source version is explicitly confirmed.
+        survey_mapping = json.dumps({"survey_version": self.version, "columns": {"event_id": "행사", "participant_id": "번호", **{item_id: f"문항{i}" for i, item_id in enumerate(SURVEY_IDS, 1)}}})
         header = "행사,번호," + ",".join(f"문항{i}" for i in range(1, 29))
         mapped_survey = self.client.post("/api/imports/preview", params={"kind": "survey", "format": "csv", "mapping": survey_mapping},
                                          content=(header + "\nTEST,0001," + ",".join(["4"] * 6 + ["NA"] + ["4"] * 21) + "\n").encode("utf-8"))

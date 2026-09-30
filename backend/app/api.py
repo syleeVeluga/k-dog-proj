@@ -22,9 +22,10 @@ from app.domain.catalog import SurveyCatalog
 from app.domain.catalog_v3 import SurveyCatalogV3
 from app.domain.contracts import SessionSegments, SurveyAnswers, SurveyResult
 from app.scoring import survey_scores
+from app.survey_v3 import SurveyResultV3, survey_scores_v3
 from app.input_models import (
-    CaseView, ImportColumns, ImportMapping, Key, Login, Message,
-    Revision, SegmentTimes, SegmentsEdit, SessionEdit, SessionMetadata, StoredVideo, SurveyEdit, UserCreate, UserEdit, UserView,
+    CaseView, ImportColumns, Key, Login, Message,
+    Revision, SegmentTimes, SegmentsEdit, SessionEdit, SessionMetadata, StoredVideo, UserCreate, UserEdit, UserView,
     PreprocessStatus, StimulusEdit, StimulusTimes,
 )
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
@@ -32,7 +33,7 @@ from app.storage import REPO_ROOT, Store, now, uid
 from app import settings
 from app import secrets as vault
 from app.input_models import Model
-from app.input_models_v3 import CaseCreateV3, CaseEditV3, CaseViewV3, ImportCommitV3, ImportPreviewV3
+from app.input_models_v3 import CaseCreateV3, CaseEditV3, CaseViewV3, ImportCommitV3, ImportPreviewV3, ImportMappingV3, SurveyEditV3
 
 
 class SecretEdit(Model):
@@ -275,12 +276,12 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             return store.view(store.case(db, case_id))
 
     @app.put("/api/cases/{case_id}/survey", response_model=CaseView | CaseViewV3)
-    def survey(case_id: Key, value: SurveyEdit, user=Depends(writer)):
+    def survey(case_id: Key, value: SurveyEditV3, user=Depends(writer)):
         with store.connect(write=True) as db:
-            save_survey(store, db, case_id, value, user.username, old_catalog)
+            save_survey(store, db, case_id, value, user.username, current_catalog if value.survey_version == current_catalog.version else old_catalog)
             return store.view(store.case(db, case_id))
 
-    @app.get("/api/cases/{case_id}/survey/result", response_model=SurveyResult)
+    @app.get("/api/cases/{case_id}/survey/result", response_model=SurveyResult | SurveyResultV3)
     def survey_result(case_id: Key, session_id: Key | None = None, user=Depends(reader)):
         """Deterministic, so it is computed on read: domain answer counts and the separation type, never a total (01 §6)."""
         with store.connect() as db:
@@ -288,8 +289,8 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         session = next((item for item in manifest.sessions if item.session_id == (session_id or manifest.selected_session_id)), None)
         if session is None:
             raise HTTPException(422, "이 참가자의 촬영 회차가 아닙니다.")
-        if session.survey_version != old_catalog.version:
-            raise HTTPException(409, "이 판본의 설문 집계를 아직 사용할 수 없습니다.")
+        if session.survey_version == current_catalog.version:
+            return survey_scores_v3(session, current_catalog)
         return survey_scores(SurveyAnswers(answers=session.survey, not_applicable=tuple(session.survey_not_applicable)), old_catalog)
 
     @app.post("/api/cases/{case_id}/deletion", response_model=Message)
@@ -451,7 +452,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
 
     @app.get("/api/templates/{kind}")
     def input_template(kind: Literal["participants", "survey"], format: Literal["csv", "xlsx"] = "csv", user=Depends(writer)):
-        return Response(template(kind, format), media_type="application/octet-stream",
+        return Response(template(kind, format, catalog.version), media_type="application/octet-stream",
                         headers={"Content-Disposition": f'attachment; filename="kdog-{kind}.{format}"'})
 
     @app.post("/api/imports/preview", response_model=ImportPreviewV3)
@@ -466,10 +467,10 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         with store.connect() as db:
             from pydantic import ValidationError
             try:
-                layout = ImportMapping.model_validate_json(mapping) if mapping else None
+                layout = ImportMappingV3.model_validate_json(mapping) if mapping else None
             except ValidationError:
                 raise HTTPException(422, "열 연결 형식을 확인하세요.") from None
-            return preview(store, db, bytes(data), kind, format, old_catalog, layout, sheet_name=sheet)
+            return preview(store, db, bytes(data), kind, format, catalog, layout, sheet_name=sheet, catalogs={old_catalog.version: old_catalog, current_catalog.version: current_catalog})
 
     @app.post("/api/imports/columns", response_model=ImportColumns)
     async def import_columns(request: Request, format: Literal["csv", "xlsx"], sheet: str | None = None, user=Depends(writer)):
@@ -494,7 +495,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                     current_case = store.case(db, row.case_id)
                     if (row.event_id, row.participant_id) != (current_case["event_id"], current_case["participant_id"]):
                         raise HTTPException(422, "미리보기 참가자 연결이 일치하지 않습니다.")
-                    save_survey(store, db, row.case_id, row.survey, user.username, old_catalog)
+                    save_survey(store, db, row.case_id, row.survey, user.username, current_catalog if row.survey.survey_version == current_catalog.version else old_catalog)
                 else:
                     raise HTTPException(422, "참가자 또는 설문 행을 올바르게 지정하세요.")
         return Message(message=f"{len(value.rows)}개 정상 행을 저장했습니다.")

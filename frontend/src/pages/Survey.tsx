@@ -5,30 +5,30 @@ import { SurveyView } from '../SurveyView';
 import { CaseFilters, matchesCase } from '../CaseFilters';
 import type { CaseFilterProps } from '../CaseFilters';
 import { SURVEY_TOTAL, sessionOf, surveyDomains, surveyHandled } from '../types';
-import type { Case, Catalog, Run, SurveyResult } from '../types';
+import type { Case, Catalog, Run, SurveyResult, SurveyResultV3 } from '../types';
 
 type Props = { cases: Case[]; selected: Case | null; select: (item: Case | null) => void; filters: CaseFilterProps; catalog: Catalog | null; writable: boolean; run: Run; reload: (id?: string) => Promise<void>; notify: (message: string) => void };
 
 // 설문 메뉴: 사람이 CSV·Excel로 가져오고, 여기서는 등록 현황과 영역 응답 수·분리 유형만 본다. 숫자 점수·총점은 내지 않는다(01 §6).
 export function Survey({ cases, selected, select, filters, catalog, writable, run, reload, notify }: Props) {
-  const [result, setResult] = useState<SurveyResult | null>(null);
+  const [result, setResult] = useState<SurveyResult | SurveyResultV3 | null>(null);
   const [resultError, setResultError] = useState('');
   const session = selected ? sessionOf(selected) : null;
   useEffect(() => {
     setResult(null); setResultError('');
     if (!selected) return;
     let active = true;
-    api<SurveyResult>(`/cases/${selected.case_id}/survey/result?session_id=${selected.selected_session_id}`).then(value => { if (active) setResult(value); })
+    api<SurveyResult | SurveyResultV3>(`/cases/${selected.case_id}/survey/result?session_id=${selected.selected_session_id}`).then(value => { if (active) setResult(value); })
       .catch(e => { if (active) setResultError(e instanceof Error ? e.message : '결과를 조회하지 못했습니다.'); });
     return () => { active = false; };
   }, [selected?.case_id, selected?.input_revision, selected?.selected_session_id]);
   const sorted = cases.filter(c => matchesCase(c, filters.search, filters.eventFilter)).sort((a, b) => (a.sequence_no ?? 1e9) - (b.sequence_no ?? 1e9) || a.participant_id.localeCompare(b.participant_id));
   const registered = cases.filter(c => surveyHandled(sessionOf(c)) === SURVEY_TOTAL).length;
   return <>
-    <section className="page-heading"><div><p className="eyebrow">SURVEY</p><h1>설문</h1><p className="muted">보호자 설문 28문항은 CSV·Excel 파일로 등록합니다. 여기서는 등록 현황과 영역별 응답 수, 분리 유형 이름만 확인합니다.</p></div>
-      <div className="count"><strong>{registered.toString().padStart(2, '0')}</strong><span>설문 완료 / {cases.length}명</span></div></section>
+    <section className="page-heading"><div><p className="eyebrow">SURVEY</p><h1>설문</h1><p className="muted">보호자 설문 28문항은 CSV·Excel 파일로 등록합니다. 여기서는 등록 현황, 판본별 집계와 빈칸 사유를 확인합니다. 등록 완료·비교 자격의 미확정 기준은 별도로 표시합니다.</p></div>
+      <div className="count"><strong>{registered.toString().padStart(2, '0')}</strong><span>모두 응답 / {cases.length}명</span></div></section>
     {!selected && writable && <details className="panel" open={registered < cases.length}><summary>설문 파일 가져오기 (CSV·Excel)</summary>
-      <p className="fine">열은 <span className="mono">event_id, participant_id, survey_version, s01 … s28</span>이며 7~9번은 <span className="mono">NA</span>로 「해당 없음」을 표시합니다. 양식은 아래에서 내려받습니다.</p>
+      <p className="fine">열은 <span className="mono">event_id, participant_id, survey_version, s01 … s28</span>이며 신판 10~14번은 0~4, 나머지는 1~5입니다. 빈칸 사유는 s01_reason … s28_reason 선택 열에 기록합니다. 구판 7~9번의 NA는 구판에서만 허용합니다. 양식은 아래에서 내려받습니다.</p>
       <Importer fixedKind="survey" run={run} catalog={catalog} catalogVersion={catalog?.version ?? ''} done={async message => { notify(message); await reload(); }} />
     </details>}
     {!selected && <><CaseFilters cases={cases} {...filters} /><div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자</th><th>반려견 / 보호자</th><th>설문</th><th>미응답</th><th>해당 없음</th><th>현황</th></tr></thead>
@@ -42,7 +42,14 @@ export function Survey({ cases, selected, select, filters, catalog, writable, ru
       })}</tbody></table>{!sorted.length && <div className="empty"><h2>표시할 참가자가 없습니다.</h2><p>검색·행사 필터 또는 접수 등록을 확인하세요.</p></div>}</div></>}
     {selected && session && catalog && <section className="panel" aria-label="설문 현황">
       <div className="section-title"><h2>{selected.dog_name} · {selected.participant_id}</h2><button onClick={() => select(null)}>닫기</button></div>
-      {result ? <>
+      {result ? 'survey_version' in result ? <>
+        <p className="fine">수치 응답 {result.answered_count}/28 · 명시 빈칸 사유 {result.blank_reason_count}개 · 등록 완료 기준 Q04 미확정</p>
+        <p className="fine">집계: {result.status === 'calculated' ? '8영역 계산 가능' : '완전응답 영역만 계산'} · 비교: {result.comparison_status === 'pending_policy' ? 'Q10 대상 자격 미확정' : '두려움 응답 부족'}</p>
+        <div className="score-grid">{result.domains.map(domain => <div className="score-card" key={domain.domain}><strong>{domain.domain}</strong>
+          <p>응답 {domain.answered_count}/{domain.target_count} · {domain.mean === null ? domain.reason : `평균 ${domain.mean.toFixed(2)} (분모 ${domain.denominator})`}</p></div>)}
+          <div className="score-card"><strong>25번 단독 응답</strong><p>{result.standalone.raw ?? `미응답 (${result.standalone.blank_reason ?? '사유 미상'})`}</p></div></div>
+        <p className="fine">22·23번 불안 평균과 24번 재회 반응은 각각 표시합니다. 영상 애착 유형은 설문으로 정하지 않습니다.</p>
+      </> : <>
         <p className="fine">등록 {surveyHandled(session)}/28 · 응답 {Object.values(session.survey).filter(v => v !== null).length} · 해당 없음 {session.survey_not_applicable.length} · 미응답 {28 - surveyHandled(session)} · 총점은 만들지 않습니다.</p>
         {session.survey_not_applicable.length > 0 && <p className="fine">A 영역은 해당 없음 {session.survey_not_applicable.length}개를 제외하고 계산합니다. 해당 없음은 등록된 응답 상태이며 0점이나 미응답이 아닙니다.</p>}
         <div className="score-grid">{result.domains.map(d => <div className="score-card" key={d.domain}><strong>{d.domain}. {surveyDomains[d.domain]}</strong><p>응답 {d.answered_count}/{d.target_count}{d.answered_count < d.target_count && ` · 미응답·해당 없음 ${d.target_count - d.answered_count}`}</p></div>)}

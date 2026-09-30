@@ -8,7 +8,7 @@ from pydantic import Field, model_validator
 from app.domain.base import Hash, require_unique
 from app.domain.catalog import SURVEY_IDS
 from app.domain.catalog_v3 import PROTOCOL_VERSION, SURVEY_VERSION
-from app.input_models import CaseCreate, CaseEdit, CaseView, ImportRow, Key, Manifest, Model, Session
+from app.input_models import CaseCreate, CaseEdit, CaseView, ImportMapping, ImportRow, Key, Manifest, Model, Revision, Session
 
 ProtocolVersion = Literal["protocol-20260929-v3", "protocol-20260913-v2", "unconfirmed"]
 SurveyVersion = Literal["survey-20260929-v3", "catalog-20260913-v2"]
@@ -27,6 +27,26 @@ class CaseCreateV3(CaseCreate):
 class CaseEditV3(CaseEdit):
     # Old clients omitting this field must not clear independently recorded consents.
     consents: ConsentsV3 | None = None
+
+
+class SurveyEditV3(Revision):
+    session_id: Key
+    survey_version: SurveyVersion
+    answers: dict[str, Annotated[int, Field(ge=0, le=5)] | None]
+    not_applicable: list[Key] = Field(default_factory=list)
+    blank_reasons: dict[Key, Annotated[str, Field(min_length=1, max_length=200)]] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def responses(self) -> Self:
+        SessionV3(session_id=self.session_id, note="", survey_version=self.survey_version,
+                  protocol_version="unconfirmed", protocol_source="unconfirmed", videos=[],
+                  survey=self.answers, survey_not_applicable=self.not_applicable,
+                  survey_blank_reasons=self.blank_reasons)
+        return self
+
+
+class ImportMappingV3(ImportMapping):
+    survey_version: SurveyVersion | None = None
 
 
 class SessionV3(Session):
@@ -110,6 +130,7 @@ class CaseViewV3(CaseView):
 
 class ImportRowV3(ImportRow):
     participant: CaseCreateV3 | None = None
+    survey: SurveyEditV3 | None = None
 
 
 class ImportPreviewV3(Model):
