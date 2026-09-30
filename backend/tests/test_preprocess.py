@@ -77,7 +77,7 @@ class PreprocessTests(AppCase):
 
     def test_plan_splits_stimulus_segments_into_dense_then_sparse(self):
         self.segments()
-        from app.input_models import Manifest
+        from app.input_models_v3 import ManifestV3 as Manifest
         manifest = Manifest.model_validate(self.item["manifest"])
         clips = preprocess.plan(manifest.sessions[0])
         names = [c["name"] for c in clips]
@@ -127,7 +127,7 @@ class PreprocessTests(AppCase):
         self.assertNotEqual(again["clips"][0]["ref"], result["clips"][0]["ref"])
         with self.store.connect() as db:
             self.assertEqual(preprocess.latest(self.store, db, self.item["case_id"], self.session["session_id"])["clips"], again["clips"])
-            self.assertEqual(len(maintenance.references(self.store, db)), len(refs) + len(again["clips"]) + 1)
+            self.assertEqual(len(maintenance.references(self.store, db)), len(refs) + len(again["clips"]) + 2)  # New batch plus preserved input revision.
 
     def test_run_refuses_unconfirmed_segments_and_windows_beyond_the_recording(self):
         with self.assertRaises(HTTPException) as unconfirmed:
@@ -174,7 +174,7 @@ class PreprocessTests(AppCase):
                 stats = stream_stats(self.store.path(clip["ref"]))
                 self.assertEqual((stats["fps"], stats["audio"]), (float(clip["fps"]), True))
                 self.assertAlmostEqual(stats["duration"], clip["end_sec"] - clip["start_sec"], delta=0.35)
-        from app.input_models import Manifest
+        from app.input_models_v3 import ManifestV3 as Manifest
         session = Manifest.model_validate(self.item["manifest"]).sessions[0]
         # End-exclusive events cannot create empty dense clips. Bad windows are never silently merged.
         for moment in (None, 21.9, 36.0, 45.0):
@@ -240,7 +240,7 @@ class PreprocessTests(AppCase):
         with self.store.connect() as db:
             self.assertIsNone(preprocess.latest(self.store, db, self.item["case_id"], self.session["session_id"]))
         # A partial record cannot silently use segment starts for missing events.
-        from app.input_models import Manifest
+        from app.input_models_v3 import ManifestV3 as Manifest
         with self.assertRaises(HTTPException):
             preprocess.plan(Manifest.model_validate(self.item["manifest"]).sessions[0])
         # Existing manifests need no fabricated timing during upgrade/read.

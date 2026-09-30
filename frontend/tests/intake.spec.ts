@@ -43,10 +43,14 @@ test('desktop: registration, two video files, survey from CSV, refresh and retak
   await page.getByRole('combobox', { name: '성별' }).selectOption('암');
   await page.getByLabel('나이(세)', { exact: true }).fill('4');
   await page.getByLabel('촬영 영상·설문 사용 동의 확인').check();
+  await page.getByRole('combobox', { name: '영상·설문 분석 및 피드백 동의' }).selectOption('confirmed');
+  await page.getByRole('combobox', { name: '낯선 요원 접근·접촉 동의' }).selectOption('declined');
   await page.getByRole('button', { name: '참가자 저장' }).click();
   await expect(page.getByRole('heading', { name: '검증용 가상견', exact: true })).toBeVisible();
   await expect(page.getByText('가상 보호자 님 · 보더콜리 · 암 · 4세', { exact: true })).toBeVisible();
   await expect(page.getByText('동의 확인', { exact: true })).toBeVisible();
+  await expect(page.getByText('분석·피드백 동의: 확인 · 낯선 요원 접촉 동의: 거절', { exact: true })).toBeVisible();
+  await expect(page.getByText('촬영 기준:', { exact: false })).toContainText('9월 13일');
   await expect(page.getByText('입력 버전 1', { exact: true })).toBeVisible();
   await expect(page.getByText('영상 등록·8구간 시각·촬영 메모·재촬영은 「촬영」 메뉴에서', { exact: false })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('desktop-detail.png'), fullPage: true, animations: 'disabled' });

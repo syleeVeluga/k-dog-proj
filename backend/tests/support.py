@@ -21,7 +21,7 @@ class AppCase(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="kdog-test-")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.app = create_app(self.root)
+        self.app = create_app(self.root, intake_spec="20260913")
         self.store = self.app.state.store
         with self.store.connect(write=True) as db:
             for role in ROLES:

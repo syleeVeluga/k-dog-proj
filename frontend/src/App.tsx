@@ -9,7 +9,7 @@ import { Intake } from './pages/Intake';
 import { Survey } from './pages/Survey';
 import { Recording } from './pages/Recording';
 import { Preprocessing } from './pages/Preprocessing';
-import { formFields, roleNames } from './types';
+import { formFields, roleNames, sessionOf } from './types';
 import type { Case, Catalog, Role, Run, User } from './types';
 import './style.css';
 
@@ -79,10 +79,18 @@ export function App() {
   }, []);
   useEffect(() => {
     if (user && user.role !== 'developer') void run(async () => {
-      const [items, questions] = await Promise.all([api<Case[]>('/cases'), api<Catalog>('/catalog/survey')]);
-      setCases(items); setCatalog(questions);
+      setCases(await api<Case[]>('/cases'));
     });
   }, [user]);
+  const surveyVersion = selected ? sessionOf(selected).survey_version : '';
+  useEffect(() => {
+    if (!user || user.role === 'developer') return;
+    let active = true;
+    setCatalog(null);
+    api<Catalog>(`/catalog/survey${surveyVersion ? `?version=${encodeURIComponent(surveyVersion)}` : ''}`).then(value => { if (active) setCatalog(value); })
+      .catch(e => { if (active) setError(e instanceof Error ? e.message : '설문 판본 조회 실패'); });
+    return () => { active = false; };
+  }, [user, surveyVersion]);
   useEffect(() => {
     if (!user || user.role === 'developer') return;
     let active = true; let timer: ReturnType<typeof setTimeout>;

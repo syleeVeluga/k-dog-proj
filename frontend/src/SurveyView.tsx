@@ -3,6 +3,7 @@ import type { Catalog, Session } from './types';
 
 // Surveys are registered from CSV/Excel in 자료 가져오기; this panel only shows what was registered.
 export function SurveyView({ session, catalog }: { session: Session; catalog: Catalog }) {
+  if (!catalog.response_scale || session.survey_version !== catalog.version) return <p className="fine">설문 판본: {session.survey_version} · 이 판본의 원응답 화면은 설문 연결 단계에서 제공됩니다.</p>;
   const domains = [...new Set(catalog.items.map(q => q.domain))];
   const state = (id: string) => session.survey_not_applicable.includes(id) ? '해당 없음' : session.survey[id] === null || session.survey[id] === undefined ? '미응답' : String(session.survey[id]);
   return <details className="panel" id="survey"><summary>설문 원응답 <span className="tag">{surveyHandled(session)}/{SURVEY_TOTAL}</span></summary>

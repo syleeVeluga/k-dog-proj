@@ -13,6 +13,7 @@ from fastapi import HTTPException
 
 from app.input_models import CaseView, DogProfile, Manifest
 from app.legacy.input_models_v1 import upgrade
+from app.input_models_v3 import CaseViewV3, ConsentsV3, ManifestV3, PriorInputV3, parse_manifest, upgrade_v2
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -86,6 +87,7 @@ class Store:
         if self.root == REPO_ROOT or self.root.is_relative_to(REPO_ROOT):
             raise ValueError("K-DOG 데이터 폴더는 소스 저장소 밖에 지정하세요.")
         self.root.mkdir(parents=True, exist_ok=True)
+        self._legacy_migration_inputs = {}
         for name in ("inputs", "videos"):
             (self.root / name).mkdir(exist_ok=True)
         with self.connect() as db:
@@ -107,12 +109,15 @@ class Store:
             self.migrate_manifests(db)
             columns = {r[1] for r in db.execute("PRAGMA table_info(cases)")}
             for name, definition in (("sequence_no", "INTEGER"), ("consent_confirmed", "INTEGER NOT NULL DEFAULT 0"),
-                                     ("guardian_name", "TEXT NOT NULL DEFAULT ''"), ("dog_profile_json", "TEXT NOT NULL DEFAULT '{}'")):
+                                     ("guardian_name", "TEXT NOT NULL DEFAULT ''"), ("dog_profile_json", "TEXT NOT NULL DEFAULT '{}'"),
+                                     ("manifest_schema_version", "TEXT NOT NULL DEFAULT 'intake-2.0'"),
+                                     ("consents_v3_json", "TEXT NOT NULL DEFAULT '{\"analysis_feedback\":\"unknown\",\"stranger_contact\":\"unknown\"}'")):
                 if name not in columns:
                     db.execute(f"ALTER TABLE cases ADD COLUMN {name} {definition}")
             # 순번은 행사 안에서 하나씩; 비어 있을 수는 있다.
             db.execute("CREATE UNIQUE INDEX IF NOT EXISTS cases_sequence ON cases(event_id, sequence_no) WHERE sequence_no IS NOT NULL")
-            db.execute("PRAGMA user_version=6")
+            self.migrate_manifests_v3(db)
+            db.execute("PRAGMA user_version=7")
 
     def migrate_manifests(self, db):
         """Rewrite intake-1.0 case manifests as intake-2.0 (28-item survey); stored run snapshots stay untouched."""
@@ -136,9 +141,31 @@ class Store:
             except (OSError, ValueError, HTTPException):
                 continue  # An unreadable manifest keeps failing per case (409 on access) instead of blocking startup.
             manifest.input_revision = row["input_revision"] + 1
+            self._legacy_migration_inputs[row["case_id"]] = {
+                "ref": row["manifest_ref"], "hash": row["manifest_hash"],
+                "revision": row["input_revision"], "schema_version": "intake-1.0",
+            }
             key, digest = self.write_manifest(manifest)
             db.execute("UPDATE cases SET input_revision=?, manifest_ref=?, manifest_hash=?, updated_at=? WHERE case_id=?",
                        (manifest.input_revision, key, digest, now(), row["case_id"]))
+
+    def migrate_manifests_v3(self, db):
+        for row in db.execute("SELECT * FROM cases WHERE manifest_schema_version='intake-2.0'").fetchall():
+            try:
+                old = self.manifest(row)
+                if not isinstance(old, Manifest):
+                    continue
+                upgraded = upgrade_v2(old, ref=row["manifest_ref"], digest=row["manifest_hash"])
+                previous = self._legacy_migration_inputs.get(row["case_id"])
+                if previous:
+                    upgraded.prior_inputs.insert(0, PriorInputV3.model_validate(previous))
+                key, digest = self.write_manifest(upgraded)
+            except (OSError, ValueError, HTTPException):
+                continue  # One corrupt case does not prevent listing other intact cases.
+            db.execute("UPDATE cases SET input_revision=?,manifest_ref=?,manifest_hash=?,manifest_schema_version=?,"
+                       "consents_v3_json=?,updated_at=? WHERE case_id=?",
+                       (upgraded.input_revision, key, digest, upgraded.schema_version,
+                        upgraded.consents.model_dump_json(), now(), row["case_id"]))
 
     @contextmanager
     def connect(self, *, write=False):
@@ -162,7 +189,7 @@ class Store:
             raise HTTPException(409, "잘못된 관리 파일 경로입니다.")
         return path
 
-    def manifest(self, row) -> Manifest:
+    def manifest(self, row) -> Manifest | ManifestV3:
         try:
             data = self.path(row["manifest_ref"]).read_bytes()
         except OSError as exc:
@@ -170,16 +197,29 @@ class Store:
         if hashlib.sha256(data).hexdigest() != row["manifest_hash"]:
             raise HTTPException(409, "입력 파일 해시가 일치하지 않습니다.")
         try:
-            value = Manifest.model_validate_json(data)
+            value = parse_manifest(data)
+            if isinstance(value, Manifest):
+                # The old envelope is permissive; a failed semantic migration is not a usable case.
+                upgrade_v2(value, ref=row["manifest_ref"], digest=row["manifest_hash"])
         except ValueError as exc:
             raise HTTPException(409, "입력 자료 검증 또는 이관이 완료되지 않았습니다. 원본 저장소를 확인한 뒤 앱을 다시 시작하세요.") from exc
         if (value.case_id, value.event_id, value.participant_id, value.input_revision, value.selected_session_id) != (
             row["case_id"], row["event_id"], row["participant_id"], row["input_revision"], row["selected_session_id"]
         ):
             raise HTTPException(409, "입력 참조가 일치하지 않습니다.")
+        if "manifest_schema_version" in row.keys() and value.schema_version != row["manifest_schema_version"]:
+            raise HTTPException(409, "입력 판본 참조가 일치하지 않습니다.")
+        if isinstance(value, ManifestV3):
+            try:
+                consents = ConsentsV3.model_validate_json(row["consents_v3_json"])
+            except ValueError as exc:
+                raise HTTPException(409, "동의 기록 검증에 실패했습니다.") from exc
+            if value.consents != consents:
+                raise HTTPException(409, "동의 기록 참조가 일치하지 않습니다.")
         return value
 
-    def write_manifest(self, manifest: Manifest) -> tuple[str, str]:
+    def write_manifest(self, manifest: Manifest | ManifestV3) -> tuple[str, str]:
+        type(manifest).model_validate_json(manifest.model_dump_json())
         data = manifest.model_dump_json().encode("utf-8")
         key = f"inputs/{manifest.case_id}-r{manifest.input_revision}-{uid()}.json"
         with self.path(key).open("xb") as handle:
@@ -201,17 +241,23 @@ class Store:
     def view(self, row) -> CaseView:
         with self.connect() as db:
             run = db.execute("SELECT status FROM runs WHERE run_id=?", (row["display_run_id"],)).fetchone()
-        return CaseView(
+        manifest = self.manifest(row)
+        model = CaseViewV3 if isinstance(manifest, ManifestV3) else CaseView
+        return model(
             analysis_status=run["status"] if run else "not_started",
             **{name: row[name] for name in (
                 "case_id", "event_id", "participant_id", "dog_name", "reservation_at", "sequence_no", "guardian_name",
                 "input_revision", "selected_session_id",
             )},
             consent_confirmed=bool(row["consent_confirmed"]), dog=DogProfile.model_validate_json(row["dog_profile_json"]),
-            deletion_requested=bool(row["deletion_requested"]), manifest=self.manifest(row),
+            deletion_requested=bool(row["deletion_requested"]), manifest=manifest,
+            **({"consents": manifest.consents} if isinstance(manifest, ManifestV3) else {}),
         )
 
-    def save(self, db, row, manifest: Manifest, actor: str, action: str):
+    def save(self, db, row, manifest: Manifest | ManifestV3, actor: str, action: str):
+        if isinstance(manifest, ManifestV3):
+            manifest.prior_inputs.append(PriorInputV3(ref=row["manifest_ref"], hash=row["manifest_hash"],
+                                                     revision=row["input_revision"], schema_version=row["manifest_schema_version"]))
         manifest.input_revision = row["input_revision"] + 1
         manifest.display_run_id = None
         key, digest = self.write_manifest(manifest)
@@ -220,6 +266,9 @@ class Store:
             "manifest_ref=?, manifest_hash=?, updated_at=? WHERE case_id=?",
             (manifest.input_revision, manifest.selected_session_id, key, digest, now(), row["case_id"]),
         )
+        if isinstance(manifest, ManifestV3):
+            db.execute("UPDATE cases SET manifest_schema_version=?,consents_v3_json=? WHERE case_id=?",
+                       (manifest.schema_version, manifest.consents.model_dump_json(), row["case_id"]))
         self.audit(db, actor, row["case_id"], action, {"revision": manifest.input_revision})
 
     def audit(self, db, actor, target, action, detail):

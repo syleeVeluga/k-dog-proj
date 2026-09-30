@@ -19,10 +19,11 @@ from pydantic import Field, SecretStr
 
 from app.auth import authenticate, check_password, create_user, password_hash, token_hash, user_view
 from app.domain.catalog import SurveyCatalog
+from app.domain.catalog_v3 import SurveyCatalogV3
 from app.domain.contracts import SessionSegments, SurveyAnswers, SurveyResult
 from app.scoring import survey_scores
 from app.input_models import (
-    CaseCreate, CaseEdit, CaseView, ImportColumns, ImportCommit, ImportMapping, ImportPreview, Key, Login, Message,
+    CaseView, ImportColumns, ImportMapping, Key, Login, Message,
     Revision, SegmentTimes, SegmentsEdit, SessionEdit, SessionMetadata, StoredVideo, SurveyEdit, UserCreate, UserEdit, UserView,
     PreprocessStatus, StimulusEdit, StimulusTimes,
 )
@@ -31,6 +32,7 @@ from app.storage import REPO_ROOT, Store, now, uid
 from app import settings
 from app import secrets as vault
 from app.input_models import Model
+from app.input_models_v3 import CaseCreateV3, CaseEditV3, CaseViewV3, ImportCommitV3, ImportPreviewV3
 
 
 class SecretEdit(Model):
@@ -41,14 +43,17 @@ COOKIE = "kdog_session"
 DEFAULT_DATA = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "K-DOG" / "data"
 
 
-def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127.0.0.1:8000") -> FastAPI:
+def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127.0.0.1:8000",
+               intake_spec: Literal["20260913", "20260929"] = "20260929") -> FastAPI:
     origin = urlsplit(public_origin)
     if not origin.hostname or origin.scheme not in ("http", "https") or origin.path or origin.query or origin.fragment or origin.username:
         raise ValueError("K-DOG origin에는 스킴·호스트·포트만 지정하세요.")
     if origin.hostname not in ("127.0.0.1", "localhost", "::1") and origin.scheme != "https":
         raise ValueError("내부망 접속은 HTTPS origin과 TLS 프록시가 필요합니다.")
     store = Store(data_dir or DEFAULT_DATA)
-    catalog = SurveyCatalog.model_validate_json((REPO_ROOT / "resources/catalogs/survey-v2.json").read_bytes())
+    old_catalog = SurveyCatalog.model_validate_json((REPO_ROOT / "resources/catalogs/survey-v2.json").read_bytes())
+    current_catalog = SurveyCatalogV3.model_validate_json((REPO_ROOT / "resources/catalogs/survey-v3.json").read_bytes())
+    catalog = current_catalog if intake_spec == "20260929" else old_catalog
     dummy_password = password_hash(secrets.token_urlsafe(32))
     @asynccontextmanager
     async def lifespan(app):
@@ -215,11 +220,17 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def developer_status(user=Depends(developer)):
         return Message(message="개발자 인증 완료. Gemini 모델·키는 서버 실행 환경에서 설정하세요. 설정 편집 UI는 M5 예정입니다.")
 
-    @app.get("/api/catalog/survey", response_model=SurveyCatalog)
-    def survey_catalog(user=Depends(reader)):
-        return catalog
+    @app.get("/api/catalog/survey", response_model=SurveyCatalog | SurveyCatalogV3)
+    def survey_catalog(version: str | None = None, user=Depends(reader)):
+        if version is None:
+            return catalog
+        if version == old_catalog.version:
+            return old_catalog
+        if version == current_catalog.version:
+            return current_catalog
+        raise HTTPException(422, "지원하지 않는 설문 판본입니다.")
 
-    @app.get("/api/cases", response_model=list[CaseView])
+    @app.get("/api/cases", response_model=list[CaseView | CaseViewV3])
     def cases(response: Response, user=Depends(reader)):
         values, unavailable = [], 0
         with store.connect() as db:
@@ -233,37 +244,40 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         response.headers["X-KDOG-Unavailable-Cases"] = str(unavailable)
         return values
 
-    @app.post("/api/cases", response_model=CaseView, status_code=201)
-    def add_case(value: CaseCreate, user=Depends(writer)):
+    @app.post("/api/cases", response_model=CaseView | CaseViewV3, status_code=201)
+    def add_case(value: CaseCreateV3, user=Depends(writer)):
         with store.connect(write=True) as db:
             case_id = create_case(store, db, value, user.username, catalog.version)
             return store.view(store.case(db, case_id))
 
-    @app.get("/api/cases/{case_id}", response_model=CaseView)
+    @app.get("/api/cases/{case_id}", response_model=CaseView | CaseViewV3)
     def get_case(case_id: Key, user=Depends(reader)):
         with store.connect() as db:
             return store.view(store.case(db, case_id))
 
-    @app.put("/api/cases/{case_id}", response_model=CaseView)
-    def edit_case(case_id: Key, value: CaseEdit, user=Depends(writer)):
+    @app.put("/api/cases/{case_id}", response_model=CaseView | CaseViewV3)
+    def edit_case(case_id: Key, value: CaseEditV3, user=Depends(writer)):
         with store.connect(write=True) as db:
             row = store.case(db, case_id, expected=value.expected_revision)
             manifest = store.manifest(row)
             manifest.participant_id = value.participant_id
+            if value.consents is not None:
+                manifest.consents = value.consents
             store.save(db, row, manifest, user.username, "case.update")
             db.execute("UPDATE cases SET participant_id=?,dog_name=?,reservation_at=?,sequence_no=?,consent_confirmed=?,guardian_name=?,dog_profile_json=? WHERE case_id=?",
                        (value.participant_id, value.dog_name, value.reservation_at, value.sequence_no, int(value.consent_confirmed),
                         value.guardian_name, value.dog.model_dump_json(), case_id))
             store.audit(db, user.username, case_id, "case.identity", {
                 "before": {**{k: row[k] for k in ("participant_id", "dog_name", "reservation_at", "sequence_no", "guardian_name")},
-                           "consent_confirmed": bool(row["consent_confirmed"]), "dog": json.loads(row["dog_profile_json"])},
+                           "consent_confirmed": bool(row["consent_confirmed"]), "consents": json.loads(row["consents_v3_json"]),
+                           "dog": json.loads(row["dog_profile_json"])},
                 "after": value.model_dump(exclude={"expected_revision"})})
             return store.view(store.case(db, case_id))
 
-    @app.put("/api/cases/{case_id}/survey", response_model=CaseView)
+    @app.put("/api/cases/{case_id}/survey", response_model=CaseView | CaseViewV3)
     def survey(case_id: Key, value: SurveyEdit, user=Depends(writer)):
         with store.connect(write=True) as db:
-            save_survey(store, db, case_id, value, user.username, catalog)
+            save_survey(store, db, case_id, value, user.username, old_catalog)
             return store.view(store.case(db, case_id))
 
     @app.get("/api/cases/{case_id}/survey/result", response_model=SurveyResult)
@@ -274,7 +288,9 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         session = next((item for item in manifest.sessions if item.session_id == (session_id or manifest.selected_session_id)), None)
         if session is None:
             raise HTTPException(422, "이 참가자의 촬영 회차가 아닙니다.")
-        return survey_scores(SurveyAnswers(answers=session.survey, not_applicable=tuple(session.survey_not_applicable)), catalog)
+        if session.survey_version != old_catalog.version:
+            raise HTTPException(409, "이 판본의 설문 집계를 아직 사용할 수 없습니다.")
+        return survey_scores(SurveyAnswers(answers=session.survey, not_applicable=tuple(session.survey_not_applicable)), old_catalog)
 
     @app.post("/api/cases/{case_id}/deletion", response_model=Message)
     def request_deletion(case_id: Key, value: Revision, user=Depends(writer)):
@@ -286,7 +302,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.audit(db, user.username, case_id, "deletion.request", {})
         return Message(message="삭제 요청을 접수했습니다.")
 
-    @app.post("/api/cases/{case_id}/sessions", response_model=CaseView)
+    @app.post("/api/cases/{case_id}/sessions", response_model=CaseView | CaseViewV3)
     def sessions(case_id: Key, value: SessionEdit, user=Depends(writer)):
         with store.connect(write=True) as db:
             row = store.case(db, case_id, expected=value.expected_revision)
@@ -302,7 +318,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.save(db, row, manifest, user.username, "session.select")
             return store.view(store.case(db, case_id))
 
-    @app.post("/api/cases/{case_id}/videos", response_model=CaseView, status_code=201)
+    @app.post("/api/cases/{case_id}/videos", response_model=CaseView | CaseViewV3, status_code=201)
     async def upload_video(case_id: Key, request: Request,
                            session_id: Key,
                            filename: Annotated[str, Query(min_length=1, max_length=200)],
@@ -367,7 +383,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.case(db, case_id)
             return FileResponse(path, filename=f"{video_id}{path.suffix}", content_disposition_type="inline")
 
-    @app.put("/api/cases/{case_id}/sessions/{session_id}", response_model=CaseView)
+    @app.put("/api/cases/{case_id}/sessions/{session_id}", response_model=CaseView | CaseViewV3)
     def session_metadata(case_id: Key, session_id: Key, value: SessionMetadata, user=Depends(writer)):
         with store.connect(write=True) as db:
             row = store.case(db, case_id, expected=value.expected_revision)
@@ -377,7 +393,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.save(db, row, manifest, user.username, "session.metadata")
             return store.view(store.case(db, case_id))
 
-    @app.put("/api/cases/{case_id}/sessions/{session_id}/segments", response_model=CaseView)
+    @app.put("/api/cases/{case_id}/sessions/{session_id}/segments", response_model=CaseView | CaseViewV3)
     def session_segments(case_id: Key, session_id: Key, value: SegmentsEdit, user=Depends(writer)):
         """Store the eight segment windows against one registered file; confirming locks them for scoring (변경검토 §5)."""
         with store.connect(write=True) as db:
@@ -396,7 +412,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.save(db, row, manifest, user.username, "segments.confirm" if value.confirm else "segments.update")
             return store.view(store.case(db, case_id))
 
-    @app.put("/api/cases/{case_id}/sessions/{session_id}/stimuli", response_model=CaseView)
+    @app.put("/api/cases/{case_id}/sessions/{session_id}/stimuli", response_model=CaseView | CaseViewV3)
     def session_stimuli(case_id: Key, session_id: Key, value: StimulusEdit, user=Depends(writer)):
         from app.domain.validation import validate_stimulus_moments
         from app.media import MediaError, probe
@@ -438,7 +454,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         return Response(template(kind, format), media_type="application/octet-stream",
                         headers={"Content-Disposition": f'attachment; filename="kdog-{kind}.{format}"'})
 
-    @app.post("/api/imports/preview", response_model=ImportPreview)
+    @app.post("/api/imports/preview", response_model=ImportPreviewV3)
     async def import_preview(request: Request, kind: Literal["participants", "survey"],
                              format: Literal["csv", "xlsx"], mapping: Annotated[str | None, Query(max_length=20000)] = None,
                              sheet: str | None = None, user=Depends(writer)):
@@ -453,7 +469,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 layout = ImportMapping.model_validate_json(mapping) if mapping else None
             except ValidationError:
                 raise HTTPException(422, "열 연결 형식을 확인하세요.") from None
-            return preview(store, db, bytes(data), kind, format, catalog, layout, sheet_name=sheet)
+            return preview(store, db, bytes(data), kind, format, old_catalog, layout, sheet_name=sheet)
 
     @app.post("/api/imports/columns", response_model=ImportColumns)
     async def import_columns(request: Request, format: Literal["csv", "xlsx"], sheet: str | None = None, user=Depends(writer)):
@@ -467,7 +483,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         return {**layout, "columns": [{"key": str(value), "label": str(value)} for value in (rows[0] if rows else []) if value is not None]}
 
     @app.post("/api/imports/commit", response_model=Message)
-    def commit_import(value: ImportCommit, user=Depends(writer)):
+    def commit_import(value: ImportCommitV3, user=Depends(writer)):
         with store.connect(write=True) as db:
             for row in value.rows:
                 if row.participant is not None and row.survey is None and row.case_id is None:
@@ -478,7 +494,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                     current_case = store.case(db, row.case_id)
                     if (row.event_id, row.participant_id) != (current_case["event_id"], current_case["participant_id"]):
                         raise HTTPException(422, "미리보기 참가자 연결이 일치하지 않습니다.")
-                    save_survey(store, db, row.case_id, row.survey, user.username, catalog)
+                    save_survey(store, db, row.case_id, row.survey, user.username, old_catalog)
                 else:
                     raise HTTPException(422, "참가자 또는 설문 행을 올바르게 지정하세요.")
         return Message(message=f"{len(value.rows)}개 정상 행을 저장했습니다.")

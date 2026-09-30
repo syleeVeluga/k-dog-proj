@@ -29,7 +29,8 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app import preprocess  # noqa: E402
 from app.api import create_app  # noqa: E402
 from app.auth import create_user  # noqa: E402
-from app.input_models import Manifest, UserCreate  # noqa: E402
+from app.input_models import UserCreate
+from app.input_models_v3 import ManifestV3 as Manifest  # noqa: E402
 from app.intake import headers  # noqa: E402
 from app.maintenance import status  # noqa: E402
 
@@ -68,7 +69,7 @@ def csv_bytes(columns, rows):
 def participants_csv(event: str, pairs: int):
     sexes, sizes, routes = ("암", "수", "중성화", "미기재"), ("소형", "중형", "대형"), ("분양", "입양", "기타")
     rows = [[event, f"{i:04}", f"합성견{i:02}", f"2026-10-31T{9 + i // 12:02}:{(i % 12) * 5:02}", i, "예", f"합성보호자{i:02}",
-             "합성 견종", sexes[i % 4], 1 + i % 12, sizes[i % 3], f"{1 + i % 8}년", routes[i % 3]] for i in range(1, pairs + 1)]
+             "합성 견종", sexes[i % 4], 1 + i % 12, sizes[i % 3], f"{1 + i % 8}년", routes[i % 3], "", ""] for i in range(1, pairs + 1)]
     return csv_bytes(headers("participants"), rows)
 
 
@@ -97,7 +98,7 @@ def rehearse(data_dir: Path, pairs: int, seconds: float, event: str):
     for tool in ("ffmpeg", "ffprobe"):
         if not shutil.which(tool):
             raise RehearsalError(f"{tool}이 PATH에 없습니다.")
-    app = create_app(data_dir)
+    app = create_app(data_dir, intake_spec="20260913")  # Existing rehearsal exercises the v2 protocol until C13.
     store = app.state.store
     with store.connect(write=True) as db:
         for role in ("operator", "admin"):
