@@ -1,6 +1,6 @@
 # PR-C04 관찰창 기반 전처리
 
-버전: v1.0 · 2026-09-30 · 상태: 구현·검증·cold review·수용 수정·문서 완료, 푸시 준비 · 선행: C03 · 추정: 2~3개발일
+버전: v1.0 · 2026-09-30 · 상태: 완료(구현·검증·cold review·수용 수정·문서·푸시) · 선행: C03 · 추정: 2~3개발일
 
 상위: [전체 계획](K-DOG_개발반영계획_v1.0_20260930.md). 근거: 04·02 실제창, 00 예외, 기존 A07/A08. 권장 제목: `feat: 실제 관찰창과 예외를 반영한 전처리 계획`.
 
@@ -55,7 +55,7 @@ Q02·Q05·Q08을 연결한다. 실제 꼬리·얼굴·몸길이·손/줄·음성
 - [x] 백엔드 전체170개 통과(154.972초), 마지막 running 표시 보완 후 실제 손상/재시도 시험 재검증 통과. 구판 e2e17개와 신판 설문/촬영/전처리3개 통과, 완료창 품질 보완 후 신판 전처리 재검증 통과. frontend build, 원본 `--spec all --check`, `git diff --check` 통과. 실제 FFmpeg 합성 매체 시험이며 provider/고객 실영상 검증과 구분한다.
 - [x] 독립 cold review P2 세 건과 추가 상태표시 보완을 수용했다. 수정 뒤 독립 합성 재검증/코드 재확인에서 추가 material finding 없음.
 - [x] 운영 ZIP `releases/K-DOG_C04_20261001.zip` 생성/검증 통과. 구현 커밋 `144829d`,83개 허용 파일, SHA-256 `f714866e18b1f7d343766f5048eae91019e70ee178a6bfa0272c133456997e44`. `python -X utf8 scripts/build_release.py releases/K-DOG_C04_20261001.zip`, `python -X utf8 scripts/verify_release.py releases/K-DOG_C04_20261001.zip`으로 확인했다. 한글/공백 새 경로·fresh venv·Start.cmd 검사·HTTP 로그인/접수·재시작 데이터 유지·급종료 잠금 회수·설치 전 hash 손상 거절·UV 환경변수 격리 모두 통과, 외부 AI 호출0회. 같은 Windows PC의 새 폴더/venv 검사이며 깨끗한 OS/다른 PC 실증은 환경 부재로 생략했다. batch 백업/복원은 위 실제 합성 매체 시험에서 통과했다. ZIP과 runtime/실자료는 소스에 커밋하지 않는다.
-- [ ] 문서 완료 표시 후 `veluga/pr-c04-preprocess-v3` 푸시·C03(#29) 기반 PR 생성.
+- [x] 문서 완료 표시 후 `veluga/pr-c04-preprocess-v3` 푸시·[PR #30](https://github.com/syleeVeluga/k-dog-proj/pull/30) 생성. base C03(#29), 구현 `144829d`, ZIP 검사 기록 `1fdf8e2`. 병합은 별도 상태다.
 
 | 리뷰 발견 | 판단과 반영 | 검증 |
 | --- | --- | --- |
