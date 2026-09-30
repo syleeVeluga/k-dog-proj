@@ -1,0 +1,1203 @@
+{
+  "schema_version": "3.0",
+  "version": "mapping-20260929-v3",
+  "kind": "survey_behavior",
+  "entries": [
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q01",
+      "survey_ids": [
+        "s01"
+      ],
+      "behavior_codes": [
+        "보6",
+        "보9",
+        "보22",
+        "보39",
+        "보23",
+        "보24"
+      ],
+      "windows": [
+        "entry_leash",
+        "exit_leash",
+        "reunion_second",
+        "stranger"
+      ],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q01",
+        "number": 1,
+        "text": "무언가를 가르칠 때 단계적으로 시도한다",
+        "group": "가르치는 방식",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "영역 맥락",
+        "behavior_codes": [
+          "보6",
+          "보9",
+          "보22",
+          "보39",
+          "보23",
+          "보24"
+        ],
+        "window": "입장·퇴장 자유 이동, 재회, 낯선 사람",
+        "note": "1~6번 평균과 영상 유형은 별도 측정. 개별 문항을 영상으로 검증하지 않음."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q01"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q02",
+      "survey_ids": [
+        "s02"
+      ],
+      "behavior_codes": [
+        "보6",
+        "보9",
+        "보22",
+        "보39",
+        "보23",
+        "보24"
+      ],
+      "windows": [
+        "entry_leash",
+        "exit_leash",
+        "reunion_second",
+        "stranger"
+      ],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q02",
+        "number": 2,
+        "text": "문제행동이 있으면 그 원인을 파악하려 한다",
+        "group": "가르치는 방식",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "영역 맥락",
+        "behavior_codes": [
+          "보6",
+          "보9",
+          "보22",
+          "보39",
+          "보23",
+          "보24"
+        ],
+        "window": "입장·퇴장 자유 이동, 재회, 낯선 사람",
+        "note": "1~6번 평균과 영상 유형은 별도 측정. 개별 문항을 영상으로 검증하지 않음."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q02"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q03",
+      "survey_ids": [
+        "s03"
+      ],
+      "behavior_codes": [
+        "보6",
+        "보9",
+        "보22",
+        "보39",
+        "보23",
+        "보24"
+      ],
+      "windows": [
+        "entry_leash",
+        "exit_leash",
+        "reunion_second",
+        "stranger"
+      ],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q03",
+        "number": 3,
+        "text": "문제행동을 고칠 때 대신할 행동을 가르치려 한다",
+        "group": "가르치는 방식",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "영역 맥락",
+        "behavior_codes": [
+          "보6",
+          "보9",
+          "보22",
+          "보39",
+          "보23",
+          "보24"
+        ],
+        "window": "입장·퇴장 자유 이동, 재회, 낯선 사람",
+        "note": "1~6번 평균과 영상 유형은 별도 측정. 개별 문항을 영상으로 검증하지 않음."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q03"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q04",
+      "survey_ids": [
+        "s04"
+      ],
+      "behavior_codes": [
+        "보6",
+        "보9",
+        "보22",
+        "보39",
+        "보23",
+        "보24"
+      ],
+      "windows": [
+        "entry_leash",
+        "exit_leash",
+        "reunion_second",
+        "stranger"
+      ],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q04",
+        "number": 4,
+        "text": "책·영상 등으로 훈련 방법을 배우려 노력한다",
+        "group": "가르치는 방식",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "영역 맥락",
+        "behavior_codes": [
+          "보6",
+          "보9",
+          "보22",
+          "보39",
+          "보23",
+          "보24"
+        ],
+        "window": "입장·퇴장 자유 이동, 재회, 낯선 사람",
+        "note": "1~6번 평균과 영상 유형은 별도 측정. 개별 문항을 영상으로 검증하지 않음."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q04"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q05",
+      "survey_ids": [
+        "s05"
+      ],
+      "behavior_codes": [
+        "보6",
+        "보9",
+        "보22",
+        "보39",
+        "보23",
+        "보24"
+      ],
+      "windows": [
+        "entry_leash",
+        "exit_leash",
+        "reunion_second",
+        "stranger"
+      ],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q05",
+        "number": 5,
+        "text": "두려워하는 것에 천천히 적응할 시간을 준다",
+        "group": "가르치는 방식",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "영역 맥락",
+        "behavior_codes": [
+          "보6",
+          "보9",
+          "보22",
+          "보39",
+          "보23",
+          "보24"
+        ],
+        "window": "입장·퇴장 자유 이동, 재회, 낯선 사람",
+        "note": "1~6번 평균과 영상 유형은 별도 측정. 개별 문항을 영상으로 검증하지 않음."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q05"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q06",
+      "survey_ids": [
+        "s06"
+      ],
+      "behavior_codes": [
+        "보6",
+        "보9",
+        "보22",
+        "보39",
+        "보23",
+        "보24"
+      ],
+      "windows": [
+        "entry_leash",
+        "exit_leash",
+        "reunion_second",
+        "stranger"
+      ],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q06",
+        "number": 6,
+        "text": "두려운 것을 좋은 경험과 연결해 극복하도록 돕는다",
+        "group": "가르치는 방식",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "영역 맥락",
+        "behavior_codes": [
+          "보6",
+          "보9",
+          "보22",
+          "보39",
+          "보23",
+          "보24"
+        ],
+        "window": "입장·퇴장 자유 이동, 재회, 낯선 사람",
+        "note": "1~6번 평균과 영상 유형은 별도 측정. 개별 문항을 영상으로 검증하지 않음."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q06"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q07",
+      "survey_ids": [
+        "s07"
+      ],
+      "behavior_codes": [],
+      "windows": [],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q07",
+        "number": 7,
+        "text": "어릴 때(늦게 데려온 반려견은 평소에) 다른 개들을 많이 만나게 하려 노력했다",
+        "group": "사회화에 들이는 노력",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "설문 단독",
+        "behavior_codes": [],
+        "window": null,
+        "note": "과거 노력은 이날 영상으로 검증하지 않음. 7·8번은 원문에 평소 조건을 추가한 문항."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q07"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q08",
+      "survey_ids": [
+        "s08"
+      ],
+      "behavior_codes": [],
+      "windows": [],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q08",
+        "number": 8,
+        "text": "사회화 시기에(늦게 데려온 반려견은 평소에) 다양한 경험을 하도록 노력했다",
+        "group": "사회화에 들이는 노력",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "설문 단독",
+        "behavior_codes": [],
+        "window": null,
+        "note": "과거 노력은 이날 영상으로 검증하지 않음. 7·8번은 원문에 평소 조건을 추가한 문항."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q08"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q09",
+      "survey_ids": [
+        "s09"
+      ],
+      "behavior_codes": [],
+      "windows": [],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q09",
+        "number": 9,
+        "text": "다른 사람들과 접촉할 기회를 갖도록 노력했다",
+        "group": "사회화에 들이는 노력",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "설문 단독",
+        "behavior_codes": [],
+        "window": null,
+        "note": "과거 노력은 이날 영상으로 검증하지 않음. 7·8번은 원문에 평소 조건을 추가한 문항."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q09"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q10",
+      "survey_ids": [
+        "s10"
+      ],
+      "behavior_codes": [
+        "개55"
+      ],
+      "windows": [
+        "stranger_approach"
+      ],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q10",
+        "number": 10,
+        "text": "아이와 함께 외출 중에 낯선 사람이 아이를 향해 곧장 다가올 때",
+        "group": "낯선 사람 두려움",
+        "valid_values": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "reverse_scored": false,
+        "comparison": "상황상 대응",
+        "behavior_codes": [
+          "개55"
+        ],
+        "window": "낯선 사람 12~16초, 이름 부르기 전",
+        "note": "개13 안전문 밖 10초와 구분. 동일 척도는 아님."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q10"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q11",
+      "survey_ids": [
+        "s11"
+      ],
+      "behavior_codes": [
+        "개51",
+        "개52",
+        "바45",
+        "개53"
+      ],
+      "windows": [
+        "stranger_contact",
+        "stranger"
+      ],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q11",
+        "number": 11,
+        "text": "낯선 사람이 아이를 만지거나 쓰다듬으려 할 때",
+        "group": "낯선 사람 두려움",
+        "valid_values": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "reverse_scored": false,
+        "comparison": "상황상 대응",
+        "behavior_codes": [
+          "개51",
+          "개52",
+          "바45",
+          "개53"
+        ],
+        "window": "낯선 사람 20~23초 중 실제 접촉",
+        "note": "미접촉은 접촉 항목 null, 개53 경로 유지."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q11"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q12",
+      "survey_ids": [
+        "s12"
+      ],
+      "behavior_codes": [],
+      "windows": [],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q12",
+        "number": 12,
+        "text": "갑작스럽거나 큰 소리(청소기 소리 · 자동차 굉음 · 공사음 · 물건 떨어지는 소리 등)가 날 때",
+        "group": "비사회적 두려움",
+        "valid_values": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "reverse_scored": false,
+        "comparison": "설문 단독",
+        "behavior_codes": [],
+        "window": null,
+        "note": "통제된 큰 소리 자극 없음. 행사 소음은 사건 기록."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q12"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q13",
+      "survey_ids": [
+        "s13"
+      ],
+      "behavior_codes": [
+        "개30",
+        "개32",
+        "바44",
+        "개34",
+        "보14"
+      ],
+      "windows": [
+        "entry_object",
+        "exit_object"
+      ],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q13",
+        "number": 13,
+        "text": "산책길이나 길가에 낯설거나 이상한 물건이 있을 때",
+        "group": "비사회적 두려움",
+        "valid_values": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "reverse_scored": false,
+        "comparison": "상황상 대응",
+        "behavior_codes": [
+          "개30",
+          "개32",
+          "바44",
+          "개34",
+          "보14"
+        ],
+        "window": "입장·퇴장 동일 물건 통과와 5초 정지",
+        "note": "보14 조건 확인. 코드 차이를 두려움 감소량으로 변환하지 않음."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q13"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q14",
+      "survey_ids": [
+        "s14"
+      ],
+      "behavior_codes": [
+        "개5",
+        "개6",
+        "바5",
+        "바7"
+      ],
+      "windows": [
+        "entry"
+      ],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q14",
+        "number": 14,
+        "text": "낯선 상황(첫 자동차 타기 · 첫 엘리베이터 타기 · 첫 동물병원 방문 등)을 처음 겪을 때",
+        "group": "비사회적 두려움",
+        "valid_values": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "reverse_scored": false,
+        "comparison": "상황상 보조 대응",
+        "behavior_codes": [
+          "개5",
+          "개6",
+          "바5",
+          "바7"
+        ],
+        "window": "입장",
+        "note": "다양한 낯선 상황에 대한 평소 보고와 행사장 한 장면의 차이."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q14"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q15",
+      "survey_ids": [
+        "s15"
+      ],
+      "behavior_codes": [],
+      "windows": [],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q15",
+        "number": 15,
+        "text": "반려견과 나는 서로 긍정적인 영향을 준다",
+        "group": "정서적 친밀감",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "설문 단독",
+        "behavior_codes": [],
+        "window": null,
+        "note": "보호자가 느끼는 친밀감. 영상 애착과 합산하지 않음. 20번은 원문보다 개가 즐긴다는 의미가 추가됨."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q15"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q16",
+      "survey_ids": [
+        "s16"
+      ],
+      "behavior_codes": [],
+      "windows": [],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q16",
+        "number": 16,
+        "text": "반려견과 자주 눈을 맞춘다",
+        "group": "정서적 친밀감",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "설문 단독",
+        "behavior_codes": [],
+        "window": null,
+        "note": "보호자가 느끼는 친밀감. 영상 애착과 합산하지 않음. 20번은 원문보다 개가 즐긴다는 의미가 추가됨."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q16"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q17",
+      "survey_ids": [
+        "s17"
+      ],
+      "behavior_codes": [],
+      "windows": [],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q17",
+        "number": 17,
+        "text": "함께 있는 것만으로 행복하다",
+        "group": "정서적 친밀감",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "설문 단독",
+        "behavior_codes": [],
+        "window": null,
+        "note": "보호자가 느끼는 친밀감. 영상 애착과 합산하지 않음. 20번은 원문보다 개가 즐긴다는 의미가 추가됨."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q17"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q18",
+      "survey_ids": [
+        "s18"
+      ],
+      "behavior_codes": [],
+      "windows": [],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q18",
+        "number": 18,
+        "text": "시간이 나면 함께 시간을 보내려 한다",
+        "group": "정서적 친밀감",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "설문 단독",
+        "behavior_codes": [],
+        "window": null,
+        "note": "보호자가 느끼는 친밀감. 영상 애착과 합산하지 않음. 20번은 원문보다 개가 즐긴다는 의미가 추가됨."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q18"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q19",
+      "survey_ids": [
+        "s19"
+      ],
+      "behavior_codes": [],
+      "windows": [],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q19",
+        "number": 19,
+        "text": "반려견과 나는 서로 의지한다",
+        "group": "정서적 친밀감",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "설문 단독",
+        "behavior_codes": [],
+        "window": null,
+        "note": "보호자가 느끼는 친밀감. 영상 애착과 합산하지 않음. 20번은 원문보다 개가 즐긴다는 의미가 추가됨."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q19"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q20",
+      "survey_ids": [
+        "s20"
+      ],
+      "behavior_codes": [],
+      "windows": [],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q20",
+        "number": 20,
+        "text": "자주 만지고 쓰다듬으며, 아이도 이를 즐긴다",
+        "group": "정서적 친밀감",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "설문 단독",
+        "behavior_codes": [],
+        "window": null,
+        "note": "보호자가 느끼는 친밀감. 영상 애착과 합산하지 않음. 20번은 원문보다 개가 즐긴다는 의미가 추가됨."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q20"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q21",
+      "survey_ids": [
+        "s21"
+      ],
+      "behavior_codes": [],
+      "windows": [],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q21",
+        "number": 21,
+        "text": "서로 사랑한다고 느낀다",
+        "group": "정서적 친밀감",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "설문 단독",
+        "behavior_codes": [],
+        "window": null,
+        "note": "보호자가 느끼는 친밀감. 영상 애착과 합산하지 않음. 20번은 원문보다 개가 즐긴다는 의미가 추가됨."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q21"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q22",
+      "survey_ids": [
+        "s22"
+      ],
+      "behavior_codes": [
+        "개9",
+        "개10",
+        "개58",
+        "개11",
+        "개60"
+      ],
+      "windows": [
+        "alone_initial",
+        "alone_later",
+        "alone"
+      ],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q22",
+        "number": 22,
+        "text": "내가 잠깐 자리를 비우면 아이가 불안해한다",
+        "group": "떨어졌을 때 불안",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "상황상 대응",
+        "behavior_codes": [
+          "개9",
+          "개10",
+          "개58",
+          "개11",
+          "개60"
+        ],
+        "window": "분리 초기 10초·이후 50초·전체",
+        "note": "22·23은 C-BARQ 분리 요인의 개념 요약 문항. 미국 원척도 평균과 직접 비교하지 않음."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q22"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q23",
+      "survey_ids": [
+        "s23"
+      ],
+      "behavior_codes": [
+        "개9",
+        "개10",
+        "개58",
+        "개11",
+        "개60"
+      ],
+      "windows": [
+        "alone_initial",
+        "alone_later",
+        "alone"
+      ],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q23",
+        "number": 23,
+        "text": "내가 안 보이면 나를 찾아다닌다",
+        "group": "떨어졌을 때 불안",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "상황상 대응",
+        "behavior_codes": [
+          "개9",
+          "개10",
+          "개58",
+          "개11",
+          "개60"
+        ],
+        "window": "분리 초기 10초·이후 50초·전체",
+        "note": "22·23은 C-BARQ 분리 요인의 개념 요약 문항. 미국 원척도 평균과 직접 비교하지 않음."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q23"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q24",
+      "survey_ids": [
+        "s24"
+      ],
+      "behavior_codes": [
+        "개17",
+        "개18",
+        "개19",
+        "개44",
+        "개47",
+        "바42",
+        "바43"
+      ],
+      "windows": [
+        "reunion_first",
+        "reunion_second",
+        "reunion_contact",
+        "reunion"
+      ],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q24",
+        "number": 24,
+        "text": "내가 돌아오면 반갑게 맞이하고 금방 안정된다",
+        "group": "다시 만났을 때 안정",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "상황상 대응",
+        "behavior_codes": [
+          "개17",
+          "개18",
+          "개19",
+          "개44",
+          "개47",
+          "바42",
+          "바43"
+        ],
+        "window": "재회 전반 15초·후반 15초·실제 접촉",
+        "note": "반김과 안정이 한 문항에 결합. 같은 C-BARQ 원문 문항이 아님."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q24"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q25",
+      "survey_ids": [
+        "s25"
+      ],
+      "behavior_codes": [
+        "개24",
+        "개25",
+        "개37",
+        "개38",
+        "개39",
+        "개40",
+        "개41",
+        "개42",
+        "개43",
+        "개27"
+      ],
+      "windows": [
+        "walk",
+        "walk_start",
+        "walk_phase_1",
+        "walk_phase_2",
+        "walk_phase_3",
+        "walk_phase_4",
+        "walk_phase_5",
+        "walk_phase_6"
+      ],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q25",
+        "number": 25,
+        "text": "내가 다른 방으로 가면 아이가 따라온다",
+        "group": "일상 따라옴 단일 문항",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": false,
+        "comparison": "보조 비교",
+        "behavior_codes": [
+          "개24",
+          "개25",
+          "개37",
+          "개38",
+          "개39",
+          "개40",
+          "개41",
+          "개42",
+          "개43",
+          "개27"
+        ],
+        "window": "걷기 6국면",
+        "note": "단독 응답 보존. 집에서 따라옴과 낯선 방 근접 비율을 동일 점수로 합치지 않음."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q25"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q26",
+      "survey_ids": [
+        "s26"
+      ],
+      "behavior_codes": [],
+      "windows": [],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q26",
+        "number": 26,
+        "text": "내 기분에 따라 아이를 대하는 방식이 달라진다",
+        "group": "감정의 일관성",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": true,
+        "comparison": "설문 단독",
+        "behavior_codes": [],
+        "window": null,
+        "note": "6−응답으로 역채점. 한 차례 영상으로 평소 감정 기복 판정 금지."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q26"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q27",
+      "survey_ids": [
+        "s27"
+      ],
+      "behavior_codes": [],
+      "windows": [],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q27",
+        "number": 27,
+        "text": "내 기분에 따라 더 심하게 혼내곤 한다",
+        "group": "감정의 일관성",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": true,
+        "comparison": "설문 단독",
+        "behavior_codes": [],
+        "window": null,
+        "note": "6−응답으로 역채점. 한 차례 영상으로 평소 감정 기복 판정 금지."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q27"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "entry_id": "Q28",
+      "survey_ids": [
+        "s28"
+      ],
+      "behavior_codes": [],
+      "windows": [],
+      "result_basis_ids": [],
+      "original": {
+        "id": "Q28",
+        "number": 28,
+        "text": "반려견 때문에 자주 화가 난다",
+        "group": "감정의 일관성",
+        "valid_values": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "reverse_scored": true,
+        "comparison": "설문 단독",
+        "behavior_codes": [],
+        "window": null,
+        "note": "6−응답으로 역채점. 한 차례 영상으로 평소 감정 기복 판정 금지."
+      },
+      "source": {
+        "schema_version": "3.0",
+        "filename": "03_설문28문항_대응표.json",
+        "sha256": "6ed7968b06c77a0b7f03dfcb42457ab5f2ea14b933c6eb8cfa6da63b44ab9c26",
+        "location": "survey_behavior/Q28"
+      }
+    }
+  ]
+}

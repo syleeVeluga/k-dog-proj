@@ -23,3 +23,18 @@
 | [K-DOG_Gemini영상API_적용계획_v1.0_20260907.md](K-DOG_Gemini영상API_적용계획_v1.0_20260907.md) | Gemini 영상 요청 계약(처리 방식·추론 설정·타임아웃·원격 파일 삭제). 인프라 층 근거 |
 
 새 문서는 `K-DOG_<주제>_v<버전>_<YYYYMMDD>.md` 이름을 따른다.
+
+## 판본별 원본 대조
+
+C00은 `domain/*_v3.py`와 `resources/{catalogs,rules,mappings}/*-v3.json`을 별도로 추가한다. 기존 앱의 v2 동작과 v1/v2 추출물은 유지한다. 아래 명령은 `backend/`에서 실행한다.
+
+```powershell
+# 기존 9월 13일 원본과 대조 (기존 호출 유지)
+uv run --locked python -X utf8 -m app.import_catalogs --check
+# 9월 29일 첨부 14파일의 크기/해시 및 새 추출물 대조
+uv run --locked python -X utf8 -m app.import_catalogs --spec 20260929 --check
+# 두 판본 대조
+uv run --locked python -X utf8 -m app.import_catalogs --spec all --check
+```
+
+기본 원본 경로는 각각 `docs/최종 고객 문서/`, `docs/큐브전달_20260929/`다. 단일 판본의 `--customer-dir`은 그 판본 원본 폴더를 받는다. `--spec all --customer-dir <폴더>`는 그 아래 두 원본 폴더를 찾는다. `--check`는 쓰지 않는다. 추출하려면 `--check`를 생략하며 고객 원자료는 수정하지 않는다. Excel 캐시값 대신 원문 셀·입력 유효성·수식·배점표와 DOCX/JSON을 대조한다. 수식은 출처 데이터로 보존하며 실행하지 않는다. 이 대조는 Excel 재계산 실증이나 AI 정확도 검증을 뜻하지 않는다.
