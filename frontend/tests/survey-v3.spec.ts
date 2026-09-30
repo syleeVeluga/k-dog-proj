@@ -8,6 +8,10 @@ test('v3 survey: zero, exact labels, partial means and blank reasons', async ({ 
   await page.getByLabel('계정', { exact: true }).fill('operator');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeEnabled();
+  const registration = page.locator('details').filter({ has: page.locator('summary', { hasText: /^참가자 등록$/ }) });
+  if (!(await registration.evaluate(element => (element as HTMLDetailsElement).open))) await registration.locator('summary').click();
   await page.getByLabel('행사 ID', { exact: true }).fill('V3');
   await page.getByLabel('참가자 ID', { exact: true }).fill('0009');
   await page.getByLabel('반려견 이름').fill('신판 합성견');

@@ -3,11 +3,12 @@
 import json
 from typing import Annotated, Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from app.domain.base import Hash, require_unique
 from app.domain.catalog import SURVEY_IDS
 from app.domain.catalog_v3 import PROTOCOL_VERSION, SURVEY_VERSION
+from app.domain.recording_v3 import RecordingV3
 from app.input_models import CaseCreate, CaseEdit, CaseView, ImportMapping, ImportRow, Key, Manifest, Model, Revision, Session
 
 ProtocolVersion = Literal["protocol-20260929-v3", "protocol-20260913-v2", "unconfirmed"]
@@ -49,12 +50,24 @@ class ImportMappingV3(ImportMapping):
     survey_version: SurveyVersion | None = None
 
 
+class RecordingEditV3(Revision):
+    recording: RecordingV3
+    confirm: bool = False
+
+    @field_validator("recording", mode="before")
+    @classmethod
+    def json_contract(cls, value):
+        # FastAPI decodes JSON arrays into lists before validating the strict domain model.
+        return RecordingV3.model_validate_json(json.dumps(value)) if isinstance(value, dict) else value
+
+
 class SessionV3(Session):
     survey_version: SurveyVersion
     protocol_version: ProtocolVersion
     protocol_source: Literal["new_session", "confirmed_v2_recording", "unconfirmed"]
     survey_blank_reasons: dict[Key, Annotated[str, Field(min_length=1, max_length=200)]] = Field(default_factory=dict)
     comparison_eligibility: Literal["unconfirmed"] = "unconfirmed"
+    recording: RecordingV3 | None = None
 
     @model_validator(mode="after")
     def references_and_editions(self) -> Self:
@@ -88,6 +101,13 @@ class SessionV3(Session):
         for timing in (self.segments, self.stimuli):
             if timing and timing.video_id not in video_ids:
                 raise ValueError("timing references a missing video")
+        if self.recording:
+            if self.protocol_version != PROTOCOL_VERSION:
+                raise ValueError("new capture record cannot reinterpret a different protocol")
+            referenced = {self.recording.video_id, *(event.video_id for event in self.recording.events),
+                          *(offset.video_id for offset in self.recording.video_offsets)}
+            if not referenced <= set(video_ids):
+                raise ValueError("capture record references an unregistered video")
         return self
 
 
