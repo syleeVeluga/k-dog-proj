@@ -1,0 +1,19 @@
+{
+  "schema_version": "3.0",
+  "version": "preprocess-20260929-v3-native-1",
+  "protocol_version": "protocol-20260929-v3",
+  "source": "04 실제 구간/사건/국면과 02 관찰창. 예정 접촉 시각은 관찰 근거가 아니다.",
+  "keep_audio": true,
+  "video_codec": "libx264",
+  "crf": 20,
+  "scale_height": null,
+  "equirect_crop": null,
+  "fps": null,
+  "sampling_policy": "preserve_source_frame_rate_and_speed",
+  "provisional": true,
+  "provisional_reason": "현장 해상도·몸길이·가림·꼬리/얼굴 판독 충분성 Q02/Q05/Q08 및 provider 읽기 설정 C07 실증 대기. 로컬 프레임 보존은 AI 판독 fps 보장이 아니다.",
+  "boundary_policy": "actual_source_times_end_exclusive",
+  "overlap_policy": "same_source_intervals_reuse_clip; count_unique_source_events_per_item",
+  "missing_policy": "preserve_reason_and_process_other_valid_windows",
+  "listening_policy": "audio_available_seconds_is_not_listened_or_vocal_seconds"
+}

@@ -26,14 +26,14 @@ from app.survey_v3 import SurveyResultV3, survey_scores_v3
 from app.input_models import (
     CaseView, ImportColumns, Key, Login, Message,
     Revision, SegmentTimes, SegmentsEdit, SessionEdit, SessionMetadata, StoredVideo, UserCreate, UserEdit, UserView,
-    PreprocessStatus, StimulusEdit, StimulusTimes,
+    StimulusEdit, StimulusTimes,
 )
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
 from app import settings
 from app import secrets as vault
 from app.input_models import Model
-from app.input_models_v3 import CaseCreateV3, CaseEditV3, CaseViewV3, ImportCommitV3, ImportPreviewV3, ImportMappingV3, SurveyEditV3, RecordingEditV3
+from app.input_models_v3 import CaseCreateV3, CaseEditV3, CaseViewV3, ImportCommitV3, ImportPreviewV3, ImportMappingV3, SurveyEditV3, RecordingEditV3, PreprocessStatusV3
 
 
 class SecretEdit(Model):
@@ -469,12 +469,12 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.save(db, row, manifest, user.username, "stimuli.update")
             return store.view(store.case(db, case_id))
 
-    @app.get("/api/cases/{case_id}/sessions/{session_id}/preprocess", response_model=PreprocessStatus)
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/preprocess", response_model=PreprocessStatusV3)
     def preprocessing_status(case_id: Key, session_id: Key, user=Depends(reader)):
         from app import preprocess
         return preprocess.status(store, case_id, session_id)
 
-    @app.post("/api/cases/{case_id}/sessions/{session_id}/preprocess", response_model=PreprocessStatus)
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/preprocess", response_model=PreprocessStatusV3)
     def preprocessing_start(case_id: Key, session_id: Key, value: Revision, user=Depends(writer)):
         from app import preprocess
         preprocess.execute(store, case_id, session_id, user.username, expected_revision=value.expected_revision)

@@ -10,13 +10,13 @@ const states: Record<CaptureState, string> = { performed: '정상 실시', short
 const phaseNames = ['이동1', '정지1', '이동2', '정지2', '이동3', '정지3'];
 const phaseIds = ['move_1', 'stop_1', 'move_2', 'stop_2', 'move_3', 'stop_3'];
 const events: [string, string, SegmentId | null][] = [
-  ['floor_contact', '바닥 첫 접촉', 'entry'], ['object_stop', '물건 앞 정지', 'entry'], ['object_contact', '첫 코 접촉', 'entry'],
+  ['floor_contact', '바닥 첫 접촉', 'entry'], ['object_near', '물건1m 진입', 'entry'], ['object_stop', '물건 앞 정지 (끝도 기록)', 'entry'], ['object_contact', '첫 코 접촉', 'entry'],
   ['object_removed', '물건 제거', null], ['guardian_speech', '보호자 말', null], ['guardian_gesture', '보호자 손짓', null],
   ['staff_signal', '직원 신호 (예정 접촉 신호 포함)', null], ['food', '먹이', null], ['route_deviation', '경로 이탈', null],
-  ['occlusion', '가림', null], ['welfare_stop', '중단', null], ['welfare_action', '중단 뒤 조치', null],
+  ['occlusion', '가림', null], ['audio_loss', '녹음 손상 (실제 범위)', null], ['welfare_stop', '중단', null], ['welfare_action', '중단 뒤 조치', null],
   ['reunion_name', '재회 실제 부름', 'reunion'], ['reunion_contact_start', '재회 실제 접촉 시작', 'reunion'], ['reunion_contact_end', '재회 실제 접촉 끝', 'reunion'],
   ['stranger_gate_wait', '안전문 밖 대기', 'stranger'], ['stranger_enter', '요원 입실', 'stranger'], ['stranger_approach', '요원 접근', 'stranger'],
-  ['stranger_name', '요원 실제 부름', 'stranger'], ['stranger_contact_start', '요원 실제 접촉 시작', 'stranger'], ['stranger_contact_end', '요원 실제 접촉 끝', 'stranger'], ['stranger_exit', '요원 퇴장', 'stranger'],
+  ['stranger_name', '요원 실제 부름', 'stranger'], ['stranger_contact_start', '요원 실제 접촉 시작', 'stranger'], ['stranger_contact_end', '요원 실제 접촉 끝', 'stranger'], ['stranger_wait', '요원 대기 (실제 시작/끝)', 'stranger'], ['stranger_exit', '요원 퇴장', 'stranger'],
   ['walk_name', '걷기 전 이름', null], ['walk_to_s_start', 'S로 이동 시작', null], ['walk_to_s_end', 'S로 이동 끝', null],
   ['walk_seated', '걷기 뒤 착석', null], ['transition_wait_start', '전환 대기 시작', null], ['transition_wait_end', '전환 대기 끝', null], ['leash_attach', '목줄 채우기', null],
 ];

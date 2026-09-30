@@ -19,6 +19,7 @@ test('v3 recording: actual media, skip, transitions, conflict and reviewer', asy
   await page.getByRole('button', { name: '촬영', exact: true }).click();
   await page.getByRole('button', { name: 'v3rec 촬영 열기' }).click();
   const panel = page.getByLabel('신판 촬영 기록', { exact: true });
+  await panel.getByLabel('기준 영상', { exact: true }).selectOption(item.manifest.sessions[0].videos[0].video_id);
   const labels = ['입장', '기준', '혼자', '재회', '무시', '걷기', '낯선 사람', '퇴장'];
   const spans = [[0, 10], [10, 20], [20, 30], [30, 40], [40, 50], [52, 64], [70, 80], [82, 92]];
   expect(await panel.locator('tbody select').allTextContents()).toHaveLength(8);
