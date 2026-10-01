@@ -10,10 +10,10 @@ from .catalog_v3 import ContractV3, ItemCode, PROTOCOL_VERSION, SEGMENTS, Segmen
 Seconds = Annotated[float, Field(ge=0)]
 CaptureState = Literal["performed", "shortened", "not_performed", "welfare_stopped"]
 EventKind = Literal[
-    "floor_contact", "object_stop", "object_contact", "object_removed", "guardian_speech", "guardian_gesture",
+    "floor_contact", "object_near", "object_stop", "object_contact", "object_removed", "guardian_speech", "guardian_gesture",
     "staff_signal", "food", "route_deviation", "occlusion", "welfare_stop", "welfare_action",
     "reunion_name", "reunion_contact_start", "reunion_contact_end", "stranger_gate_wait", "stranger_enter",
-    "stranger_approach", "stranger_name", "stranger_contact_start", "stranger_contact_end", "stranger_exit",
+    "stranger_approach", "stranger_name", "stranger_contact_start", "stranger_contact_end", "stranger_wait", "stranger_exit", "audio_loss",
     "walk_name", "walk_to_s_start", "walk_to_s_end", "walk_seated", "transition_wait_start", "transition_wait_end", "leash_attach",
 ]
 WALK_PHASES = ("move_1", "stop_1", "move_2", "stop_2", "move_3", "stop_3")

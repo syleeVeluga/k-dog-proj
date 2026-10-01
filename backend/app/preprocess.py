@@ -21,6 +21,11 @@ RULES = json.loads((REPO_ROOT / "resources/rules/preprocess-v2.json").read_text(
 
 def plan(session, rules=RULES):
     """Tile each segment without overlaps: sparse before the event, dense event window, sparse remainder."""
+    if session.protocol_version == "protocol-20260929-v3":
+        from app.preprocess_v3 import plan as plan_v3
+        return plan_v3(session)
+    if session.protocol_version != "protocol-20260913-v2":
+        raise HTTPException(409, "촬영 판본 미확인 자료는 전처리하지 않습니다. 새 촬영 회차를 사용하세요.")
     if session.segments is None or not session.segments.confirmed:
         raise HTTPException(409, "8구간 시각을 확정한 뒤 전처리할 수 있습니다.")
     try:
@@ -59,6 +64,9 @@ def run(store, case_id, session_id, actor, rules=RULES, *, expected_revision=Non
         row = store.case(db, case_id, expected=expected_revision)
         manifest = store.manifest(row)
     session = selected_session(manifest, session_id)
+    if session.protocol_version == "protocol-20260929-v3":
+        from app.preprocess_v3 import run as run_v3
+        return run_v3(store, case_id, session_id, actor, expected_revision=row["input_revision"], request_id=request_id)
     clips = plan(session, rules)
     video = next((v for v in session.videos if v.video_id == session.segments.video_id), None)
     if video is None:
@@ -110,10 +118,23 @@ def latest(store, db, case_id, session_id):
         detail = json.loads(entry[0])
         if detail["session_id"] != session_id:
             continue
-        raw = store.path(detail["ref"]).read_bytes()
+        try:
+            raw = store.path(detail["ref"]).read_bytes()
+        except OSError as exc:
+            raise HTTPException(409, "전처리 기록 파일이 누락되었습니다. 다시 전처리하세요.") from exc
         if hashlib.sha256(raw).hexdigest() != detail["hash"]:
             raise HTTPException(409, "전처리 기록 파일 해시가 일치하지 않습니다.")
-        return json.loads(raw)
+        result = json.loads(raw)
+        if result.get("schema_version") == "3.0":
+            for clip in result["clips"]:
+                try:
+                    with store.path(clip["ref"]).open("rb") as handle:
+                        valid = hashlib.file_digest(handle, "sha256").hexdigest() == clip["hash"]
+                except OSError:
+                    valid = False
+                if not valid:
+                    raise HTTPException(409, "전처리 클립이 누락되었거나 해시가 일치하지 않습니다. 다시 전처리하세요.")
+        return result
     return None
 
 
@@ -145,16 +166,30 @@ def status(store, case_id, session_id):
         session = next((s for s in manifest.sessions if s.session_id == session_id), None)
         if session is None:
             raise HTTPException(422, "이 참가자의 촬영 회차가 아닙니다.")
-        result = latest(store, db, case_id, session_id)
+        integrity_message = None
+        try:
+            result = latest(store, db, case_id, session_id)
+        except HTTPException as exc:
+            if exc.status_code != 409:
+                raise
+            result, integrity_message = None, exc.detail
         entries = db.execute("SELECT action,detail_json FROM changes WHERE target=? AND action IN ('preprocess.started','preprocess.failed','preprocess.complete') ORDER BY rowid DESC", (case_id,)).fetchall()
         entry = next(((e["action"], json.loads(e["detail_json"])) for e in entries if json.loads(e["detail_json"]).get("session_id") == session_id), None)
         latest_start = db.execute("SELECT detail_json FROM changes WHERE action='preprocess.started' ORDER BY rowid DESC LIMIT 1").fetchone()
-    video = next((v for v in session.videos if session.segments and v.video_id == session.segments.video_id), None)
+    current_v3 = session.protocol_version == "protocol-20260929-v3"
+    rules = RULES
+    observation_windows = []
+    if current_v3:
+        from app.preprocess_v3 import RULES as rules, window_plan
+    reference = session.recording.video_id if current_v3 and session.recording else session.segments.video_id if session.segments else None
+    video = next((v for v in session.videos if v.video_id == reference), None)
     planned_clips = []
     try:
         planned_clips = plan(session)
-        ready = video is not None and manifest.selected_session_id == session_id
-        message = "실행 가능합니다. 기준 영상과 처리 규칙을 확인한 뒤 시작하세요." if ready else "운영자가 이 촬영 회차를 저장 대상으로 선택해야 합니다."
+        if current_v3:
+            observation_windows = window_plan(session)["windows"]
+        ready = video is not None and manifest.selected_session_id == session_id and bool(planned_clips)
+        message = "실행 가능합니다. 기준 영상과 처리 규칙을 확인한 뒤 시작하세요." if ready else "실시한 실제 관찰창이 없습니다. 미실시 사유는 보존됩니다." if not planned_clips else "운영자가 이 촬영 회차를 저장 대상으로 선택해야 합니다."
     except HTTPException as exc:
         ready, message = False, exc.detail
     state = "ready" if ready else "not_ready"
@@ -175,7 +210,14 @@ def status(store, case_id, session_id):
             state, message = "failed", detail["message"]
         else:
             state, message = "complete", "전처리가 완료되었습니다."
-    outdated = bool(result and (result["input_revision"] != row["input_revision"] or result["rules_version"] != RULES["version"] or not video or result["source_sha256"] != video.sha256))
+    if integrity_message and state != "running":
+        state, message = "failed", integrity_message
+    outdated = bool(result and (result["input_revision"] != row["input_revision"] or result["rules_version"] != rules["version"] or not video or result["source_sha256"] != video.sha256))
+    if current_v3 and result and result.get("schema_version") == "3.0":
+        from app.preprocess_v3 import RULE_PATH, PROTOCOL_PATH, CATALOG_PATH
+        outdated = outdated or any(result[name] != hashlib.sha256(path.read_bytes()).hexdigest() for name, path in (
+            ("rules_hash", RULE_PATH), ("protocol_hash", PROTOCOL_PATH), ("catalog_hash", CATALOG_PATH)))
     return {"status": state, "message": message, "readiness_message": readiness_message, "planned_clips": planned_clips, "ready": ready, "outdated": outdated,
-            "rules_version": RULES["version"], "dense_fps": RULES["dense_fps"], "sparse_fps": RULES["sparse_fps"],
+            "rules_version": rules["version"], "dense_fps": rules.get("dense_fps"), "sparse_fps": rules.get("sparse_fps"),
+            "observation_windows": observation_windows, "provisional": rules.get("provisional", False), "provisional_reason": rules.get("provisional_reason"),
             "input_revision": row["input_revision"], "video_name": video.original_name if video else None, "result": result}

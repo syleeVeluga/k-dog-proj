@@ -1,6 +1,6 @@
 # PR-C04 관찰창 기반 전처리
 
-버전: v1.0 · 2026-09-30 · 상태: 구현 전 · 선행: C03 · 추정: 2~3개발일
+버전: v1.0 · 2026-09-30 · 상태: 완료(구현·검증·cold review·수용 수정·문서·푸시) · 선행: C03 · 추정: 2~3개발일
 
 상위: [전체 계획](K-DOG_개발반영계획_v1.0_20260930.md). 근거: 04·02 실제창, 00 예외, 기존 A07/A08. 권장 제목: `feat: 실제 관찰창과 예외를 반영한 전처리 계획`.
 
@@ -40,3 +40,40 @@
 ## 실자료 검증과 인계
 
 Q02·Q05·Q08을 연결한다. 실제 꼬리·얼굴·몸길이·손/줄·음성 판독에 충분한지는 실영상으로 확인한다. C07은 클립 제작 설정과 provider 읽기 설정을 함께 버전/해시에 포함한다. 운영판 ZIP·실행·백업 검사도 이 PR 완료 시 앞당겨 수행한다.
+
+## 구현 및 검증 기록 — 2026-10-01
+
+- [x] `domain/preprocess_v3.py`의 불변 batch 계약과 `preprocess_v3.py`의 판본별 계획/실행을 추가했다. 구판 계획은 유지하고 촬영 판본 미확인 입력은 처리하지 않는다. 실제8구간 전체와 초기/후기/부름 뒤4초/실제 접촉/물건/줄/6국면/전환을 원본 시각으로 연결한다.
+- [x] 실제 사건 시각만 사용한다. 예정20~23초 접촉은 안내로만 보존한다. 명시 미접촉, 미실시, 경계 누락·여러 접촉, 단축을 별도 상태/사유로 기록한다. 관찰된 접촉과 미접촉 기록이 함께 있으면 미접촉만으로 관찰 기회를 없애지 않는다.0초·역전 창을 생성하지 않고 다른 유효 창을 처리한다.
+- [x] 같은 원본의 동일 범위는 클립을 재사용한다. 항목/창·사건 ID를 보존하여 C06/C07에서 같은 원항목의 중복 사건 합산을 피할 수 있다. 걷기 준비/착석은6국면 본 구간 밖에 보존하며 물건 정지는 이동 분모에서 제외한다. 미사용 원항목은 창의 입력 항목으로 연결하지 않는다.
+- [x] `preprocess-20260929-v3-native-1` 규칙은 연속 영상·원본 프레임/속도·전체 오디오를 유지하고 크기 축소/360 재투영을 적용하지 않는다. native 절단은 출력 `-t`로 실제 끝을 제한하고 `-fps_mode passthrough`·`-enc_time_base:v demux`로 시각을 유지한다. 프레임보다 짧아 창 안에 영상 프레임이 없으면 그 창의 실제 경계/사건과 미관찰 사유를 보존하고 완료 클립으로 채택하지 않는다. 전체 본 구간 오디오는 별도 유지한다. 임의 최소 관찰량이나 점수 문턱을 도입하지 않는다.
+- [x] batch는 원본 영상 ID/hash/크기·입력 revision/manifest ref/hash·클립 범위/원본 오프셋/fps/디코딩 길이/audio·규칙/절차/카탈로그 hash와 전체 규칙을 고정한다. 확인된 수동 오프셋은 사건의 원본 시각을 기준 시각에 대응시키며 자동 동기화하거나 카메라별 횟수를 합산하지 않는다.
+- [x] 음성 사용 가능량은 오디오 스트림 범위와 해당 원본의 명시 손상 구간을 교차/합집합하여 계산한다. 다른 카메라의 음성 손상/가림은 기준 영상에 전이하지 않고 원기록에 보존한다. 오디오 없음의 사용 가능0초와 발성0을 구분한다. 청취량/발성량은 미평가(null)이며 가림도0점 근거가 아니다. metadata fallback은 근거를 표시한다.
+- [x] 재실행은 새 batch다. 절단 전과 완료 채택 transaction에서 revision/삭제를 검사하며 원본 hash/규칙도 전후 확인한다. 실패/중단/손상 산출물을 채택하지 않는다. 손상된 이전 batch는 결과 사용을 차단하되 유효 입력의 재시도와 새 실행의 running 상태를 유지한다. 기존 잠금/구판 결과/이전 입력은 보존한다.
+- [x] 신판 화면은 계획과 현재 완료 batch의 창 품질을 구분하고 제외 사유·관련 원항목·임시 판독 기준·음성 사용 가능량·청취/발성 미평가·이전 기준·재시도를 표시한다. 최신 완료 창의 ‘프레임 없음’을 ‘사용 가능’으로 표시하지 않는다. reviewer는 읽기 전용이다. [전처리 화면](검증자료/C04_신판전처리.png), [짧은 접촉의 미관찰 화면](검증자료/C04_짧은접촉_미관찰.png)을 시각 확인했다.
+- [x] 합성100초12fps 영상/음성,0.25초 접촉,1ms 무프레임 접촉,분리5/15초 중단/생략,6국면,시각 대응,음성 손상/부재,두 영상 수동 오프셋,새 batch·stale·규칙 변경·수정/삭제 중 실행·손상/재시도를 시험했다. 새 참조는 기존 재귀 참조 탐색에 연결되어 백업/복원에서 실제 클립 hash가 일치한다. maintenance 변경은 필요하지 않았다.
+- [x] 백엔드 전체170개 통과(154.972초), 마지막 running 표시 보완 후 실제 손상/재시도 시험 재검증 통과. 구판 e2e17개와 신판 설문/촬영/전처리3개 통과, 완료창 품질 보완 후 신판 전처리 재검증 통과. frontend build, 원본 `--spec all --check`, `git diff --check` 통과. 실제 FFmpeg 합성 매체 시험이며 provider/고객 실영상 검증과 구분한다.
+- [x] 독립 cold review P2 세 건과 추가 상태표시 보완을 수용했다. 수정 뒤 독립 합성 재검증/코드 재확인에서 추가 material finding 없음.
+- [x] 운영 ZIP `releases/K-DOG_C04_20261001.zip` 생성/검증 통과. 구현 커밋 `144829d`,83개 허용 파일, SHA-256 `f714866e18b1f7d343766f5048eae91019e70ee178a6bfa0272c133456997e44`. `python -X utf8 scripts/build_release.py releases/K-DOG_C04_20261001.zip`, `python -X utf8 scripts/verify_release.py releases/K-DOG_C04_20261001.zip`으로 확인했다. 한글/공백 새 경로·fresh venv·Start.cmd 검사·HTTP 로그인/접수·재시작 데이터 유지·급종료 잠금 회수·설치 전 hash 손상 거절·UV 환경변수 격리 모두 통과, 외부 AI 호출0회. 같은 Windows PC의 새 폴더/venv 검사이며 깨끗한 OS/다른 PC 실증은 환경 부재로 생략했다. batch 백업/복원은 위 실제 합성 매체 시험에서 통과했다. ZIP과 runtime/실자료는 소스에 커밋하지 않는다.
+- [x] 문서 완료 표시 후 `veluga/pr-c04-preprocess-v3` 푸시·[PR #30](https://github.com/syleeVeluga/k-dog-proj/pull/30) 생성. base C03(#29), 구현 `144829d`, ZIP 검사 기록 `1fdf8e2`. 병합은 별도 상태다.
+
+| 리뷰 발견 | 판단과 반영 | 검증 |
+| --- | --- | --- |
+| P2 손상된 클립이 상태 GET409를 만들고 화면 재시도 버튼도 없어짐 | 수용. 손상 결과는 숨기고 실패 상태/ready/계획을 반환 | 실제 clip 손상 뒤 result 없음·ready 유지·새 batch 성공, browser 실패 상태 재시도 |
+| P2 다른 카메라의 음성 손상이 기준 영상의 사용 가능량을 줄임 | 수용. 품질 사건의 video ID와 클립 원본 일치 검사, 다른 사건 원기록 보존 | 다른 hash의 두 합성 영상·수동+5초 오프셋, 기준10초 음성 유지 |
+| P2 무프레임 창이 완료 뒤에도 화면에서 사용 가능으로 보임 | 수용. 현재 입력/규칙과 일치하는 완료 windows 표시, 이전 결과면 실행 전 계획 표시 | 실제1ms 접촉 batch/UI에서 미관찰·클립 없음·사유 표시 |
+| 추가 보완: 손상 메시지가 새 재시도의 running 상태를 덮음 | 수용. running 유지·이전 손상 결과는 숨김 | 실제 손상 retry 절단 중 GET running/result 없음, 독립 재검증 통과 |
+
+의존성 확인일은2026-10-01이다. FastAPI/Pydantic/openpyxl/React/DOM/Vite/TypeScript/Playwright는 [C01 공식 최신·선택·호환성/API 표](K-DOG_PR-C01_판본이관과접수_v1.0_20260930.md)와 같은 잠금을 유지했다. 새 패키지/lock 변경은 없다. FFmpeg 최신 안정9.0.2,8.1계열 최신8.1.3과 기존 선택8.1.1-full_build를 [공식 릴리스](https://ffmpeg.org/download.html), [배포 목록](https://ffmpeg.org/releases/), [절단/타임베이스/fps API](https://ffmpeg.org/ffmpeg.html), [probe API](https://ffmpeg.org/ffprobe.html)에서 대조했다. 기존 Windows 런타임을 유지하며 위 옵션은 설치본과 실제 합성 출력으로 확인했다. 로컬 프레임 보존이 provider 판독 fps를 보장하지 않으며 실영상 판독 충분성은 임시 상태다.
+
+운영 ZIP 설치를 위해 아래 공식 최신판/호환성도 추가 확인했다. 기존 설치 도구와 pinned 앱 의존성을 사용해 깨끗한 venv를 검증하며 런타임 전체 교체는 이 기능 PR에서 수행하지 않는다.
+
+| 런타임/패키지 | 최신 안정 / 선택 | 호환성·선택 이유와 공식 근거 |
+| --- | --- | --- |
+| Python |3.14.7 / 기존3.14.2 | 프로젝트 `>=3.14,<3.15`, 같은3.14 설치 환경 재현. [공식 릴리스](https://www.python.org/downloads/release/python-3147/) |
+| uv |0.12.21 / 기존0.11.18 | Python>=3.8, 기존 설치본의 locked sync 사용. [registry](https://pypi.org/project/uv/)·[release](https://github.com/astral-sh/uv/releases/tag/0.12.21)·[sync API](https://docs.astral.sh/uv/concepts/projects/sync/) |
+| uvicorn |0.54.0 / 잠금0.52.4 | Python>=3.10, 새 HTTP/2 기능은 불필요하며 기존 ASGI/launcher 회귀 유지. [registry](https://pypi.org/project/uvicorn/)·[release/API](https://uvicorn.dev/release-notes/) |
+| ReportLab |5.0.1 / 잠금5.0.1 | Python>=3.9,<4, Pillow>=9 호환. 기존 PDF 기반 유지. [registry](https://pypi.org/project/reportlab/)·[release](https://docs.reportlab.com/releases/notes/whats-new-50/) |
+| Pillow |12.3.0 / 잠금12.3.0 | Python>=3.10, Windows/Python3.14 지원. [registry](https://pypi.org/project/pillow/)·[release](https://pillow.readthedocs.io/en/stable/releasenotes/12.3.0.html) |
+
+필수 코드 메모리 MCP가 제공되지 않아 알린 뒤 직접 소스 탐색했다. 고객 실영상·다중 카메라 장비·음성/가림 실측 자료가 없어 실증을 생략한다. Q02/Q05/Q08과 AI 읽기 설정은 C06/C07 및 자료 수령 후 검증으로 인계한다. 임시 정책을 실제 판독 검증 완료로 표시하지 않는다.

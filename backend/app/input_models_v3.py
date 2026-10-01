@@ -9,6 +9,8 @@ from app.domain.base import Hash, require_unique
 from app.domain.catalog import SURVEY_IDS
 from app.domain.catalog_v3 import PROTOCOL_VERSION, SURVEY_VERSION
 from app.domain.recording_v3 import RecordingV3
+from app.domain.preprocess_v3 import BatchV3, WindowV3
+from app.input_models import PreprocessPlannedClip, PreprocessResult, PreprocessStatus
 from app.input_models import CaseCreate, CaseEdit, CaseView, ImportMapping, ImportRow, Key, Manifest, Model, Revision, Session
 
 ProtocolVersion = Literal["protocol-20260929-v3", "protocol-20260913-v2", "unconfirmed"]
@@ -59,6 +61,36 @@ class RecordingEditV3(Revision):
     def json_contract(cls, value):
         # FastAPI decodes JSON arrays into lists before validating the strict domain model.
         return RecordingV3.model_validate_json(json.dumps(value)) if isinstance(value, dict) else value
+
+
+class PreprocessPlannedClipV3(Model):
+    name: Key
+    segment: str
+    start_sec: float
+    end_sec: float
+    fps: None
+    window_ids: list[str]
+    video_id: Key
+
+
+class PreprocessStatusV3(PreprocessStatus):
+    planned_clips: list[PreprocessPlannedClipV3 | PreprocessPlannedClip]
+    dense_fps: int | None
+    sparse_fps: int | None
+    observation_windows: list[WindowV3]
+    provisional: bool
+    provisional_reason: str | None
+    result: BatchV3 | PreprocessResult | None
+
+    @field_validator("result", mode="before")
+    @classmethod
+    def batch_contract(cls, value):
+        return BatchV3.model_validate_json(json.dumps(value)) if isinstance(value, dict) and value.get("schema_version") == "3.0" else value
+
+    @field_validator("observation_windows", mode="before")
+    @classmethod
+    def window_contracts(cls, values):
+        return [WindowV3.model_validate_json(json.dumps(value)) if isinstance(value, dict) else value for value in values]
 
 
 class SessionV3(Session):
