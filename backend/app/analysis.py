@@ -76,15 +76,36 @@ def read_artifact(store, ref, expected_hash=None):
         raise HTTPException(409, "관찰 산출물 파일 또는 해시가 올바르지 않습니다.") from None
 
 
-def step_payload(store, row, step, *, recover=False):
+def file_stamp(path):
+    stat = path.stat()
+    return stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns
+
+
+def step_output(store, row, step, *, recover=False):
     ref = step["output_ref"] or f"runs/{row['run_id']}/{step['step_id']}/output.json"
-    result = read_artifact(store, ref, None if recover else step["output_hash"])
+    path = store.path(ref)
+    try:
+        stamp = file_stamp(path)
+        raw = path.read_bytes()
+        output_hash = hashlib.sha256(raw).hexdigest()
+        if file_stamp(path) != stamp or (not recover and step["output_hash"] and step["output_hash"] != output_hash):
+            raise ValueError("changed artifact")
+        result = json.loads(raw)
+    except (OSError, ValueError):
+        raise HTTPException(409, "산출물 파일 또는 해시가 올바르지 않습니다.") from None
     if (result["run_id"], result["step_id"], result["claim_token"], result["input_hash"], result["config_hash"]) != (
         row["run_id"], step["step_id"], step["claim_token"],
         digest(json.loads(row["input_snapshot_json"])), digest(json.loads(row["config_snapshot_json"]))
     ):
         raise HTTPException(409, "산출물 실행 연결이 일치하지 않습니다.")
-    return result["payload"]
+    if row["kind"] != "legacy" and (result.get("kind"), result.get("attempt"), result.get("stage"), result.get("key")) != (
+            row["kind"], step["attempt"], step["stage"], step["branch_key"]):
+        raise ValueError("versioned attempt envelope mismatch")
+    return result["payload"], ref, output_hash, stamp
+
+
+def step_payload(store, row, step, *, recover=False):
+    return step_output(store, row, step, recover=recover)[0]
 
 
 def validated_ledger(payload, run_input, video_id, source_run_id=None):
@@ -196,6 +217,8 @@ def write_output(store, row, step, payload):
     value = {"run_id": row["run_id"], "step_id": step["step_id"], "claim_token": step["claim_token"],
              "input_hash": digest(json.loads(row["input_snapshot_json"])),
              "config_hash": digest(json.loads(row["config_snapshot_json"])), "payload": payload}
+    if row["kind"] != "legacy":
+        value.update(kind=row["kind"], attempt=step["attempt"], stage=step["stage"], key=step["branch_key"])
     raw = encode(value).encode("utf-8")
     temp = path.with_name(uid() + ".tmp")
     try:
@@ -211,11 +234,25 @@ def write_output(store, row, step, payload):
 
 
 def adopt(store, row, step, ref, output_hash, usage):
+    if ref != f"runs/{row['run_id']}/{step['step_id']}/output.json":
+        raise HTTPException(409, "attempt 경로가 일치하지 않습니다.")
+    candidate = {**dict(step), "output_ref": ref, "output_hash": output_hash}
+    _, _, _, stamp = step_output(store, row, candidate)
     with store.connect(write=True) as db:
         current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
         if current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
             raise HTTPException(409, "오래된 실행 결과를 채택할 수 없습니다.")
         check_access(store, db, current)
+        try:
+            if file_stamp(store.path(ref)) != stamp:
+                raise ValueError("changed artifact")
+        except (OSError, ValueError):
+            raise HTTPException(409, "채택 직전 산출물이 변경되었습니다.") from None
+        latest = db.execute("SELECT step_id FROM steps WHERE run_id=? AND stage=(SELECT stage FROM steps WHERE step_id=?) "
+                            "AND branch_key=(SELECT branch_key FROM steps WHERE step_id=?) ORDER BY attempt DESC LIMIT 1",
+                            (row["run_id"], step["step_id"], step["step_id"])).fetchone()
+        if not latest or latest[0] != step["step_id"]:
+            raise HTTPException(409, "최신 attempt만 채택할 수 있습니다.")
         changed = db.execute("UPDATE steps SET status='succeeded',output_ref=?,output_hash=?,usage_json=?,updated_at=? "
                              "WHERE step_id=? AND status='running' AND claim_token=?",
                              (ref, output_hash, encode(usage), now(), step["step_id"], step["claim_token"])).rowcount

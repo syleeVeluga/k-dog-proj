@@ -119,6 +119,8 @@ class Store:
         for name in ("inputs", "videos"):
             (self.root / name).mkdir(exist_ok=True)
         with self.connect() as db:
+            if db.execute("PRAGMA user_version").fetchone()[0] > 10:
+                raise ValueError("지원 버전보다 높은 데이터베이스에는 쓰지 않습니다.")
             db.execute("PRAGMA journal_mode=WAL")
             db.executescript(SCHEMA)
             if "call_reserved" not in {r[1] for r in db.execute("PRAGMA table_info(steps)")}:
@@ -145,7 +147,18 @@ class Store:
             # 순번은 행사 안에서 하나씩; 비어 있을 수는 있다.
             db.execute("CREATE UNIQUE INDEX IF NOT EXISTS cases_sequence ON cases(event_id, sequence_no) WHERE sequence_no IS NOT NULL")
             self.migrate_manifests_v3(db)
-            db.execute("PRAGMA user_version=9")
+            run_columns = {r[1] for r in db.execute("PRAGMA table_info(runs)")}
+            for name, definition in (("kind", "TEXT NOT NULL DEFAULT 'legacy'"),
+                                     ("request_id", "TEXT"), ("request_hash", "TEXT"),
+                                     ("input_hash", "TEXT"), ("failure_code", "TEXT")):
+                if name not in run_columns:
+                    db.execute(f"ALTER TABLE runs ADD COLUMN {name} {definition}")
+            db.execute("CREATE UNIQUE INDEX IF NOT EXISTS runs_request ON runs(case_id,session_id,kind,request_id) WHERE request_id IS NOT NULL")
+            db.execute("DROP TRIGGER IF EXISTS immutable_run_input")
+            db.execute("CREATE TRIGGER immutable_run_input BEFORE UPDATE OF kind,request_id,request_hash,input_hash,"
+                       "input_snapshot_json,config_snapshot_json,case_id,session_id,input_revision,reuse_manifest_json ON runs "
+                       "BEGIN SELECT RAISE(ABORT, 'run snapshots are immutable'); END")
+            db.execute("PRAGMA user_version=10")
 
     def migrate_manifests(self, db):
         """Rewrite intake-1.0 case manifests as intake-2.0 (28-item survey); stored run snapshots stay untouched."""

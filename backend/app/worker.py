@@ -11,7 +11,7 @@ from fastapi import HTTPException
 
 from app.analysis import (
     adopt, branch_key, check_access, claim, guard, later, ledgers, observations, session_snapshot,
-    step_payload, validated_ledger, validated_observation, validated_prepared, write_output, evaluation_reuse,
+    step_payload, step_output, validated_ledger, validated_observation, validated_prepared, write_output, evaluation_reuse,
 )
 from app.legacy.contracts_v1 import BehaviorCatalog, Evidence, RunInput, SurveyCatalog, VideoReference
 from app.evaluation import Evaluator, evaluation_context, make_evaluation, validated_evaluation
@@ -43,8 +43,9 @@ def heartbeat(store, row):
 
 
 class Worker:
-    def __init__(self, store, *, observer=None, evaluator=None, reporter=None, probe=inspect_media):
+    def __init__(self, store, *, observer=None, evaluator=None, reporter=None, probe=inspect_media, v3_work=None):
         self.store = store
+        self.v3_work = v3_work
         # Injection is only a Python test seam; CLI/API never offer a fake provider.
         self.observer = observer if observer is not None else GeminiObserver(store)
         self.probe = probe
@@ -59,17 +60,23 @@ class Worker:
         self.check(row)
         with self.store.connect(write=True) as db:
             current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
-            if current["claim_token"] != row["claim_token"] or current["lease_expires_at"] <= now():
+            if current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
                 raise HTTPException(409, "실행 점유가 변경되었습니다.")
             check_access(self.store, db, current)
             limit = json.loads(row["config_snapshot_json"]).get("max_ai_calls", 1000)
             used = db.execute("SELECT COUNT(*) FROM steps WHERE run_id=? AND call_reserved=1", (row["run_id"],)).fetchone()[0]
             if used >= limit:
                 raise ProviderError("call_budget_exhausted")
-            db.execute("UPDATE steps SET call_reserved=1 WHERE step_id=?", (step["step_id"],))
+            changed = db.execute("UPDATE steps SET call_reserved=1 WHERE step_id=? AND run_id=? AND status='running' "
+                                 "AND claim_token=? AND call_reserved=0", (step["step_id"], row["run_id"], row["claim_token"])).rowcount
+            if not changed:
+                raise HTTPException(409, "호출은 현재 점유한 attempt에서 한 번만 예약할 수 있습니다.")
 
     def stage(self, row, stage, branch, validate, work):
         self.check(row)
+        config = json.loads(row["config_snapshot_json"])
+        new_group = next((group for group in config.get("stages", []) if (group["stage"], group["key"]) == (stage, branch)), None)
+        provider_stage = bool(new_group and new_group["provider_call"]) if row["kind"] != "legacy" else stage in ("ledger", "observe", "review_video", "evaluate", "report")
         with self.store.connect() as db:
             previous = db.execute("SELECT * FROM steps WHERE run_id=? AND stage=? AND branch_key=? ORDER BY attempt DESC LIMIT 1",
                                   (row["run_id"], stage, branch)).fetchone()
@@ -81,16 +88,19 @@ class Worker:
             # The latest uncommitted attempt is eligible only before a new attempt exists.
             ref = f"runs/{row['run_id']}/{previous['step_id']}/output.json"
             try:
-                payload = step_payload(self.store, row, previous, recover=True)
+                payload, ref, output_hash, _ = step_output(self.store, row, previous, recover=True)
                 parsed = validate(payload)
-                output_hash = hashlib.sha256(self.store.path(ref).read_bytes()).hexdigest()
                 adopt(self.store, row, previous, ref, output_hash, payload.get("usage", {}))
                 return parsed
             except (HTTPException, ValueError, KeyError, OSError):
                 self.check(row)
                 with self.store.connect(write=True) as db:
+                    current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
+                    if current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
+                        raise HTTPException(409, "복구 중 실행 점유가 변경되었습니다.")
+                    check_access(self.store, db, current)
                     db.execute("UPDATE steps SET status='abandoned',usage_json=?,updated_at=? WHERE step_id=? AND status='running'",
-                               (encode({"code": "worker_interrupted", "billing_uncertain": stage in ("ledger", "observe", "review_video", "evaluate", "report")}), now(), previous["step_id"]))
+                               (encode({"code": "worker_interrupted", "billing_uncertain": bool(provider_stage and (row["kind"] == "legacy" or previous["call_reserved"]))}), now(), previous["step_id"]))
         attempt = previous["attempt"] + 1 if previous else 1
         maximum = json.loads(row["config_snapshot_json"]).get("max_attempts", 3)
         if attempt > maximum:
@@ -98,12 +108,13 @@ class Worker:
         if previous and previous["status"] == "retry_wait" and previous["retry_at"] > now():
             return None
         # Schema repair has its own one-repair cap inside the shared three-attempt budget.
-        schema_code = "evaluation_schema_invalid" if stage in ("evaluate", "report") else "observation_schema_invalid"
-        if stage in ("ledger", "observe", "review_video", "evaluate", "report"):
+        schema_code = "v3_schema_invalid" if row["kind"] != "legacy" else "evaluation_schema_invalid" if stage in ("evaluate", "report") else "observation_schema_invalid"
+        repair_limit = config.get("max_schema_repairs", 1)
+        if provider_stage:
             with self.store.connect() as db:
                 history = [json.loads(s[0]) for s in db.execute(
                     "SELECT usage_json FROM steps WHERE run_id=? AND stage=? AND branch_key=?", (row["run_id"], stage, branch))]
-            if sum(s.get("code") == schema_code for s in history) >= 2:
+            if sum(s.get("code") == schema_code for s in history) >= repair_limit + 1:
                 return None
         with self.store.connect(write=True) as db:
             current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
@@ -113,7 +124,7 @@ class Worker:
             if previous and previous["status"] == "retry_wait":
                 db.execute("UPDATE steps SET status='superseded',updated_at=? WHERE step_id=? AND status='retry_wait'",
                            (now(), previous["step_id"]))
-            step = {"step_id": uid(), "claim_token": row["claim_token"], "attempt": attempt}
+            step = {"step_id": uid(), "claim_token": row["claim_token"], "attempt": attempt, "stage": stage, "branch_key": branch}
             db.execute("INSERT INTO steps(step_id,run_id,stage,branch_key,attempt,status,claim_token,created_at,updated_at) "
                        "VALUES(?,?,?,?,?,'running',?,?,?)",
                        (step["step_id"], row["run_id"], stage, branch, attempt, row["claim_token"], now(), now()))
@@ -129,13 +140,15 @@ class Worker:
             with self.store.connect() as db:
                 schema_failures = sum(json.loads(s[0]).get("code") == schema_code for s in db.execute(
                     "SELECT usage_json FROM steps WHERE run_id=? AND stage=? AND branch_key=?", (row["run_id"], stage, branch)))
-            retry = exc.retryable and attempt < maximum and not (exc.code == schema_code and schema_failures >= 1)
+            retry = exc.retryable and attempt < maximum and not (exc.code == schema_code and schema_failures >= repair_limit)
             self.fail(row, step, "retry_wait" if retry else "failed", usage,
                       later(max(exc.delay, 10 * 2 ** (attempt - 1))) if retry else None)
         except MediaError as exc:
             self.fail(row, step, "failed", {"code": str(exc)}, None)
         except (ValueError, KeyError):
-            self.fail(row, step, "failed", {"code": "artifact_invalid"}, None)
+            with self.store.connect() as db:
+                reserved = db.execute("SELECT call_reserved FROM steps WHERE step_id=?", (step["step_id"],)).fetchone()[0]
+            self.fail(row, step, "failed", {"code": "artifact_invalid", "billing_uncertain": bool(reserved)}, None)
         return None
 
     def fail(self, row, step, status, usage, retry_at):
@@ -205,6 +218,17 @@ class Worker:
         return artifact.model_dump(mode="json")
 
     def process(self, row):
+        if row["kind"] != "legacy":
+            from app import run_v3
+            if row["kind"] == "scoring_v3":
+                return run_v3.process(self, row)
+            self.check(row)
+            with self.store.connect(write=True) as db:
+                check_access(self.store, db, row)
+                db.execute("UPDATE runs SET status='failed',failure_code=?,claim_token=NULL,lease_expires_at=NULL,updated_at=? "
+                           "WHERE run_id=? AND claim_token=? AND status='running'",
+                           ("v3_report_inactive" if row["kind"] == "report_v3" else "unsupported_run_kind", now(), row["run_id"], row["claim_token"]))
+            return
         report_source = None
         config = json.loads(row["config_snapshot_json"])
         if "evaluation" in config:
@@ -508,9 +532,14 @@ class Worker:
             with self.store.connect(write=True) as db:
                 current = db.execute("SELECT * FROM cases WHERE case_id=?", (row["case_id"],)).fetchone()
                 stopped = current["deletion_requested"]
-                db.execute("UPDATE runs SET status=?,claim_token=NULL,lease_expires_at=NULL,updated_at=? "
+                changed = db.execute("UPDATE runs SET status=?,claim_token=NULL,lease_expires_at=NULL,updated_at=? "
                            "WHERE run_id=? AND claim_token=? AND status='running'",
-                           ("stopped" if stopped else "failed", now(), row["run_id"], row["claim_token"]))
+                           ("stopped" if stopped else "failed", now(), row["run_id"], row["claim_token"])).rowcount
+                if changed and row["kind"] != "legacy":
+                    for step in db.execute("SELECT * FROM steps WHERE run_id=? AND status='running'", (row["run_id"],)).fetchall():
+                        usage = {**json.loads(step["usage_json"]), "code": "worker_interrupted",
+                                 "billing_uncertain": bool(step["call_reserved"])}
+                        db.execute("UPDATE steps SET usage_json=?,updated_at=? WHERE step_id=?", (encode(usage), now(), step["step_id"]))
         return True
 
     def run(self):

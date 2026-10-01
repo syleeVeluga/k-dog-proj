@@ -63,6 +63,41 @@ class RecordingEditV3(Revision):
         return RecordingV3.model_validate_json(json.dumps(value)) if isinstance(value, dict) else value
 
 
+class RunCreateV3(Revision):
+    request_id: Key
+    preprocess_ref: Annotated[str, Field(pattern=r"^clips/[^\\]+/clips\.json$")]
+    preprocess_hash: Hash
+
+
+class RunActionV3(Model):
+    expected_updated_at: str
+    reason: Annotated[str, Field(min_length=1, max_length=2000, pattern=r"\S")]
+
+
+class RunStepViewV3(Model):
+    stage: str
+    key: str
+    attempt: int
+    status: str
+    code: str | None
+    billing_uncertain: bool
+    call_reserved: bool
+
+
+class RunViewV3(Model):
+    run_id: Key
+    case_id: Key
+    session_id: Key
+    kind: str
+    input_revision: int
+    status: str
+    updated_at: str
+    outdated: bool
+    failure_code: str | None
+    result_available: bool
+    steps: list[RunStepViewV3]
+
+
 class PreprocessPlannedClipV3(Model):
     name: Key
     segment: str

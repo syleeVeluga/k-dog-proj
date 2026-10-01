@@ -33,7 +33,8 @@ from app.input_models import (
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
 from app import settings
-from app import sheets, judgements
+from app import sheets, judgements, run_v3
+from app.input_models_v3 import RunCreateV3, RunActionV3, RunViewV3
 from app import secrets as vault
 from app.input_models import Model
 from app.input_models_v3 import CaseCreateV3, CaseEditV3, CaseViewV3, ImportCommitV3, ImportPreviewV3, ImportMappingV3, SurveyEditV3, RecordingEditV3, PreprocessStatusV3
@@ -116,6 +117,22 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     writer = roles("operator", "admin")
     administrator = roles("admin")
     developer = roles("developer")
+
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/runs-v3", response_model=RunViewV3, status_code=201)
+    def new_run_v3(case_id: Key, session_id: Key, value: RunCreateV3, user=Depends(writer)):
+        return run_v3.enqueue(store, case_id, session_id, value, user, None)
+
+    @app.get("/api/runs-v3/{run_id}", response_model=RunViewV3)
+    def run_status_v3(run_id: Key, user=Depends(reader)):
+        return run_v3.view(store, run_id, user)
+
+    @app.post("/api/runs-v3/{run_id}/stop", response_model=RunViewV3)
+    def stop_run_v3(run_id: Key, value: RunActionV3, user=Depends(writer)):
+        return run_v3.action(store, run_id, value, user)
+
+    @app.post("/api/runs-v3/{run_id}/retry", response_model=RunViewV3)
+    def retry_run_v3(run_id: Key, value: RunActionV3, user=Depends(writer)):
+        return run_v3.action(store, run_id, value, user, retry=True)
 
     @app.get("/api/developer/settings", response_model=settings.SettingsView)
     def developer_settings(user=Depends(developer)):
