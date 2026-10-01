@@ -16,3 +16,6 @@
 *.zip binary
 *.insv binary
 *.mp4 binary
+
+# Preserve the customer bundle byte-for-byte for its SHA-256 manifest.
+docs/큐브전달_20260929/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

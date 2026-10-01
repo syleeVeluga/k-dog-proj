@@ -2,7 +2,11 @@
 
 ## Project Structure & Module Organization
 
-K-DOG is an operator-facing dog/guardian assessment application. P0 and P1 for the customer's 42-item specification (2026-09-13) are implemented: validated domain contracts/scoring, 28-item survey, intake, recording and preprocessing. The 55-item routes and screens were removed in PR-10; read-only legacy modules remain for worker imports until P2 replaces that pipeline. R1–R9 customer confirmations are still pending. `docs/` contains:
+K-DOG is an operator-facing dog/guardian assessment application. The current development source is `docs/큐브전달_20260929/`; read its 00 document, original 02 workbook, then 04/03/07/10 and the two mapping JSONs. 02b/02c are view-only references. Follow `docs/개발반영_20260929/` C00–C15 and Q01–Q12; do not apply the older scoring/report assumptions to the new edition. C00 adds isolated v3 source catalogs/contracts; the active application still uses the implemented 2026-09-13 P0/P1 until subsequent PRs connect v3. The 55-item routes and screens were removed in PR-10; read-only legacy modules remain for worker imports. `docs/` contains:
+
+- `개발반영_20260929/K-DOG_개발기준변경검토_v1.1_20260930.md`: read first for the current transition and source precedence.
+- `개발반영_20260929/K-DOG_개발반영계획_v1.0_20260930.md`: current implementation sequence and per-PR verification/review procedure.
+- `개발반영_20260929/K-DOG_확인사항및검증자료_v1.0_20260930.md`: current unresolved policies Q01–Q12 and actual validation limits.
 
 - `K-DOG_변경검토_v1.0_20260915.md`: the transition decision — what is reused, what is rewritten, schedule, open customer questions. Read first.
 - `K-DOG_P0_구현계획_v1.0_20260916.md`: the file-level plan for PR-0 to PR-4 (catalog 42, survey 28, contracts v2, scoring v2 with golden tests), the item-ID table, and the rule interpretations (R1–R9) that still need customer confirmation.
@@ -13,7 +17,7 @@ K-DOG is an operator-facing dog/guardian assessment application. P0 and P1 for t
 
 Earlier 55-item documents (PRD v0.4, implementation guide, M1–M6 records) were removed on 2026-09-15 and exist only in git history before commit `7124809`. Do not treat their scoring, aggregation or report rules as current.
 
-`backend/app/domain/` contains the validated 42-item contracts (`base.py`, `catalog.py`, `contracts.py`, `validation.py`); `backend/app/legacy/` holds the read-only 55-item contracts, validation, scoring and intake shape that the frozen analysis pipeline still imports (the 55-item analysis/report/export routes and screens were removed in PR-10; the modules stay only because `worker.py` still imports them until the P2 scoring pipeline replaces them; no new features there); `backend/app/import_catalogs.py` reads the customer's 42-item workbook and 28-item questionnaire PDF in `docs/최종 고객 문서/`; the superseded 55-item/30-item JSON in `resources/catalogs/*-v1.json` is kept read-only and checked against `resources/source/` by tests. `backend/app/api.py` provides the FastAPI API; `storage.py` manages SQLite and immutable input files; `worker.py` runs the analysis stages. `frontend/` contains the React UI. Tests and synthetic fixtures live in `backend/tests/` and `frontend/tests/`; extracted catalogs live in `resources/`. Create directories only when needed.
+`backend/app/domain/*_v3.py` contains the separate 9월 29일 contracts for 117 original rows, 113 used rows, 109 direct entries and four automatic rows, with raw Korean row codes. The unmodified `base.py/catalog.py/contracts.py/validation.py` remain the 42-item v2 edition. `backend/app/legacy/` holds read-only 55-item modules still imported by the frozen worker; no new features there. `backend/app/import_catalogs.py` defaults to the v2 source; `--spec 20260929` reads the new source via `import_catalogs_v3.py`, and `--spec all --check` checks both editions. `resources/catalogs/*-v1.json` remains read-only and checked against `resources/source/` by tests. `backend/app/api.py` provides the FastAPI API; `storage.py` manages SQLite and immutable input files; `worker.py` runs analysis stages. `frontend/` contains the React UI. Tests and synthetic fixtures live in `backend/tests/` and `frontend/tests/`; extracted catalogs, rules and mappings live in `resources/`. Create directories only when needed.
 
 ## Build, Test, and Development Commands
 

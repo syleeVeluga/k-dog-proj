@@ -1,0 +1,2308 @@
+{
+  "schema_version": "3.0",
+  "version": "survey-20260929-v3",
+  "source": {
+    "schema_version": "3.0",
+    "filename": "기준자료/01_보호자_설문지_20260919.docx",
+    "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+    "location": "28 printed questions"
+  },
+  "items": [
+    {
+      "schema_version": "3.0",
+      "item_id": "s01",
+      "external_id": "Q01",
+      "number": 1,
+      "text": "무언가를 가르칠 때 단계적으로 시도한다",
+      "print_section": "A",
+      "report_domain": "가르치는 방식",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 6"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 6"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 6"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 6"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 6"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 6"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s02",
+      "external_id": "Q02",
+      "number": 2,
+      "text": "문제행동이 있으면 그 원인을 파악하려 한다",
+      "print_section": "A",
+      "report_domain": "가르치는 방식",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 7"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 7"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 7"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 7"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 7"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 7"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s03",
+      "external_id": "Q03",
+      "number": 3,
+      "text": "문제행동을 고칠 때 대신할 행동을 가르치려 한다",
+      "print_section": "A",
+      "report_domain": "가르치는 방식",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 8"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 8"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 8"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 8"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 8"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 8"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s04",
+      "external_id": "Q04",
+      "number": 4,
+      "text": "책·영상 등으로 훈련 방법을 배우려 노력한다",
+      "print_section": "A",
+      "report_domain": "가르치는 방식",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 9"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 9"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 9"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 9"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 9"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 9"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s05",
+      "external_id": "Q05",
+      "number": 5,
+      "text": "두려워하는 것에 천천히 적응할 시간을 준다",
+      "print_section": "A",
+      "report_domain": "가르치는 방식",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 10"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 10"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 10"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 10"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 10"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 10"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s06",
+      "external_id": "Q06",
+      "number": 6,
+      "text": "두려운 것을 좋은 경험과 연결해 극복하도록 돕는다",
+      "print_section": "A",
+      "report_domain": "가르치는 방식",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 11"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 11"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 11"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 11"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 11"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 11"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s07",
+      "external_id": "Q07",
+      "number": 7,
+      "text": "어릴 때(늦게 데려온 반려견은 평소에) 다른 개들을 많이 만나게 하려 노력했다",
+      "print_section": "A",
+      "report_domain": "사회화에 들이는 노력",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 12"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 12"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 12"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 12"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 12"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 12"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s08",
+      "external_id": "Q08",
+      "number": 8,
+      "text": "사회화 시기에(늦게 데려온 반려견은 평소에) 다양한 경험을 하도록 노력했다",
+      "print_section": "A",
+      "report_domain": "사회화에 들이는 노력",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 13"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 13"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 13"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 13"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 13"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 13"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s09",
+      "external_id": "Q09",
+      "number": 9,
+      "text": "다른 사람들과 접촉할 기회를 갖도록 노력했다",
+      "print_section": "A",
+      "report_domain": "사회화에 들이는 노력",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 14"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 14"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 14"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 14"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 14"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 14"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s10",
+      "external_id": "Q10",
+      "number": 10,
+      "text": "아이와 함께 외출 중에 낯선 사람이 아이를 향해 곧장 다가올 때",
+      "print_section": "B",
+      "report_domain": "낯선 사람 두려움",
+      "standalone": false,
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 0,
+          "text": "전혀없다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 16"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "약간",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 16"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "중간정도",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 16"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "꽤",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 16"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "심하다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 16"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 16"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s11",
+      "external_id": "Q11",
+      "number": 11,
+      "text": "낯선 사람이 아이를 만지거나 쓰다듬으려 할 때",
+      "print_section": "B",
+      "report_domain": "낯선 사람 두려움",
+      "standalone": false,
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 0,
+          "text": "전혀없다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 17"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "약간",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 17"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "중간정도",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 17"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "꽤",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 17"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "심하다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 17"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 17"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s12",
+      "external_id": "Q12",
+      "number": 12,
+      "text": "갑작스럽거나 큰 소리(청소기 소리 · 자동차 굉음 · 공사음 · 물건 떨어지는 소리 등)가 날 때",
+      "print_section": "B",
+      "report_domain": "비사회적 두려움",
+      "standalone": false,
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 0,
+          "text": "전혀없다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 18"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "약간",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 18"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "중간정도",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 18"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "꽤",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 18"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "심하다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 18"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 18"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s13",
+      "external_id": "Q13",
+      "number": 13,
+      "text": "산책길이나 길가에 낯설거나 이상한 물건이 있을 때",
+      "print_section": "B",
+      "report_domain": "비사회적 두려움",
+      "standalone": false,
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 0,
+          "text": "전혀없다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 19"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "약간",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 19"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "중간정도",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 19"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "꽤",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 19"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "심하다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 19"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 19"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s14",
+      "external_id": "Q14",
+      "number": 14,
+      "text": "낯선 상황(첫 자동차 타기 · 첫 엘리베이터 타기 · 첫 동물병원 방문 등)을 처음 겪을 때",
+      "print_section": "B",
+      "report_domain": "비사회적 두려움",
+      "standalone": false,
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 0,
+          "text": "전혀없다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 20"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "약간",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 20"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "중간정도",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 20"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "꽤",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 20"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "심하다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 20"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 20"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s15",
+      "external_id": "Q15",
+      "number": 15,
+      "text": "반려견과 나는 서로 긍정적인 영향을 준다",
+      "print_section": "C",
+      "report_domain": "정서적 친밀감",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 22"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 22"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 22"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 22"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 22"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 22"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s16",
+      "external_id": "Q16",
+      "number": 16,
+      "text": "반려견과 자주 눈을 맞춘다",
+      "print_section": "C",
+      "report_domain": "정서적 친밀감",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 23"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 23"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 23"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 23"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 23"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 23"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s17",
+      "external_id": "Q17",
+      "number": 17,
+      "text": "함께 있는 것만으로 행복하다",
+      "print_section": "C",
+      "report_domain": "정서적 친밀감",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 24"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 24"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 24"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 24"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 24"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 24"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s18",
+      "external_id": "Q18",
+      "number": 18,
+      "text": "시간이 나면 함께 시간을 보내려 한다",
+      "print_section": "C",
+      "report_domain": "정서적 친밀감",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 25"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 25"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 25"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 25"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 25"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 25"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s19",
+      "external_id": "Q19",
+      "number": 19,
+      "text": "반려견과 나는 서로 의지한다",
+      "print_section": "C",
+      "report_domain": "정서적 친밀감",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 26"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 26"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 26"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 26"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 26"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 26"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s20",
+      "external_id": "Q20",
+      "number": 20,
+      "text": "자주 만지고 쓰다듬으며, 아이도 이를 즐긴다",
+      "print_section": "C",
+      "report_domain": "정서적 친밀감",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 27"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 27"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 27"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 27"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 27"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 27"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s21",
+      "external_id": "Q21",
+      "number": 21,
+      "text": "서로 사랑한다고 느낀다",
+      "print_section": "C",
+      "report_domain": "정서적 친밀감",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 28"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 28"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 28"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 28"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 28"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 28"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s22",
+      "external_id": "Q22",
+      "number": 22,
+      "text": "내가 잠깐 자리를 비우면 아이가 불안해한다",
+      "print_section": "D",
+      "report_domain": "떨어졌을 때 불안",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 30"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 30"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 30"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 30"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 30"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 30"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s23",
+      "external_id": "Q23",
+      "number": 23,
+      "text": "내가 안 보이면 나를 찾아다닌다",
+      "print_section": "D",
+      "report_domain": "떨어졌을 때 불안",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 31"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 31"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 31"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 31"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 31"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 31"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s24",
+      "external_id": "Q24",
+      "number": 24,
+      "text": "내가 돌아오면 반갑게 맞이하고 금방 안정된다",
+      "print_section": "D",
+      "report_domain": "다시 만났을 때 안정",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 32"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 32"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 32"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 32"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 32"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 32"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s25",
+      "external_id": "Q25",
+      "number": 25,
+      "text": "내가 다른 방으로 가면 아이가 따라온다",
+      "print_section": "D",
+      "report_domain": "일상 따라옴 단일 문항",
+      "standalone": true,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 33"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 33"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 33"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 33"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 33"
+          }
+        }
+      ],
+      "reverse_scored": false,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 33"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s26",
+      "external_id": "Q26",
+      "number": 26,
+      "text": "내 기분에 따라 아이를 대하는 방식이 달라진다",
+      "print_section": "E",
+      "report_domain": "감정의 일관성",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 35"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 35"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 35"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 35"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 35"
+          }
+        }
+      ],
+      "reverse_scored": true,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 35"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s27",
+      "external_id": "Q27",
+      "number": 27,
+      "text": "내 기분에 따라 더 심하게 혼내곤 한다",
+      "print_section": "E",
+      "report_domain": "감정의 일관성",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 36"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 36"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 36"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 36"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 36"
+          }
+        }
+      ],
+      "reverse_scored": true,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 36"
+      }
+    },
+    {
+      "schema_version": "3.0",
+      "item_id": "s28",
+      "external_id": "Q28",
+      "number": 28,
+      "text": "반려견 때문에 자주 화가 난다",
+      "print_section": "E",
+      "report_domain": "감정의 일관성",
+      "standalone": false,
+      "allowed_values": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "labels": [
+        {
+          "schema_version": "3.0",
+          "value": 1,
+          "text": "전혀아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 37"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 2,
+          "text": "아니다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 37"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 3,
+          "text": "보통",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 37"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 4,
+          "text": "그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 37"
+          }
+        },
+        {
+          "schema_version": "3.0",
+          "value": 5,
+          "text": "매우그렇다",
+          "source": {
+            "schema_version": "3.0",
+            "filename": "기준자료/01_보호자_설문지_20260919.docx",
+            "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+            "location": "word/document.xml table 1 row 37"
+          }
+        }
+      ],
+      "reverse_scored": true,
+      "allows_not_applicable": false,
+      "source": {
+        "schema_version": "3.0",
+        "filename": "기준자료/01_보호자_설문지_20260919.docx",
+        "sha256": "03ecd6f86d8a431638e6d1eb2a218e5a829214841f948451d135c16018e5cdee",
+        "location": "word/document.xml table 1 row 37"
+      }
+    }
+  ]
+}

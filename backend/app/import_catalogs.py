@@ -134,23 +134,30 @@ def read_survey_v2(path: Path) -> SurveyCatalog:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--customer-dir", type=Path, default=CUSTOMER_DIR, help="folder holding the customer's 42-item workbook and 28-item questionnaire PDF")
+    parser.add_argument("--customer-dir", type=Path, help="source folder; with --spec all, a parent containing both edition folders")
+    parser.add_argument("--spec", choices=("20260913", "20260929", "all"), default="20260913", help="source edition; defaults to the existing v2 extraction")
     parser.add_argument("--check", action="store_true", help="compare existing JSON without writing")
     args = parser.parse_args()
-    catalogs = {
-        "behavior-v2.json": read_behavior_v2(args.customer_dir / BEHAVIOR_V2_FILE),
-        "survey-v2.json": read_survey_v2(args.customer_dir / SURVEY_V2_FILE),
-    }
-    for name, catalog in catalogs.items():
-        destination = ROOT / "resources" / "catalogs" / name
-        content = catalog.model_dump_json(indent=2) + "\n"
+    contents = {}
+    if args.spec in ("20260913", "all"):
+        folder = ((args.customer_dir / CUSTOMER_DIR.name) if args.spec == "all" else args.customer_dir) if args.customer_dir else CUSTOMER_DIR
+        catalogs = {"behavior-v2.json": read_behavior_v2(folder / BEHAVIOR_V2_FILE),
+                    "survey-v2.json": read_survey_v2(folder / SURVEY_V2_FILE)}
+        contents.update({f"catalogs/{name}": catalog.model_dump_json(indent=2) + "\n" for name, catalog in catalogs.items()})
+    if args.spec in ("20260929", "all"):
+        from .import_catalogs_v3 import CUSTOMER_DIR_V3, extract_v3
+
+        folder = ((args.customer_dir / CUSTOMER_DIR_V3.name) if args.spec == "all" else args.customer_dir) if args.customer_dir else CUSTOMER_DIR_V3
+        contents.update(extract_v3(folder))
+    for name, content in contents.items():
+        destination = ROOT / "resources" / name
         if args.check:
             if not destination.exists() or destination.read_text(encoding="utf-8") != content:
                 raise ValueError(f"catalog is absent or differs from source: {name}")
         else:
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(content, encoding="utf-8", newline="\n")
-        print(f"{name}: {len(catalog.items)} items; source SHA-256 {catalog.source_sha256}")
+        print(f"{name}: {'source verified' if args.check else 'extracted'}")
 
 
 if __name__ == "__main__":
