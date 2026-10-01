@@ -15,13 +15,13 @@ RULE_PATH = REPO_ROOT / "resources/rules/scoring-v3.json"
 RULE_BYTES = RULE_PATH.read_bytes()
 RULES = json.loads(RULE_BYTES)
 RULE_HASH = hashlib.sha256(RULE_BYTES).hexdigest()
-RULE_VERSION = "scoring-20260929-v3-app-1"
+RULE_VERSION = "scoring-20260929-v3-app-2"
 OWNER_TYPES = ("허용형", "조율형", "통제형")
 ATTACHMENT_TYPES = ("곁에서 안심하는 사이", "가까이 있어도 안심이 어려운 사이", "거리를 두고 지내는 사이", "다가감과 물러섬이 함께 나오는 사이")
 ENTRY_TYPES = ("주저함 · 거리를 벌림", "뚜렷한 치우침 없음", "살피지 않고 들이닥침", "자극에 따라 다름")
 ENV_CODES = ("개5", "개6", "개30")
 PEOPLE_CODES = ("개13", "개14", "개15", "개51", "개52", "개54", "개55")
-VOCAL_SEGMENTS = {"바6": "entry", "개11": "alone", "개47": "reunion", "개48": "ignore", "개49": "walk", "개50": "stranger"}
+VOCAL_SEGMENTS = {"바6": "entry", "개11": "alone", "개47": "reunion", "개48": "ignore", "개49": "stranger", "개50": "exit"}
 
 
 def verify_rules():

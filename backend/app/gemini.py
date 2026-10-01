@@ -16,7 +16,7 @@ from app.observation_models import ObservationResponse, VideoResponse
 
 
 BASE = "https://generativelanguage.googleapis.com"
-# Pin the documented contract revision so provider-side changes cannot alter parsing.
+# Migration header retained for old deployments; ignored by the provider after 2026-06-08.
 API_REVISION = "2026-05-20"
 # Agentic navigation and on-demand loading make one call take far longer than a single pass.
 INTERACTION_TIMEOUT = 900
@@ -237,6 +237,79 @@ def request(method, url, key, *, data=None, headers=None, provider="gemini", tim
 class GeminiObserver:
     def __init__(self, store=None):
         self.store = store
+
+    def request_v3(self, files, config, context, schema, guard):
+        """Explicit v3 JSON contract; never select the legacy observation response model."""
+        from app.secrets import credential
+        key, reference = credential(self.store, "gemini")
+        names = []
+        usage = {"provider": "gemini", "credential_reference": reference, "model": config["model"]}
+        try:
+            inputs = []
+            for path, clip in files:
+                if clip.size_bytes > 2_000_000_000:
+                    raise ProviderError("v3_file_size_limit")
+                guard()
+                _, headers = request("POST", BASE + "/upload/v1beta/files", key, data={"file": {"display_name": "kdog-v3-clip"}}, headers={
+                    "X-Goog-Upload-Protocol": "resumable", "X-Goog-Upload-Command": "start",
+                    "X-Goog-Upload-Header-Content-Length": str(clip.size_bytes), "X-Goog-Upload-Header-Content-Type": "video/mp4"})
+                upload_url = headers.get("X-Goog-Upload-URL")
+                if not upload_url:
+                    raise ProviderError("provider_response_invalid")
+                guard()
+                with path.open("rb") as handle:
+                    uploaded, _ = request("POST", upload_url, key, data=handle, headers={"Content-Length": str(clip.size_bytes),
+                        "Content-Type": "video/mp4", "X-Goog-Upload-Offset": "0", "X-Goog-Upload-Command": "upload, finalize"})
+                remote = uploaded["file"]
+                name = remote["name"]
+                if not re.fullmatch(r"files/[A-Za-z0-9_-]+", name):
+                    raise ProviderError("provider_response_invalid")
+                names.append(name)
+                deadline = time.monotonic() + 300
+                while remote.get("state") == "PROCESSING":
+                    if time.monotonic() >= deadline:
+                        raise ProviderError("remote_processing_timeout", retryable=True)
+                    guard()
+                    time.sleep(2)
+                    guard()
+                    remote, _ = request("GET", BASE + "/v1beta/" + name, key)
+                if remote.get("state") != "ACTIVE":
+                    raise ProviderError("remote_file_failed")
+                inputs.append({"type": "video", "uri": remote["uri"], "mime_type": "video/mp4",
+                    "name": getattr(clip, "name", "synthetic-clip"), "processing": video_processing(config), "resolution": config["media_resolution"]})
+            inputs.append({"type": "text", "text": json.dumps(context, ensure_ascii=False)})
+            guard()
+            result, _ = request("POST", BASE + "/v1beta/interactions", key, data=interaction_request(
+                config["model"], config["prompt"], inputs, schema, config["max_output_tokens"],
+                thinking_level=config.get("thinking_level")),
+                headers={"Api-Revision": API_REVISION}, timeout=INTERACTION_TIMEOUT)
+            if isinstance(result, dict):
+                usage["provider_usage"] = result.get("usage", {})
+            raw = interaction_text(result, "v3_incomplete", usage)
+            try:
+                return json.loads(raw), usage
+            except ValueError:
+                raise ProviderError("v3_schema_invalid", retryable=True, usage=usage) from None
+        except ProviderError as exc:
+            if exc.code == "v3_incomplete":
+                exc.uncertain = True
+            usage.update(exc.usage)
+            exc.usage = usage
+            raise
+        except (KeyError, TypeError, ValueError):
+            raise ProviderError("provider_response_invalid", uncertain=True, usage=usage) from None
+        finally:
+            failures = []
+            for name in names:
+                try:
+                    request("DELETE", BASE + "/v1beta/" + name, key)
+                except ProviderError:
+                    failures.append(name)
+            usage["remote_cleanup_pending"] = bool(failures)
+            if failures and self.store:
+                with self.store.connect(write=True) as db:
+                    self.store.audit(db, context["audit_actor"], context["run_id"], "v3.remote_cleanup_failed",
+                                     {"remote_file_names": failures, "credential_reference": reference})
 
     def observe(self, path: Path, media, config, context: dict, guard) -> tuple[ObservationResponse, dict]:
         from app.secrets import credential

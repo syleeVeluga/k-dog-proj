@@ -23,6 +23,9 @@ class StageV3(ContractV3):
     request_fps: Annotated[float, Field(gt=0)] | None
     media_resolution: Text
     provider_call: bool = True
+    processing_mode: Literal["static", "agentic"] = "static"
+    max_output_tokens: Annotated[int, Field(ge=256, le=65536)] = 16384
+    thinking_level: Literal["low", "medium", "high"] = "medium"
 
     @model_validator(mode="after")
     def direct_codes(self) -> Self:
@@ -34,6 +37,9 @@ class StageV3(ContractV3):
 
 class RunConfigV3(ContractV3):
     version: Text
+    active_settings_version: Text | None = None
+    settings_hash: Hash | None = None
+    q11_scope_confirmed: bool = False
     stages: Annotated[tuple[StageV3, ...], Field(min_length=1, max_length=109)]
     max_attempts: Annotated[int, Field(ge=1, le=3)] = 3
     max_ai_calls: Annotated[int, Field(ge=1, le=1000)]

@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from pydantic import Field, field_validator
 
 from app.domain.contracts_v3 import ObservationV3, ScoreSheetV3
-from app.domain.sheets_v3 import SheetDocumentV3, SheetInputV3, SheetReferenceV3
+from app.domain.sheets_v3 import AI_ACCOUNT, SheetDocumentV3, SheetInputV3, SheetReferenceV3
 from app.domain.validation_v3 import validate_sheet_v3
 from app.input_models import Key, Model, Revision
 from app.intake import selected_session
@@ -70,6 +70,7 @@ class SheetSummaryV3(Model):
     manifest_hash: str
     source_hash: str
     own: bool
+    rater_kind: Literal["human", "ai"]
 
 
 class SheetViewV3(Model):
@@ -156,8 +157,9 @@ def reference(row):
 
 
 def summary(row, user):
-    return {**{key: row[key] for key in SheetSummaryV3.model_fields if key not in ("own", "active")},
-            "active": bool(row["active"]), "own": row["assigned_username"] == user.username}
+    return {**{key: row[key] for key in SheetSummaryV3.model_fields if key not in ("own", "active", "rater_kind")},
+            "active": bool(row["active"]), "own": row["assigned_username"] == user.username,
+            "rater_kind": "ai" if row["assigned_username"] == AI_ACCOUNT else "human"}
 
 
 def list_sheets(store, case_id, session_id, user):
@@ -317,7 +319,7 @@ def revise(store, sheet_id, value, user, action):
         row = row_for(store, db, sheet_id, expected=value.expected_revision)
         case_revision = store.case(db, row["case_id"])["input_revision"]
         doc = document_for(store, row)
-        if action in ("save", "submit") and doc.sheet.rater_kind != "human":
+        if action in ("save", "submit", "reopen") and doc.sheet.rater_kind != "human":
             raise HTTPException(403, "AI 원채점은 사람이 덮어쓰지 않습니다. 별도 검수 시트를 사용하세요.")
         if action in ("reopen", "assignment"):
             manager(user)

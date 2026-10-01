@@ -8,7 +8,7 @@ type Value = { key: string; value: number | null; status: string; reason: string
 type Decision = { key: string; label: string | null; status: 'draft' | 'complete' | 'held'; evidence_codes: string[]; evidence: Evidence[]; counter_evidence: Evidence[]; counter_note: string | null; opportunity_note: string; reason: string; rater_id: string; recorded_at: string };
 type OwnerItem = { code: string; scene: string; raw_value: number | null; points: number[] | null; used: boolean; reason: string; used_evidence: Evidence[]; excluded_evidence: { evidence: Evidence; reason: string; event_ids: string[] }[] };
 type ResultSummary = { result_id: string; revision: number; manifest_ref: string; manifest_hash: string; input: SheetReference };
-type ResultView = { summary: ResultSummary; sheet_changed: boolean; source_changed: boolean; document: {
+export type ResultView = { summary: ResultSummary; sheet_changed: boolean; source_changed: boolean; document: {
   revision: number; input: SheetReference; input_document: SheetDocument; rule_version: string; rule_hash: string;
   previous: { revision: number; ref: string; hash: string }[]; decisions: Decision[]; decision_sources: Record<string, string>; evaluation_context: { purpose: string; ai_exposed: boolean; exposures: SheetReference[] };
   calculations: { values: Value[]; descriptions: { key: string; text: string | null; status: string; reason: string | null }[];
