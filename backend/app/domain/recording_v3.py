@@ -11,7 +11,7 @@ Seconds = Annotated[float, Field(ge=0)]
 CaptureState = Literal["performed", "shortened", "not_performed", "welfare_stopped"]
 EventKind = Literal[
     "floor_contact", "object_near", "object_stop", "object_contact", "object_removed", "guardian_speech", "guardian_gesture",
-    "staff_signal", "food", "route_deviation", "occlusion", "welfare_stop", "welfare_action",
+    "staff_signal", "staff_stop", "food", "route_deviation", "occlusion", "welfare_stop", "welfare_action",
     "reunion_name", "reunion_contact_start", "reunion_contact_end", "stranger_gate_wait", "stranger_enter",
     "stranger_approach", "stranger_name", "stranger_contact_start", "stranger_contact_end", "stranger_wait", "stranger_exit", "audio_loss",
     "walk_name", "walk_to_s_start", "walk_to_s_end", "walk_seated", "transition_wait_start", "transition_wait_end", "leash_attach",

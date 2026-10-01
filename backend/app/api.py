@@ -12,6 +12,7 @@ from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi import Path as ApiPath
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -32,7 +33,7 @@ from app.input_models import (
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
 from app import settings
-from app import sheets
+from app import sheets, judgements
 from app import secrets as vault
 from app.input_models import Model
 from app.input_models_v3 import CaseCreateV3, CaseEditV3, CaseViewV3, ImportCommitV3, ImportPreviewV3, ImportMappingV3, SurveyEditV3, RecordingEditV3, PreprocessStatusV3
@@ -524,6 +525,26 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.post("/api/sheets/{sheet_id}/reveal", response_model=sheets.SheetRevealResultV3)
     def scoring_reveal(sheet_id: Key, value: sheets.SheetRevealV3, user=Depends(reader)):
         return sheets.revise(store, sheet_id, value, user, "reveal")
+
+    @app.get("/api/sheets/{sheet_id}/basic-results", response_model=list[judgements.ResultSummaryV3])
+    def basic_results(sheet_id: Key, user=Depends(reader)):
+        return judgements.list_results(store, sheet_id, user)
+
+    @app.post("/api/sheets/{sheet_id}/basic-results", response_model=judgements.ResultViewV3, status_code=201)
+    def basic_calculate(sheet_id: Key, value: judgements.CalculateV3, user=Depends(reader)):
+        return judgements.create(store, sheet_id, value, user)
+
+    @app.get("/api/basic-results/{result_id}", response_model=judgements.ResultViewV3)
+    def basic_result(result_id: Key, user=Depends(reader)):
+        return judgements.view(store, result_id, user)
+
+    @app.get("/api/basic-results/{result_id}/revisions/{revision}", response_model=judgements.ResultViewV3)
+    def basic_result_revision(result_id: Key, revision: Annotated[int, ApiPath(ge=1)], user=Depends(reader)):
+        return judgements.view(store, result_id, user, revision)
+
+    @app.put("/api/basic-results/{result_id}/decisions", response_model=judgements.ResultViewV3)
+    def basic_judgements(result_id: Key, value: judgements.JudgementEditV3, user=Depends(reader)):
+        return judgements.revise(store, result_id, value, user)
 
     @app.post("/api/cases/{case_id}/sessions/{session_id}/preprocess", response_model=PreprocessStatusV3)
     def preprocessing_start(case_id: Key, session_id: Key, value: Revision, user=Depends(writer)):
