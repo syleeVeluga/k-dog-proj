@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from app.storage import REPO_ROOT, Store, encode, now, uid
 
 
-MANAGED = {"inputs", "videos", "runs", "reviews", "exports", "settings", "clips"}
+MANAGED = {"inputs", "videos", "runs", "reviews", "exports", "settings", "clips", "sheets"}
 REF_HASH = {"manifest_ref": "manifest_hash", "output_ref": "output_hash", "result_ref": "result_hash",
             "storage_ref": "sha256", "ref": "hash"}
 
@@ -95,7 +95,7 @@ def references(store, db):
                 else:
                     visit(candidate)
 
-    for table in ("cases", "runs", "steps", "changes"):
+    for table in ("cases", "runs", "steps", "changes", "score_sheets", "score_grants"):
         for row in db.execute(f"SELECT * FROM {table}"):
             visit(dict(row))
     # Keep a completed, unadopted latest attempt for normal worker envelope validation.
@@ -176,6 +176,10 @@ def clean(store, *, purge_deleted=False):
                 for run_id in runs:
                     db.execute("DELETE FROM steps WHERE run_id=?", (run_id,))
                 db.execute("DELETE FROM runs WHERE case_id=?", (case["case_id"],))
+                sheet_ids = [r[0] for r in db.execute("SELECT sheet_id FROM score_sheets WHERE case_id=?", (case["case_id"],))]
+                for sheet_id in sheet_ids:
+                    db.execute("DELETE FROM score_grants WHERE viewer_sheet_id=? OR target_sheet_id=?", (sheet_id, sheet_id))
+                db.execute("DELETE FROM score_sheets WHERE case_id=?", (case["case_id"],))
                 db.execute("DELETE FROM cases WHERE case_id=?", (case["case_id"],))
         refs = references(store, db)
         candidates = []

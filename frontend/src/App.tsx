@@ -9,17 +9,19 @@ import { Intake } from './pages/Intake';
 import { Survey } from './pages/Survey';
 import { Recording } from './pages/Recording';
 import { Preprocessing } from './pages/Preprocessing';
+import { Scoring } from './pages/Scoring';
 import { formFields, roleNames, sessionOf } from './types';
 import type { Case, Catalog, Role, Run, User } from './types';
 import './style.css';
 
-type Page = 'intake' | 'survey' | 'recording' | 'import' | 'users' | 'data' | 'preprocess';
+type Page = 'intake' | 'survey' | 'recording' | 'import' | 'users' | 'data' | 'preprocess' | 'scoring';
 // 대메뉴 하나가 PR 하나다: 접수(PR-6) · 설문(PR-7) · 촬영(PR-8) · 자료 가져오기 · 직원 계정.
 const menu: { page: Page; label: string; roles: Role[] }[] = [
   { page: 'intake', label: '접수', roles: ['operator', 'reviewer', 'admin'] },
   { page: 'survey', label: '설문', roles: ['operator', 'reviewer', 'admin'] },
   { page: 'recording', label: '촬영', roles: ['operator', 'reviewer', 'admin'] },
   { page: 'preprocess', label: '전처리', roles: ['operator', 'reviewer', 'admin'] },
+  { page: 'scoring', label: '독립 채점', roles: ['operator', 'reviewer', 'admin'] },
   { page: 'import', label: '자료 가져오기', roles: ['operator', 'admin'] },
   { page: 'users', label: '직원 계정', roles: ['admin'] },
   { page: 'data', label: '자료 관리', roles: ['admin'] },
@@ -129,7 +131,7 @@ export function App() {
       <Notification message={notice} onClose={() => setNotice('')} />
       {unavailableCases > 0 && user.role !== 'developer' && <p role="alert">입력 자료 검증에 실패한 참가자 {unavailableCases}명은 목록에서 제외되었습니다. 운영 관리자에게 원본 저장소 확인을 요청하세요. 다른 참가자는 계속 사용할 수 있습니다.</p>}
       {busy && <Notification kind="working" message="처리 중입니다… 파일 업로드 중에는 이 화면을 유지하세요." />}
-      {selected && ['intake', 'survey', 'recording', 'preprocess'].includes(page) && <section className="panel" aria-label="선택 참가자">
+      {selected && ['intake', 'survey', 'recording', 'preprocess', 'scoring'].includes(page) && <section className="panel" aria-label="선택 참가자">
         <h2 ref={contextTitle} tabIndex={-1}>{selected.event_id} / {selected.participant_id} / {selected.dog_name} / {selected.manifest.sessions.findIndex(s => s.session_id === selected.selected_session_id) + 1}차 촬영</h2>
         <label>{writable ? '저장 대상 회차 선택' : '조회 회차 선택'}<select aria-label="선택 세션" disabled={busy} value={selected.selected_session_id} onChange={e => {
           const id = e.target.value; if (!mayLeave()) return;
@@ -149,6 +151,7 @@ export function App() {
           : page === 'users' ? <Users run={run} />
           : page === 'data' ? <section><h1>자료 관리</h1><Recovery /></section>
           : page === 'preprocess' ? <Preprocessing cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} />
+          : page === 'scoring' ? <Scoring cases={cases} selected={selected} select={setSelected} filters={filters} user={user} />
           : page === 'survey' ? <Survey cases={cases} selected={selected} select={setSelected} filters={filters} catalog={catalog} writable={!!writable} run={run} reload={reload} notify={setNotice} />
           : page === 'recording' ? <Recording cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} run={run} reload={reload} notify={setNotice} />
           : <Intake user={user} cases={cases} selected={selected} writable={!!writable} run={run} reload={reload}

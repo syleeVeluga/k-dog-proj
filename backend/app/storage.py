@@ -74,6 +74,25 @@ CREATE TABLE IF NOT EXISTS changes (
     happened_at TEXT NOT NULL, target TEXT NOT NULL,
     action TEXT NOT NULL, detail_json TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS score_sheets (
+    sheet_id TEXT PRIMARY KEY, case_id TEXT NOT NULL REFERENCES cases(case_id),
+    session_id TEXT NOT NULL, assigned_username TEXT NOT NULL REFERENCES users(username),
+    rater_id TEXT NOT NULL, rater_name TEXT NOT NULL,
+    source_hash TEXT NOT NULL, purpose TEXT NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('draft','submitted')),
+    active INTEGER NOT NULL CHECK(active IN (0,1)), revision INTEGER NOT NULL CHECK(revision > 0),
+    manifest_ref TEXT NOT NULL UNIQUE, manifest_hash TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS score_grants (
+    viewer_sheet_id TEXT NOT NULL REFERENCES score_sheets(sheet_id),
+    target_sheet_id TEXT NOT NULL REFERENCES score_sheets(sheet_id),
+    ref TEXT NOT NULL, hash TEXT NOT NULL, revision INTEGER NOT NULL,
+    granted_by TEXT NOT NULL REFERENCES users(username), reason TEXT NOT NULL,
+    PRIMARY KEY(viewer_sheet_id, ref)
+);
+CREATE TRIGGER IF NOT EXISTS immutable_score_assignment
+BEFORE UPDATE OF case_id,session_id,assigned_username,rater_id,rater_name,source_hash ON score_sheets
+BEGIN SELECT RAISE(ABORT, 'score assignment and input are immutable'); END;
 CREATE TRIGGER IF NOT EXISTS immutable_run_input
 BEFORE UPDATE OF input_snapshot_json, config_snapshot_json, case_id,
 session_id, input_revision, reuse_manifest_json ON runs
@@ -117,7 +136,7 @@ class Store:
             # 순번은 행사 안에서 하나씩; 비어 있을 수는 있다.
             db.execute("CREATE UNIQUE INDEX IF NOT EXISTS cases_sequence ON cases(event_id, sequence_no) WHERE sequence_no IS NOT NULL")
             self.migrate_manifests_v3(db)
-            db.execute("PRAGMA user_version=7")
+            db.execute("PRAGMA user_version=8")
 
     def migrate_manifests(self, db):
         """Rewrite intake-1.0 case manifests as intake-2.0 (28-item survey); stored run snapshots stay untouched."""

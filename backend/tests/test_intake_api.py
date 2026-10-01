@@ -412,14 +412,14 @@ class IntakeTests(AppCase):
         for format in ("csv", "xlsx"):
             self.assertEqual(self.client.get(f"/api/templates/survey?format={format}").status_code, 200)
 
-    def test_five_tables_foreign_keys_immutable_runs_and_storage_integrity(self):
+    def test_tables_foreign_keys_immutable_runs_and_storage_integrity(self):
         item = self.make_case()
         with self.store.connect(write=True) as db:
             tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-            self.assertEqual(tables, {"users", "cases", "runs", "steps", "changes"})
+            self.assertEqual(tables, {"users", "cases", "runs", "steps", "changes", "score_sheets", "score_grants"})
             self.assertEqual(db.execute("PRAGMA foreign_keys").fetchone()[0], 1)
             self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0], "wal")
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 7)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 8)
             db.execute("INSERT INTO runs(run_id,case_id,session_id,input_revision,input_snapshot_json,"
                        "config_snapshot_json,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
                        ("run-1", item["case_id"], item["selected_session_id"], 1, "{}", "{}", "queued", "now", "now"))
@@ -461,7 +461,7 @@ class IntakeTests(AppCase):
         for _ in range(2):
             migrated = Store(self.root)
             with migrated.connect() as db:
-                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 7)
+                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 8)
                 row = migrated.case(db, item["case_id"])
                 manifest = migrated.manifest(row)
                 run = db.execute("SELECT * FROM runs WHERE run_id='legacy-run'").fetchone()
