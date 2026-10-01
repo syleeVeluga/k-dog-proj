@@ -37,12 +37,12 @@ class IntakeTests(AppCase):
         self.assertEqual(response.status_code, 200, response.text)
         saved = response.json()
         self.client.close()
-        self.app = create_app(self.root)
+        self.app = create_app(self.root, intake_spec="20260913")
         self.client = self.client_for("operator")
         restored = self.get_case(item)
         self.assertEqual(restored, saved)
         session = restored["manifest"]["sessions"][0]
-        self.assertEqual(restored["manifest"]["schema_version"], "intake-2.0")
+        self.assertEqual(restored["manifest"]["schema_version"], "intake-3.0")
         self.assertEqual((session["survey"]["s23"], session["survey"]["s02"], session["survey"]["s07"]), (5, None, None))
         self.assertEqual(session["survey_not_applicable"], ["s07", "s09"])
         self.assertEqual(session["survey_version"], "catalog-20260913-v2")
@@ -258,7 +258,7 @@ class IntakeTests(AppCase):
         path = f"/api/cases/{item['case_id']}/videos/{video['video_id']}"
         self.assertEqual(self.client.get(path).status_code, 200)
         self.delete_case(item)
-        self.app = create_app(self.root)
+        self.app = create_app(self.root, intake_spec="20260913")
         self.client = self.client_for("operator")
         self.assertEqual(self.client.get(path).status_code, 403)
         self.assertEqual(self.upload(item).status_code, 403)
@@ -379,7 +379,7 @@ class IntakeTests(AppCase):
         self.assertEqual(len(result["rows"]), 1)
         self.assertEqual(result["rows"][0]["participant"]["participant_id"], "0002")
         self.assertIn("participant_id", result["errors"][0])
-        full = ",".join(headers("participants")) + "\nTEST,0005,접수견,,7,예,보호자,푸들,수,3,소형,2년,분양\nTEST,0006,오류견,,x,,,,,,,,\nTEST,0007,오류견2,,,,,,중성화,abc,,,\n"
+        full = ",".join(headers("participants")[:-2]) + "\nTEST,0005,접수견,,7,예,보호자,푸들,수,3,소형,2년,분양\nTEST,0006,오류견,,x,,,,,,,,\nTEST,0007,오류견2,,,,,,중성화,abc,,,\n"
         result = self.client.post("/api/imports/preview?kind=participants&format=csv", content=full.encode("utf-8")).json()
         self.assertEqual(len(result["rows"]), 1)
         row = result["rows"][0]["participant"]
@@ -419,7 +419,7 @@ class IntakeTests(AppCase):
             self.assertEqual(tables, {"users", "cases", "runs", "steps", "changes"})
             self.assertEqual(db.execute("PRAGMA foreign_keys").fetchone()[0], 1)
             self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0], "wal")
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 6)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 7)
             db.execute("INSERT INTO runs(run_id,case_id,session_id,input_revision,input_snapshot_json,"
                        "config_snapshot_json,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
                        ("run-1", item["case_id"], item["selected_session_id"], 1, "{}", "{}", "queued", "now", "now"))
@@ -453,7 +453,7 @@ class IntakeTests(AppCase):
             row = self.store.case(db, item["case_id"])
             key = f"inputs/{item['case_id']}-legacy.json"
             self.store.path(key).write_bytes(raw)
-            db.execute("UPDATE cases SET manifest_ref=?, manifest_hash=? WHERE case_id=?", (key, hashlib.sha256(raw).hexdigest(), item["case_id"]))
+            db.execute("UPDATE cases SET manifest_ref=?, manifest_hash=?, manifest_schema_version='intake-2.0' WHERE case_id=?", (key, hashlib.sha256(raw).hexdigest(), item["case_id"]))
             db.execute("INSERT INTO runs(run_id,case_id,session_id,input_revision,input_snapshot_json,config_snapshot_json,status,created_at,updated_at) "
                        "VALUES (?,?,?,?,?,?,?,?,?)", ("legacy-run", item["case_id"], item["selected_session_id"], row["input_revision"],
                                                     raw.decode("utf-8"), "{}", "scored", "now", "now"))
@@ -461,11 +461,11 @@ class IntakeTests(AppCase):
         for _ in range(2):
             migrated = Store(self.root)
             with migrated.connect() as db:
-                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 6)
+                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 7)
                 row = migrated.case(db, item["case_id"])
                 manifest = migrated.manifest(row)
                 run = db.execute("SELECT * FROM runs WHERE run_id='legacy-run'").fetchone()
-            self.assertEqual(row["input_revision"], item["input_revision"] + 1)
+            self.assertEqual(row["input_revision"], item["input_revision"] + 2)
             session = manifest.sessions[0]
             self.assertEqual((session.survey["s01"], session.survey["s10"], session.survey["s14"], session.survey["s22"], session.survey["s26"]), (5, 4, 1, 2, 1))
             self.assertIsNone(session.survey["s07"])  # new item without an old counterpart stays blank
@@ -483,10 +483,10 @@ class IntakeTests(AppCase):
             self.assertEqual(old_session.survey["q25"], 5)
             self.assertEqual(old_session.checklist["entry"], "performed")
         self.assertTrue(self.store.path(key).exists())
-        self.app = create_app(self.root)
+        self.app = create_app(self.root, intake_spec="20260913")
         self.client = self.client_for("operator")
         view = self.get_case(item)
-        self.assertEqual(view["manifest"]["schema_version"], "intake-2.0")
+        self.assertEqual(view["manifest"]["schema_version"], "intake-3.0")
         self.assertEqual(self.client.put(f"/api/cases/{item['case_id']}/survey", json=self.answers(view)).status_code, 200)
 
     def test_damaged_legacy_inputs_stay_unmigrated_and_retry_after_repair(self):
@@ -509,7 +509,7 @@ class IntakeTests(AppCase):
                 key = f"inputs/{item['case_id']}-legacy.json"
                 self.store.path(key).write_bytes(damaged)
                 with self.store.connect(write=True) as db:
-                    db.execute("UPDATE cases SET manifest_ref=?,manifest_hash=? WHERE case_id=?", (key, digest, item["case_id"]))
+                    db.execute("UPDATE cases SET manifest_ref=?,manifest_hash=?,manifest_schema_version='intake-2.0' WHERE case_id=?", (key, digest, item["case_id"]))
                     db.execute("PRAGMA user_version=4")
                 for _ in range(2):
                     restarted = Store(self.root)
@@ -530,7 +530,7 @@ class IntakeTests(AppCase):
                     db.execute("UPDATE cases SET manifest_hash=? WHERE case_id=?", (hashlib.sha256(original).hexdigest(), item["case_id"]))
                 Store(self.root)
                 migrated = self.get_case(item)
-                self.assertEqual(migrated["input_revision"], item["input_revision"] + 1)
+                self.assertEqual(migrated["input_revision"], item["input_revision"] + 2)
                 self.assertEqual(migrated["manifest"]["sessions"][0]["survey"]["s01"], 1)
 
     def test_legacy_analysis_report_and_export_routes_are_gone(self):
@@ -579,10 +579,10 @@ class IntakeTests(AppCase):
                 process.wait(timeout=10)
 
         old_client = self.client
+        item = self.make_case()  # Registered under the original survey before the production server restarts.
         try:
             with server() as client:
                 self.client = client
-                item = self.make_case()
                 for index in (1, 2):
                     response = self.upload(item, f"process synthetic {index}".encode(), f"process{index}.mp4")
                     self.assertEqual(response.status_code, 201, response.text)

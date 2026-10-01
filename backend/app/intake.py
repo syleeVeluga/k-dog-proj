@@ -10,23 +10,27 @@ from pydantic import ValidationError
 from app.domain.catalog import SURVEY_IDS, SurveyCatalog
 from app.domain.contracts import SurveyAnswers
 from app.domain.validation import validate_survey_answers
-from app.input_models import CaseCreate, ImportPreview, ImportRow, Manifest, Session, SurveyEdit
+from app.input_models import CaseCreate, SurveyEdit
 from app.storage import now, uid
+from app.domain.catalog_v3 import PROTOCOL_VERSION, SURVEY_VERSION
+from app.input_models_v3 import CaseCreateV3, ConsentsV3, ImportPreviewV3, ImportRowV3, ManifestV3, SessionV3
 
 # 04 설문지: 7~9번은 「해당 없음」 칸이 있다. 가져오기 파일에서는 이 문자열로 표시한다.
 NOT_APPLICABLE_TOKENS = ("NA", "na", "N/A", "해당없음", "해당 없음")
 
 
-def new_session(survey_version: str, note="") -> Session:
-    return Session(session_id=uid(), note=note, survey_version=survey_version,
-                   survey=dict.fromkeys(SURVEY_IDS), survey_not_applicable=[], videos=[])
+def new_session(survey_version: str = SURVEY_VERSION, note="") -> SessionV3:
+    return SessionV3(session_id=uid(), note=note, survey_version=survey_version,
+                     protocol_version=PROTOCOL_VERSION if survey_version == SURVEY_VERSION else "protocol-20260913-v2",
+                     protocol_source="new_session", survey=dict.fromkeys(SURVEY_IDS), survey_not_applicable=[], videos=[])
 
 
 def create_case(store, db, value: CaseCreate, actor: str, version: str):
     session = new_session(version)
-    manifest = Manifest(case_id=uid(), event_id=value.event_id,
+    manifest = ManifestV3(case_id=uid(), event_id=value.event_id,
                         participant_id=value.participant_id, input_revision=1,
-                        selected_session_id=session.session_id, sessions=[session])
+                        selected_session_id=session.session_id, sessions=[session],
+                        consents=getattr(value, "consents", ConsentsV3()))
     key, digest = store.write_manifest(manifest)
     db.execute(
         "INSERT INTO cases(case_id,event_id,participant_id,dog_name,reservation_at,sequence_no,consent_confirmed,guardian_name,"
@@ -36,6 +40,8 @@ def create_case(store, db, value: CaseCreate, actor: str, version: str):
          value.sequence_no, int(value.consent_confirmed), value.guardian_name, value.dog.model_dump_json(),
          session.session_id, key, digest, now(), now()),
     )
+    db.execute("UPDATE cases SET manifest_schema_version=?,consents_v3_json=? WHERE case_id=?",
+               (manifest.schema_version, manifest.consents.model_dump_json(), manifest.case_id))
     store.audit(db, actor, manifest.case_id, "case.create", {"revision": 1})
     return manifest.case_id
 
@@ -56,6 +62,8 @@ def save_survey(store, db, case_id, value: SurveyEdit, actor, catalog: SurveyCat
     row = store.case(db, case_id, expected=value.expected_revision)
     manifest = store.manifest(row)
     session = selected_session(manifest, value.session_id)
+    if session.survey_version != value.survey_version:
+        raise HTTPException(422, "선택한 세션의 설문 판본과 일치하지 않습니다.")
     not_applicable = sorted(value.not_applicable)
     if session.survey == value.answers and session.survey_not_applicable == not_applicable:
         return  # Identical re-import is idempotent.
@@ -71,7 +79,8 @@ FALSE_TOKENS = ("", "0", "N", "n", "아니오", "미확인", "false", "False", "
 
 def headers(kind):
     if kind == "participants":
-        return ["event_id", "participant_id", "dog_name", "reservation_at", "sequence_no", "consent_confirmed", "guardian_name", *PROFILE_COLUMNS]
+        return ["event_id", "participant_id", "dog_name", "reservation_at", "sequence_no", "consent_confirmed", "guardian_name", *PROFILE_COLUMNS,
+                "consent_analysis_feedback", "consent_stranger_contact"]
     return ["event_id", "participant_id", "survey_version", *SURVEY_IDS]
 
 
@@ -97,10 +106,22 @@ def participant_row(value):
     consent = text("consent_confirmed")
     if consent not in TRUE_TOKENS + FALSE_TOKENS:
         raise ValueError("동의 확인(consent_confirmed): 확인은 예 또는 1, 미확인은 빈칸으로 고친 뒤 다시 검증하세요.")
-    return CaseCreate.model_validate({
+    def consent_state(key):
+        raw = text(key)
+        if raw in ("", "미확인", "unknown"):
+            return "unknown"
+        if raw in ("거절", "declined", "0", "N", "아니오"):
+            return "declined"
+        if raw in ("확인", "confirmed", "1", "Y", "예", "동의"):
+            return "confirmed"
+        raise ValueError(f"{key}: 미확인/거절/확인 값을 사용하세요.")
+
+    return CaseCreateV3.model_validate({
         "event_id": value["event_id"], "participant_id": value["participant_id"], "dog_name": value["dog_name"],
         "reservation_at": text("reservation_at"), "sequence_no": integer("sequence_no"),
         "consent_confirmed": consent in TRUE_TOKENS, "guardian_name": text("guardian_name"),
+        "consents": {"analysis_feedback": consent_state("consent_analysis_feedback"),
+                     "stranger_contact": consent_state("consent_stranger_contact")},
         "dog": {"breed": text("dog_breed"), "sex": text("dog_sex") or "미기재", "age_years": integer("dog_age_years"),
                 "size": text("dog_size") or "미기재", "years_together": text("years_together"), "adoption_route": text("adoption_route") or "미기재"},
     })
@@ -190,7 +211,7 @@ def preview(store, db, data, kind, format, catalog: SurveyCatalog, mapping=None,
     columns = rows[0]
     if len(columns) != len(set(columns)) or not set(columns) <= set(headers(kind)) or not required_columns(kind) <= set(columns):
         raise HTTPException(422, "표준 양식의 열을 사용하세요. 열 순서 변경은 허용되며 참가자 양식의 접수 열은 생략할 수 있습니다.")
-    result = ImportPreview(rows=[], errors=[])
+    result = ImportPreviewV3(rows=[], errors=[])
     seen = set()
     for number, values in enumerate(rows[1:], 2):
         location = f"{number}행"
@@ -216,7 +237,7 @@ def preview(store, db, data, kind, format, catalog: SurveyCatalog, mapping=None,
                     "SELECT 1 FROM cases WHERE event_id=? AND sequence_no=?", (pair[0], participant.sequence_no)
                 ).fetchone():
                     raise ValueError("순번: 이 행사에 이미 등록된 순번입니다. 순번을 고친 뒤 다시 검증하세요.")
-                result.rows.append(ImportRow(row_number=number, source_location=location, event_id=pair[0], participant_id=pair[1],
+                result.rows.append(ImportRowV3(row_number=number, source_location=location, event_id=pair[0], participant_id=pair[1],
                                              participant=participant))
             else:
                 if existing is None or existing["deletion_requested"]:
@@ -234,7 +255,7 @@ def preview(store, db, data, kind, format, catalog: SurveyCatalog, mapping=None,
                 index = next(i for i, s in enumerate(manifest.sessions) if s.session_id == existing["selected_session_id"])
                 current = manifest.sessions[index]
                 changed = [q for q in SURVEY_IDS if current.survey[q] != answers[q] or (q in current.survey_not_applicable) != (q in not_applicable)]
-                result.rows.append(ImportRow(row_number=number, source_location=location, event_id=pair[0], participant_id=pair[1],
+                result.rows.append(ImportRowV3(row_number=number, source_location=location, event_id=pair[0], participant_id=pair[1],
                     case_id=existing["case_id"], survey=survey, session_label=f"{index + 1}차 촬영", changed_questions=changed))
         except (ValueError, ValidationError) as exc:
             if isinstance(exc, ValidationError):

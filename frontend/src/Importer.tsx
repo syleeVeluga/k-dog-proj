@@ -13,10 +13,10 @@ export function Importer({ run, done, catalogVersion, catalog, fixedKind }: { ru
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [result, setResult] = useState<Preview | null>(null);
   const format = file?.name.toLowerCase().endsWith('.xlsx') ? 'xlsx' : 'csv';
-  const canonical = kind === 'participants' ? ['event_id', 'participant_id', 'dog_name', 'reservation_at', 'sequence_no', 'consent_confirmed', 'guardian_name', 'dog_breed', 'dog_sex', 'dog_age_years', 'dog_size', 'years_together', 'adoption_route']
+  const canonical = kind === 'participants' ? ['event_id', 'participant_id', 'dog_name', 'reservation_at', 'sequence_no', 'consent_confirmed', 'guardian_name', 'dog_breed', 'dog_sex', 'dog_age_years', 'dog_size', 'years_together', 'adoption_route', 'consent_analysis_feedback', 'consent_stranger_contact']
     : ['event_id', 'participant_id', ...Array.from({ length: 28 }, (_, i) => `s${String(i + 1).padStart(2, '0')}`)];
   const labels: Record<string, string> = { event_id: '행사 ID', participant_id: '참가자 ID', dog_name: '반려견 이름', reservation_at: '예약 시각 (선택)', sequence_no: '순번 (선택)',
-    consent_confirmed: '동의 확인 (선택)', guardian_name: '보호자명 (선택)', dog_breed: '견종 (선택)', dog_sex: '성별 (선택)', dog_age_years: '나이 (선택)', dog_size: '크기 (선택)', years_together: '함께 산 기간 (선택)', adoption_route: '입양 경로 (선택)' };
+    consent_confirmed: '기존 동의 확인 (선택)', consent_analysis_feedback: '분석·피드백 동의 (선택)', consent_stranger_contact: '낯선 요원 접촉 동의 (선택)', guardian_name: '보호자명 (선택)', dog_breed: '견종 (선택)', dog_sex: '성별 (선택)', dog_age_years: '나이 (선택)', dog_size: '크기 (선택)', years_together: '함께 산 기간 (선택)', adoption_route: '입양 경로 (선택)' };
   const required = kind === 'participants' ? ['event_id', 'participant_id', 'dog_name'] : canonical;
   async function loadColumns() {
     const query = new URLSearchParams({ format }); if (sheet) query.set('sheet', sheet);
@@ -27,7 +27,7 @@ export function Importer({ run, done, catalogVersion, catalog, fixedKind }: { ru
   return <section>{!fixedKind && <><p className="eyebrow">자료 연결</p><h1>자료 가져오기</h1><p className="muted">CSV·Excel을 연결·검증한 뒤 정상 행을 저장합니다.</p></>}
     <div className="panel">{!fixedKind && <label>자료 종류<select value={kind} onChange={e => { setKind(e.target.value); setMode('standard'); clear(); }}><option value="participants">참가자</option><option value="survey">설문 원응답</option></select></label>}
       <p className="links"><a href={`/api/templates/${kind}?format=csv`}>CSV 양식 다운로드</a><a href={`/api/templates/${kind}?format=xlsx`}>Excel 양식 다운로드</a></p>
-      <p className="fine">ID는 텍스트로 입력하세요. 예: 0001. {kind === 'survey' ? '설문은 등록된 참가자의 현재 촬영 회차에 연결됩니다. 응답은 1~5, 빈칸은 미응답, 7~9번만 NA=해당 없음입니다.' : '필수: 행사 ID·참가자 ID·반려견 이름. 순번은 선택이며 빈칸은 미지정입니다. 동의 확인 열은 예 또는 1, 미확인은 빈칸. 예약 시각 예: 2026-10-31 09:30 (행사 현지 시각).'}</p>
+      <p className="fine">ID는 텍스트로 입력하세요. 예: 0001. {kind === 'survey' ? '설문은 등록된 참가자의 현재 촬영 회차에 연결됩니다. 응답은 1~5, 빈칸은 미응답, 7~9번만 NA=해당 없음입니다.' : '필수: 행사 ID·참가자 ID·반려견 이름. 순번은 선택이며 빈칸은 미지정입니다. 기존 동의 확인 열은 예 또는 1입니다. 새 분석·피드백/낯선 요원 접촉 동의 열은 미확인·거절·확인(빈칸=미확인)을 각각 기록합니다. 예약 시각 예: 2026-10-31 09:30 (행사 현지 시각).'}</p>
       {kind === 'survey' && <p className="fine">표준 양식 survey_version: <strong className="mono">{catalogVersion}</strong>. 버전 열을 행마다 채우지 않으려면 「다른 열 이름 연결」을 선택하세요. 문항 연결 후 확정 버전을 자동 적용하며 응답 행을 생성하지 않습니다.</p>}
       <label>입력 양식<select value={mode} onChange={e => { setMode(e.target.value); setSheet(''); setSheets([]); clear(); }}>
         <option value="standard">표준 CSV·Excel</option><option value="mapped">다른 열 이름 연결</option>

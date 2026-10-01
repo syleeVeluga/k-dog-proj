@@ -1,6 +1,6 @@
 import { api } from '../api';
 import { CaseEditor } from '../MetadataEditors';
-import { segmentState, sessionOf, SURVEY_TOTAL, surveyHandled } from '../types';
+import { consentNames, protocolName, segmentState, sessionOf, SURVEY_TOTAL, surveyHandled } from '../types';
 import type { Case, Run } from '../types';
 
 // 접수 상세: 참가자·반려견 정보와 세션 요약, 정정·삭제 요청. 설문은 「설문」, 영상·구간은 「촬영」 메뉴가 맡는다.
@@ -19,6 +19,8 @@ export function CaseDetail({ item, writable, run, refresh, back }: {
       <span className="tag">입력 버전 {item.input_revision}</span></section>
     <div className="detail-grid" id="sessions">
       <section className="panel"><h2>촬영 세션</h2>
+        <p>촬영 기준: <strong>{protocolName(session)}</strong> · 설문 판본: <span className="mono">{session.survey_version}</span></p>
+        <p>분석·피드백 동의: {consentNames[item.consents.analysis_feedback]} · 낯선 요원 접촉 동의: {consentNames[item.consents.stranger_contact]}</p>
         <p className="fine">영상 {session.videos.length}개 · 구간 {({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(session)]} · 설문 {surveyHandled(session)}/{SURVEY_TOTAL} · {session.note || '촬영 메모 없음'}</p>
         {item.manifest.migration_note && <p className="fine">{item.manifest.migration_note}</p>}
         <p className="fine">영상 등록·8구간 시각·촬영 메모·재촬영은 「촬영」 메뉴에서, 설문은 「설문」 메뉴에서 다룹니다.</p>
