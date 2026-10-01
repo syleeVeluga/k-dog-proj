@@ -10,10 +10,10 @@ from pydantic import ValidationError
 from app.domain.catalog import SURVEY_IDS, SurveyCatalog
 from app.domain.contracts import SurveyAnswers
 from app.domain.validation import validate_survey_answers
-from app.input_models import CaseCreate, SurveyEdit
+from app.input_models import CaseCreate
 from app.storage import now, uid
-from app.domain.catalog_v3 import PROTOCOL_VERSION, SURVEY_VERSION
-from app.input_models_v3 import CaseCreateV3, ConsentsV3, ImportPreviewV3, ImportRowV3, ManifestV3, SessionV3
+from app.domain.catalog_v3 import PROTOCOL_VERSION, SURVEY_VERSION, SurveyCatalogV3
+from app.input_models_v3 import CaseCreateV3, ConsentsV3, ImportPreviewV3, ImportRowV3, ManifestV3, SessionV3, SurveyEditV3
 
 # 04 설문지: 7~9번은 「해당 없음」 칸이 있다. 가져오기 파일에서는 이 문자열로 표시한다.
 NOT_APPLICABLE_TOKENS = ("NA", "na", "N/A", "해당없음", "해당 없음")
@@ -52,23 +52,23 @@ def selected_session(manifest, session_id):
     return next(item for item in manifest.sessions if item.session_id == session_id)
 
 
-def save_survey(store, db, case_id, value: SurveyEdit, actor, catalog: SurveyCatalog):
+def save_survey(store, db, case_id, value: SurveyEditV3, actor, catalog):
     if value.survey_version != catalog.version:
         raise HTTPException(422, "확정 설문 버전과 일치하지 않습니다.")
-    try:
+    value = SurveyEditV3.model_validate_json(value.model_dump_json())
+    if isinstance(catalog, SurveyCatalog):
         validate_survey_answers(SurveyAnswers(answers=value.answers, not_applicable=tuple(value.not_applicable)), catalog)
-    except ValueError as exc:
-        raise HTTPException(422, "「해당 없음」은 7~9번 문항에만 표시할 수 있습니다.") from exc
     row = store.case(db, case_id, expected=value.expected_revision)
     manifest = store.manifest(row)
     session = selected_session(manifest, value.session_id)
     if session.survey_version != value.survey_version:
         raise HTTPException(422, "선택한 세션의 설문 판본과 일치하지 않습니다.")
     not_applicable = sorted(value.not_applicable)
-    if session.survey == value.answers and session.survey_not_applicable == not_applicable:
+    if session.survey == value.answers and session.survey_not_applicable == not_applicable and session.survey_blank_reasons == value.blank_reasons:
         return  # Identical re-import is idempotent.
     session.survey = value.answers
     session.survey_not_applicable = not_applicable
+    session.survey_blank_reasons = value.blank_reasons
     store.save(db, row, manifest, actor, "survey.update")
 
 
@@ -77,11 +77,12 @@ TRUE_TOKENS = ("1", "Y", "y", "예", "동의", "true", "True", "O")
 FALSE_TOKENS = ("", "0", "N", "n", "아니오", "미확인", "false", "False", "X")
 
 
-def headers(kind):
+def headers(kind, version=None):
     if kind == "participants":
         return ["event_id", "participant_id", "dog_name", "reservation_at", "sequence_no", "consent_confirmed", "guardian_name", *PROFILE_COLUMNS,
                 "consent_analysis_feedback", "consent_stranger_contact"]
-    return ["event_id", "participant_id", "survey_version", *SURVEY_IDS]
+    return ["event_id", "participant_id", "survey_version", *SURVEY_IDS,
+            *([f"{question}_reason" for question in SURVEY_IDS] if version == SURVEY_VERSION else [])]
 
 
 def required_columns(kind):
@@ -127,8 +128,8 @@ def participant_row(value):
     })
 
 
-def template(kind, format):
-    columns = headers(kind)
+def template(kind, format, version=None):
+    columns = headers(kind, version)
     if format == "csv":
         output = StringIO(newline="")
         csv.writer(output).writerow(columns)
@@ -176,16 +177,18 @@ def read_rows(data: bytes, format: str, sheet_name=None, layout=None):
 def mapped_rows(rows, kind, version, mapping):
     if not mapping.columns:
         return rows
-    expected = headers(kind)
+    expected = headers(kind, SURVEY_VERSION)
     if set(mapping.columns) - set(expected):
         raise HTTPException(422, "알 수 없는 표준 열 연결입니다.")
     source = list(mapping.columns.values())
     if len(source) != len(set(source)) or any(rows[0].count(name) != 1 for name in source):
         raise HTTPException(422, "각 원본 열을 중복 없이 연결하세요.")
+    if kind == "survey" and "survey_version" not in mapping.columns and not mapping.survey_version:
+        raise HTTPException(422, "원설문의 판본을 명시적으로 확인하세요.")
     if not required_columns(kind) - {"survey_version"} <= set(mapping.columns):
         raise HTTPException(422, "모든 필수 열과 28문항을 연결하세요.")
     return [expected, *[[row[rows[0].index(mapping.columns[name])] if name in mapping.columns and rows[0].index(mapping.columns[name]) < len(row)
-                        else version if name == "survey_version" else "" for name in expected] for row in rows[1:]]]
+                        else mapping.survey_version if name == "survey_version" else "" for name in expected] for row in rows[1:]]]
 
 
 def parse_answer(question, raw, catalog):
@@ -196,20 +199,22 @@ def parse_answer(question, raw, catalog):
         if not next(item for item in catalog.items if item.item_id == question).allows_not_applicable:
             raise ValueError(f"{question}: 「해당 없음」은 7~9번 문항에만 허용됩니다.")
         return None, True
-    if (type(raw) is int and 1 <= raw <= 5) or (type(raw) is str and raw in ("1", "2", "3", "4", "5")):
+    item = next(item for item in catalog.items if item.item_id == question)
+    allowed = item.allowed_values if isinstance(catalog, SurveyCatalogV3) else tuple(range(1, 6))
+    if (type(raw) is int and raw in allowed) or (type(raw) is str and raw in tuple(str(value) for value in allowed)):
         return int(raw), False
-    raise ValueError(f"{question}: 1~5, 빈칸, 또는 7~9번의 NA만 허용됩니다.")
+    raise ValueError(f"{question}: {','.join(map(str, allowed))} 또는 빈칸을 사용하세요.")
 
 
-def preview(store, db, data, kind, format, catalog: SurveyCatalog, mapping=None, sheet_name=None):
+def preview(store, db, data, kind, format, catalog: SurveyCatalog, mapping=None, sheet_name=None, catalogs=None):
     version = catalog.version
     rows = read_rows(data, format, mapping.sheet if mapping else sheet_name)
     if rows and mapping:
-        rows = mapped_rows(rows, kind, version, mapping)
+        rows = mapped_rows(rows, kind, mapping.survey_version or version, mapping)
     if not rows or len(rows) > 10001:
         raise HTTPException(422, "헤더와 최대 10,000개 입력 행이 필요합니다.")
     columns = rows[0]
-    if len(columns) != len(set(columns)) or not set(columns) <= set(headers(kind)) or not required_columns(kind) <= set(columns):
+    if len(columns) != len(set(columns)) or not set(columns) <= set(headers(kind, SURVEY_VERSION)) or not required_columns(kind) <= set(columns):
         raise HTTPException(422, "표준 양식의 열을 사용하세요. 열 순서 변경은 허용되며 참가자 양식의 접수 열은 생략할 수 있습니다.")
     result = ImportPreviewV3(rows=[], errors=[])
     seen = set()
@@ -242,19 +247,26 @@ def preview(store, db, data, kind, format, catalog: SurveyCatalog, mapping=None,
             else:
                 if existing is None or existing["deletion_requested"]:
                     raise ValueError("등록된 활성 참가자에 연결할 수 없습니다.")
+                version = value["survey_version"]
+                row_catalog = (catalogs or {catalog.version: catalog}).get(version)
+                if row_catalog is None:
+                    raise ValueError("survey_version: 지원하지 않는 설문 판본입니다.")
+                manifest = store.manifest(existing)
+                index = next(i for i, session in enumerate(manifest.sessions) if session.session_id == existing["selected_session_id"])
+                current = manifest.sessions[index]
+                if current.survey_version != version:
+                    raise ValueError("survey_version: 대상 회차의 설문 판본과 일치하지 않습니다.")
                 answers, not_applicable = {}, []
                 for question in SURVEY_IDS:
-                    answers[question], flagged = parse_answer(question, value[question], catalog)
+                    answers[question], flagged = parse_answer(question, value[question], row_catalog)
                     if flagged:
                         not_applicable.append(question)
-                if value["survey_version"] != version:
-                    raise ValueError("survey_version: 확정 설문 버전이 아닙니다.")
-                survey = SurveyEdit(expected_revision=existing["input_revision"], session_id=existing["selected_session_id"],
-                                    survey_version=version, answers=answers, not_applicable=not_applicable)
-                manifest = store.manifest(existing)
-                index = next(i for i, s in enumerate(manifest.sessions) if s.session_id == existing["selected_session_id"])
-                current = manifest.sessions[index]
-                changed = [q for q in SURVEY_IDS if current.survey[q] != answers[q] or (q in current.survey_not_applicable) != (q in not_applicable)]
+                reasons = {question: value[f"{question}_reason"] for question in SURVEY_IDS
+                           if value.get(f"{question}_reason") not in (None, "")}
+                survey = SurveyEditV3(expected_revision=existing["input_revision"], session_id=existing["selected_session_id"],
+                                     survey_version=version, answers=answers, not_applicable=not_applicable, blank_reasons=reasons)
+                changed = [q for q in SURVEY_IDS if current.survey[q] != answers[q] or (q in current.survey_not_applicable) != (q in not_applicable)
+                           or current.survey_blank_reasons.get(q) != reasons.get(q)]
                 result.rows.append(ImportRowV3(row_number=number, source_location=location, event_id=pair[0], participant_id=pair[1],
                     case_id=existing["case_id"], survey=survey, session_label=f"{index + 1}차 촬영", changed_questions=changed))
         except (ValueError, ValidationError) as exc:

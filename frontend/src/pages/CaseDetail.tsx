@@ -23,6 +23,7 @@ export function CaseDetail({ item, writable, run, refresh, back }: {
         <p>분석·피드백 동의: {consentNames[item.consents.analysis_feedback]} · 낯선 요원 접촉 동의: {consentNames[item.consents.stranger_contact]}</p>
         <p className="fine">영상 {session.videos.length}개 · 구간 {({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(session)]} · 설문 {surveyHandled(session)}/{SURVEY_TOTAL} · {session.note || '촬영 메모 없음'}</p>
         {item.manifest.migration_note && <p className="fine">{item.manifest.migration_note}</p>}
+        {session.survey_version === 'survey-20260929-v3' && <p className="fine">빈칸 사유 {Object.keys(session.survey_blank_reasons ?? {}).length}개 · 등록 완료 기준 Q04 미확정 · 비교 대상 자격 Q10 미확정</p>}
         <p className="fine">영상 등록·8구간 시각·촬영 메모·재촬영은 「촬영」 메뉴에서, 설문은 「설문」 메뉴에서 다룹니다.</p>
       </section>
       {writable && <section className="panel"><h2>자료 관리</h2>

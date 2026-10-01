@@ -45,9 +45,9 @@ export type Case = {
   manifest: { schema_version: string; sessions: Session[]; migration_note?: string | null };
 };
 export const sessionOf = (item: Case) => item.manifest.sessions.find(s => s.session_id === item.selected_session_id)!;
-export type SurveyItem = { item_id: string; number: number; text: string; domain: 'A' | 'B' | 'C' | 'D' | 'E'; allows_not_applicable: boolean };
-export type Catalog = { version: string; response_scale: string[]; items: SurveyItem[] };
-export const surveyDomains: Record<SurveyItem['domain'], string> = {
+export type SurveyItem = { item_id: string; number: number; text: string; domain?: 'A' | 'B' | 'C' | 'D' | 'E'; print_section?: 'A' | 'B' | 'C' | 'D' | 'E'; report_domain?: string; labels?: { value: number; text: string }[]; allows_not_applicable: boolean };
+export type Catalog = { version: string; response_scale?: string[]; items: SurveyItem[] };
+export const surveyDomains: Record<string, string> = {
   A: '나의 교육 방식', B: '우리 아이의 사회성', C: '정서적 친밀감', D: '떨어져 있을 때 우리 아이는', E: '나의 감정 기복',
 };
 export const SURVEY_TOTAL = 28;
@@ -59,7 +59,7 @@ export type ImportRow = {
   event_id: string; participant_id: string;
   participant: { event_id: string; participant_id: string; dog_name: string } | null;
   case_id: string | null;
-  survey: { expected_revision: number; answers: Record<string, number | null>; not_applicable: string[] } | null;
+  survey: { expected_revision: number; survey_version: string; blank_reasons: Record<string, string>; answers: Record<string, number | null>; not_applicable: string[] } | null;
 };
 export type Preview = { rows: ImportRow[]; errors: string[] };
 export type SurveyResult = {
@@ -67,4 +67,13 @@ export type SurveyResult = {
   domains: { domain: 'A' | 'B' | 'C' | 'E'; answered_count: number; target_count: number; status: 'calculated' | 'partial' | 'missing' }[];
   separation: { label: string | null; status: 'calculated' | 'missing'; reason: string | null };
   items: { item_id: string; raw: number | null; not_applicable: boolean }[];
+};
+
+export type SurveyResultV3 = {
+  survey_version: 'survey-20260929-v3'; status: 'calculated' | 'partial' | 'unregistered';
+  answered_count: number; blank_reason_count: number; registration_complete: null;
+  registration_status: 'unregistered' | 'partial' | 'all_answered' | 'answers_or_reasons_recorded';
+  comparison_status: 'pending_policy' | 'insufficient_responses';
+  domains: { domain: string; question_ids: string[]; answered_count: number; target_count: number; mean: number | null; denominator: number | null; status: 'calculated' | 'pending_partial' | 'insufficient_responses' | 'missing'; reason: string | null }[];
+  standalone: { item_id: string; raw: number | null; blank_reason: string | null };
 };
