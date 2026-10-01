@@ -275,8 +275,14 @@ class GeminiObserver:
                     remote, _ = request("GET", BASE + "/v1beta/" + name, key)
                 if remote.get("state") != "ACTIVE":
                     raise ProviderError("remote_file_failed")
-                inputs.append({"type": "video", "uri": remote["uri"], "mime_type": "video/mp4",
-                    "name": getattr(clip, "name", "synthetic-clip"), "processing": video_processing(config), "resolution": config["media_resolution"]})
+                clip_name = getattr(clip, "name", "synthetic-clip")
+                video = {"type": "video", "uri": remote["uri"], "mime_type": "video/mp4",
+                         "processing": video_processing(config), "resolution": config["media_resolution"]}
+                # Static processing rejects video.name; bind evidence names through adjacent text.
+                if config.get("processing_mode") == "agentic":
+                    video["name"] = clip_name
+                inputs.append({"type": "text", "text": "다음 영상의 clip_name: " + clip_name})
+                inputs.append(video)
             inputs.append({"type": "text", "text": json.dumps(context, ensure_ascii=False)})
             guard()
             result, _ = request("POST", BASE + "/v1beta/interactions", key, data=interaction_request(
