@@ -99,7 +99,7 @@ class IntakeV3Tests(AppCase):
             for field in ("consents", "prior_inputs"):
                 del raw[field]
             session = raw["sessions"][0]
-            for field in ("protocol_version", "protocol_source", "survey_blank_reasons", "comparison_eligibility"):
+            for field in ("protocol_version", "protocol_source", "survey_blank_reasons", "comparison_eligibility", "recording"):
                 del session[field]
             session["survey_version"] = "catalog-20260913-v2"
             session["survey"]["s10"] = 5
@@ -154,7 +154,7 @@ class IntakeV3Tests(AppCase):
                 session = item["manifest"]["sessions"][0]
                 legacy = {key: value for key, value in item["manifest"].items() if key not in ("consents", "prior_inputs")}
                 legacy["schema_version"] = "intake-2.0"
-                for field in ("protocol_version", "protocol_source", "survey_blank_reasons", "comparison_eligibility"):
+                for field in ("protocol_version", "protocol_source", "survey_blank_reasons", "comparison_eligibility", "recording"):
                     del session[field]
                 session["survey_version"] = "catalog-20260913-v2"
                 if fault == "version":

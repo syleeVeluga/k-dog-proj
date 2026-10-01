@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { mayLeave, useEditBase, useUnsaved } from '../Editing';
 import { SessionEditor } from '../MetadataEditors';
+import { RecordingPanelV3 } from '../RecordingPanelV3';
 import { VideoUpload } from '../VideoUpload';
 import { CaseFilters, matchesCase } from '../CaseFilters';
 import type { CaseFilterProps } from '../CaseFilters';
@@ -37,7 +38,9 @@ export function Recording({ cases, selected, select, filters, writable, run, rel
           <td data-label="구간"><span className={state === 'confirmed' ? 'tag green' : 'tag'}>{({ none: '없음', draft: '초안', confirmed: '확정' })[state]}</span></td>
           <td data-label="작업"><button aria-label={`${c.participant_id} 촬영 열기`} onClick={() => { if (mayLeave()) select(c); }}>열기 ↗</button></td></tr>;
       })}</tbody></table>{!sorted.length && <div className="empty"><h2>표시할 참가자가 없습니다.</h2><p>검색·행사 필터 또는 접수 등록을 확인하세요.</p></div>}</div></>}
-    {selected && <RecordingPanel key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run} notify={notify}
+    {selected && sessionOf(selected).protocol_version === 'protocol-20260929-v3' && <RecordingPanelV3 key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run}
+      refresh={async message => { await reload(); if (message) notify(message); }} close={() => { if (mayLeave()) select(null); }} />}
+    {selected && sessionOf(selected).protocol_version !== 'protocol-20260929-v3' && <RecordingPanel key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run} notify={notify}
       refresh={async message => { await reload(); if (message) notify(message); }} close={() => { if (mayLeave()) select(null); }} />}
   </>;
 }
@@ -47,8 +50,8 @@ function RecordingPanel({ item, writable, run, refresh, notify, close }: { item:
   const stored = session.segments;
   const [videoId, setVideoId] = useState(stored?.video_id ?? session.videos[0]?.video_id ?? '');
   const [editing, setEditing] = useState(!stored?.confirmed);
-  const [clocks, setClocks] = useState<string[]>(() => SEGMENTS.map((_, i) => stored ? toClock(stored.windows[i].start_sec) : ''));
-  const [ends, setEnds] = useState<string[]>(() => SEGMENTS.map((_, i) => stored ? toClock(stored.windows[i].end_sec) : ''));
+  const [clocks, setClocks] = useState<string[]>(() => SEGMENTS.map(([id]) => { const window = stored?.windows.find(window => window.segment === id); return window ? toClock(window.start_sec) : ''; }));
+  const [ends, setEnds] = useState<string[]>(() => SEGMENTS.map(([id]) => { const window = stored?.windows.find(window => window.segment === id); return window ? toClock(window.end_sec) : ''; }));
   const [dirty, setDirty] = useState(false);
   const [baseRevision, setBaseRevision] = useState(item.input_revision);
   const [playerReady, setPlayerReady] = useState(false);
@@ -58,8 +61,8 @@ function RecordingPanel({ item, writable, run, refresh, notify, close }: { item:
   useUnsaved(dirty);
   function loadLatest() {
     setVideoId(stored?.video_id ?? session.videos[0]?.video_id ?? '');
-    setClocks(SEGMENTS.map((_, i) => stored ? toClock(stored.windows[i].start_sec) : ''));
-    setEnds(SEGMENTS.map((_, i) => stored ? toClock(stored.windows[i].end_sec) : ''));
+    setClocks(SEGMENTS.map(([id]) => { const window = stored?.windows.find(window => window.segment === id); return window ? toClock(window.start_sec) : ''; }));
+    setEnds(SEGMENTS.map(([id]) => { const window = stored?.windows.find(window => window.segment === id); return window ? toClock(window.end_sec) : ''; }));
     setEditing(!stored?.confirmed); setBaseRevision(item.input_revision); setDirty(false);
     setShowErrors(false);
   }
@@ -97,6 +100,7 @@ function RecordingPanel({ item, writable, run, refresh, notify, close }: { item:
   }
   return <section className="panel" aria-label="촬영 자료">
     <div className="section-title"><h2>{item.dog_name} · {item.participant_id}{item.sequence_no !== null && ` · 순번 ${item.sequence_no}`}</h2><button onClick={close}>닫기</button></div>
+    {session.protocol_version === 'unconfirmed' && <p role="status">촬영 판본 미확인입니다. 원기록은 보존하며 구간 확정은 새 촬영 세션에서 진행하세요.</p>}
     <p className="fine">{item.manifest.sessions.findIndex(s => s.session_id === session.session_id) + 1}차 촬영 · 입력 버전 {item.input_revision} · {session.note || '촬영 메모 없음'}</p>
     {dirty && baseRevision !== item.input_revision && <div role="status"><p>다른 변경이 저장됨 · 현재 입력은 편집 시작 버전 {baseRevision}을 유지합니다. 그대로 저장하면 충돌로 거절됩니다.</p>
       <button onClick={() => { if (window.confirm('구간의 미저장 입력을 버리고 최신 값으로 바꾸시겠습니까?')) loadLatest(); }}>최신 값 불러오기</button>
@@ -117,7 +121,7 @@ function RecordingPanel({ item, writable, run, refresh, notify, close }: { item:
     {videoId && <video key={videoId} ref={player} src={`/api/cases/${item.case_id}/videos/${videoId}`} controls preload="metadata"
       onLoadedMetadata={() => setPlayerReady(Number.isFinite(player.current?.duration))} onError={() => setPlayerReady(false)} onEmptied={() => setPlayerReady(false)} />}
     {!session.videos.length && <p className="fine">영상을 먼저 등록하면 재생 위치로 시각을 넣을 수 있습니다.</p>}
-    <fieldset disabled={!writable || !editing}><div className="table-wrap"><table><thead><tr><th>구간</th><th>시작 (m:ss)</th><th>끝 (m:ss)</th><th>길이 / 확인</th></tr></thead>
+    <fieldset disabled={!writable || !editing || session.protocol_version === 'unconfirmed'}><div className="table-wrap"><table><thead><tr><th>구간</th><th>시작 (m:ss)</th><th>끝 (m:ss)</th><th>길이 / 확인</th></tr></thead>
       <tbody>{SEGMENTS.map(([id, label], i) => <tr key={id}><td>{i + 1} {label}</td>
         <td><span className="toolbar"><input aria-label={`${label} 시작`} value={clocks[i]} placeholder="0:00" onChange={e => { setClocks(clocks.map((c, j) => j === i ? e.target.value : c)); setDirty(true); }} />
           <button type="button" disabled={!playerReady} onClick={() => { setClocks(clocks.map((c, j) => j === i ? now() : c)); setDirty(true); }}>지금 시각</button></span></td>
@@ -127,13 +131,13 @@ function RecordingPanel({ item, writable, run, refresh, notify, close }: { item:
           {showErrors && windowError(i, checkConfirm) && <p className="error">{windowError(i, checkConfirm)}</p>}</td></tr>)}
       </tbody></table></div></fieldset>
     {writable && <div className="toolbar">
-      {editing ? <><button type="button" disabled={!videoId} onClick={() => save(false)}>8구간 초안 저장</button><button type="button" className="primary" disabled={!videoId} onClick={() => save(true)}>8구간 확정</button></>
+      {editing ? <><button type="button" disabled={!videoId || session.protocol_version === 'unconfirmed'} onClick={() => save(false)}>8구간 초안 저장</button><button type="button" className="primary" disabled={!videoId || session.protocol_version === 'unconfirmed'} onClick={() => save(true)}>8구간 확정</button></>
         : <button type="button" onClick={() => { if (mayLeave()) setEditing(true); }}>확정본 수정 시작</button>}
       {dirty && <p role="status">구간 시각 · 저장 전</p>}
     </div>}
     <p className="fine">초안 저장도 8구간의 시작·끝 16칸을 모두 입력해야 합니다. 일부 구간만 저장하는 기능은 아직 지원하지 않습니다. 빈칸을 0초로 대신 채우지 마세요.</p>
     <p className="fine">확정하면 채점 단계가 이 시각을 사용합니다. 수정하면 새 입력 버전으로 저장되며 이전 값은 보존됩니다.</p>
-    <StimulusEditor item={item} videoId={videoId} writable={writable} run={run} refresh={refresh} playerReady={playerReady} now={now} />
+    <StimulusEditor item={item} videoId={videoId} writable={writable && session.protocol_version === 'protocol-20260913-v2'} run={run} refresh={refresh} playerReady={playerReady} now={now} />
   </section>;
 }
 

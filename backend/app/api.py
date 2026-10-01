@@ -33,7 +33,7 @@ from app.storage import REPO_ROOT, Store, now, uid
 from app import settings
 from app import secrets as vault
 from app.input_models import Model
-from app.input_models_v3 import CaseCreateV3, CaseEditV3, CaseViewV3, ImportCommitV3, ImportPreviewV3, ImportMappingV3, SurveyEditV3
+from app.input_models_v3 import CaseCreateV3, CaseEditV3, CaseViewV3, ImportCommitV3, ImportPreviewV3, ImportMappingV3, SurveyEditV3, RecordingEditV3
 
 
 class SecretEdit(Model):
@@ -401,6 +401,8 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             row = store.case(db, case_id, expected=value.expected_revision)
             manifest = store.manifest(row)
             session = selected_session(manifest, session_id)
+            if session.protocol_version != "protocol-20260913-v2":
+                raise HTTPException(409, "촬영 판본에 맞는 기록 화면을 사용하세요. 미확인 판본은 새 촬영 세션을 사용하세요.")
             if value.video_id not in {video.video_id for video in session.videos}:
                 raise HTTPException(422, "이 촬영 세션에 등록된 영상이 아닙니다.")
             try:
@@ -413,6 +415,32 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.save(db, row, manifest, user.username, "segments.confirm" if value.confirm else "segments.update")
             return store.view(store.case(db, case_id))
 
+    @app.put("/api/cases/{case_id}/sessions/{session_id}/recording", response_model=CaseViewV3)
+    def session_recording(case_id: Key, session_id: Key, value: RecordingEditV3, user=Depends(writer)):
+        from app.domain.catalog_v3 import PROTOCOL_VERSION
+        from app.domain.recording_v3 import RecordingV3
+        from app.recording_v3 import validate_recording_media
+        candidate = value.recording.model_dump(mode="json")
+        candidate["confirmed"] = value.confirm
+        try:
+            recording = RecordingV3.model_validate_json(json.dumps(candidate))
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        with store.connect() as db:
+            row = store.case(db, case_id, expected=value.expected_revision)
+            session = selected_session(store.manifest(row), session_id)
+            if session.protocol_version != PROTOCOL_VERSION:
+                raise HTTPException(409, "신판 촬영 기록은 신판 세션에만 저장할 수 있습니다.")
+        validate_recording_media(store, session, recording)
+        with store.connect(write=True) as db:
+            row = store.case(db, case_id, expected=value.expected_revision)
+            manifest = store.manifest(row)
+            session = selected_session(manifest, session_id)
+            # Recheck after media probing: deletion/session/revision changes must not publish a stale recording.
+            session.recording = recording
+            store.save(db, row, manifest, user.username, "recording.confirm" if value.confirm else "recording.update")
+            return store.view(store.case(db, case_id))
+
     @app.put("/api/cases/{case_id}/sessions/{session_id}/stimuli", response_model=CaseView | CaseViewV3)
     def session_stimuli(case_id: Key, session_id: Key, value: StimulusEdit, user=Depends(writer)):
         from app.domain.validation import validate_stimulus_moments
@@ -420,6 +448,8 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         with store.connect() as db:
             row = store.case(db, case_id, expected=value.expected_revision)
             session = selected_session(store.manifest(row), session_id)
+            if session.protocol_version != "protocol-20260913-v2":
+                raise HTTPException(409, "이 촬영 판본의 실제 사건은 촬영 기록 화면에서 저장하세요.")
             video = next((v for v in session.videos if v.video_id == value.video_id), None)
             if video is None:
                 raise HTTPException(422, "이 촬영 세션에 등록된 영상이 아닙니다.")

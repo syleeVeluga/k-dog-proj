@@ -20,6 +20,7 @@ export type Session = {
   survey_version: string; survey: Record<string, number | null>; survey_not_applicable: string[]; videos: Video[];
   segments: SegmentTimes | null;
   stimuli: StimulusTimes | null;
+  recording: RecordingV3 | null;
   protocol_version: 'protocol-20260929-v3' | 'protocol-20260913-v2' | 'unconfirmed';
   protocol_source: 'new_session' | 'confirmed_v2_recording' | 'unconfirmed';
   survey_blank_reasons: Record<string, string>;
@@ -28,7 +29,7 @@ export const protocolName = (session: Session) => session.protocol_version === '
 export type ConsentState = 'unknown' | 'declined' | 'confirmed';
 export type Consents = { analysis_feedback: ConsentState; stranger_contact: ConsentState };
 export const consentNames: Record<ConsentState, string> = { unknown: '미확인', declined: '거절', confirmed: '확인' };
-export const segmentState = (session: Session): 'none' | 'draft' | 'confirmed' => !session.segments ? 'none' : session.segments.confirmed ? 'confirmed' : 'draft';
+export const segmentState = (session: Session): 'none' | 'draft' | 'confirmed' => session.recording ? session.recording.confirmed ? 'confirmed' : 'draft' : !session.segments ? 'none' : session.segments.confirmed ? 'confirmed' : 'draft';
 export type DogProfile = {
   breed: string; sex: '암' | '수' | '중성화' | '미기재'; age_years: number | null;
   size: '소형' | '중형' | '대형' | '미기재'; years_together: string; adoption_route: '분양' | '입양' | '기타' | '미기재';
@@ -77,3 +78,10 @@ export type SurveyResultV3 = {
   domains: { domain: string; question_ids: string[]; answered_count: number; target_count: number; mean: number | null; denominator: number | null; status: 'calculated' | 'pending_partial' | 'insufficient_responses' | 'missing'; reason: string | null }[];
   standalone: { item_id: string; raw: number | null; blank_reason: string | null };
 };
+
+export const SEGMENTS_V3: [SegmentId, string][] = [['entry', '입장'], ['baseline', '기준'], ['alone', '혼자'], ['reunion', '재회'], ['ignore', '무시'], ['walk', '걷기'], ['stranger', '낯선 사람'], ['exit', '퇴장']];
+export type CaptureState = 'performed' | 'shortened' | 'not_performed' | 'welfare_stopped';
+export type CaptureWindow = { segment: SegmentId; video_id: string; state: CaptureState; start_sec: number | null; end_sec: number | null; reason: string | null };
+export type WalkPhase = Omit<CaptureWindow, 'segment'> & { phase: string };
+export type ActualEvent = { event_id: string; kind: string; video_id: string; segment: SegmentId | null; status: 'observed' | 'not_occurred' | 'unobserved'; seconds: number | null; end_seconds: number | null; note: string; affected_codes: string[] };
+export type RecordingV3 = { video_id: string; confirmed: boolean; segments: CaptureWindow[]; walk_phases: WalkPhase[]; events: ActualEvent[]; video_offsets: { video_id: string; offset_seconds: number; confirmed: boolean; note: string }[] };
