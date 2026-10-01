@@ -241,11 +241,21 @@ class AiTests(RunTests):
         self.assertEqual(failed.exception.usage["provider_usage"]["input_tokens_by_modality"][0]["tokens"], 5)
         self.assertTrue(failed.exception.usage["remote_cleanup_pending"])
         payload = next(kwargs["data"] for method, url, kwargs in requests if url.endswith('/interactions'))
-        self.assertEqual(payload["input"][0]["processing"]["fps"], config["fps"])
-        self.assertEqual(payload["input"][0]["resolution"], config["media_resolution"])
-        self.assertEqual(payload["input"][0]["name"], clip.name)
+        self.assertEqual(payload["input"][0], {"type": "text", "text": "다음 영상의 clip_name: " + clip.name})
+        self.assertEqual(payload["input"][1]["processing"]["fps"], config["fps"])
+        self.assertEqual(payload["input"][1]["resolution"], config["media_resolution"])
+        self.assertNotIn("name", payload["input"][1])
         self.assertNotIn("media_resolution", payload["generation_config"])
         self.assertEqual(usage.token_meters({"by_modality": [{"tokens": 5}]}), {"by_modality.0.tokens": 5})
+        requests.clear()
+        with patch("app.secrets.credential", return_value=("secret-never-output", "vault-1")), patch("app.gemini.request", side_effect=transport):
+            with self.assertRaises(ProviderError):
+                GeminiObserver(self.store).request_v3([(self.store.path(clip.ref), clip)],
+                    {**config, "processing_mode": "agentic", "fps": None},
+                    {"run_id": "synthetic-agentic", "audit_actor": "developer"}, {}, lambda: None)
+        payload = next(kwargs["data"] for method, url, kwargs in requests if url.endswith('/interactions'))
+        self.assertEqual(payload["input"][1]["processing"], "agentic")
+        self.assertEqual(payload["input"][1]["name"], clip.name)
         with patch("app.secrets.credential", return_value=("secret-never-output", "vault-1")), patch("app.gemini.request") as network:
             with self.assertRaises(ProviderError) as oversized:
                 GeminiObserver(self.store).request_v3([(self.store.path(clip.ref), clip.model_copy(update={"size_bytes": 2_000_000_001}))],

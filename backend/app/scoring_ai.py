@@ -20,7 +20,7 @@ from app.preprocess_v3 import CATALOG
 from app.scoring_v3 import RULE_HASH, RULE_VERSION, VOCAL_SEGMENTS, calculate, vocal_category
 from app.storage import encode, now
 
-VERSION = "ai-scoring-20260929-v3-1"
+VERSION = "ai-scoring-20260929-v3-2"
 
 
 class AiRevealResultV3(sheets.SheetRevealResultV3):

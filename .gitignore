@@ -15,6 +15,15 @@ __pycache__/
 .env.*
 !.env.example
 
+# Local assessment videos
+/docs/검증용 영상_*/
+*.[mM][pP]4
+*.[mM][oO][vV]
+*.[mM]4[vV]
+*.[aA][vV][iI]
+*.[mM][kK][vV]
+*.[wW][eE][bB][mM]
+
 # Frontend build and browser test output
 node_modules/
 dist/
