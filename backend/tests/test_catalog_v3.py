@@ -80,8 +80,8 @@ class CatalogV3Tests(unittest.TestCase):
         self.assertEqual((rules.separation_combinations[-1].initial, rules.separation_combinations[-1].later), (2, 2))
         self.assertIn("이후 50초", rules.separation_combinations[0].text)
 
-    def test_default_cli_still_checks_v2_and_all_accepts_explicit_parent(self):
-        for options in (("--check",), ("--spec", "all", "--customer-dir", str(ROOT / "docs"), "--check")):
+    def test_cli_checks_the_default_and_an_explicit_source_folder(self):
+        for options in (("--check",), ("--customer-dir", str(CUSTOMER_DIR_V3), "--check")):
             run = subprocess.run([sys.executable, "-X", "utf8", "-m", "app.import_catalogs", *options],
                                  cwd=ROOT / "backend", capture_output=True, text=True, encoding="utf-8")
             self.assertEqual(run.returncode, 0, run.stderr)

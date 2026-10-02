@@ -1,6 +1,6 @@
 # K-DOG 개발 실행 안내
 
-> 2026-09-16 기준. 도메인 층(카탈로그·계약·계산)·입력 계약·화면은 42항목 판(2026-09-13)이고, 55항목 판 분석 파이프라인의 화면·라우트는 제거됐으며 남은 모듈은 P2에서 대체된다. 방향·범위·일정은 [변경 검토](K-DOG_변경검토_v1.0_20260915.md)를, 고객 요구사항은 `docs/최종 고객 문서/`를 따른다. 이 문서는 개발 환경과 검증 명령만 다룬다.
+> 2026-09-16 기준. 도메인 층(카탈로그·계약·계산)·입력 계약·화면은 42항목 판(2026-09-13)이고, 55항목 판 분석 파이프라인의 화면·라우트는 제거됐으며 남은 모듈은 P2에서 대체된다. 방향·범위·일정은 [S1 개발 반영 계획](개발반영_20261003/K-DOG_개발반영계획_v1.0_20261003.md)을, 최종 고객 요구사항은 `docs/요구사항_20261003/`([원본 자료 목록](개발반영_20261003/K-DOG_원본자료목록_v1.0_20261003.md))을 따른다. 이 문서는 개발 환경과 검증 명령만 다룬다.
 
 ## 구성
 
@@ -32,7 +32,7 @@ uv run --locked python -X utf8 -m unittest discover -s tests -v
 uv run --locked python -X utf8 -m app.import_catalogs --check
 ```
 
-첫 명령은 `backend/.venv`에 잠금 의존성을 설치한다. `--check`는 `resources/catalogs/`의 JSON과 원본 엑셀을 대조하며 어떤 파일도 변경하지 않는다. Python `-X utf8`은 Windows의 한글 입출력 인코딩을 고정한다. 시험 명령은 반드시 `backend/`에서 실행한다. 다른 폴더에서는 `tests` 시작 폴더를 import할 수 없어 `Start directory is not importable` 오류가 난다.
+첫 명령은 `backend/.venv`에 잠금 의존성을 설치한다. `--check`는 `resources/`의 v3 추출물과 9월 29일 원본을 대조하며 어떤 파일도 변경하지 않는다. Python `-X utf8`은 Windows의 한글 입출력 인코딩을 고정한다. 시험 명령은 반드시 `backend/`에서 실행한다. 다른 폴더에서는 `tests` 시작 폴더를 import할 수 없어 `Start directory is not importable` 오류가 난다.
 
 ```powershell
 # frontend/에서 실행
@@ -46,7 +46,7 @@ npm run test:e2e
 
 ## 원본 항목집 이관
 
-42항목 판 원본은 고객이 보낸 `docs/최종 고객 문서/03_행동_채점표_42항목_20260913.xlsx`(행동 채점표)와 `04_보호자_설문지_28문항.pdf`(설문)다. 원본을 수정하지 않는다. 이관기는 03 엑셀의 구조(4행 헤더, 시트별 9·24·9행, AD 영역코드, AY 척도)와 04 설문지의 구조(영역 A~E 머리, 1~28 번호, 7~9의 「해당 없음」 칸)를 검증하는 전용 도구이며 범용 업로드 처리기가 아니다.
+현행 원본은 `docs/큐브전달_20260929/`다. 원본을 수정하지 않는다. 이관기(`app.import_catalogs`, 실제 추출은 `import_catalogs_v3.py`)는 첨부목록의 크기·해시와 02 엑셀·DOCX 구조를 검증하는 전용 도구이며 범용 업로드 처리기가 아니다.
 
 ```powershell
 # backend/에서 실행: 파생 JSON을 재생성한다.
@@ -55,7 +55,9 @@ uv run --locked python -X utf8 -m app.import_catalogs
 uv run --locked python -X utf8 -m app.import_catalogs --customer-dir "D:/reference" --check
 ```
 
-출력은 `resources/catalogs/behavior-v2.json`과 `survey-v2.json`(둘 다 `catalog-20260913-v2`)이다. 행동 항목마다 원본 시트·행·라벨 셀 좌표, 영역코드, 축, 척도구분(BI/ONE), 자료형(`scale`·`count`·`phase_count`·`auto_ratio`), 허용 점수를 기록하고, 파일 전체의 SHA-256을 남긴다. 참고 항목의 자료형은 B열 문구(`※횟수`·`※0~6`·`※자동 계산`)로 판정하며, 허용 점수는 C~G열에 라벨이 있는 값만이다 — 근거와 고객 확인 사항은 [P0 구현 계획](K-DOG_P0_구현계획_v1.0_20260916.md) 1·2장. 설문 문항은 `s01`~`s28`(번호·영역·「해당 없음」 허용·쪽)이며, 역채점(26~28)·분리 유형 규칙은 설문지에 없으므로 계산 규칙 파일(PR-4)에 둔다. 옛 30문항과의 대응은 `survey-v1-to-v2.json`(문장이 같은 쌍만 연결)에 있다. 설문지 PDF를 읽는 `pypdf`는 개발 의존성이며 런타임은 JSON만 읽는다. 참가자 답안이나 개인정보는 가져오지 않는다. 원본이 개정되면 기존 버전을 덮어 배포하지 말고 이관기와 항목집 버전을 함께 갱신하고 다시 검증한다.
+출력은 `resources/{catalogs,rules,mappings}/*-v3.json`이다. 참가자 답안이나 개인정보는 가져오지 않는다. 원본이 개정되면 기존 버전을 덮어 배포하지 말고 이관기와 항목집 버전을 함께 갱신하고 다시 검증한다.
+
+9월 13일 42항목 판의 `behavior-v2.json`·`survey-v2.json`(`catalog-20260913-v2`)은 저장된 세션을 읽는 코드가 남아 있는 동안 커밋된 그대로 유지한다. 그 원본(`docs/최종 고객 문서/`)은 2026-10-03에 제거했으므로 더 이상 재생성·원본 대조하지 않으며, 시험은 커밋된 JSON의 구조와 계약만 확인한다.
 
 옛 55항목 판의 `resources/source/` 엑셀과 `behavior-v1.json`·`survey-v1.json`은 저장된 옛 run을 읽는 코드가 남아 있는 동안 유지한다. 두 v1 JSON은 더 이상 재생성하지 않으며 `tests/test_catalog_import.py`가 원본 엑셀과 직접 대조한다.
 
@@ -66,8 +68,6 @@ uv run --locked python -X utf8 -m app.import_catalogs --customer-dir "D:/referen
 ## 계산 규칙
 
 `app.scoring`은 03 엑셀 `여러쌍비교!D6:Z6` 수식과 01 §4를 그대로 옮긴 계산이다. 임계값·항목 역할·무효 규칙·설문 규칙은 코드가 아니라 `resources/rules/scoring-v2.json`에 있고, 고객 회신으로 해석이 바뀌면 그 파일만 고친다. `behavior_scores(sheet, catalog)`는 영역 6개(평균은 BI 항목, 폭은 BI·ONE, 정도는 ONE), 지표 4개(적응·회복·낯선 진정·동조율 — 3에서의 거리 차), 유형 2개(애착·사회성—사람), 기준 각성을 낸다. 무시 지시 준수·걷기 시행 유효성이 3이면 그 시행의 항목을 집계에서 빼고 관련 지표·유형을 `invalid`로 표시한다(계획 R5·R6). `survey_scores(answers, catalog)`는 26~28 역채점, 영역 A·B·C·E 평균(응답 문항만, 응답 수 기록), D 분리 유형 4종을 내며 총점은 없다. 반올림은 엑셀이 ROUND하는 자리(영역 평균·기운·정도·설문 평균)에서만 소수 2자리 half-up이다.
-
-`tests/test_scoring_golden.py`가 05 예비촬영 6쌍의 입력으로 위 수식을 손으로 계산한 값과 프로그램 출력을 대조한다. 이것이 42항목 판 계산의 기준선이며, 규칙 파일을 바꾸면 이 시험의 기대값도 함께 바꿔야 한다.
 
 ## 전처리 (FFmpeg)
 
@@ -101,7 +101,7 @@ uv run --locked python -X utf8 ../scripts/rehearsal.py --pairs 72 --report "D:/t
 
 ## legacy
 
-옛 55항목 판 계약·문맥 검증·계산·입력 형태는 `app.legacy`(`contracts_v1`·`validation_v1`·`scoring_v1`·`input_models_v1`)에 읽기 전용으로 있다. 55항목 분석·리포트·내보내기·평가 설정의 API 라우트와 화면은 제거됐고(PR-10), 그 백엔드 모듈(`analysis`·`worker` 단계·`evaluation`·`reporting`·`exports` 등)은 P2 채점 파이프라인이 대체할 때까지 worker 참조용으로만 남아 있다. 저장된 옛 run 행은 DB에 그대로 있다. 입력 계약은 `intake-2.0`(설문 `s01`~`s28`·「해당 없음」·촬영 메모 `note`·카메라 구분 없는 영상 파일 목록·기준 영상 위의 8구간 시작·끝 시각 `segments`와 확정 여부)이며, 접수 항목으로 순번(행사 안에서 유일)·동의 확인·보호자명·반려견 정보(`cases.dog_profile_json`: 견종·성별·나이·크기·함께 산 기간·입양 경로)를 받되 연락처는 받지 않는다(01 §7). 참가자 CSV/XLSX 양식의 접수 열은 생략할 수 있다(빈칸=미기재). DB `user_version`은 6이다. 설문은 CSV·Excel 가져오기로만 등록하고, 옛 `intake-1.0` 자료 폴더는 `Store` 첫 실행 때 자동 이관된다(`migration_note`에 버린 응답 기록). 자세한 범위는 [P1 구현 계획](K-DOG_P1_구현계획_v1.0_20260916.md) §2. 저장된 옛 run을 읽는 worker·리포트가 아직 이를 import하며, 각 모듈이 42항목 판으로 교체되는 PR에서 함께 삭제한다. legacy에 기능을 추가하지 않는다.
+옛 55항목 판 계약·문맥 검증·계산·입력 형태는 `app.legacy`(`contracts_v1`·`validation_v1`·`scoring_v1`·`input_models_v1`)에 읽기 전용으로 있다. 55항목 분석·리포트·내보내기·평가 설정의 API 라우트와 화면은 제거됐고(PR-10), 그 백엔드 모듈(`analysis`·`worker` 단계·`evaluation`·`reporting`·`exports` 등)은 P2 채점 파이프라인이 대체할 때까지 worker 참조용으로만 남아 있다. 저장된 옛 run 행은 DB에 그대로 있다. 입력 계약은 `intake-2.0`(설문 `s01`~`s28`·「해당 없음」·촬영 메모 `note`·카메라 구분 없는 영상 파일 목록·기준 영상 위의 8구간 시작·끝 시각 `segments`와 확정 여부)이며, 접수 항목으로 순번(행사 안에서 유일)·동의 확인·보호자명·반려견 정보(`cases.dog_profile_json`: 견종·성별·나이·크기·함께 산 기간·입양 경로)를 받되 연락처는 받지 않는다(01 §7). 참가자 CSV/XLSX 양식의 접수 열은 생략할 수 있다(빈칸=미기재). DB `user_version`은 6이다. 설문은 CSV·Excel 가져오기로만 등록하고, 옛 `intake-1.0` 자료 폴더는 `Store` 첫 실행 때 자동 이관된다(`migration_note`에 버린 응답 기록). 저장된 옛 run을 읽는 worker·리포트가 아직 이를 import하며, 각 모듈이 42항목 판으로 교체되는 PR에서 함께 삭제한다. legacy에 기능을 추가하지 않는다.
 
 저장 계층은 검증 후 직렬화한 JSON을 불변 입력 파일로 저장하고 수정 시 새 revision을 만든다. 기본 도메인 검증은 새 run 자체의 관찰만 허용하며, `app.analysis`가 같은 참가자·세션·관련 입력/설정 해시와 명시적 reuse manifest를 확인한 경우에만 이전 관찰의 근거 ID를 연결한다. 이 원칙(불변 산출물·점유 토큰·삭제 상태 재확인·revision 고정·관찰 부족과 규칙 미정의 구분)은 42항목 판에서도 유지한다.
 
