@@ -36,7 +36,8 @@ from app.input_models import (
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
 from app import settings
-from app import forms_v4
+from app import forms_v4, uploads
+from app.domain.media_v4 import StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
 from app import sheets, judgements, run_v3, scoring_ai, settings_v3
 from app.input_models_v3 import RunCreateV3, RunActionV3, RunViewV3
 from app import secrets as vault
@@ -75,6 +76,8 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     async def lifespan(app):
         from app.maintenance import runtime_lock
         with runtime_lock(store, "api"):
+            with store.connect(write=True) as db:
+                uploads.recover_interrupted(db)
             yield
 
     app = FastAPI(title="K-DOG", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -444,13 +447,20 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 path.unlink(missing_ok=True)
 
     @app.get("/api/cases/{case_id}/videos/{video_id}")
-    def video_file(case_id: Key, video_id: Key, user=Depends(reader)):
+    def video_file(case_id: Key, video_id: Key, request: Request, user=Depends(reader)):
         with store.connect() as db:
             row = store.case(db, case_id)
-            videos = [video for session in store.manifest(row).sessions for video in session.videos]
+            manifest = store.manifest(row)
+            videos = [video for session in manifest.sessions for video in session.videos]
             video = next((item for item in videos if item.video_id == video_id), None)
             if video is None:
                 raise HTTPException(404, "이 참가자의 영상이 아닙니다.")
+            if manifest.schema_version == "intake-4.0" and manifest.consents.analysis_feedback == "declined":
+                raise HTTPException(403, "분석·피드백 동의가 거절된 자료입니다.")
+            if isinstance(video, StoredMediaV4):
+                path = uploads.linked_video_path(store, case_id, video_id, user.username)
+                return FileResponse(path, filename=video.original_name,
+                    content_disposition_type="attachment" if video.media_status == "storage_only" else "inline")
             path = store.path(video.storage_ref)
             if not path.is_file() or path.stat().st_size != video.size_bytes:
                 raise HTTPException(409, "영상 파일이 없거나 크기가 변경되었습니다.")
@@ -458,7 +468,12 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 if hashlib.file_digest(handle, "sha256").hexdigest() != video.sha256:
                     raise HTTPException(409, "영상 파일 해시가 일치하지 않습니다.")
             # Hashing a large file can take time; refresh access immediately before serving.
-            store.case(db, case_id)
+            current_user = authenticate(db, request.cookies.get(COOKIE))
+            if current_user["role"] not in ("operator", "reviewer", "admin"):
+                raise HTTPException(403, "영상 열람 권한이 변경되었습니다.")
+            current_manifest = store.manifest(store.case(db, case_id))
+            if current_manifest.schema_version == "intake-4.0" and current_manifest.consents.analysis_feedback == "declined":
+                raise HTTPException(403, "분석·피드백 동의가 거절된 자료입니다.")
             return FileResponse(path, filename=f"{video_id}{path.suffix}", content_disposition_type="inline")
 
     @app.put("/api/cases/{case_id}/sessions/{session_id}", response_model=CaseView | CaseViewV3 | CaseViewV4)
@@ -470,6 +485,36 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             session.note = value.note
             store.save(db, row, manifest, user.username, "session.metadata")
             return store.view(store.case(db, case_id))
+
+    @app.get("/api/uploads", response_model=list[UploadReceiptV4])
+    def upload_receipts(user=Depends(writer)):
+        return uploads.list_receipts(store, user.username)
+
+    @app.post("/api/uploads", response_model=UploadReceiptV4, status_code=201)
+    def upload_create(value: UploadCreateV4, user=Depends(writer)):
+        return uploads.create_receipt(store, value, user.username)
+
+    @app.get("/api/uploads/{upload_id}", response_model=UploadReceiptV4)
+    def upload_receipt(upload_id: Key, user=Depends(writer)):
+        return uploads.get_receipt(store, upload_id, user.username)
+
+    @app.put("/api/uploads/{upload_id}/content", response_model=UploadReceiptV4)
+    async def upload_receive(upload_id: Key, request_id: Key, request: Request, user=Depends(writer)):
+        return await uploads.receive(store, upload_id, request_id, request.stream(), user.username)
+
+    @app.post("/api/uploads/{upload_id}/link", response_model=UploadReceiptV4)
+    def upload_link(upload_id: Key, value: UploadLinkV4, user=Depends(writer)):
+        return uploads.link_receipt(store, upload_id, value, user.username)
+
+    @app.get("/api/uploads/{upload_id}/content")
+    def upload_download(upload_id: Key, user=Depends(writer)):
+        receipt = uploads.get_receipt(store, upload_id, user.username)
+        path = uploads.download_path(store, upload_id, user.username)
+        return FileResponse(path, filename=receipt.filename, media_type="application/octet-stream")
+
+    @app.delete("/api/uploads/{upload_id}", response_model=UploadReceiptV4)
+    def upload_abort(upload_id: Key, user=Depends(writer)):
+        return uploads.abort_receipt(store, upload_id, user.username)
 
     @app.put("/api/cases/{case_id}/sessions/{session_id}/segments", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def session_segments(case_id: Key, session_id: Key, value: SegmentsEdit, user=Depends(writer)):

@@ -10,8 +10,9 @@ from pydantic import Field, model_validator
 from app.domain.catalog import SURVEY_IDS
 from app.domain.catalog_v3 import SURVEY_VERSION
 from app.domain.catalog_v4 import CATALOG_VERSION, PROTOCOL_VERSION
+from app.domain.media_v4 import StoredMediaV4
 from app.domain.recording_v3 import RecordingV3
-from app.input_models import CaseView, Key, Manifest, Model, Session
+from app.input_models import CaseView, Key, Manifest, Model, Session, StoredVideo
 from app.input_models_v3 import ConsentsV3, ManifestV3, SessionV3
 
 
@@ -24,6 +25,7 @@ def parse_manifest(data: bytes) -> Manifest | ManifestV3 | ManifestV4:
 
 
 class SessionV4(Session):
+    videos: list[StoredMediaV4 | StoredVideo] = Field(default_factory=list)
     scoring_catalog_version: Literal["catalog-20261002-s1.1"] = CATALOG_VERSION
     protocol_version: Literal["protocol-20261002-s1.1", "protocol-20260929-v3", "protocol-20260913-v2", "unconfirmed"] = PROTOCOL_VERSION
     protocol_source: Literal["new_session", "confirmed_v2_recording", "unconfirmed"] = "new_session"
@@ -38,6 +40,12 @@ class SessionV4(Session):
         values = self.model_dump(mode="json")
         for name in ("scoring_catalog_version", "recording_review_required"):
             values.pop(name)
+        # Reuse input-fact validation without dropping S1 provenance in the manifest.
+        values["videos"] = [
+            {**{key: value for key, value in video.items() if key in StoredVideo.model_fields},
+             "media_status": "pending_probe"}
+            for video in values["videos"]
+        ]
         if self.protocol_version == PROTOCOL_VERSION:
             if self.recording is not None:
                 raise ValueError("a previous capture record cannot be relabelled S1")

@@ -120,7 +120,7 @@ class Store:
         for name in ("inputs", "videos"):
             (self.root / name).mkdir(exist_ok=True)
         with self.connect() as db:
-            if db.execute("PRAGMA user_version").fetchone()[0] > 10:
+            if db.execute("PRAGMA user_version").fetchone()[0] > 11:
                 raise ValueError("지원 버전보다 높은 데이터베이스에는 쓰지 않습니다.")
             db.execute("PRAGMA journal_mode=WAL")
             db.executescript(SCHEMA)
@@ -159,7 +159,9 @@ class Store:
             db.execute("CREATE TRIGGER immutable_run_input BEFORE UPDATE OF kind,request_id,request_hash,input_hash,"
                        "input_snapshot_json,config_snapshot_json,case_id,session_id,input_revision,reuse_manifest_json ON runs "
                        "BEGIN SELECT RAISE(ABORT, 'run snapshots are immutable'); END")
-            db.execute("PRAGMA user_version=10")
+            from app.uploads import init_schema
+            init_schema(db)
+            db.execute("PRAGMA user_version=11")
 
     def migrate_manifests(self, db):
         """Rewrite intake-1.0 case manifests as intake-2.0 (28-item survey); stored run snapshots stay untouched."""

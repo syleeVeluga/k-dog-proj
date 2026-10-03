@@ -5,7 +5,9 @@ export const roleNames: Record<Role, string> = { operator: '운영자', reviewer
 export const formFields = (form: HTMLFormElement) => Object.fromEntries(new FormData(form));
 export type Video = {
   video_id: string; original_name: string;
-  size_bytes: number; sha256: string; media_status: 'pending_probe';
+  size_bytes: number; sha256: string; media_status: 'pending_probe' | 'storage_only';
+  upload_id?: string; camera_id?: string; source_original_number?: string | null;
+  source_kind?: 'original' | 'received_conversion' | 'app_derived';
 };
 export type SegmentId = 'entry' | 'baseline' | 'alone' | 'stranger' | 'reunion' | 'ignore' | 'walk' | 'exit';
 // Procedure order and Korean labels (01 §2); the backend contract fixes the same order.
