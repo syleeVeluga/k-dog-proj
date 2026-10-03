@@ -10,6 +10,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Flowable, Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .report_render_v4 import STATUS, comparison_legend, comparison_rows, number, presentation, survey_rows, time_text, timeline_rows, validate
+from .domain.comparisons_v4 import CohortPublicV4
 from .storage import REPO_ROOT
 
 
@@ -27,8 +28,10 @@ class SurveyBar(Flowable):
             self.canv.roundRect(0, 3, self.width*self.fraction, 6, 3, fill=1, stroke=0)
 
 
-def render_pdf(profile, header, images=()):
+def render_pdf(profile, header, images=(), *, cohort=None):
     profile, header, photos = validate(profile, header, images)
+    cohort = CohortPublicV4.model_validate(cohort) if cohort is not None else None
+    surveys = survey_rows(profile, cohort)
     design = presentation()
     for name, filename in (("KDogS1", "NanumGothic-Regular.ttf"), ("KDogS1Symbols", "NotoSansSymbols.ttf")):
         if name not in pdfmetrics.getRegisteredFontNames():
@@ -107,7 +110,9 @@ def render_pdf(profile, header, images=()):
             story.append(Table(timeline,colWidths=[80,155,276],splitInRow=1))
         section(2)
         story.append(p("평소 보호자 응답을 원래 눈금으로 표시합니다. 값이 작거나 크다는 사실만으로 좋고 나쁨을 정하지 않습니다."))
-        for row in survey_rows(profile):
+        if cohort:
+            story.append(p(f'자체 비교 집단: {cohort.title} · 선택 {cohort.selection_count}개체', small))
+        for row in surveys:
             story.append(p(f'{row["title"]} · {number(row["value"])}'))
             if row['value'] is not None:
                 story.append(SurveyBar(row['value'], row['minimum'], row['maximum'], 490))
@@ -143,6 +148,9 @@ def render_pdf(profile, header, images=()):
                       p("확정된 영상 원자료, 보호자 설문과 완료된 해석을 바탕으로 작성했습니다. 관찰되지 않은 행동을 하지 않는 행동으로 단정하지 않습니다."),
                       p(design['scale_notice'],small), p(design['external_notice'],small),
                       p(f'생성 {header.generated_at} · 기본 결과 판본 {profile.source.basic.revision} · 원자료 판본 {profile.source.sheet.revision}',small)])
+        if cohort:
+            story.extend([p(cohort.interpretation_note, small), p(cohort.selection_note, small),
+                          p(f'자체 비교 snapshot {cohort.reference.snapshot_id} · 판본 {cohort.reference.revision}', small)])
         if header.preview:
             story.append(p("검토용 미리보기",small))
         def page(canvas, document):

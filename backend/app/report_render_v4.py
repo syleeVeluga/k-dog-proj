@@ -7,6 +7,7 @@ from html import escape
 
 from .domain.report_profile_v4 import ReportProfileV4
 from .domain.report_render_v4 import ReportHeaderV4, SceneImageV4
+from .domain.comparisons_v4 import CohortPublicV4
 from .storage import REPO_ROOT
 
 
@@ -56,18 +57,33 @@ def validate(profile, header, images):
     return profile, header, photos
 
 
-def survey_rows(profile):
+def survey_rows(profile, cohort=None):
+    if cohort is not None:
+        cohort = CohortPublicV4.model_validate(cohort)
+        if (cohort.survey_version, cohort.survey_policy) != (profile.source.survey.survey_version, profile.source.survey.policy_version):
+            raise ValueError("비교 집단의 설문 판본과 산출 정책이 다릅니다.")
     values = {item.item_id: item for item in profile.source.survey.items}
     rows = []
     for domain in profile.source.survey.domains:
         allowed = sorted({value for key in domain.question_ids for value in values[key].allowed_values})
-        rows.append({"title": domain.domain, "value": domain.mean, "minimum": min(allowed), "maximum": max(allowed),
+        rows.append({"title": domain.domain, "question_ids": domain.question_ids, "value": domain.mean, "minimum": min(allowed), "maximum": max(allowed),
                      "detail": f"응답 {domain.answered_count}/{domain.target_count} · " +
                      (f"{number(domain.numerator)} ÷ {domain.denominator}" if domain.mean is not None else domain.reason or "미산출")})
     one = profile.source.survey.standalone
-    rows.append({"title": "일상 따라옴 (단일 원응답)", "value": one.raw,
+    rows.append({"title": "일상 따라옴 (단일 원응답)", "question_ids": ("s25",), "value": one.raw,
                  "minimum": min(one.allowed_values), "maximum": max(one.allowed_values),
                  "detail": f"응답 {int(one.raw is not None)}/1 · " + (one.blank_reason or ("원응답" if one.raw is not None else "원응답 없음"))})
+    if cohort is not None:
+        comparisons = {tuple(item.question_ids): item for item in cohort.domains}
+        if len(comparisons) != len(rows) or set(comparisons) != {tuple(row['question_ids']) for row in rows}:
+            raise ValueError("비교 집단 영역과 문항 구성이 다릅니다.")
+        for row in rows:
+            other = comparisons[tuple(row['question_ids'])]
+            if (other.scale_minimum, other.scale_maximum) != (row['minimum'], row['maximum']) or other.n + other.excluded_count != cohort.selection_count:
+                raise ValueError("비교 집단 눈금 또는 유효 표본 분모가 다릅니다.")
+            if (other.n == 0) != (other.mean is None) or (other.mean is not None and not row['minimum'] <= other.mean <= row['maximum']):
+                raise ValueError("비교 집단 평균과 유효 표본 수가 일치하지 않습니다.")
+            row['detail'] += f" · 자체 평균 {number(other.mean)} (유효 n={other.n}, 제외 {other.excluded_count})"
     return rows
 
 
@@ -113,8 +129,10 @@ def timeline_rows(profile, kind):
     return rows
 
 
-def render_html(profile, header, images=()):
+def render_html(profile, header, images=(), *, cohort=None):
     profile, header, photos = validate(profile, header, images)
+    cohort = CohortPublicV4.model_validate(cohort) if cohort is not None else None
+    surveys = survey_rows(profile, cohort)
     design = presentation()
     e = lambda value: escape(str(value), quote=True)
     def paragraphs(claims):
@@ -139,11 +157,12 @@ def render_html(profile, header, images=()):
     timeline = '<h3>기록된 실제 구간</h3><table><thead><tr><th>구간</th><th>공통시각</th><th>실제 상태</th></tr></thead><tbody>' + ''.join(f'<tr><td>{e(label)}</td><td>{e(interval)}</td><td>{e(state)}</td></tr>' for label,interval,state in timeline_rows(profile,'segment')) + '</tbody></table>'
     section(1, ''.join(scenes) + notice(profile.scene_notice) + ''.join(notice(entry.reason) for entry in profile.scene_review) + timeline)
     charts = []
-    for row in survey_rows(profile):
+    for row in surveys:
         width = 0 if row['value'] is None else (row['value']-row['minimum'])/(row['maximum']-row['minimum'])*100
         bar = f'<div class="track"><div class="fill" style="width:{width:.3f}%"></div></div>' if row['value'] is not None else ''
         charts.append(f'<div class="survey-row"><div class="bar-label"><span>{e(row["title"])}</span><span class="survey">{e(number(row["value"]))}</span></div>{bar}{notice(f"눈금 {row['minimum']}–{row['maximum']} · {row['detail']}")}</div>')
-    section(2, '<p>평소 보호자 응답을 원래 눈금으로 표시합니다. 값이 작거나 크다는 사실만으로 좋고 나쁨을 정하지 않습니다.</p>' + ''.join(charts) + notice(design['external_notice']))
+    section(2, '<p>평소 보호자 응답을 원래 눈금으로 표시합니다. 값이 작거나 크다는 사실만으로 좋고 나쁨을 정하지 않습니다.</p>' +
+            (notice(f'자체 비교 집단: {cohort.title} · 선택 {cohort.selection_count}개체') if cohort else '') + ''.join(charts) + notice(design['external_notice']))
     rows = ''.join(f'<tr><td>{e(title)}</td><td class="survey">{e(survey)}</td><td class="video">{e(video)}' + ''.join(f'<p>{e(detail)}</p>' for detail in details) + '</td></tr>' for title,survey,video,details in comparison_rows(profile))
     section(3, f'<p>{e(design["scale_notice"])}</p>' + notice(' / '.join(comparison_legend(profile))) + f'<table><thead><tr><th>평소의 질문</th><th>설문 값</th><th>이번 영상 관찰</th></tr></thead><tbody>{rows}</tbody></table>')
     walk = '<div class="walk">' + ''.join(f'<div>{e(label)}<p>{e(interval)}</p>{notice(state)}</div>' for label,interval,state in timeline_rows(profile,'walk_phase')) + '</div>'
@@ -152,6 +171,7 @@ def render_html(profile, header, images=()):
     section(5, actions + notice(profile.actions_notice) + '<h3>오늘의 관찰을 함께 읽으며</h3>' + paragraphs(profile.summary) +
             '<h3>관찰 범위와 출처</h3><p>확정된 영상 원자료, 보호자 설문과 완료된 해석을 바탕으로 작성했습니다. 관찰되지 않은 행동을 하지 않는 행동으로 단정하지 않습니다.</p>' +
             notice(design['scale_notice']) + notice(design['external_notice']) + notice(f'생성 {header.generated_at} · 기본 결과 판본 {profile.source.basic.revision} · 원자료 판본 {profile.source.sheet.revision}') +
+            (notice(cohort.interpretation_note) + notice(cohort.selection_note) + notice(f'자체 비교 snapshot {cohort.reference.snapshot_id} · 판본 {cohort.reference.revision}') if cohort else '') +
             notice('기본 여섯 장의 내용을 유지하며 긴 설명은 인쇄 시 다음 쪽으로 이어집니다.'))
     css = (REPO_ROOT / ASSETS[2]).read_text(encoding='utf8')
     for font, name in ((ASSETS[3], 'KDog'), (ASSETS[4], 'KDogSymbols')):

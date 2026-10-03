@@ -219,6 +219,9 @@ class Worker:
         return artifact.model_dump(mode="json")
 
     def process(self, row):
+        if row["kind"] == "report_v4":
+            from app import report_runs_v4
+            return report_runs_v4.process(self, row)
         if row["kind"] == "s1":
             from app import run_v4
             return run_v4.process(self, row)

@@ -43,6 +43,7 @@ from app.domain.sheets_v4 import SheetDocumentV4
 from app import judgements_v4
 from app import run_v4, scoring_ai_v4, settings_v4
 from app import opinions_v4, final_results_v4, disclosures_v4
+from app import report_runs_v4, comparisons_v4
 from app.domain.runs_v4 import ActionV4, RunViewV4, StartV4
 from app.domain.preprocess_v4 import BatchV4, PreprocessRequestV4, PreprocessStatusV4
 from app.domain.media_v4 import PreservedMediaRegistrationV4, StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
@@ -105,7 +106,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'"
+        response.headers.setdefault("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'")
         if request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
         return response
@@ -750,6 +751,66 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         if value.target.kind != "final" or value.target.document_id != final_id:
             raise HTTPException(422, "선택한 최종 판본과 열람 대상이 다릅니다.")
         return disclosures_v4.reveal(store, case_id, session_id, value, user)
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/report-runs-s1", response_model=list[report_runs_v4.ReportRunViewV4])
+    def report_s1_runs(case_id: Key, session_id: Key, user=Depends(reader)):
+        return report_runs_v4.list_runs(store, case_id, session_id, user)
+
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/report-runs-s1", response_model=report_runs_v4.ReportRunViewV4, status_code=201)
+    def report_s1_start(case_id: Key, session_id: Key, value: report_runs_v4.ReportStartV4, user=Depends(reader)):
+        return report_runs_v4.enqueue(store, case_id, session_id, value, user)
+
+    @app.get("/api/report-runs-s1/{run_id}", response_model=report_runs_v4.ReportRunViewV4)
+    def report_s1_run(run_id: Key, viewer_sheet_id: Key | None = None, user=Depends(reader)):
+        return report_runs_v4.view(store, run_id, user, viewer_sheet_id)
+
+    @app.post("/api/report-runs-s1/{run_id}/stop", response_model=report_runs_v4.ReportRunViewV4)
+    def report_s1_stop(run_id: Key, value: report_runs_v4.ReportActionV4, user=Depends(reader)):
+        return report_runs_v4.action(store, run_id, value, user)
+
+    @app.post("/api/report-runs-s1/{run_id}/retry", response_model=report_runs_v4.ReportRunViewV4)
+    def report_s1_retry(run_id: Key, value: report_runs_v4.ReportActionV4, user=Depends(reader)):
+        return report_runs_v4.action(store, run_id, value, user, retry=True)
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/report-runs-s1/{run_id}/files/{format}")
+    def report_s1_file(case_id: Key, session_id: Key, run_id: Key, format: Literal["html", "pdf", "manifest"], viewer_sheet_id: Key | None = None, inline: bool = False, user=Depends(reader)):
+        data, mime, filename = report_runs_v4.download(store, case_id, session_id, run_id, format, user, viewer_sheet_id)
+        headers = {"Content-Disposition": f'{"inline" if inline and format in ("html", "pdf") else "attachment"}; filename="{filename}"'}
+        if format == "html":
+            headers["Content-Security-Policy"] = "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"
+        return Response(data, media_type=mime, headers=headers)
+
+    @app.get("/api/comparisons-s1/candidates", response_model=list[comparisons_v4.CohortCandidateV4])
+    def comparison_s1_candidates(user=Depends(writer)):
+        return comparisons_v4.candidates(store, user)
+
+    @app.get("/api/comparisons-s1/cohorts", response_model=list[comparisons_v4.CohortSummaryV4])
+    def comparison_s1_list(user=Depends(writer)):
+        return comparisons_v4.list_snapshots(store, user)
+
+    @app.post("/api/comparisons-s1/cohorts", response_model=comparisons_v4.CohortViewV4, status_code=201)
+    def comparison_s1_create(value: comparisons_v4.CohortCreateV4, user=Depends(writer)):
+        return comparisons_v4.create(store, value, user)
+
+    @app.get("/api/comparisons-s1/cohorts/{snapshot_id}", response_model=comparisons_v4.CohortViewV4)
+    def comparison_s1_view(snapshot_id: Key, user=Depends(writer)):
+        return comparisons_v4.view(store, snapshot_id, user)
+
+    @app.get("/api/comparisons-s1/sources")
+    def comparison_s1_sources(user=Depends(writer)):
+        return comparisons_v4.public_sources()
+
+    @app.get("/api/comparisons-s1/research")
+    def comparison_s1_research(user=Depends(writer)):
+        return comparisons_v4.research_inventory(store, user)
+
+    @app.post("/api/comparisons-s1/research")
+    def comparison_s1_confirm(value: comparisons_v4.ConfirmResearchV4, user=Depends(writer)):
+        return comparisons_v4.confirm_research(store, value, user)
+
+    @app.post("/api/comparisons-s1/activation")
+    def comparison_s1_activate(value: comparisons_v4.ActivateExternalV4, user=Depends(writer)):
+        return comparisons_v4.activate_external(store, value, user)
 
     @app.put("/api/cases/{case_id}/sessions/{session_id}/segments", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def session_segments(case_id: Key, session_id: Key, value: SegmentsEdit, user=Depends(writer)):
