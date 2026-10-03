@@ -1,6 +1,6 @@
 # PR-S16 원본압축본과360도실증
 
-버전: v1.0 · 2026-10-03 · 상태: 조건부 구현 전 · 선행: S03·S05·S08·S12·S14·S15 · 기준: main 3654596
+버전: v1.0 · 2026-10-03 · 상태: 실측 도구·자동 검증 완료, 실제 영상 실측 후속 · 선행: S03·S05·S08·S12·S14·S15 · 기준: main 3654596
 
 상위: [전체 계획](K-DOG_개발반영계획_v1.0_20261003.md). 공통 검증·리뷰·버전 확인·저장 보호는 상위 §7을 적용한다.
 
@@ -63,8 +63,36 @@
 
 ## 구현 및 검증 기록
 
-- [ ] 구현·변경 파일 및 commit/PR 기록
-- [ ] 명세 기대값과 실제 시험 결과·미실행 사유 기록
-- [ ] 라이브러리/API 최신·선택 버전·확인일·근거 기록
-- [ ] 리뷰 발견사항과 수용/보류/거절·수정·재검증 기록
-- [ ] 남은 D/G 확인, 활성/보류 기능, 다음 PR 인계 기록
+- [x] 구현·변경 파일 및 commit/PR 기록
+- [x] 명세 기대값과 실제 시험 결과·미실행 사유 기록
+- [x] 라이브러리/API 최신·선택 버전·확인일·근거 기록
+- [x] 리뷰 발견사항과 수용/보류/거절·수정·재검증 기록
+- [x] 남은 D/G 확인, 활성/보류 기능, 다음 PR 인계 기록
+
+### 2026-10-04 준비 도구 구현 — 실제 실증은 미실행
+
+`scripts/benchmark_s1.py`와 `backend/tests/test_benchmark_s1.py`를 추가했다. 도구는 기존 S1 실행·보고서·연구 내보내기의 명시 입력/설정/hash와 보호된 짝지음·시간 로그 파일을 검증하여 요약한다. SQLite를 읽기 전용으로 열고 앱 시작 이관, 새 분석/공급자 호출, 영상 변환·프레임 추출은 수행하지 않는다. 실제 영상과 실제 네트워크 측정이 없으므로 S16의 실제 실증 완료 조건은 미완료다.
+
+아래 명령은 `backend/`에서 잠금 환경으로 실행한다. `D:\KDogBenchmark`는 저장소 밖의 보호된 작업 폴더 예시다. 파일은 덮어쓰지 않으므로 새 이름을 지정한다.
+
+```powershell
+uv run --locked python -X utf8 ../scripts/benchmark_s1.py --template D:\KDogBenchmark\manifest.json
+uv run --locked python -X utf8 ../scripts/benchmark_s1.py --schema D:\KDogBenchmark\schemas.json
+uv run --locked python -X utf8 ../scripts/benchmark_s1.py --manifest D:\KDogBenchmark\manifest.json --output D:\KDogBenchmark\preparation.json
+uv run --locked python -X utf8 ../scripts/benchmark_s1.py --manifest D:\KDogBenchmark\measured-manifest.json --data-dir D:\KDogData --actor operator --output D:\KDogBenchmark\summary-01.json
+uv run --locked python -X utf8 -m unittest tests.test_benchmark_s1 -q
+```
+
+`--schema`는 manifest, 짝지음 파일, 단일 시계 로그의 JSON Schema를 함께 출력한다. manifest의 각 trial은 case/session, AI 실행 input/config hash, 선택한 리포트 실행 input/config hash, 짝지음/시간 로그/선택 연구 export의 ref/hash, 반복 번호, cold/명시 재사용, FPS 조건, PC 업로드 조건과 공급자 실행 방식을 고정한다. 파일 ref는 해당 데이터 폴더 내부 참조다. 짝지음 파일은 동일 내용 확인자·시각·근거와 실제 각 영상 hash/camera/공통 구간/offset/길이/FPS/해상도/코덱/오디오/파생 부모·도구·설정 hash를 기록한다. 서로 다른 대상·회차·공통 구간, 원본과 다른 FPS를 ‘FPS 유지’로 표시한 경우, 영상 계보·동기화 offset이 다른 경우에는 검증을 실패시킨다.
+
+필수 세 행은 항상 출력한다. 200~300MB는 십진 bytes로 명시하며 ‘약1GB’의 허용폭은 개발자가 정하지 않는다. 측정 계획에 정한 크기 범위를 먼저 입력하고 실제 파일별 bytes를 함께 보고한다. 파일 수·크기 조건이나 완전한 시간 로그가 부족한 행은 `unmeasured`와 사유를 유지한다. 합성 입력은 `synthetic_only`이며 실제 측정 완료로 승격되지 않는다.
+
+시간 로그는 하나의 관찰 시계에서 UTC 시작점과 경과 초를 기록한다. 서버 수신 시작→PDF 게시의 벽시계, PC 업로드 시작→PDF 게시, 공급자 전송/대기·AI/수리 전체 구간, 실제 구간 합집합과 단계별 합계를 별도 표시한다. 중첩된 단계의 합을 전체 소요 시간으로 쓰지 않는다. 측정하지 않은 단계는 0 대신 null이다. 반복 통계는 동일 pair/config/cold·cache/FPS/PC 업로드/공급자 실행 조건끼리만 묶는다. 현재 S1 공급자 실행은 직렬이며 3PC 동시 업로드나 다중 카메라 입력을 공급자 병렬 처리로 표시하지 않는다. 사용량은 attempt별 예약/재시도·토큰 계량·확인된 비용·비용 미확인을 구분한다.
+
+품질은 S14의 고정 export를 현재 동의·삭제·실제 공개 권한과 함께 재검증하고, 해당 실행의 최초 AI 원자료와 유효한 독립 사람 시트만 S14의 항목별 분모 규칙에 전달한다. G03 참고 파일, 잠정값, AI 노출 뒤 보완값과 미정 정책은 독립 정답에 포함하지 않는다. 사건 누락/중복과 자유문장 의미 품질은 확정 사건 기준·사람 검수가 필요하므로 미측정 사유로 남긴다. INSV는 보관 구현과 실제 보관 실측, 변환, 직접 판독, 정확도를 분리하며 현재 직접 판독은 `unsupported_storage_only`다.
+
+준비·연결 회귀 25개를 통과했다. 선택한 연구 export는 저장된 채택 포인터와 ref/hash가 정확히 같은지 확인하여, 채택되지 않은 복제 snapshot을 품질 분모에 사용하는 것을 거절한다. S14 실제 저장·grant/reveal 합성 fixture에서 최초 AI와 노출 전 사람 원본의 보23 유효 n=1을 확인했고, 다른 AI 실행/수정 AI 판본/G03 참고/AI 노출 후 사람 시트는 분모에서 제외했다. 독립 cold review에서 공통 시각에 적용할 offset 부호와 확인된 offset 출처 오류를 수용 수정했다. 저장 계약의 `source = reference + offset`을 따르고 `RecordingV4.offset(video_id)`가 확인된 값일 때만 대응을 허용한다. 양수·음수·경계 및 미확인/미매핑 회귀를 포함한다. 실제 측정 행은 앱 commit과 서버/네트워크 환경을 채워야 하며, PC 업로드 시작과 첫 서버 수신의 차이를 각 벽시계 범위에 보존한다.
+
+새 의존성을 설치하지 않았으며 2026-10-04 [Python 공식 3.14.8 릴리스](https://www.python.org/downloads/release/python-3148/)를 확인하고 프로젝트의 기존 Python 3.14.2를 유지했다. Pydantic 최신/선택 2.13.5는 같은 날 공식 [PyPI](https://pypi.org/project/pydantic/) 확인 기록을 재사용했다.
+
+이 문서를 포함하는 S16 commit은 실측 준비 코드와 자동 검증의 완료 기록이다. 실제 영상 결과를 요구하는 위 실증 완료 조건은 사용자 지시에 따라 E01–E07로 이관했으며 통과를 뜻하지 않는다.
