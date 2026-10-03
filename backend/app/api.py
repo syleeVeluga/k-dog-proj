@@ -44,6 +44,7 @@ from app import judgements_v4
 from app import run_v4, scoring_ai_v4, settings_v4
 from app import opinions_v4, final_results_v4, disclosures_v4
 from app import report_runs_v4, comparisons_v4
+from app import validation_data_v4, exports_v4
 from app.domain.runs_v4 import ActionV4, RunViewV4, StartV4
 from app.domain.preprocess_v4 import BatchV4, PreprocessRequestV4, PreprocessStatusV4
 from app.domain.media_v4 import PreservedMediaRegistrationV4, StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
@@ -62,6 +63,14 @@ class SecretEdit(Model):
 class FormsFile(Model):
     config: forms_v4.FormsPreviewRequestV4
     file_base64: Annotated[str, Field(max_length=45 * 1024 * 1024)]
+
+
+class WorkbookFileV4(Model):
+    file_base64: Annotated[str, Field(max_length=28 * 1024 * 1024)]
+
+
+class ValidationFileV4(WorkbookFileV4):
+    config: validation_data_v4.ValidationImportV4
 
 
 COOKIE = "kdog_session"
@@ -811,6 +820,69 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.post("/api/comparisons-s1/activation")
     def comparison_s1_activate(value: comparisons_v4.ActivateExternalV4, user=Depends(writer)):
         return comparisons_v4.activate_external(store, value, user)
+
+    async def validation_file_s1(request, model=ValidationFileV4):
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > 32 * 1024 * 1024:
+                raise HTTPException(413, "참고 XLSX는 20 MiB 이하로 등록하세요.")
+        from pydantic import ValidationError
+        try:
+            value = model.model_validate_json(data)
+            source = base64.b64decode(value.file_base64, validate=True)
+        except (ValidationError, binascii.Error, ValueError):
+            raise HTTPException(422, "참고 파일과 명시 셀 연결 형식을 확인하세요.") from None
+        return source, value
+
+    @app.post("/api/validation-data-s1/workbook")
+    async def validation_s1_workbook(request: Request, user=Depends(writer)):
+        from app import s1_workbook
+        source, _ = await validation_file_s1(request, WorkbookFileV4)
+        try:
+            workbook = s1_workbook.reference_cells(source, include_sheets=True)
+        except (ValueError, OverflowError):
+            raise HTTPException(422, "참고 XLSX 셀을 읽을 수 없습니다.") from None
+        return {"source_sha256": hashlib.sha256(source).hexdigest(), "profile": s1_workbook.profile(), **workbook}
+
+    @app.post("/api/validation-data-s1/preview", response_model=validation_data_v4.ValidationPreviewV4)
+    async def validation_s1_preview(request: Request, user=Depends(writer)):
+        source, value = await validation_file_s1(request)
+        return validation_data_v4.preview(store, source, value.config, user)
+
+    @app.post("/api/validation-data-s1", response_model=validation_data_v4.ValidationFullViewV4, status_code=201)
+    async def validation_s1_register(request: Request, user=Depends(writer)):
+        source, value = await validation_file_s1(request)
+        return validation_data_v4.register(store, source, value.config, user)
+
+    @app.get("/api/validation-data-s1/candidates", response_model=list[comparisons_v4.CohortCandidateV4])
+    def validation_s1_candidates(user=Depends(writer)):
+        return validation_data_v4.candidates(store, user)
+
+    @app.get("/api/validation-data-s1", response_model=list[validation_data_v4.ValidationViewV4])
+    def validation_s1_list(user=Depends(writer)):
+        return validation_data_v4.list_records(store, user)
+
+    @app.get("/api/validation-data-s1/{validation_id}", response_model=validation_data_v4.ValidationFullViewV4)
+    def validation_s1_view(validation_id: Key, user=Depends(writer)):
+        return validation_data_v4.view(store, validation_id, user)
+
+    @app.post("/api/exports-s1", response_model=exports_v4.ExportViewV4, status_code=201)
+    def export_s1_create(value: exports_v4.ExportCreateV4, user=Depends(writer)):
+        return exports_v4.create(store, value, user)
+
+    @app.get("/api/exports-s1", response_model=list[exports_v4.ExportViewV4])
+    def export_s1_list(user=Depends(writer)):
+        return exports_v4.list_exports(store, user)
+
+    @app.get("/api/exports-s1/{export_id}", response_model=exports_v4.ExportViewV4)
+    def export_s1_view(export_id: Key, user=Depends(writer)):
+        return exports_v4.view(store, export_id, user)
+
+    @app.get("/api/exports-s1/{export_id}/download")
+    def export_s1_download(export_id: Key, user=Depends(writer)):
+        data, mime, filename = exports_v4.download(store, export_id, user)
+        return Response(data, media_type=mime, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
     @app.put("/api/cases/{case_id}/sessions/{session_id}/segments", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def session_segments(case_id: Key, session_id: Key, value: SegmentsEdit, user=Depends(writer)):

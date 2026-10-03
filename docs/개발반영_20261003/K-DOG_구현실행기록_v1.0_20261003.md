@@ -28,7 +28,7 @@ S00 원본 추출·계약 담당, S01 초기화·복구 담당, 통합 접수/AP
 | S11 | 렌더5/브라우저2, 정상 서버·브라우저PDF6쪽, 긴12/10쪽 시각·텍스트 검수 통과 | PDF 색·척도 의미·인쇄 CSS 수정, G02 발급 조건 원문 대조 | `09658f8` |
 | S12 | 실행20/API1/브라우저3/build 통과, 명시 생성·게시·이력 메뉴 완료 | 독립20개 재실행, 발급 가능 상태·다운로드·인쇄 focus 수정 | `94c378c` |
 | S13 | 집단20/API·백업2/브라우저2, S12 접점5/build 통과 | 독립 검토·회차 동기화 수정 완료 | 이 기록을 포함하는 S13 commit |
-| S14 | 검수·연구 backend/API 통과, 화면·독립 검토 중 | 진행 중 | 미기록 |
+| S14 | 검수10/연구11/API2 및 브라우저3/build 통과, 명시 참고 등록·고정 연구 export 완료 | 과거 식별값·동일 원본 삭제 폐쇄·중복 셀·후보 구분 수정, 독립21개 재실행 통과 | 이 기록을 포함하는 S14 commit |
 | S15 | S1 종단 리허설·재시작·새 결과 보호 시험 통과, 전체 회귀 중 | 진행 중 | 미기록 |
 | S16 | 실측 후속, 준비 코드와 실제 결과를 분리 | 대기 | 미기록 |
 | S17 | 승인 gate 구현 예정, D06 확인 전 외부값 차단 | 대기 | 미기록 |
@@ -61,3 +61,6 @@ S00 원본 추출·계약 담당, S01 초기화·복구 담당, 통합 접수/AP
 - 실제 운영 데이터 초기화, 실제 공급자 호출, 고객 발송, 배포는 아직 수행하지 않았다.
 - 전체 backend·브라우저 검증과 cold review 조치 기록은 단계 완료 시 추가한다. 이 기록은 전체 완료 선언이 아니다.
 - S02(2026-10-04): `uv run --locked python -X utf8 -m unittest tests.test_forms_import_v4 tests.test_forms_api_v4 tests.test_survey_v4 tests.test_settings -v` 58개 통과. `npm run build` 통과. `KDOG_TEST_INTAKE_SPEC=20261002`의 `tests/importer-v4.spec.ts`, `tests/survey-v4.spec.ts` 각각 통과했다. 브라우저에서 원라벨 오류 후 수정·동명이인 신규2명·중복 확정 방지·원응답0·기존 회차의 전후값·revision409·최신 연결 재시도·배치 변경 대상 초기화와 S1 설문 결측/역채점 표시를 검증했다. 상세 발견사항과 인계는 S02 계획의 구현 기록을 따른다.
+- S14(2026-10-04): `uv run --locked python -X utf8 -m unittest tests.test_validation_data_v4 tests.test_exports_v4 tests.test_research_api_v4 tests.test_acceptance_v4 -v`는 검수9·연구11·실제 HTTP2·추가 인수5의 27개가 통과(31.435초)했다. 이후 동의 미확인/철회 참고 대응 허용·삭제 대상 제외 후보 시험1개가 별도 통과(0.656초)했다. 원본 XLSX bytes/XML/캐시 보존, 현재 S1 점수 불변, 정확한 source/revision/hash와 독립 분모, −2/0/null, CSV 수식 주입 방지·XLSX 잘림 거절, 권한·늦은 삭제·백업/복원 폐쇄를 합성 자료로 검증했다.
+- S14 독립 cold review는 과거 이름/ID 누락 비식별화, 동일 XLSX 무대응 복제의 삭제·복원 후 재노출, 중복 시트/셀의 값 덮어쓰기를 재현했다. 3건 모두 수용해 수정했으며 reviewer가 검수9·연구11·참가자ID 변경 뒤 삭제/반복 복원1의 21개를 독립 재실행해 통과(36.258초)하고 잔여 actionable finding 없음을 확인했다. UI cold에서 발견한 동의 상태별 참고 후보 구분도 별도 수정·회귀했다.
+- S14 화면은 `frontend/tests/exports-v4.spec.ts` 3개 통과(22.8초), `npm run build` 56 modules 통과, 360px 가로 넘침 없음과 이미지2개 시각 검토를 완료했다. 실제 고객 XLSX의 독립 정답 승인·실제 공급자 정확도/시간/비용은 측정하지 않았다. G01/G04 정식 Excel 입력 승인과 G03 실제 사람 참조 확인은 [S14 계획](K-DOG_PR-S14_검수자료와연구내보내기_v1.0_20261003.md)의 후속 경계를 유지한다.

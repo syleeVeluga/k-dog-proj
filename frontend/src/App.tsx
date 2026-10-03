@@ -11,11 +11,12 @@ import { Recording } from './pages/Recording';
 import { Preprocessing } from './pages/Preprocessing';
 import { Scoring } from './pages/Scoring';
 import { Report } from './pages/Report';
+import { ValidationData } from './ValidationData';
 import { formFields, roleNames, sessionOf } from './types';
 import type { Case, Catalog, Role, Run, User } from './types';
 import './style.css';
 
-type Page = 'intake' | 'survey' | 'recording' | 'import' | 'users' | 'data' | 'preprocess' | 'scoring' | 'report';
+type Page = 'intake' | 'survey' | 'recording' | 'import' | 'users' | 'data' | 'preprocess' | 'scoring' | 'report' | 'validation';
 // 대메뉴 하나가 PR 하나다: 접수(PR-6) · 설문(PR-7) · 촬영(PR-8) · 자료 가져오기 · 직원 계정.
 const menu: { page: Page; label: string; roles: Role[] }[] = [
   { page: 'intake', label: '접수', roles: ['operator', 'reviewer', 'admin'] },
@@ -25,6 +26,7 @@ const menu: { page: Page; label: string; roles: Role[] }[] = [
   { page: 'scoring', label: '독립 채점', roles: ['operator', 'reviewer', 'admin'] },
   { page: 'report', label: '리포트', roles: ['operator', 'admin'] },
   { page: 'import', label: '자료 가져오기', roles: ['operator', 'admin'] },
+  { page: 'validation', label: '검수 자료', roles: ['operator', 'admin'] },
   { page: 'users', label: '직원 계정', roles: ['admin'] },
   { page: 'data', label: '자료 관리', roles: ['admin'] },
 ];
@@ -150,6 +152,7 @@ export function App() {
           <button onClick={() => void run(async () => setNotice((await api<{ message: string }>('/developer/status')).message))}>인증 상태 확인</button>
         </section>
           : page === 'import' ? <Importer run={run} catalog={catalog} catalogVersion={catalog?.version ?? ''} done={async message => { setNotice(message); await reload(); }} />
+          : page === 'validation' ? <ValidationData user={user} />
           : page === 'users' ? <Users run={run} />
           : page === 'data' ? <section><h1>자료 관리</h1><Recovery /></section>
           : page === 'preprocess' ? <Preprocessing cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />

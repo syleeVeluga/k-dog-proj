@@ -543,7 +543,7 @@ class IntakeTests(AppCase):
             # The SPA static mount answers unknown paths: GET → 404, other methods → 405. Either way no API route handles them.
             self.assertIn(response.status_code, (404, 405), (method, path, response.status_code))
         routes = {getattr(route, "path", "") for route in self.client.app.routes}
-        self.assertFalse({route for route in routes if "/analysis" in route or "/reports/" in route or "/exports" in route or route.endswith(("/evaluation", "/report"))})
+        self.assertFalse({route for route in routes if "/analysis" in route or "/reports/" in route or route == "/api/exports" or route.startswith("/api/exports/") or route.endswith(("/evaluation", "/report"))})
 
     def test_server_process_restart_restores_registered_inputs(self):
         with socket.socket() as listener:

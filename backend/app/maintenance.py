@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from app.storage import REPO_ROOT, Store, encode, now, uid
 
 
-MANAGED = {"inputs", "videos", "runs", "reviews", "exports", "settings", "clips", "sheets", "results", "opinions", "finals", "comparisons", "comparison-evidence"}
+MANAGED = {"inputs", "videos", "runs", "reviews", "exports", "settings", "clips", "sheets", "results", "opinions", "finals", "comparisons", "comparison-evidence", "validation-data"}
 REF_HASH = {"manifest_ref": "manifest_hash", "output_ref": "output_hash", "result_ref": "result_hash",
             "storage_ref": "sha256", "ref": "hash"}
 
@@ -101,6 +101,10 @@ def references(store, db):
                             visit([member["input"] for member in document["members"]])
                         elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-research":
                             visit(document["evidence"])
+                        elif isinstance(document, dict) and document.get("artifact_kind") == "validation-reference":
+                            visit(document["source"])
+                        elif isinstance(document, dict) and document.get("artifact_kind") == "research-export":
+                            visit({"parents": document["parent_files"], "output": document["output"]})
                         elif schema == "4.0" and document.get("artifact_kind") == "preprocess-batch":
                             visit({"input": document["input"], "source_files": document["source_files"],
                                    "clips": [{"original": clip.get("original"), "ai": clip.get("ai")}
@@ -174,8 +178,8 @@ def backup(store, destination, actor):
 
 def deletion_records(store):
     with store.connect() as db:
-        records = {(r["event_id"], r["participant_id"]) for r in db.execute("SELECT * FROM cases WHERE deletion_requested=1")}
-        records.update((d["event_id"], d["participant_id"]) for r in db.execute("SELECT detail_json FROM changes WHERE action='deletion.record'") for d in [json.loads(r[0])])
+        records = {(r["case_id"], r["event_id"], r["participant_id"]) for r in db.execute("SELECT * FROM cases WHERE deletion_requested=1")}
+        records.update((r["target"], d["event_id"], d["participant_id"]) for r in db.execute("SELECT target,detail_json FROM changes WHERE action='deletion.record'") for d in [json.loads(r["detail_json"])])
     return records
 
 
@@ -195,7 +199,12 @@ def clean(store, *, purge_deleted=False):
         recover_interrupted(db)
         from app.comparisons_v4 import purge_deleted as purge_comparisons
         from app.report_runs_v4 import purge_comparisons as purge_reports
-        purge_reports(db, purge_comparisons(db))
+        revoked_cohorts = purge_comparisons(db)
+        revoked_reports = purge_reports(db, revoked_cohorts)
+        from app.validation_data_v4 import purge_deleted as purge_validation
+        revoked_validation = purge_validation(db)
+        from app.exports_v4 import purge_deleted as purge_exports
+        purge_exports(db, cohort_ids=revoked_cohorts, report_run_ids=revoked_reports, validation_ids=revoked_validation)
         if purge_deleted:
             db.execute("PRAGMA secure_delete=ON")
             removed_uploads = {json.loads(row[0])["upload_id"] for row in db.execute(
@@ -273,6 +282,9 @@ def restore(store, source, destination):
         # Reapply the current deletion ledger, even when restoring a backup from before the deletion request.
         deleted = deletion_records(store)
         deleted_files = deleted_uploads(store)
+        from app.validation_data_v4 import deletion_sources, remember_deleted_sources
+        with store.connect() as db:
+            deleted_sources = deletion_sources(db)
         destination.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix="kdog-restore-", dir=destination.parent) as staging:
             staged = Path(staging) / "data"
@@ -291,12 +303,14 @@ def restore(store, source, destination):
                     raise HTTPException(409, "복원 DB 무결성 검사에 실패했습니다.")
                 db.execute("UPDATE users SET session_hash=NULL,session_expires=NULL")
                 actor = db.execute("SELECT username FROM users ORDER BY username LIMIT 1").fetchone()
-                if (deleted or deleted_files) and not actor:
+                if (deleted or deleted_files or deleted_sources) and not actor:
                     raise HTTPException(409, "삭제 이력 기록용 계정이 없는 백업입니다.")
-                for event, participant in deleted:
-                    db.execute("UPDATE cases SET deletion_requested=1 WHERE event_id=? AND participant_id=?", (event, participant))
+                if deleted_sources:
+                    remember_deleted_sources(db, deleted_sources, actor[0])
+                for case_id, event, participant in deleted:
+                    db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=? OR (event_id=? AND participant_id=?)", (case_id, event, participant))
                     # Preserve tombstones absent from this backup for any subsequent restore.
-                    restored.audit(db, actor[0], uid(), "deletion.record", {"event_id": event, "participant_id": participant})
+                    restored.audit(db, actor[0], case_id, "deletion.record", {"event_id": event, "participant_id": participant})
                 for upload_id in deleted_files:
                     restored.audit(db, actor[0], upload_id, "deletion.upload", {"upload_id": upload_id})
                 db.execute("UPDATE runs SET lease_expires_at=? WHERE status='running'", ("1970-01-01T00:00:00+00:00",))
