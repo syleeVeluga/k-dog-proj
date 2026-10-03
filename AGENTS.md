@@ -6,7 +6,7 @@ K-DOG is an operator-facing dog/guardian assessment application. The final devel
 
 - `K-DOG_개발기준변경검토_v1.0_20261003.md`: final requirements versus baseline implementation.
 - `개발반영_20261003/`: active S00–S17 plans, R01–R25/T01–T32 traceability, D01–D06/G01–G05, source access and review record.
-- `개발반영_20260929/`: prior C00–C15 plans and Q01–Q12 history; use completed infrastructure evidence, not superseded scoring/report assumptions.
+- The prior 2026-09-29 C00–C15 plans and Q01–Q12 ledger (`개발반영_20260929/`) were removed from the working tree on 2026-10-03; read them at commit `056ed7a` for completed infrastructure evidence, not superseded scoring/report assumptions.
 
 - `K-DOG_변경검토_v1.0_20260915.md`: historical 42-item transition decision and implementation context.
 - `K-DOG_P0_구현계획_v1.0_20260916.md`: the file-level plan for PR-0 to PR-4 (catalog 42, survey 28, contracts v2, scoring v2 with golden tests), the item-ID table, and the rule interpretations (R1–R9) that still need customer confirmation.
