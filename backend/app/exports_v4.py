@@ -68,6 +68,15 @@ class ExportViewV4(Model):
     status: Literal["ready"]
 
 
+class ExportBlockedV4(Model):
+    export_id: str
+    status: Literal["blocked"] = "blocked"
+    reason: str
+
+
+ExportHistoryV4 = ExportViewV4 | ExportBlockedV4
+
+
 def _case(store, db, selection, user):
     sheets.manager(user, db)
     case = store.case(db, selection.case_id)
@@ -564,7 +573,18 @@ def list_exports(store,user):
     with store.connect() as db:
         sheets.manager(user,db)
         ids = [row[0] for row in db.execute("SELECT DISTINCT target FROM changes WHERE actor=? AND action=?",(user.username,ACTION))]
-    return [view(store,export_id,user) for export_id in ids]
+    result = []
+    for export_id in ids:
+        try:
+            result.append(view(store,export_id,user))
+        except (HTTPException, ValueError, OSError) as exc:
+            if isinstance(exc,HTTPException) and exc.status_code not in (403,404,409,422):
+                raise
+            result.append(ExportBlockedV4(export_id=export_id,
+                reason="원자료·출력 또는 현재 동의·공개·비교 조건을 확인할 수 없어 제공을 보류합니다.").model_dump())
+    with store.connect() as db:
+        sheets.manager(user,db)
+    return result
 
 
 def purge_deleted(db,*,cohort_ids=(),report_run_ids=(),validation_ids=(),external_snapshot_ids=()):

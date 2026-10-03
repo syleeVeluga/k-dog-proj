@@ -8,7 +8,7 @@ import type { CohortSelectionV4, CohortSummaryV4 } from './comparisonTypesV4';
 import type { ExternalReferenceV4 } from './externalTypesV4';
 import { ExternalComparisonPickerV4 } from './ExternalComparisonPickerV4';
 import type { ReportRunV4 } from './reportTypesV4';
-import type { ExportMemberSelectionV4, ExportViewV4, ValidationSummaryV4 } from './researchTypesV4';
+import type { ExportHistoryV4, ExportMemberSelectionV4, ExportViewV4, ValidationHistoryV4, ValidationSummaryV4 } from './researchTypesV4';
 
 type Source = { reference: SheetReferenceV4; viewer: string | null; label: string };
 const message = (error: unknown) => error instanceof Error ? error.message : '연구 내보내기에 실패했습니다.';
@@ -23,7 +23,8 @@ export function ResearchExportsV4({ item, user }: { item: Case; user: User }) {
   const [members, setMembers] = useState<{ value: ExportMemberSelectionV4; label: string; external: ExternalReferenceV4 | null }[]>([]), [format, setFormat] = useState<'csv_zip' | 'xlsx'>('csv_zip'), [reason, setReason] = useState(''), [redact, setRedact] = useState('');
   const [external, setExternal] = useState<ExternalReferenceV4 | null>(null), [externalTarget, setExternalTarget] = useState<CohortSelectionV4 | null>(null);
   const [references, setReferences] = useState<ValidationSummaryV4[]>([]), [selectedReferences, setSelectedReferences] = useState<ValidationSummaryV4[]>([]), [cohorts, setCohorts] = useState<CohortSummaryV4[]>([]), [cohort, setCohort] = useState<CohortSummaryV4 | null>(null);
-  const [history, setHistory] = useState<ExportViewV4[]>([]), [created, setCreated] = useState<ExportViewV4 | null>(null), [error, setError] = useState(''), [busy, setBusy] = useState(false), [unavailable, setUnavailable] = useState(false);
+  const [blockedReferences, setBlockedReferences] = useState<Extract<ValidationHistoryV4, { status: 'blocked' }>[]>([]);
+  const [history, setHistory] = useState<ExportHistoryV4[]>([]), [created, setCreated] = useState<ExportViewV4 | null>(null), [error, setError] = useState(''), [busy, setBusy] = useState(false), [unavailable, setUnavailable] = useState(false);
   const alive = useRef(true), pending = useRef(false), sequence = useRef(0), request = useRef({ key: '', id: '' });
   const context = useRef(''); context.current = `${path}:${user.username}`;
   useUnsaved(members.length > 0);
@@ -34,9 +35,10 @@ export function ResearchExportsV4({ item, user }: { item: Case; user: User }) {
   ] : [];
   async function reload() {
     const seq = ++sequence.current, scope = context.current;
-    const [rows, refs, groups, list] = await Promise.all([api<SheetSummaryV4[]>(path + '/sheets-s1'), api<ValidationSummaryV4[]>('/validation-data-s1'), api<CohortSummaryV4[]>('/comparisons-s1/cohorts'), api<ExportViewV4[]>('/exports-s1')]);
+    const [rows, refs, groups, list] = await Promise.all([api<SheetSummaryV4[]>(path + '/sheets-s1'), api<ValidationHistoryV4[]>('/validation-data-s1'), api<CohortSummaryV4[]>('/comparisons-s1/cohorts'), api<ExportHistoryV4[]>('/exports-s1')]);
     if (!alive.current || seq !== sequence.current || scope !== context.current) return;
-    setSheets(rows); setReferences(refs); setCohorts(groups); setHistory(list); setUnavailable(false);
+    setSheets(rows); setReferences(refs.filter((row): row is ValidationSummaryV4 => 'reference' in row)); setBlockedReferences(refs.filter((row): row is Extract<ValidationHistoryV4, { status: 'blocked' }> => !('reference' in row))); setCohorts(groups); setHistory(list); setUnavailable(false);
+    setCreated(current => current && list.some(row => row.export_id === current.export_id && row.status === 'ready') ? current : null);
     if (own) {
       const value = await api<SheetViewV4>(`/score-sheets-s1/${own.summary.sheet_id}`);
       if (!alive.current || seq !== sequence.current || scope !== context.current) return;
@@ -118,12 +120,13 @@ export function ResearchExportsV4({ item, user }: { item: Case; user: User }) {
     <fieldset disabled={busy}><legend>내보낼 고정 선택 {members.length}개</legend>{members.map((row, index) => <div key={row.value.sheet.ref}><p>{row.label}<br />원자료 r{row.value.sheet.revision} · {row.value.sheet.hash}<br />기본 결과 {row.value.basic ? `r${row.value.basic.revision} · ${row.value.basic.hash}` : '미포함'}<br />최종본 {row.value.final?.hash ?? '미포함'} · 리포트 {row.value.report_run_id ?? '미포함'}<br />외부 비교 {row.external ? `고정 ${row.external.snapshot_id.slice(0, 8)}` : '미포함'}</p><button onClick={() => setMembers(members.filter((_, i) => i !== index))}>선택 {index + 1} 제거</button></div>)}
       <label>연구 파일 형식<select aria-label="연구 파일 형식" value={format} onChange={event => setFormat(event.target.value as 'csv_zip' | 'xlsx')}><option value="csv_zip">CSV 묶음 ZIP</option><option value="xlsx">XLSX</option></select></label><label>추가 식별정보 제거 문구 (한 줄에 하나)<textarea value={redact} maxLength={10000} onChange={event => setRedact(event.target.value)} /></label><p className="fine">대상·보호자 이름, 참가자·행사 식별자와 평가자 계정은 자동 제거합니다. 자유서술에 포함된 다른 식별정보도 추가하세요.</p>
       {references.length > 0 && <fieldset><legend>검수 참고 출처 (현재 점수와 별도)</legend>{references.map(row => <label key={row.reference.validation_id} className="check"><input type="checkbox" checked={selectedReferences.some(selected => selected.reference.hash === row.reference.hash)} onChange={event => setSelectedReferences(event.target.checked ? [...selectedReferences, row] : selectedReferences.filter(selected => selected.reference.hash !== row.reference.hash))} />{row.filename} · {row.row_count}행 · G03 미확정</label>)}</fieldset>}
+      {blockedReferences.map(row => <p key={row.validation_id}>참고 자료 {row.validation_id.slice(0, 8)} · 제공 차단: {row.reason}</p>)}
       {missingReference && <p role="alert">접근할 수 없는 참고 판본이 선택되어 있습니다. <button onClick={() => setSelectedReferences([])}>참고 선택 비우기</button></p>}
       <label>자체 집단 비교 출처<select aria-label="자체 집단 비교 출처" value={cohort?.reference.snapshot_id ?? ''} onChange={event => setCohort(cohorts.find(row => row.reference.snapshot_id === event.target.value) ?? null)}><option value="">비교 출처 포함 안 함</option>{cohorts.map(row => <option key={row.reference.snapshot_id} value={row.reference.snapshot_id}>{row.title}{row.outdated ? ' · 이전 응답 기준' : ''}</option>)}{missingCohort && <option value={cohort!.reference.snapshot_id}>접근할 수 없는 선택 판본</option>}</select></label>
       <label>연구 내보내기 사유<textarea value={reason} maxLength={4000} onChange={event => setReason(event.target.value)} /></label><button disabled={!members.length || !reason.trim() || missingReference || !!missingCohort} onClick={() => void work(create)}>선택 판본으로 연구 파일 생성</button>
       <p className="fine">새로고침은 고정 선택을 최신 판본으로 바꾸지 않습니다. 응답 유실 후 같은 선택으로 다시 생성하면 같은 요청을 확인합니다. 생성·다운로드 시 권한, 동의, 삭제와 파일 hash를 다시 검사합니다.</p>
     </fieldset>
     {created && <p role="status">연구 파일 준비 완료 · 포함 {created.member_count}개 · 제외 {created.excluded_count}개</p>}
-    <section aria-label="내가 생성한 연구 파일"><h3>내가 생성한 연구 파일</h3>{history.length === 0 && <p>생성한 연구 파일이 없습니다.</p>}{history.map(row => <details key={row.export_id} open={row.export_id === created?.export_id}><summary>{row.created_at} · {row.format === 'xlsx' ? 'XLSX' : 'CSV ZIP'} · 포함 {row.member_count}개 / 제외 {row.excluded_count}개</summary><p>고정 자료 SHA-256: {row.snapshot_sha256}<br />파일 SHA-256: {row.output_sha256}</p><button disabled={busy} onClick={() => void work(() => download(row))}>연구 파일 다운로드 {row.export_id.slice(0, 8)}</button></details>)}</section>
+    <section aria-label="내가 생성한 연구 파일"><h3>내가 생성한 연구 파일</h3>{history.length === 0 && <p>생성한 연구 파일이 없습니다.</p>}{history.map(row => row.status === 'blocked' ? <p key={row.export_id}>연구 파일 {row.export_id.slice(0, 8)} · 제공 차단: {row.reason}</p> : <details key={row.export_id} open={row.export_id === created?.export_id}><summary>{row.created_at} · {row.format === 'xlsx' ? 'XLSX' : 'CSV ZIP'} · 포함 {row.member_count}개 / 제외 {row.excluded_count}개</summary><p>고정 자료 SHA-256: {row.snapshot_sha256}<br />파일 SHA-256: {row.output_sha256}</p><button disabled={busy} onClick={() => void work(() => download(row))}>연구 파일 다운로드 {row.export_id.slice(0, 8)}</button></details>)}</section>
   </section>;
 }

@@ -3,7 +3,7 @@ import { accessLost, api } from './api';
 import { useUnsaved } from './Editing';
 import type { User } from './types';
 import type { CohortCandidateV4 } from './comparisonTypesV4';
-import type { ReferenceBindingV4, ReferenceCellV4, ReferenceRowV4, ReferenceSelectionV4, ValidationPreviewV4, ValidationSummaryV4, ValidationViewV4, WorkbookViewV4 } from './researchTypesV4';
+import type { ReferenceBindingV4, ReferenceCellV4, ReferenceRowV4, ReferenceSelectionV4, ValidationPreviewV4, ValidationHistoryV4, ValidationViewV4, WorkbookViewV4 } from './researchTypesV4';
 
 const confirmations = { unconfirmed: '미확정', human_confirmed: '사람 확정으로 전달됨', recheck_required: '재확인 필요', ai_provisional: 'AI 잠정값', example: '예시', legacy_semantics: '구판 의미', unobserved: '미관찰' };
 const exposures = { unknown: '노출 여부 미확인', independent_claimed: '독립 평가로 전달됨 (미검증)', ai_exposed: 'AI 노출 후', human_exposed: '다른 사람 평가 노출 후' };
@@ -12,7 +12,7 @@ const message = (error: unknown) => error instanceof Error ? error.message : '�
 const blank = (): ReferenceSelectionV4 => ({ source_subject: '', sheet: '', cell: '', code: '', window_id: null, source_edition: 'unknown', evaluator: null, evaluator_status: 'unknown', confirmation: 'unconfirmed', exposure: 'unknown', reason: '' });
 
 export function ValidationData({ user }: { user: User }) {
-  const [candidates, setCandidates] = useState<CohortCandidateV4[]>([]), [records, setRecords] = useState<ValidationSummaryV4[]>([]), [opened, setOpened] = useState<ValidationViewV4 | null>(null);
+  const [candidates, setCandidates] = useState<CohortCandidateV4[]>([]), [records, setRecords] = useState<ValidationHistoryV4[]>([]), [opened, setOpened] = useState<ValidationViewV4 | null>(null);
   const [file, setFile] = useState<{ name: string; base64: string } | null>(null), [book, setBook] = useState<WorkbookViewV4 | null>(null);
   const [selection, setSelection] = useState(blank), [rows, setRows] = useState<ReferenceSelectionV4[]>([]), [bindings, setBindings] = useState<ReferenceBindingV4[]>([]), [reason, setReason] = useState('');
   const [preview, setPreview] = useState<ValidationPreviewV4 | null>(null), [previewKey, setPreviewKey] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [unavailable, setUnavailable] = useState(false);
@@ -24,10 +24,11 @@ export function ValidationData({ user }: { user: User }) {
   const subjects = [...new Set(rows.map(row => row.source_subject))];
   async function reload(checkOpened = true) {
     const seq = ++sequence.current;
-    const [next, list] = await Promise.all([api<CohortCandidateV4[]>('/validation-data-s1/candidates'), api<ValidationSummaryV4[]>('/validation-data-s1')]);
+    const [next, list] = await Promise.all([api<CohortCandidateV4[]>('/validation-data-s1/candidates'), api<ValidationHistoryV4[]>('/validation-data-s1')]);
     if (!alive.current || seq !== sequence.current) return;
     setCandidates(next); setRecords(list); setUnavailable(false);
     if (opened && checkOpened) {
+      if (!list.some(row => 'reference' in row && row.reference.validation_id === opened.reference.validation_id)) { setOpened(null); setError('열어 둔 참고 자료는 현재 제공할 수 없습니다. 다른 자료는 계속 확인할 수 있습니다.'); return; }
       try { const value = await api<ValidationViewV4>(`/validation-data-s1/${opened.reference.validation_id}`); if (alive.current && seq === sequence.current) setOpened(value); }
       catch (e) { if (alive.current && seq === sequence.current) { setOpened(null); throw e; } }
     }
@@ -91,7 +92,7 @@ export function ValidationData({ user }: { user: User }) {
         <button onClick={() => { if (window.confirm('미등록 파일과 선택 내용을 비울까요?')) { setFile(null); setBook(null); setRows([]); setBindings([]); setPreview(null); setReason(''); } }}>미등록 선택 비우기</button>
       </>}
     </fieldset>
-    <section aria-label="등록한 검수 참고 자료"><h2>내가 등록한 참고 자료</h2><button disabled={busy} onClick={() => void work(reload)}>참고 자료 목록 새로고침</button>{records.length === 0 && <p>등록한 자료가 없습니다.</p>}{records.map(row => <p key={row.reference.validation_id}>{row.filename} · {row.row_count}행 · 연결 대상 {row.mapped_subject_count}개 <button disabled={busy} onClick={() => void work(async () => { const value = await api<ValidationViewV4>(`/validation-data-s1/${row.reference.validation_id}`); if (alive.current) setOpened(value); })}>참고 기록 열기 {row.reference.validation_id.slice(0, 8)}</button></p>)}</section>
+    <section aria-label="등록한 검수 참고 자료"><h2>내가 등록한 참고 자료</h2><button disabled={busy} onClick={() => void work(reload)}>참고 자료 목록 새로고침</button>{records.length === 0 && <p>등록한 자료가 없습니다.</p>}{records.map(row => 'reference' in row ? <p key={row.reference.validation_id}>{row.filename} · {row.row_count}행 · 연결 대상 {row.mapped_subject_count}개 <button disabled={busy} onClick={() => void work(async () => { const value = await api<ValidationViewV4>(`/validation-data-s1/${row.reference.validation_id}`); if (alive.current) setOpened(value); })}>참고 기록 열기 {row.reference.validation_id.slice(0, 8)}</button></p> : <p key={row.validation_id}>참고 자료 {row.validation_id.slice(0, 8)} · 제공 차단: {row.reason}</p>)}</section>
     {opened && <section aria-label="보존한 검수 참고 기록"><h2>{opened.filename} · 참고 기록</h2><p>원본 SHA-256: {opened.document.source.hash}</p><p>등록 {opened.document.recorded_at} · 수식 재계산 안 함 · G03 정답 미확정</p>{opened.document.bindings.map(binding => <p key={binding.source_subject}>{binding.source_subject} → {binding.case_id} / {binding.session_id} · 입력 r{binding.expected_revision} · {binding.participation} · {binding.reason}</p>)}<Rows rows={opened.document.rows} /></section>}
   </section>;
 }

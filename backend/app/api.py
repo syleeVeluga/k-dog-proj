@@ -887,7 +887,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def validation_s1_candidates(user=Depends(writer)):
         return validation_data_v4.candidates(store, user)
 
-    @app.get("/api/validation-data-s1", response_model=list[validation_data_v4.ValidationViewV4])
+    @app.get("/api/validation-data-s1", response_model=list[validation_data_v4.ValidationHistoryV4])
     def validation_s1_list(user=Depends(writer)):
         return validation_data_v4.list_records(store, user)
 
@@ -899,7 +899,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def export_s1_create(value: exports_v4.ExportCreateV4, user=Depends(writer)):
         return exports_v4.create(store, value, user)
 
-    @app.get("/api/exports-s1", response_model=list[exports_v4.ExportViewV4])
+    @app.get("/api/exports-s1", response_model=list[exports_v4.ExportHistoryV4])
     def export_s1_list(user=Depends(writer)):
         return exports_v4.list_exports(store, user)
 

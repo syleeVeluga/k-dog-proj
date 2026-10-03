@@ -68,6 +68,15 @@ class ValidationFullViewV4(ValidationViewV4):
         return ValidationDocumentV4.model_validate_json(encode(value)) if isinstance(value,dict) else value
 
 
+class ValidationBlockedV4(Model):
+    validation_id: str
+    status: Literal["blocked"] = "blocked"
+    reason: str
+
+
+ValidationHistoryV4 = ValidationViewV4 | ValidationBlockedV4
+
+
 class ValidationPreviewV4(Model):
     profile: dict
     source_sha256: str
@@ -267,7 +276,18 @@ def list_records(store, user):
     with store.connect() as db:
         _account(db, user)
         ids = [row[0] for row in db.execute("SELECT DISTINCT target FROM changes WHERE actor=? AND action=?", (user.username, ACTION))]
-    return [{key: value for key, value in view(store, record_id, user).items() if key != "document"} for record_id in ids]
+    result = []
+    for record_id in ids:
+        try:
+            result.append({key: value for key, value in view(store, record_id, user).items() if key != "document"})
+        except (HTTPException, ValueError, OSError) as exc:
+            if isinstance(exc,HTTPException) and exc.status_code not in (403,404,409,422):
+                raise
+            result.append(ValidationBlockedV4(validation_id=record_id,
+                reason="참고 원본 또는 현재 대상·삭제·접근 조건을 확인할 수 없어 제공을 보류합니다.").model_dump())
+    with store.connect() as db:
+        _account(db,user)
+    return result
 
 
 def candidates(store,user):

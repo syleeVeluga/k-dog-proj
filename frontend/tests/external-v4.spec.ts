@@ -36,6 +36,11 @@ async function fixture(request: APIRequestContext, participant: string) {
 test('S17 합성 확인만으로 범위를 검증하며 명시 외부 비교의 HTML/PDF·연구 출력을 철회한다', async ({ page, request, browser }, info) => {
   test.setTimeout(180000); page.setDefaultTimeout(15000);
   const data = await fixture(request, 'external-only-synthetic');
+  const prior = await fixture(request, 'external-blocked-prior');
+  const priorExportResponse = await request.post('/api/exports-s1', { headers, data: { request_id: 'external-blocked-prior-export', format: 'csv_zip', members: [{ case_id: prior.item.case_id, session_id: prior.item.selected_session_id, sheet: { sheet_id: prior.sheet.sheet_id, revision: prior.sheet.revision, ref: prior.sheet.manifest_ref, hash: prior.sheet.manifest_hash } }], reason: '새로운 정상 자료와 함께 남는 제공 차단 이력 검증' } });
+  expect(priorExportResponse.status(), await priorExportResponse.text()).toBe(201);
+  const priorExport = await priorExportResponse.json();
+  expect((await request.post(`/api/cases/${prior.item.case_id}/deletion`, { headers, data: { expected_revision: prior.item.input_revision } })).status()).toBe(200);
   await login(page, 'admin');
   const temporaryBackup = await page.request.post('/api/admin/backups', { headers });
   expect(temporaryBackup.status()).toBe(201);
@@ -168,7 +173,7 @@ assert Worker(store).once()`,
       await rendered.goto(htmlPath + '?inline=true'); await rendered.evaluate(() => document.fonts.ready);
       await expect(rendered.locator('[data-section]')).toHaveCount(6);
       await expect.poll(() => rendered.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      await rendered.locator('[data-section="4"]').screenshot({ path: info.outputPath('external-html-360.png') });
+      await rendered.locator('[data-section="3"]').screenshot({ path: info.outputPath('external-html-360.png') });
       await rendered.emulateMedia({ media: 'print' });
       expect(await rendered.locator('.sheet').evaluateAll(elements => elements.every(element => element.scrollHeight <= element.clientHeight + 1 && getComputedStyle(element).overflow !== 'hidden'))).toBe(true);
       const printed = await rendered.pdf({ path: info.outputPath('external-browser-print.pdf'), printBackground: true, preferCSSPageSize: true });
@@ -180,8 +185,13 @@ assert Worker(store).once()`,
     await publication.screenshot({ path: info.outputPath('external-report-360.png') });
 
     await operator.getByRole('button', { name: '독립 채점', exact: true }).click();
+    const exportHistory = await operator.request.get('/api/exports-s1');
+    expect(exportHistory.status(), await exportHistory.text()).toBe(200);
+    expect((await exportHistory.json()).find((value: { export_id: string }) => value.export_id === priorExport.export_id)).toMatchObject({ status: 'blocked', reason: expect.any(String) });
     await operator.getByText('연구 내보내기', { exact: true }).click();
     const exporter = operator.getByRole('region', { name: 'S1 연구 내보내기', exact: true });
+    await expect(exporter.getByRole('region', { name: '내가 생성한 연구 파일', exact: true }).getByText(new RegExp(`연구 파일 ${priorExport.export_id.slice(0, 8)} · 제공 차단:`))).toBeVisible();
+    await expect(exporter.getByRole('button', { name: `연구 파일 다운로드 ${priorExport.export_id.slice(0, 8)}`, exact: true })).toHaveCount(0);
     await exporter.getByLabel('기준 본인 시트', { exact: true }).selectOption(data.sheet.sheet_id);
     await exporter.getByLabel('내보낼 원자료 판본', { exact: true }).selectOption(data.sheet.manifest_ref);
     await exporter.getByLabel('최종 결과', { exact: true }).selectOption(data.final.reference.final_id);
@@ -206,6 +216,10 @@ assert Worker(store).once()`,
     let leaked = false; operator.on('download', () => { leaked = true; });
     await exporter.getByRole('button', { name: `연구 파일 다운로드 ${exportedRow.export_id.slice(0, 8)}`, exact: true }).click();
     await expect(exporter.getByRole('alert')).toBeVisible(); expect(leaked).toBe(false);
+    await exporter.getByRole('button', { name: '내보내기 후보 새로고침', exact: true }).click();
+    await expect(exporter.getByText(new RegExp(`연구 파일 ${exportedRow.export_id.slice(0, 8)} · 제공 차단:`))).toBeVisible();
+    await expect(exporter.getByRole('button', { name: `연구 파일 다운로드 ${exportedRow.export_id.slice(0, 8)}`, exact: true })).toHaveCount(0);
+    await expect(exporter.getByRole('status').filter({ hasText: '연구 파일 준비 완료' })).toHaveCount(0);
     expect((await operator.request.get(htmlPath)).ok()).toBe(false);
     await operator.getByRole('button', { name: '리포트', exact: true }).click();
     await expect(report.getByText(/외부 비교 제공 차단:/)).toBeVisible();

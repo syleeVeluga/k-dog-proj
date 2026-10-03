@@ -12,3 +12,5 @@ export type WorkbookViewV4 = { source_sha256: string; sheets: string[]; cells: R
 export type ValidationPreviewV4 = { source_sha256: string; source_inventory_id: string | null; rows: ReferenceRowV4[]; bindings: ReferenceBindingV4[] };
 export type ExportMemberSelectionV4 = { case_id: string; session_id: string; sheet: SheetReferenceV4; viewer_sheet_id: string | null; basic: BasicReferenceV4 | null; final: FinalReferenceV4 | null; report_run_id: string | null };
 export type ExportViewV4 = { export_id: string; format: 'csv_zip' | 'xlsx'; created_at: string; member_count: number; excluded_count: number; snapshot_sha256: string; output_sha256: string; status: 'ready' };
+export type ExportHistoryV4 = ExportViewV4 | { export_id: string; status: 'blocked'; reason: string };
+export type ValidationHistoryV4 = ValidationSummaryV4 | { validation_id: string; status: 'blocked'; reason: string };
