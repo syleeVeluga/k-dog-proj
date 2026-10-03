@@ -48,6 +48,18 @@ class RecordingApiV4Tests(AppCase):
         self.assertEqual(self.save().status_code, 409)
         self.assertEqual(self.client.get("/api/catalog/protocol-s1").status_code, 200)
 
+    def test_previous_session_is_readable_but_cannot_be_edited(self):
+        saved = self.save()
+        self.assertEqual(saved.status_code, 200, saved.text)
+        selected = self.client.post(f"/api/cases/{self.item['case_id']}/sessions",
+            json={"expected_revision": saved.json()["input_revision"], "note": "synthetic next session"})
+        self.assertEqual(selected.status_code, 200, selected.text)
+        historical = self.client_for("reviewer").get(self.path)
+        self.assertEqual(historical.status_code, 200, historical.text)
+        self.assertEqual(historical.json()["recording"], saved.json()["manifest"]["sessions"][0]["recording_s1"])
+        self.item = selected.json()
+        self.assertEqual(self.save().status_code, 409)
+
     def test_preserved_video_registration_keeps_bytes_identity_and_retries_once(self):
         path = self.path.removesuffix("recording-s1") + f"videos/{self.video['video_id']}/registration"
         value = {"request_id": "preserved-registration", "expected_revision": self.item["input_revision"], "camera_id": "CAM2"}

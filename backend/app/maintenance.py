@@ -97,6 +97,11 @@ def references(store, db):
                         schema = document.get("schema_version") if isinstance(document, dict) else None
                         if schema == "forms-record-4.0":
                             visit(document["source"])
+                        elif schema == "4.0" and document.get("artifact_kind") == "preprocess-batch":
+                            visit({"input": document["input"], "source_files": document["source_files"],
+                                   "clips": [{"original": clip.get("original"), "ai": clip.get("ai")}
+                                             for clip in document["clips"]],
+                                   "reuse": document.get("reuse_manifest")})
                         elif schema != "forms-source-row-4.0":
                             visit(document)
                 elif key.endswith("_json") and isinstance(candidate, str):

@@ -37,7 +37,8 @@ from app.input_models import (
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
 from app import settings
-from app import forms_v4, uploads, capture_v4
+from app import forms_v4, uploads, capture_v4, preprocess_v4
+from app.domain.preprocess_v4 import BatchV4, PreprocessRequestV4, PreprocessStatusV4
 from app.domain.media_v4 import PreservedMediaRegistrationV4, StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
 from app import sheets, judgements, run_v3, scoring_ai, settings_v3
 from app.input_models_v3 import RunCreateV3, RunActionV3, RunViewV3
@@ -547,6 +548,30 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             errors = [".".join(map(str, error["loc"])) + ": " + error["msg"] for error in exc.errors()]
             raise HTTPException(422, "; ".join(errors)) from None
         return await asyncio.to_thread(capture_v4.save, store, case_id, session_id, value, request.cookies.get(COOKIE))
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/preprocess-s1", response_model=PreprocessStatusV4)
+    def preprocessing_s1_status(case_id: Key, session_id: Key, user=Depends(reader)):
+        return preprocess_v4.status(store, case_id, session_id, user.username)
+
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/preprocess-s1", response_model=BatchV4)
+    async def preprocessing_s1_start(case_id: Key, session_id: Key, request: Request, user=Depends(writer)):
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > 65536:
+                raise HTTPException(413, "전처리 요청 크기가 제한을 넘었습니다.")
+        from pydantic import ValidationError
+        try:
+            value = PreprocessRequestV4.model_validate_json(data)
+        except ValidationError:
+            raise HTTPException(422, "전처리 요청 ID·입력 버전·카메라·재사용 원본을 확인하세요.") from None
+        return await asyncio.to_thread(preprocess_v4.execute, store, case_id, session_id, user.username, value)
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/preprocess-s1/{batch_id}/clips/{clip_id}/{kind}")
+    def preprocessing_s1_clip(case_id: Key, session_id: Key, batch_id: Key, clip_id: Key,
+                              kind: Literal["original", "ai"], user=Depends(reader)):
+        return FileResponse(preprocess_v4.clip_path(store, case_id, session_id, batch_id, clip_id, kind, user.username),
+                            media_type="video/mp4", content_disposition_type="inline")
 
     @app.put("/api/cases/{case_id}/sessions/{session_id}/segments", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def session_segments(case_id: Key, session_id: Key, value: SegmentsEdit, user=Depends(writer)):
