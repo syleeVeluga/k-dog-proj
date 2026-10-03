@@ -1,0 +1,31 @@
+{
+  "schema_version": "4.0",
+  "version": "report-content-20261002-s1.1-1",
+  "selection_version": "report-scenes-20261002-s1.1-1",
+  "source": {
+    "schema_version": "4.0",
+    "source_id": "SRC02",
+    "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+    "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+    "location": "10.3~10.5, 11 T16/T21~24/T27/T31"
+  },
+  "cards": ["education_attitude", "attachment", "social", "walking"],
+  "maximum_scenes": 3,
+  "maximum_actions": 3,
+  "approved_sentence_bank": false,
+  "ai_free_text_status": "deferred_S16",
+  "external_comparison_status": "pending_D06",
+  "templates": {
+    "selected_type": "오늘 관찰된 {title}: {label}",
+    "missing_type": "{title}을 설명하기 위한 관찰을 더 확인해야 합니다.",
+    "walking": "함께 걷는 여섯 국면 중 {numerator}개에서 가까운 거리가 인정되었습니다({percent}%).",
+    "walking_meaning": "이 비율은 가까운 거리로 인정된 국면의 비율이며, 가까이 있었던 시간이나 복종 정도를 뜻하지 않습니다.",
+    "walking_missing": "함께 걷기의 거리와 보호자 접근 예외를 더 확인해야 합니다.",
+    "no_scenes": "실제 시각과 행동을 함께 확인할 수 있는 장면이 아직 충분하지 않습니다.",
+    "contact_caution": "보호자 접촉은 재회 후반 15초 안의 실제 접촉, 낯선 사람 접촉은 최대 3초입니다. 접근 기회·자세·부름이 달라 코드 차이를 선호의 양으로 계산하지 않습니다.",
+    "survey_separation": "평소의 보호자 자기보고와 이번 낯선 장소의 관찰은 서로 다른 측정입니다. 같은 눈금으로 환산하지 않습니다.",
+    "noise_no_task": "소음 반응은 평소 설문으로만 확인했으며, 직접 대응하는 영상 과제는 없습니다.",
+    "approach_without_contact_advice": "다가올 시간을 충분히 주고, 스스로 거리를 선택하도록 도와주세요.",
+    "actions_missing": "실천 제안은 확인된 관찰과 도움 의견을 바탕으로 보완할 수 있습니다."
+  }
+}
