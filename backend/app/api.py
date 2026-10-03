@@ -1,6 +1,7 @@
 """Local-first intake API (접수·설문·촬영·계정·개발자 키). All participant media is served through authorization."""
 
 import base64
+import asyncio
 import binascii
 import hashlib
 import json
@@ -36,8 +37,8 @@ from app.input_models import (
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
 from app import settings
-from app import forms_v4, uploads
-from app.domain.media_v4 import StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
+from app import forms_v4, uploads, capture_v4
+from app.domain.media_v4 import PreservedMediaRegistrationV4, StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
 from app import sheets, judgements, run_v3, scoring_ai, settings_v3
 from app.input_models_v3 import RunCreateV3, RunActionV3, RunViewV3
 from app import secrets as vault
@@ -515,6 +516,37 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.delete("/api/uploads/{upload_id}", response_model=UploadReceiptV4)
     def upload_abort(upload_id: Key, user=Depends(writer)):
         return uploads.abort_receipt(store, upload_id, user.username)
+
+    @app.put("/api/cases/{case_id}/sessions/{session_id}/videos/{video_id}/registration", response_model=CaseViewV4)
+    def preserved_video_registration(case_id: Key, session_id: Key, video_id: Key,
+                                     value: PreservedMediaRegistrationV4, user=Depends(writer)):
+        uploads.register_preserved_video(store, case_id, session_id, video_id, value, user.username)
+        with store.connect() as db:
+            return store.view(store.case(db, case_id))
+
+    @app.get("/api/catalog/protocol-s1")
+    def protocol_s1(user=Depends(reader)):
+        from app.domain.catalog_v4 import load_rules_v4
+        return load_rules_v4("protocol")
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/recording-s1", response_model=capture_v4.RecordingStateV4)
+    def recording_s1(case_id: Key, session_id: Key, user=Depends(reader)):
+        return capture_v4.state(store, case_id, session_id, user.username)
+
+    @app.put("/api/cases/{case_id}/sessions/{session_id}/recording-s1", response_model=CaseViewV4)
+    async def recording_s1_save(case_id: Key, session_id: Key, request: Request, user=Depends(writer)):
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > 1024 * 1024:
+                raise HTTPException(413, "촬영 기록 크기가 제한을 넘었습니다.")
+        from pydantic import ValidationError
+        try:
+            value = capture_v4.RecordingEditV4.model_validate_json(data)
+        except ValidationError as exc:
+            errors = [".".join(map(str, error["loc"])) + ": " + error["msg"] for error in exc.errors()]
+            raise HTTPException(422, "; ".join(errors)) from None
+        return await asyncio.to_thread(capture_v4.save, store, case_id, session_id, value, request.cookies.get(COOKIE))
 
     @app.put("/api/cases/{case_id}/sessions/{session_id}/segments", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def session_segments(case_id: Key, session_id: Key, value: SegmentsEdit, user=Depends(writer)):

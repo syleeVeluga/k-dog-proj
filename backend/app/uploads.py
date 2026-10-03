@@ -9,8 +9,9 @@ from pathlib import Path
 from typing import BinaryIO
 
 from fastapi import HTTPException
+from pydantic import ValidationError
 
-from .domain.media_v4 import (CAMERA_ORIGINALS, MediaParentV4, StoredMediaV4,
+from .domain.media_v4 import (CAMERA_ORIGINALS, MediaParentV4, PreservedMediaRegistrationV4, StoredMediaV4,
                               UploadCreateV4, UploadLinkV4, UploadReceiptV4)
 from .intake import selected_session
 from .storage import encode, now, uid
@@ -379,6 +380,94 @@ def link_receipt(store, upload_id, value: UploadLinkV4, actor) -> UploadReceiptV
                    "link_json=?,linked_revision=?,updated_at=? WHERE upload_id=?",
                    (value.case_id, value.session_id, video_id, encode(binding), revision, now(), upload_id))
         store.audit(db, actor, upload_id, "upload.link", {"case_id": value.case_id, "video_id": video_id})
+        return _view(_row(store, db, upload_id, actor))
+
+
+def register_preserved_video(store, case_id: str, session_id: str, video_id: str,
+                             value: PreservedMediaRegistrationV4, actor: str) -> UploadReceiptV4:
+    """Register capture provenance on preserved bytes without replacing their path or ID."""
+    value = PreservedMediaRegistrationV4.model_validate_json(value.model_dump_json())
+    with store.connect() as db:
+        account = _account(db, actor)
+        _, _, session = _case(store, db, case_id, session_id)
+        video = next((item for item in session.videos if item.video_id == video_id), None)
+        if video is None:
+            raise HTTPException(404, "이 회차에 보존된 영상을 찾을 수 없습니다.")
+        try:
+            request = UploadCreateV4(request_id=value.request_id, filename=video.original_name,
+                expected_size=video.size_bytes, expected_sha256=video.sha256, case_id=case_id, session_id=session_id,
+                source_kind=value.source_kind, parents=value.parents, conversion=value.conversion)
+        except ValidationError:
+            raise HTTPException(422, "보존된 파일 형식과 원본·변환 출처 정보가 맞지 않습니다.") from None
+        binding = UploadLinkV4(case_id=case_id, session_id=session_id, camera_id=value.camera_id,
+            source_original_number=value.source_original_number or CAMERA_ORIGINALS.get(value.camera_id),
+            expected_revision=value.expected_revision).model_dump(mode="json", exclude={"expected_revision"})
+        request_json = encode(request.model_dump(mode="json"))
+        request_hash = hashlib.sha256(request_json.encode()).hexdigest()
+        existing = db.execute("SELECT * FROM upload_receipts WHERE creator=? AND request_id=?", (actor, value.request_id)).fetchone()
+        if existing and (existing["request_hash"] != request_hash or existing["state"] != "linked" or
+                         (existing["linked_case_id"], existing["linked_session_id"], existing["video_id"]) != (case_id, session_id, video_id)):
+            raise HTTPException(409, "같은 요청 ID가 다른 영상·출처 등록에 사용되었습니다.")
+        if isinstance(video, StoredMediaV4) and (existing is None or existing["upload_id"] != video.upload_id):
+            raise HTTPException(409, "이미 등록한 영상 출처를 이 경로에서 바꿀 수 없습니다.")
+        _parents(store, db, request, actor, (case_id, session_id))
+        sources = {}
+        for parent in request.parents:
+            sources.update(_lineage(db, _row(store, db, parent.upload_id, actor)))
+        if existing:
+            sources.update(_lineage(db, _row(store, db, existing["upload_id"], actor)))
+        preserved = {"storage_ref": video.storage_ref, "sha256": video.sha256, "size_bytes": video.size_bytes}
+        base_identity = (video.video_id, video.original_name, video.storage_ref, video.sha256, video.size_bytes)
+        login_hash = account["session_hash"]
+    identities = _verify_sources(store, sources)
+    try:
+        if existing:
+            file_identity = identities[existing["upload_id"]]
+        else:
+            file_identity = _file_identity(store.path(video.storage_ref))
+            _verify_file(store, preserved)
+    except OSError:
+        raise HTTPException(409, "보존된 영상 원본을 확인할 수 없습니다.") from None
+    with store.connect(write=True) as db:
+        if _account(db, actor)["session_hash"] != login_hash:
+            raise HTTPException(403, "출처 등록 중 로그인 권한이 변경되었습니다.")
+        case, manifest, session = _case(store, db, case_id, session_id)
+        current = next((item for item in session.videos if item.video_id == video_id), None)
+        if current is None or (current.video_id, current.original_name, current.storage_ref, current.sha256, current.size_bytes) != base_identity:
+            raise HTTPException(409, "보존된 영상의 고정 참조가 변경되었습니다.")
+        _assert_sources(store, db, sources, identities)
+        parents = _parents(store, db, request, actor, (case_id, session_id))
+        try:
+            if _file_identity(store.path(video.storage_ref)) != file_identity:
+                raise HTTPException(409, "확인 중 보존된 영상 원본이 변경되었습니다.")
+        except OSError:
+            raise HTTPException(409, "확인 중 보존된 영상 원본이 사라졌습니다.") from None
+        existing = db.execute("SELECT * FROM upload_receipts WHERE creator=? AND request_id=?", (actor, value.request_id)).fetchone()
+        if existing:
+            if (existing["request_hash"] != request_hash or existing["state"] != "linked" or not isinstance(current, StoredMediaV4) or
+                    current.upload_id != existing["upload_id"] or json.loads(existing["link_json"]) != binding or
+                    (current.camera_id, current.source_original_number, current.source_kind, current.parents, current.conversion) !=
+                    (value.camera_id, binding["source_original_number"], request.source_kind, parents, request.conversion)):
+                raise HTTPException(409, "이미 등록된 출처 또는 수신 요청 정보가 다릅니다.")
+            return _view(_row(store, db, existing["upload_id"], actor))
+        if isinstance(current, StoredMediaV4):
+            raise HTTPException(409, "이미 등록한 영상 출처를 이 경로에서 바꿀 수 없습니다.")
+        _case(store, db, case_id, session_id, value.expected_revision)
+        upload_id, timestamp = uid(), now()
+        registered = StoredMediaV4(video_id=video_id, upload_id=upload_id, original_name=current.original_name,
+            storage_ref=current.storage_ref, sha256=current.sha256, size_bytes=current.size_bytes,
+            camera_id=value.camera_id, source_original_number=binding["source_original_number"], source_kind=request.source_kind,
+            parents=parents, conversion=request.conversion,
+            media_status="storage_only" if Path(current.original_name).suffix.lower() == ".insv" else "pending_probe")
+        session.videos = [registered if item.video_id == video_id else item for item in session.videos]
+        store.save(db, case, manifest, actor, "video.preserved.register")
+        db.execute("INSERT INTO upload_receipts(upload_id,creator,request_id,request_hash,request_json,state,scope_case_id,scope_session_id,"
+                   "storage_ref,sha256,size_bytes,linked_case_id,linked_session_id,video_id,link_json,linked_revision,created_at,updated_at) "
+                   "VALUES(?,?,?,?,?,'linked',?,?,?,?,?,?,?,?,?,?,?,?)", (upload_id, actor, value.request_id, request_hash, request_json,
+                   case_id, session_id, current.storage_ref, current.sha256, current.size_bytes, case_id, session_id, video_id,
+                   encode(binding), manifest.input_revision, timestamp, timestamp))
+        store.audit(db, actor, upload_id, "upload.register_preserved", {"case_id": case_id, "video_id": video_id,
+                    "linked_revision": manifest.input_revision, "source_kind": request.source_kind})
         return _view(_row(store, db, upload_id, actor))
 
 

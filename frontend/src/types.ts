@@ -1,3 +1,5 @@
+import type { RecordingV4 } from './recordingTypesV4';
+
 export type Role = 'operator' | 'reviewer' | 'admin' | 'developer';
 export type User = { username: string; role: Role; active: boolean };
 export type Run = (work: () => Promise<void>) => Promise<void>;
@@ -23,6 +25,7 @@ export type Session = {
   segments: SegmentTimes | null;
   stimuli: StimulusTimes | null;
   recording: RecordingV3 | null;
+  recording_s1?: RecordingV4 | null;
   protocol_version: 'protocol-20261002-s1.1' | 'protocol-20260929-v3' | 'protocol-20260913-v2' | 'unconfirmed';
   scoring_catalog_version?: 'catalog-20261002-s1.1';
   recording_review_required?: boolean;
@@ -33,7 +36,7 @@ export const protocolName = (session: Session) => session.protocol_version === '
 export type ConsentState = 'unknown' | 'declined' | 'confirmed';
 export type Consents = { analysis_feedback: ConsentState; stranger_contact: ConsentState };
 export const consentNames: Record<ConsentState, string> = { unknown: '미확인', declined: '거절', confirmed: '확인' };
-export const segmentState = (session: Session): 'none' | 'draft' | 'confirmed' => session.recording ? session.recording.confirmed ? 'confirmed' : 'draft' : !session.segments ? 'none' : session.segments.confirmed ? 'confirmed' : 'draft';
+export const segmentState = (session: Session): 'none' | 'draft' | 'confirmed' => session.scoring_catalog_version === 'catalog-20261002-s1.1' ? !session.recording_s1 ? 'none' : session.recording_s1.confirmed ? 'confirmed' : 'draft' : session.recording ? session.recording.confirmed ? 'confirmed' : 'draft' : !session.segments ? 'none' : session.segments.confirmed ? 'confirmed' : 'draft';
 export type DogProfile = {
   breed: string; sex: '암' | '수' | '중성화' | '미기재'; age_years: number | null;
   size: '소형' | '중형' | '대형' | '미기재'; years_together: string; adoption_route: '분양' | '입양' | '기타' | '미기재';

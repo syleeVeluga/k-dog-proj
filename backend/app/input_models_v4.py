@@ -11,6 +11,7 @@ from app.domain.catalog import SURVEY_IDS
 from app.domain.catalog_v3 import SURVEY_VERSION
 from app.domain.catalog_v4 import CATALOG_VERSION, PROTOCOL_VERSION
 from app.domain.media_v4 import StoredMediaV4
+from app.domain.recording_v4 import RecordingV4
 from app.domain.recording_v3 import RecordingV3
 from app.input_models import CaseView, Key, Manifest, Model, Session, StoredVideo
 from app.input_models_v3 import ConsentsV3, ManifestV3, SessionV3
@@ -33,12 +34,13 @@ class SessionV4(Session):
     comparison_eligibility: Literal["unconfirmed"] = "unconfirmed"
     # Retained capture facts are reviewed against S1 windows in S04, never rescored here.
     recording: RecordingV3 | None = None
+    recording_s1: RecordingV4 | None = None
     recording_review_required: bool = False
 
     @model_validator(mode="after")
     def input_facts(self) -> Self:
         values = self.model_dump(mode="json")
-        for name in ("scoring_catalog_version", "recording_review_required"):
+        for name in ("scoring_catalog_version", "recording_review_required", "recording_s1"):
             values.pop(name)
         # Reuse input-fact validation without dropping S1 provenance in the manifest.
         values["videos"] = [

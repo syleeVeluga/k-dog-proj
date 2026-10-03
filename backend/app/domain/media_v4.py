@@ -62,6 +62,26 @@ class UploadLinkV4(ContractV4):
     expected_revision: Annotated[int, Field(ge=1)]
 
 
+class PreservedMediaRegistrationV4(ContractV4):
+    request_id: MediaKey
+    expected_revision: Annotated[int, Field(ge=1)]
+    camera_id: MediaKey
+    source_original_number: Text | None = None
+    source_kind: Literal["original", "received_conversion"]
+    parents: list[MediaParentV4] = Field(default_factory=list)
+    conversion: ConversionV4 | None = None
+
+    @model_validator(mode="after")
+    def explicit_origin(self) -> Self:
+        if len({parent.upload_id for parent in self.parents}) != len(self.parents):
+            raise ValueError("duplicate preserved-media parent")
+        if self.source_kind == "original" and (self.parents or self.conversion):
+            raise ValueError("original media cannot claim a conversion")
+        if self.source_kind == "received_conversion" and (not self.parents or self.conversion is None):
+            raise ValueError("received conversion requires actual parent and conversion metadata")
+        return self
+
+
 class StoredMediaV4(ContractV4):
     video_id: MediaKey
     upload_id: MediaKey

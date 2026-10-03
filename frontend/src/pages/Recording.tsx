@@ -3,6 +3,8 @@ import { api } from '../api';
 import { mayLeave, useEditBase, useUnsaved } from '../Editing';
 import { SessionEditor } from '../MetadataEditors';
 import { RecordingPanelV3 } from '../RecordingPanelV3';
+import { RecordingPanelV4 } from '../RecordingPanelV4';
+import { PreservedMediaRegistration } from '../PreservedMediaRegistration';
 import { VideoUpload } from '../VideoUpload';
 import { UploadInbox } from '../UploadInbox';
 import { CaseFilters, matchesCase } from '../CaseFilters';
@@ -40,7 +42,10 @@ export function Recording({ cases, selected, select, filters, writable, run, rel
           <td data-label="작업"><button aria-label={`${c.participant_id} 촬영 열기`} onClick={() => { if (mayLeave()) select(c); }}>열기 ↗</button></td></tr>;
       })}</tbody></table>{!sorted.length && <div className="empty"><h2>표시할 참가자가 없습니다.</h2><p>검색·행사 필터 또는 접수 등록을 확인하세요.</p></div>}</div></>}
     {writable && (!selected || selected.manifest.schema_version === 'intake-4.0') && <UploadInbox cases={cases} selected={selected} run={run} refresh={async message => { await reload(); if (message) notify(message); }} />}
-    {selected?.manifest.schema_version === 'intake-4.0' && <section className="panel"><h2>S1 촬영 자료</h2><p role="status">S1 촬영 사건·관찰창 기능 준비 중입니다. 원본 영상을 보관하고 재분석에 사용합니다.</p><button onClick={() => select(null)}>촬영 목록</button></section>}
+    {selected?.manifest.schema_version === 'intake-4.0' && <PreservedMediaRegistration item={selected} writable={writable} run={run}
+      refresh={async message => { await reload(); if (message) notify(message); }} />}
+    {selected?.manifest.schema_version === 'intake-4.0' && <RecordingPanelV4 key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run}
+      refresh={async message => { await reload(); if (message) notify(message); }} close={() => { if (mayLeave()) select(null); }} />}
     {selected && selected.manifest.schema_version !== 'intake-4.0' && sessionOf(selected).protocol_version === 'protocol-20260929-v3' && <RecordingPanelV3 key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run}
       refresh={async message => { await reload(); if (message) notify(message); }} close={() => { if (mayLeave()) select(null); }} />}
     {selected && selected.manifest.schema_version !== 'intake-4.0' && sessionOf(selected).protocol_version !== 'protocol-20260929-v3' && <RecordingPanel key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run} notify={notify}

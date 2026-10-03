@@ -1,0 +1,160 @@
+import { test, expect } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+
+const headers = { 'X-KDOG-Request': '1' };
+
+test('S1 preserved video registers its camera and source without replacing raw media', async ({ page }) => {
+  test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required');
+  await page.goto('/');
+  await page.getByLabel('계정', { exact: true }).fill('operator');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
+  let item = await (await page.request.post('/api/cases', { headers, data: { event_id: 'S1-PRESERVED', participant_id: 's1preserved', dog_name: '보존 영상 합성견' } })).json();
+  const bytes = execFileSync('ffmpeg', ['-v', 'error', '-nostdin', '-f', 'lavfi', '-i', 'testsrc2=size=64x64:rate=2:duration=2',
+    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov', 'pipe:1']);
+  const uploaded = await page.request.post(`/api/cases/${item.case_id}/videos`, { headers, data: bytes,
+    params: { session_id: item.selected_session_id, filename: 'preserved-synthetic.mp4', expected_revision: item.input_revision } });
+  expect(uploaded.status(), await uploaded.text()).toBe(201);
+  item = await uploaded.json();
+  const original = item.manifest.sessions[0].videos[0];
+  await page.getByRole('button', { name: '촬영', exact: true }).click();
+  await page.getByRole('button', { name: 's1preserved 촬영 열기' }).click();
+  const registration = page.getByRole('region', { name: '보존 영상 출처 등록', exact: true });
+  await registration.getByLabel('보존 영상 카메라', { exact: true }).fill('CAM2');
+  await registration.getByLabel('보존 영상 원본 번호', { exact: true }).fill('3');
+  await registration.getByRole('combobox', { name: '보존 영상 자료 구분', exact: true }).selectOption('original');
+  const saved = page.waitForResponse(response => response.url().endsWith(`/videos/${original.video_id}/registration`) && response.request().method() === 'PUT');
+  await registration.getByRole('button', { name: '보존 영상 출처 등록', exact: true }).click();
+  const response = await saved;
+  expect(response.status(), await response.text()).toBe(200);
+  await expect(registration).toHaveCount(0);
+  item = await (await page.request.get(`/api/cases/${item.case_id}`)).json();
+  const registered = item.manifest.sessions[0].videos[0];
+  for (const field of ['video_id', 'storage_ref', 'sha256', 'size_bytes']) expect(registered[field]).toBe(original[field]);
+  expect(registered.camera_id).toBe('CAM2');
+  expect(registered.source_kind).toBe('original');
+  expect(registered.upload_id).toBeTruthy();
+  const source = await page.request.get(`/api/cases/${item.case_id}/videos/${original.video_id}`);
+  expect(source.status()).toBe(200);
+  expect(await source.body()).toEqual(bytes);
+  await expect(page.getByLabel('S1 촬영 기록', { exact: true }).getByRole('combobox', { name: '기준 영상', exact: true }))
+    .toContainText('CAM2 · preserved-synthetic.mp4');
+});
+
+test('S1 actual recording: windows, events, observations, offsets, immutable edits and reviewer', async ({ page }, testInfo) => {
+  test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required');
+  test.setTimeout(120000);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.getByLabel('계정', { exact: true }).fill('operator');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
+  let item = await (await page.request.post('/api/cases', { headers, data: { event_id: 'S1-RECORDING', participant_id: 's1rec', dog_name: 'S1 촬영 합성견' } })).json();
+  for (const [index, filter] of ['testsrc2', 'smptebars'].entries()) {
+    const bytes = execFileSync('ffmpeg', ['-v', 'error', '-nostdin', '-f', 'lavfi', '-i', `${filter}=size=64x64:rate=2:duration=48`,
+      '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov', 'pipe:1']);
+    const receipt = await (await page.request.post('/api/uploads', { headers, data: { request_id: `s1-rec-cam-${index}`, filename: `synthetic-cam${index + 1}.mp4`, expected_size: bytes.length } })).json();
+    expect((await page.request.put(`/api/uploads/${receipt.upload_id}/content`, { headers, params: { request_id: receipt.request_id }, data: bytes })).status()).toBe(200);
+    expect((await page.request.post(`/api/uploads/${receipt.upload_id}/link`, { headers, data: { case_id: item.case_id, session_id: item.selected_session_id, camera_id: `CAM${index + 1}`, expected_revision: item.input_revision } })).status()).toBe(200);
+    item = await (await page.request.get(`/api/cases/${item.case_id}`)).json();
+  }
+  const endpoint = `/api/cases/${item.case_id}/sessions/${item.selected_session_id}/recording-s1`;
+  const videos = item.manifest.sessions[0].videos;
+  await page.getByRole('button', { name: '촬영', exact: true }).click();
+  await page.getByRole('button', { name: 's1rec 촬영 열기' }).click();
+  const panel = page.getByLabel('S1 촬영 기록', { exact: true });
+  await panel.getByRole('combobox', { name: '실제 촬영 절차', exact: true }).selectOption('s1_confirmed');
+  await panel.getByLabel('절차 확인 근거', { exact: true }).fill('합성 S1 순서 확인, 실제 시각 직접 기록');
+  const names = ['입장', '기준', '혼자', '재회', '무시', '걷기', '낯선 사람', '퇴장'];
+  const spans = [[0, 3], [3, 6], [6, 12], [12, 18], [18, 21], [22, 28], [30, 38], [40, 44]];
+  for (const [i, name] of names.entries()) {
+    await expect(panel.getByLabel(`${name} 시작`, { exact: true })).toHaveValue('');
+    await panel.getByLabel(`${name} 시작`, { exact: true }).fill(String(spans[i][0]));
+    await panel.getByLabel(`${name} 끝`, { exact: true }).fill(String(spans[i][1]));
+  }
+  for (const [i, name] of ['이동1', '정지1', '이동2', '정지2', '이동3', '정지3'].entries()) {
+    await panel.getByLabel(`${name} 시작`, { exact: true }).fill(String(22 + i));
+    await panel.getByLabel(`${name} 끝`, { exact: true }).fill(String(23 + i));
+    await panel.getByRole('combobox', { name: `${name} 거리 예외`, exact: true }).selectOption(i === 2 ? 'recheck' : 'none');
+    if (i === 2) await panel.getByLabel(`${name} 예외 근거`, { exact: true }).fill('합성 안전상 거리 재확인');
+  }
+  await panel.getByLabel('synthetic-cam2.mp4 오프셋 초', { exact: true }).fill('1');
+  await panel.getByLabel('synthetic-cam2.mp4 동기화 근거', { exact: true }).fill('합성 같은 프레임 확인');
+  await panel.getByLabel('synthetic-cam2.mp4 수동 동기화 확인', { exact: true }).check();
+  await panel.getByRole('combobox', { name: '추가할 사건', exact: true }).selectOption('stranger_contact_start');
+  const contact = panel.getByRole('article', { name: '요원 실제 접촉 시작 사건', exact: true });
+  await contact.getByRole('combobox', { name: '사건 상태', exact: true }).selectOption('not_occurred');
+  await contact.getByLabel('실제 맥락·사유', { exact: true }).fill('요원이 접촉하지 않음');
+  await expect(contact.getByLabel('실제 사건 초', { exact: true })).toHaveValue('');
+  await expect(contact.getByLabel('실제 사건 초', { exact: true })).toBeDisabled();
+  await panel.getByRole('combobox', { name: '추가할 사건', exact: true }).selectOption('reunion_head_turn');
+  const turn = panel.getByRole('article', { name: '재회 첫 명확한 고개 전환 사건', exact: true });
+  await turn.getByRole('combobox', { name: '사건 상태', exact: true }).selectOption('observed');
+  await turn.getByLabel('실제 사건 초', { exact: true }).fill('14');
+  await turn.getByLabel('실제 맥락·사유', { exact: true }).fill('같은 자세에서 첫 명확한 고개 전환');
+  await panel.getByRole('button', { name: '바54 선택 관찰 기록', exact: true }).click();
+  await panel.getByLabel('바54 첫 명확한 전환 확인', { exact: true }).check();
+  for (const label of ['같은 자세', '같은 움직임', '전 2초 꼬리 관찰', '후 3초 꼬리 관찰']) await panel.getByRole('combobox', { name: `바54 ${label}`, exact: true }).selectOption('yes');
+  await panel.getByLabel('바54 선택 근거', { exact: true }).fill('합성 전후 5초 비교 가능');
+  await panel.getByRole('button', { name: '관찰 근거 추가', exact: true }).click();
+  const coverage = panel.getByRole('article', { name: '관찰 근거', exact: true });
+  await coverage.getByLabel('관찰 근거 시작', { exact: true }).fill('0');
+  await coverage.getByLabel('관찰 근거 끝', { exact: true }).fill('3');
+  await coverage.getByRole('combobox', { name: '관찰 범위', exact: true }).selectOption('whole');
+  await expect(coverage.getByLabel('실제 관찰 초', { exact: true })).toHaveValue('3');
+  await coverage.getByLabel('관찰 근거 설명', { exact: true }).fill('입장 전체를 실제로 확인함');
+  await panel.getByRole('button', { name: '연결 메모 추가', exact: true }).click();
+  await panel.getByLabel('개59 메모', { exact: true }).fill('실제 접촉은 없었으며 기존 몸 반응을 지우지 않음');
+  await panel.getByLabel('메모 연결 항목', { exact: true }).fill('개12');
+  const saved = page.waitForResponse(response => response.url().endsWith('/recording-s1') && response.request().method() === 'PUT');
+  await panel.getByRole('button', { name: '촬영 기록 확정', exact: true }).click();
+  const response = await saved;
+  expect(response.status(), await response.text()).toBe(200);
+  await expect(panel.getByLabel('재회 시작', { exact: true })).toBeDisabled();
+  item = await (await page.request.get(`/api/cases/${item.case_id}`)).json();
+  let record = item.manifest.sessions[0].recording_s1;
+  expect(record.events[0].seconds).toBeNull();
+  expect(record.video_offsets[0].offset_seconds).toBe(1);
+  expect(record.tail_selections[0].first_clear_confirmed).toBe(true);
+  expect(record.linked_memos[0].text).toContain('기존 몸 반응');
+  const windows = await (await page.request.get(endpoint)).json();
+  expect(windows.windows.find((value: { window_id: string }) => value.window_id === 'reunion_tail_event').start_seconds).toBe(12);
+  expect(windows.windows.find((value: { window_id: string }) => value.window_id === 'stranger_contact').status).toBe('no_opportunity');
+  await panel.getByRole('button', { name: '확정본 수정 시작', exact: true }).click();
+  await panel.getByLabel('퇴장 끝', { exact: true }).fill('45');
+  record = structuredClone(record); record.segments[7].end_sec = 46;
+  expect((await page.request.put(endpoint, { headers, data: { expected_revision: item.input_revision, recording: record } })).status()).toBe(200);
+  await expect(panel.getByText(/다른 변경이 저장되었습니다/)).toBeVisible();
+  const conflict = page.waitForResponse(value => value.url().endsWith('/recording-s1') && value.request().method() === 'PUT');
+  await panel.getByRole('button', { name: '촬영 기록 초안 저장', exact: true }).click();
+  expect((await conflict).status()).toBe(409);
+  await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('45');
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true }).click();
+  await expect(panel).toBeVisible();
+  page.once('dialog', dialog => dialog.accept());
+  await panel.getByRole('button', { name: '촬영 입력 버리고 최신 값 보기', exact: true }).click();
+  await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('46');
+  await page.screenshot({ path: testInfo.outputPath('recording-s1.png'), fullPage: true, animations: 'disabled' });
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  const overflow = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth,
+    elements: Array.from(document.querySelectorAll('body *')).filter(element => element.getBoundingClientRect().right > window.innerWidth + 1)
+      .slice(-12).map(element => ({ tag: element.tagName, class: element.className, text: element.textContent?.slice(0, 60), right: element.getBoundingClientRect().right })) }));
+  expect(overflow.width <= overflow.viewport, JSON.stringify(overflow)).toBe(true);
+  await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+  await page.getByLabel('계정', { exact: true }).fill('reviewer');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await page.getByRole('button', { name: '촬영', exact: true }).click();
+  await page.getByRole('button', { name: 's1rec 촬영 열기' }).click();
+  await expect(panel.getByLabel('퇴장 끝', { exact: true })).toBeDisabled();
+  await expect(panel.getByRole('button', { name: '촬영 기록 확정', exact: true })).toHaveCount(0);
+  expect((await page.request.put(endpoint, { headers, data: { expected_revision: item.input_revision, recording: record } })).status()).toBe(403);
+  expect(videos).toHaveLength(2);
+  expect(errors).toEqual([]);
+});
