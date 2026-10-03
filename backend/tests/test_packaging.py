@@ -43,6 +43,11 @@ class LauncherTests(unittest.TestCase):
             self.assertTrue(release.product_file(name), name)
         self.assertFalse(release.product_file("resources/source/customer.xlsx"))
         self.assertFalse(release.product_file("backend/tests/test_scoring.py"))
+        self.assertFalse(release.product_file("docs/요구사항_20261003/customer.docx"))
+        self.assertFalse(release.product_file("docs/개발반영_20261003/customer.xlsx"))
+        for name in (*release.OPERATING_DOCUMENTS,
+                     "docs/개발반영_20261003/K-DOG_실측및확인후속대장_v1.0_20261003.md"):
+            self.assertTrue(release.product_file(name), name)
 
     @unittest.skipUnless(os.name == "nt", "Windows job object")
     def test_process_group_terminates_media_descendants(self):

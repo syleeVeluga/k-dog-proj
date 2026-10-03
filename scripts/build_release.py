@@ -21,12 +21,20 @@ RETIRED_FILES = frozenset({
     "resources/rules/preprocess-v1.json", "resources/mappings/results-v3.json",
     "resources/mappings/survey-behavior-v3.json",
 })
+OPERATING_DOCUMENTS = frozenset({
+    "README.md", "docs/DEVELOPMENT.md", "docs/PILOT_OPERATIONS.md",
+    "docs/K-DOG_개발기준변경검토_v1.0_20261003.md",
+    "docs/개발반영_20261003/검증이미지/S17_외부비교_모바일_합성.png",
+    "docs/개발반영_20261003/검증이미지/S17_PDF_외부비교_합성.png",
+})
 
 
 def product_file(name):
     return name not in RETIRED_FILES and (
         name.startswith("backend/app/") and name.endswith(".py") or
-        name.startswith("resources/") and Path(name).suffix in (".json", ".ttf", ".txt", ".md", ".html", ".css")
+        name.startswith("resources/") and Path(name).suffix in (".json", ".ttf", ".txt", ".md", ".html", ".css") or
+        name in OPERATING_DOCUMENTS or
+        name.startswith("docs/개발반영_20261003/") and name.endswith(".md")
     )
 
 
