@@ -37,7 +37,9 @@ from app.input_models import (
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
 from app import settings
-from app import forms_v4, uploads, capture_v4, preprocess_v4
+from app import forms_v4, uploads, capture_v4, preprocess_v4, sheets_v4
+from app.domain.catalog_v4 import BehaviorCatalogV4, load_catalog_v4
+from app.domain.sheets_v4 import SheetDocumentV4
 from app.domain.preprocess_v4 import BatchV4, PreprocessRequestV4, PreprocessStatusV4
 from app.domain.media_v4 import PreservedMediaRegistrationV4, StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
 from app import sheets, judgements, run_v3, scoring_ai, settings_v3
@@ -572,6 +574,54 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                               kind: Literal["original", "ai"], user=Depends(reader)):
         return FileResponse(preprocess_v4.clip_path(store, case_id, session_id, batch_id, clip_id, kind, user.username),
                             media_type="video/mp4", content_disposition_type="inline")
+
+    @app.get("/api/catalog/behavior-s1", response_model=BehaviorCatalogV4)
+    def behavior_s1(user=Depends(reader)):
+        return load_catalog_v4()
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/sheets-s1", response_model=list[sheets_v4.SheetSummaryV4])
+    def scoring_s1_sheets(case_id: Key, session_id: Key, user=Depends(reader)):
+        return sheets_v4.list_sheets(store, case_id, session_id, user)
+
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/sheets-s1", response_model=sheets_v4.SheetSummaryV4, status_code=201)
+    def scoring_s1_assign(case_id: Key, session_id: Key, value: sheets_v4.SheetAssignmentV4, user=Depends(writer)):
+        return sheets_v4.assign(store, case_id, session_id, value, user)
+
+    @app.get("/api/score-sheets-s1/{sheet_id}", response_model=sheets_v4.SheetViewV4)
+    def scoring_s1_sheet(sheet_id: Key, user=Depends(reader)):
+        return sheets_v4.view(store, sheet_id, user)
+
+    @app.get("/api/score-sheets-s1/{sheet_id}/revisions/{revision}", response_model=SheetDocumentV4)
+    def scoring_s1_revision(sheet_id: Key, revision: Annotated[int, ApiPath(ge=1)], user=Depends(reader)):
+        return sheets_v4.revision(store, sheet_id, revision, user)
+
+    @app.put("/api/score-sheets-s1/{sheet_id}", response_model=sheets_v4.SheetSummaryV4)
+    def scoring_s1_save(sheet_id: Key, value: sheets_v4.SheetEditV4, user=Depends(reader)):
+        return sheets_v4.revise(store, sheet_id, value, user, "save")
+
+    @app.post("/api/score-sheets-s1/{sheet_id}/submit", response_model=sheets_v4.SheetSummaryV4)
+    def scoring_s1_submit(sheet_id: Key, value: sheets_v4.SheetReasonV4, user=Depends(reader)):
+        return sheets_v4.revise(store, sheet_id, value, user, "submit")
+
+    @app.post("/api/score-sheets-s1/{sheet_id}/reopen", response_model=sheets_v4.SheetSummaryV4)
+    def scoring_s1_reopen(sheet_id: Key, value: sheets_v4.SheetReasonV4, user=Depends(writer)):
+        return sheets_v4.revise(store, sheet_id, value, user, "reopen")
+
+    @app.post("/api/score-sheets-s1/{sheet_id}/assignment", response_model=sheets_v4.SheetSummaryV4)
+    def scoring_s1_active(sheet_id: Key, value: sheets_v4.SheetActiveV4, user=Depends(writer)):
+        return sheets_v4.revise(store, sheet_id, value, user, "assignment")
+
+    @app.post("/api/score-sheets-s1/{sheet_id}/grants", response_model=sheets_v4.SheetSummaryV4)
+    def scoring_s1_grant(sheet_id: Key, value: sheets_v4.SheetGrantV4, user=Depends(writer)):
+        return sheets_v4.grant(store, sheet_id, value, user)
+
+    @app.post("/api/score-sheets-s1/{sheet_id}/reveal", response_model=sheets_v4.SheetRevealResultV4)
+    def scoring_s1_reveal(sheet_id: Key, value: sheets_v4.SheetRevealV4, user=Depends(reader)):
+        return sheets_v4.revise(store, sheet_id, value, user, "reveal")
+
+    @app.get("/api/import/s1-workbook/status")
+    def s1_workbook_status(user=Depends(writer)):
+        return sheets_v4.workbook_preflight()
 
     @app.put("/api/cases/{case_id}/sessions/{session_id}/segments", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def session_segments(case_id: Key, session_id: Key, value: SegmentsEdit, user=Depends(writer)):

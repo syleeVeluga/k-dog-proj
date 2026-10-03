@@ -151,7 +151,7 @@ export function App() {
           : page === 'users' ? <Users run={run} />
           : page === 'data' ? <section><h1>자료 관리</h1><Recovery /></section>
           : page === 'preprocess' ? <Preprocessing cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
-          : page === 'scoring' ? <Scoring cases={cases} selected={selected} select={setSelected} filters={filters} user={user} />
+          : page === 'scoring' ? <Scoring cases={cases} selected={selected} select={setSelected} filters={filters} user={user} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
           : page === 'survey' ? <Survey cases={cases} selected={selected} select={setSelected} filters={filters} catalog={catalog} writable={!!writable} run={run} reload={reload} notify={setNotice} />
           : page === 'recording' ? <Recording cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} run={run} reload={reload} notify={setNotice} />
           : <Intake user={user} cases={cases} selected={selected} writable={!!writable} run={run} reload={reload}

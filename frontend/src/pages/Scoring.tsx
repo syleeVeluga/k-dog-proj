@@ -5,7 +5,8 @@ import type { CaseFilterProps } from '../CaseFilters';
 import { mayLeave, useEditBase } from '../Editing';
 import { Notification } from '../Notification';
 import { formFields, sessionOf } from '../types';
-import type { Case, User } from '../types';
+import type { Case, Run, User } from '../types';
+import { ScoreSheetsV4 } from '../ScoreSheetsV4';
 import type { BehaviorCatalog, BehaviorItem, Evidence, Observation, SheetDocument, SheetSummary, SheetView } from '../ScoringTypes';
 import { BasicResults } from '../BasicResults';
 import type { ResultView } from '../BasicResults';
@@ -20,9 +21,9 @@ function windowParts(doc: SheetDocument, window: SheetDocument['source']['window
     : [window];
 }
 
-export function Scoring({ cases, selected, select, filters, user }: { cases: Case[]; selected: Case | null; select: (item: Case) => void; filters: CaseFilterProps; user: User }) {
+export function Scoring({ cases, selected, select, filters, user, run, refresh }: { cases: Case[]; selected: Case | null; select: (item: Case | null) => void; filters: CaseFilterProps; user: User; run: Run; refresh: (message?: string) => Promise<void> }) {
   return <section><h1>독립 채점</h1><p>배정된 평가자가 같은 촬영 입력과 실제 관찰창을 기준으로 기록합니다. 다른 평가 결과는 독립 제출 뒤 운영자가 명시적으로 공개한 완료본만 열 수 있습니다.</p>
-    {selected ? selected.manifest.schema_version === 'intake-4.0' ? <p role="status">S1 독립 채점 기능 준비 중입니다. 모든 채점값은 비어 있으며 재분석이 필요합니다.</p> : sessionOf(selected).protocol_version === 'protocol-20260929-v3' ? <ScoringWorkspace key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} user={user} /> : <p role="status">구판/절차 미확인 회차입니다. 신판 독립 채점은 확정한 신판 촬영에 배정하세요.</p> : <>
+    {selected ? selected.manifest.schema_version === 'intake-4.0' ? <ScoreSheetsV4 key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} user={user} run={run} refresh={refresh} close={() => { if (mayLeave()) select(null); }} /> : sessionOf(selected).protocol_version === 'protocol-20260929-v3' ? <ScoringWorkspace key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} user={user} /> : <p role="status">구판/절차 미확인 회차입니다. 신판 독립 채점은 확정한 신판 촬영에 배정하세요.</p> : <>
       <CaseFilters cases={cases} {...filters} /><div className="table-wrap"><table><thead><tr><th>행사 / 참가자</th><th>반려견</th><th>작업</th></tr></thead><tbody>
         {cases.filter(c => matchesCase(c, filters.search, filters.eventFilter)).map(c => <tr key={c.case_id}><td>{c.event_id} / {c.participant_id}</td><td>{c.dog_name}</td><td><button onClick={() => select(c)} aria-label={`${c.participant_id} 독립 채점 열기`}>열기</button></td></tr>)}
       </tbody></table></div></>}
