@@ -83,3 +83,13 @@ S00 원본 추출·계약 담당, S01 초기화·복구 담당, 통합 접수/AP
 - **설치물:** 0.3.0 Windows ZIP를 만들고 실제 `install.ps1`, 새 venv, 한글·공백 경로, 로그인→S1 접수→재시작, supervisor 강제 종료/잠금 해제, 기존 환경변수 격리, 손상 ZIP의 설치 전 거절을 검증했다. 이는 현재 Windows 호스트의 독립 폴더 설치이며 새 OS나 두 번째 PC 검증은 아니다. ZIP의 source commit은 `release.json`, 최종 bytes/hash는 동봉 `.sha256`와 아래 배포물 확정 기록을 따른다.
 - **독립 패키지 감사:** 최초 설치물의 payload176개/파일별 hash/ZIP sidecar/CRC/경로/중복, 필수 S1 자산, 운영 Markdown30개와 합성 PNG2개, 문서·이미지 링크237개 누락0을 확인했다. 고객 원본·키·런타임·시험은 포함하지 않았다. README 연결 문서 누락 P2를 보완했고, 마지막 DEVELOPMENT의 개발 문서 제외 설명 P3도 실제 포함 범위에 맞췄다.
 - **실측 재개:** [후속 대장](K-DOG_실측및확인후속대장_v1.0_20261003.md)의 E01~E10/P01~P12에 필요한 샘플·장비·확인 자료, 실행 방법, 합격 근거를 남겼다. G01/G04 미수령 Excel import와 D06 외부 비교 실제 활성화 등은 승인/자료 없이 켜지지 않는다. 승인되지 않은 기준이나 실제 품질 수치를 만들지 않았다.
+
+## 최종 배포물·PR 확정
+
+- 통합 [PR #40](https://github.com/syleeVeluga/k-dog-proj/pull/40): `veluga/s1-integrated-release` → `main`, draft. S00~S17 단계별 commit을 하나의 검토 가능한 통합 변경으로 제출했다. 현장 배포·자동 병합·고객 발송은 수행하지 않았다.
+- 전달 ZIP: `releases/k-dog-v0.3.0-s1-windows-x64-aedab57.zip` (로컬 산출물, 저장소 제외), **2,034,330 bytes**, payload176파일 + `release.json`.
+- source commit: `aedab57c8be12cd524d366c9b07cacc82682ed37`, `dirty=false`, 앱0.3.0 / spec20261002. 최종 문서·P3 정정까지 포함한 깨끗한 commit에서 생성했다.
+- SHA-256: `ae3d786ddde7df4db6ce1f9ab14631854da8e1bf37fc0893dfc7336c24ec7083`. 같은 이름의 `.zip.sha256`을 함께 전달한다.
+- 위 **최종 ZIP 자체**로 `scripts/verify_release.py`를 다시 실행해 exit0을 확인했다. 새 한글·공백 경로와 venv, 실제 설치, 손상 거절, 환경 격리, 로그인/접수/재시작, supervisor 종료 및 S1 필수 자산 모두 통과했다. 외부 AI 호출0이다. 이전 `4cc42b6` ZIP의 검증 결과로 대체하지 않았다.
+- 최종 문서 상대링크308개 누락0, `git diff main...HEAD --check` 통과, graft wiring graph3494노드 동기화 확인. 이 절은 ZIP 검증 후 저장소에 남기는 확정 기록이며 ZIP 안 문서는 위 source commit 시점의 스냅샷이다. 이후 변경은 이 확정 기록뿐이며 runtime은 최종 전체 시험 대상과 동일하다.
+- 최종 ZIP 독립 재감사도 통과했다. payload176개 hash/sidecar/source commit/CRC/중복/미기재 항목을 확인했고, 이전 ZIP 대비 변경11개는 문서뿐이며 코드·빌드·필수 자산 bytes는 동일하다. DEVELOPMENT 포함/제외 설명 수정도 실제 전달본에 반영됐고 잔여 actionable finding은 없다.

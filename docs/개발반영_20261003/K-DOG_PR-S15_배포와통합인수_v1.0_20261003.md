@@ -124,3 +124,7 @@ S1 기능을 중앙 서버와 촬영용 3PC에서 설치·사용·복구하고, 
 - T01~T32/O01~O14는 인수 대장에 실제 자동 근거와 미실행 사유를 기록했다. 물리3PC/LAN·깨끗한 OS·현장 장애/복구·실제 영상 품질/시간 및 연구·정책 승인만 [후속 대장](K-DOG_실측및확인후속대장_v1.0_20261003.md)에 남긴다. 현장 운영 인수나 실제 AI 정확도 통과로 확대 해석하지 않는다.
 
 - 최종 완료 기록의 독립 cold는 전체 시험 로그와 현재 Windows 설치 범위, 미실측/미승인 경계를 다시 대조했다. P1/P2는 없었고, 파일표의 operations-v4 시험 설명 P3를 실제 계정·백업 검증 범위로 정정했다.
+
+### 전달본 확정
+
+최종 전달본은 `releases/k-dog-v0.3.0-s1-windows-x64-aedab57.zip`, source `aedab57c8be12cd524d366c9b07cacc82682ed37` (clean), 2,034,330 bytes/176 payload파일이다. SHA-256은 `ae3d786ddde7df4db6ce1f9ab14631854da8e1bf37fc0893dfc7336c24ec7083`이며 동봉 sidecar와 일치한다. 문서 보완 뒤 이 ZIP 자체의 `verify_release.py` 재실행도 exit0으로 통과했다. 최종 검증 이후 이 기록만 추가했으며 runtime 변경은 없다. 통합 제출은 [PR #40](https://github.com/syleeVeluga/k-dog-proj/pull/40)이다.
