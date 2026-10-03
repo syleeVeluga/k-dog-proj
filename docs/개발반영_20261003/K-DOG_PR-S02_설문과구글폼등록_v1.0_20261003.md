@@ -1,6 +1,6 @@
 # PR-S02 설문과구글폼등록
 
-버전: v1.0 · 2026-10-03 · 상태: 구현·자동 검증 및 독립 검토, 실제 파일 검수 후속 · 선행: S01 · 기준: main 3654596
+버전: v1.0 · 2026-10-03 · 상태: 구현·자동 검증·독립 검토 완료, 실제 파일 검수 후속 · 갱신: 2026-10-04 · 선행: S01 · 계획 기준: main 3654596
 
 상위: [전체 계획](K-DOG_개발반영계획_v1.0_20261003.md). 공통 검증·리뷰·버전 확인·저장 보호는 상위 §7을 적용한다.
 
@@ -71,6 +71,6 @@ API에는 `/api/forms/columns`, `/preview`, `/commit`을 연결했다. 최대32M
 - `ref`, `storage_ref`, `*_json`이라는 원헤더·응답 라벨은 사용자 데이터로 취급하고 백업 파일 참조로 해석하지 않는다.
 - 시트/배치 변경 후 이전 대상 연결이 남는 문제와 revision 충돌 뒤 재확인이 불가능한 화면을 수정했다.
 
-자동 시험: `uv run --locked python -X utf8 -m unittest tests.test_forms_import_v4 tests.test_forms_api_v4 tests.test_survey_v4 tests.test_settings -v` **58개 통과**(Forms30/API4/설문11/백업·권한13). 원척도0/null, 수식·중복열·잘못된 라벨, 동명이인, 반복 요청, 대상 삭제/권한 철회/revision 충돌, 원본 손상, 부분 실패 원자성, 삭제·복원까지 검증했다. 프론트는 `npm run build`와 `KDOG_TEST_INTAKE_SPEC=20261002`에서 importer/survey 브라우저 시험을 실행한다. 최종 실행 결과·commit은 [실행 기록](K-DOG_구현실행기록_v1.0_20261003.md)에 기록한다.
+자동 시험: `uv run --locked python -X utf8 -m unittest tests.test_forms_import_v4 tests.test_forms_api_v4 tests.test_survey_v4 tests.test_settings -v` **58개 통과**(Forms30/API4/설문11/백업·권한13). 원척도0/null, 수식·중복열·잘못된 라벨, 동명이인, 반복 요청, 대상 삭제/권한 철회/revision 충돌, 원본 손상, 부분 실패 원자성, 삭제·복원까지 검증했다. 단계별 `npm run build`와 importer/survey 브라우저 시험도 통과했고 단계 commit은 `18aca50`이다. 이후 S1 기본 서버의 전체 브라우저 **41개, 3.7분 통과**에 CSV/XLSX Forms와 설문 시험을 포함했다. 최종 전체 backend 통과 근거는 [실행 기록](K-DOG_구현실행기록_v1.0_20261003.md)을 따른다.
 
 2026-10-03 확인한 기존 Pydantic/FastAPI/openpyxl/React/Playwright 잠금 버전을 유지했다. 최신 안정판·선택 이유·공식 문서 링크는 실행 기록의 의존성 표를 적용하며 신규 패키지는 도입하지 않았다. 실제 Forms 파일의 매핑 검수는 [후속 대장](K-DOG_실측및확인후속대장_v1.0_20261003.md)에 남기고 D05/D06은 미확정 상태를 유지한다. S13에는 원응답·변환값·정책 판본·영역별 유효 상태를 제공한다.

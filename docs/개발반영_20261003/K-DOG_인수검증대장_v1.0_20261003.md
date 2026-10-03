@@ -4,7 +4,7 @@
 
 상위: [전체 계획](K-DOG_개발반영계획_v1.0_20261003.md), [확인사항](K-DOG_확인사항과적용경계_v1.0_20261003.md). 표의 기대값은 주 문서 11절과 확정 규칙을 기본으로 하며 이전 앱 시험의 통과 기록을 전용하지 않는다.
 
-현재 S00~S14 구현·단계별 자동 검증·cold review는 완료했다. S15 최종 전체 회귀·ZIP 검증은 진행 중이며 최종 수치와 commit은 [구현 실행 기록](K-DOG_구현실행기록_v1.0_20261003.md)과 [S15](K-DOG_PR-S15_배포와통합인수_v1.0_20261003.md)에 확정한다. S16은 실측 준비 도구 검증 완료·실제 측정 대기, S17은 승인 조건부 종단 출력 검증 완료·실제 D06 연구 확인 대기다. 이 대장의 자동 통과 표시는 각 행의 확정된 계약과 실행한 하위 사례에 한정한다.
+현재 S00~S15의 실측 외 구현·자동 검증·cold review를 완료했다. 최종 전체 backend 685개(780.886초), 브라우저 41개(3.7분), 현재 Windows의 실제 ZIP 새 설치 검증을 통과했다. 실행 근거와 commit은 [구현 실행 기록](K-DOG_구현실행기록_v1.0_20261003.md)과 [S15](K-DOG_PR-S15_배포와통합인수_v1.0_20261003.md)에 연결한다. S16은 실측 준비 도구 검증 완료·실제 측정 대기, S17은 승인 조건부 종단 출력 검증 완료·실제 D06 연구 확인 대기다. 이 대장의 자동 통과 표시는 각 행의 확정된 계약과 실행한 하위 사례에 한정한다.
 
 2026-10-03 사용자 지시에 따라 기존 앱 점수·분석 결과는 제거하고 전부 재채점한다. **T15의 역사 보존은 고객 원본 자료에 적용하고 기존 앱 점수는 제외하며, T20은 의미 변경 5개에 더해 모든 기존 앱 점수의 복사를 금지한다.** 아래 해당 행은 이 적용 차이를 표시한다. 원본 영상·설문·검수 자료는 유지하고, S1 전환 후 새 결과의 이력·백업은 보호한다.
 
@@ -64,7 +64,7 @@ O번호는 이 구현 계획의 추가 검증 식별자이며 고객 T번호를 
 | O09 | 자체 집단과 미승인 외부 비교 | 동일판본 중복 제거/n, 모든 출력 경로에서 미승인 값 차단 | S13·S17 | 자체 집단·승인 조건부 종단·철회 합성 통과 · 실제 D06 대기 |
 | O10 | 장면0~3·긴문장·결측·모바일/인쇄 | 4카드·기본6쪽·한글/차트·출처, 잘림/허구 없음 | S10~S12·S15 | 합성 UI/PDF 시각 검수 통과 · 현장 출력 미실행 |
 | O11 | 수정/삭제 중 실행·옛 token·응답 유실 | 불변 입력·중복 호출 제어·삭제/권한 재검사·과금 미확인 표시 | S03·S08·S12·S15 | 자동·합성 통과 (§5 근거) |
-| O12 | 새 ZIP·한글 경로·3PC·백업/복원 | S1 자산·동일 중앙 DB·원입력/새 결과 참조·삭제 이력 유지, 초기화 전 구판 점수 복원 제외 | S15 | 백업/복원·합성 리허설 통과 · ZIP 검증 중 · 실제 3PC/깨끗한 OS 미실행 |
+| O12 | 새 ZIP·한글 경로·3PC·백업/복원 | S1 자산·동일 중앙 DB·원입력/새 결과 참조·삭제 이력 유지, 초기화 전 구판 점수 복원 제외 | S15 | 백업/복원·합성 리허설·현 Windows ZIP 새 설치 통과 · 실제 3PC/깨끗한 OS 미실행 |
 | O13 | 원본/압축본/낮은FPS·1CAM/3CAM 반복 | 단계별/전체시간·조건·품질/결측·비용·변동을 분리 보고 | S16 | 준비 도구 시험 통과 · 실제 S16 측정 미실행 |
 | O14 | 기존 결과 초기화·중단/반복·옛 worker 응답 | 전 점수 null·원입력 유지·S1 단일 운영·옛 결과 재등장 없음·재실행으로 새 S1 결과 삭제 없음 | S00·S01·S06~S08·S15 | 초기화·반복 보호 합성 및 실제 로컬 전환 통과 |
 
@@ -98,7 +98,7 @@ S15에서 기본 구조 인수를 묶고, S16/S17 실자료·연구 확인은 �
 
 아래는 이번 S1 구현에서 실행한 자동 시험의 대표 **파일·시험 함수**다. `test_` 함수가 존재한다는 이유만으로 통과로 간주하지 않고 각 S00~S17 계획의 실제 실행 기록과 연결했다. 같은 함수가 여러 경계를 검증할 수 있으므로 행 수를 시험 개수로 합산하지 않는다. 전체 backend 회귀의 최종 결과·현재 commit은 [구현 실행 기록](K-DOG_구현실행기록_v1.0_20261003.md)에 별도 기록한다. UI 실행 명령·합성 캡처와 PDF 전 페이지 검수는 각 단계 기록을 따른다.
 
-실제 참가자 영상이나 유료 공급자를 호출하지 않았다. 실제 source DOCX/XLSX의 hash·추출 대조와 합성 영상의 FFmpeg·브라우저·PDF 실행은 수행했지만, 독립 실제 정확도·실제 LAN 3PC·실제 360도 품질·운영 설치를 대신하지 않는다. 실제 로컬 초기화·백업 복원은 아래 별도 기록으로 구분한다. 재개 입력과 정책/실물 확인 주체는 [실측 및 확인 후속 대장](K-DOG_실측및확인후속대장_v1.0_20261003.md)을 따른다. G02 문장은행 상태만으로 명세 검증된 정상 발급을 막지 않으며, D04 자동 유형 상세와 D06 외부 비교 승인을 합성 fixture로 승인 처리하지 않는다.
+실제 참가자 영상이나 유료 공급자를 호출하지 않았다. 실제 source DOCX/XLSX의 hash·추출 대조와 합성 영상의 FFmpeg·브라우저·PDF 실행은 수행했지만, 독립 실제 정확도·실제 LAN 3PC·실제 360도 품질·깨끗한 OS 설치를 대신하지 않는다. 실제 로컬 초기화·백업 복원과 현재 Windows의 ZIP 새 설치는 아래 별도 기록으로 구분한다. 재개 입력과 정책/실물 확인 주체는 [실측 및 확인 후속 대장](K-DOG_실측및확인후속대장_v1.0_20261003.md)을 따른다. G02 문장은행 상태만으로 명세 검증된 정상 발급을 막지 않으며, D04 자동 유형 상세와 D06 외부 비교 승인을 합성 fixture로 승인 처리하지 않는다.
 
 ### T항목의 자동 시험 근거
 
@@ -152,7 +152,7 @@ S15에서 기본 구조 인수를 묶고, S16/S17 실자료·연구 확인은 �
 | O09 | [test_comparisons_v4.py](../../backend/tests/test_comparisons_v4.py) `test_duplicate_case_sessions_never_increase_sample_count`, `test_pending_sources_never_expose_reference_numbers`; [test_external_comparisons_v4.py](../../backend/tests/test_external_comparisons_v4.py) `test_explicit_http_research_activation_target_snapshot_and_revocation`, `test_actual_content_html_pdf_and_withdrawal_keep_issued_bytes_immutable`; [test_external_exports_v4.py](../../backend/tests/test_external_exports_v4.py) `test_csv_and_xlsx_pin_approved_scope_numbers_and_pseudonymous_target`; [comparisons-v4.spec.ts](../../frontend/tests/comparisons-v4.spec.ts) | 자체 집단 n·출처 pin, 연구 확인과 기술 활성화의 분리, 정확한 대상의 API/HTML/PDF/CSV/XLSX 조건부 출력과 철회 차단. 실제 연구 승인/활성화는 D06 대기. |
 | O10 | [test_report_render_v4.py](../../backend/tests/test_report_render_v4.py) `test_pdf_six_page_baseline_and_long_content_continues_without_clipping`; [report-print-v4.spec.ts](../../frontend/tests/report-print-v4.spec.ts); [report-v4.spec.ts](../../frontend/tests/report-v4.spec.ts) | 합성0~3장면, 기본6쪽·긴글 연장, 한글·실제 이미지 pin·360px와 인쇄 전 페이지 검수. 실제 참가자 문구/현장 프린터 미검수. |
 | O11 | [test_run_v4.py](../../backend/tests/test_run_v4.py) `test_claim_expiry_stop_and_old_token_cannot_adopt`, `test_restart_recovers_complete_artifact_without_a_second_call`, `test_three_attempt_budget_and_billing_unknown_survive_explicit_retry`; [test_report_runs_v4.py](../../backend/tests/test_report_runs_v4.py) `test_lost_adoption_response_recovers_exact_files_without_rendering_twice` | token·권한·삭제·hash 재검사, 응답 유실 복구, 최대3회/호출예약과 미확인 과금. 실제 유료 비용은 미측정. |
-| O12 | [test_exports_v4.py](../../backend/tests/test_exports_v4.py) `test_backup_restore_and_deleted_export_file_closure`; [test_validation_data_v4.py](../../backend/tests/test_validation_data_v4.py) `test_same_source_unbound_copy_and_old_backup_cannot_restore_deleted_cells`; [test_external_exports_v4.py](../../backend/tests/test_external_exports_v4.py) `test_typed_backup_and_delete_restore_close_external_dependents`; [test_rehearsal.py](../../backend/tests/test_rehearsal.py) `test_two_pairs_end_to_end_in_a_temporary_folder` | 새 결과/참고/외부 비교 의존 파일·삭제 이력의 백업 복원과 합성 전체 흐름. 배포 ZIP 검증은 S15 진행 중이며 실제 3PC/깨끗한 OS 설치는 후속이다. |
+| O12 | [test_exports_v4.py](../../backend/tests/test_exports_v4.py) `test_backup_restore_and_deleted_export_file_closure`; [test_validation_data_v4.py](../../backend/tests/test_validation_data_v4.py) `test_same_source_unbound_copy_and_old_backup_cannot_restore_deleted_cells`; [test_external_exports_v4.py](../../backend/tests/test_external_exports_v4.py) `test_typed_backup_and_delete_restore_close_external_dependents`; [test_rehearsal.py](../../backend/tests/test_rehearsal.py) `test_two_pairs_end_to_end_in_a_temporary_folder` | 새 결과/참고/외부 비교 의존 파일·삭제 이력의 백업 복원과 합성 전체 흐름. 아래 실제 ZIP 새 설치 검증은 현재 Windows에서 통과했으며 실제 3PC/깨끗한 OS 설치는 후속이다. |
 | O13 | [test_benchmark_s1.py](../../backend/tests/test_benchmark_s1.py) `test_wall_clock_is_not_sum_of_overlapping_stages`, `test_synthetic_measurement_does_not_pass_field_acceptance_or_missing_three_cam`, `test_retained_fps_claim_cannot_hide_fps_reduction` | 조건별 준비·집계 계약과 미측정 null을 검사했다. 원본/압축본/낮은FPS·1/3CAM 반복 실측은 하지 않았다. |
 | O14 | [test_reset_s1.py](../../backend/tests/test_reset_s1.py) `test_interrupted_file_cleanup_retries_fixed_generation_and_preserves_new_s1_results`, `test_old_worker_cannot_publish_after_reset`; [test_deployment_v4.py](../../backend/tests/test_deployment_v4.py) `test_first_and_repeated_reset_preserve_new_s1_run_and_all_its_parents` | 초기화·중단·반복·새 S1 kind 보호 합성 통과. 2026-10-04 실제 로컬 전환과 재실행도 아래 별도 근거로 확인했다. |
 
@@ -165,8 +165,16 @@ S15에서 기본 구조 인수를 묶고, S16/S17 실자료·연구 확인은 �
 - 전환 후14파일 백업을 새 폴더에 실제 복원하여13개 참조를 검사했다. 초기화 이전 백업 복원은409로 차단되는 것을 확인했다.
 - 이는 실제 로컬 데이터 전환·복원 근거다. 깨끗한 OS의 배포 ZIP 설치, 현장 LAN의 실제3PC, 참가자 영상 정확도/속도 실측은 여전히 별도 후속이다.
 
-### 2026-10-04 최종 통합 중 관련 회귀
+### 2026-10-04 최종 통합에서 보완한 관련 회귀
 
 전체 backend 검사에서 발견한 삭제 이력의 오래된 2필드 기대값 4건과 합성 삭제 대상 ID 충돌에 따른 복원 오류 2건을 수정했다. 삭제 이력은 `(case_id, event_id, participant_id)`로 검사하며, 무관한 삭제 사례 fixture는 보존할 실제 사례와 다른 안정 ID를 사용한다. 제품의 안정 ID 기반 삭제 보호를 완화하지 않았다.
 
 `uv run --locked python -X utf8 -m unittest tests.test_intake_v3 tests.test_reset_s1 tests.test_settings tests.test_deletion_restore_v4 -v`는 **36개, 61.450초 통과**했다. 여기의 구판 접수 fixture는 원입력·동의·백업 보호 회귀이며 구판 산식의 S1 골든값 전용이 아니다. 특히 `test_changed_participant_id_cannot_resurrect_same_case_from_older_backup`은 참가자 ID 변경 뒤 삭제된 동일 사례가 반복 복원으로 살아나지 않는지 확인한다. 이 결과는 해당 파일 회귀이며 최종 전체 통과 수치로 합산하지 않는다.
+
+### 2026-10-04 전체 브라우저·실제 ZIP 설치 검증
+
+`npm run test:e2e`의 최종 전체 **41개가 3.7분에 통과**했다. 접수 시험은 다른 시험이 먼저 등록한 참가자가 있는 공유 DB 상태에서도 등록 패널 열기, 정확한 대상별 상태, 미저장 입력·409 보존을 확인했다. 철회·손상된 참고/연구 파일은 목록의 해당 항목만 차단하고 정상 항목을 계속 제공하며, 철회 뒤 준비 완료 배너도 제거하는 회귀를 포함했다.
+
+`scripts/verify_release.py`로 실제 ZIP을 **현재 Windows 호스트의 새 한글·공백 경로와 새 가상환경**에 설치했다. 설치 전 손상 거절, 환경 변수 격리, S1 자산 확인, 실제 HTTP 로그인·접수·재시작 후 조회, supervisor 종료를 모두 통과했고 외부 공급자 호출은0이었다. 별도 읽기 전용 감사에서는 ZIP manifest·파일별 hash·sidecar, 필수 S1 자산, 고객 원본·시험·키·런타임 자료 제외와 문서/이미지 링크를 확인했다. 실제 운영 참가자 자료를 설치 fixture에 넣지 않았다.
+
+이 결과는 깨끗한 OS나 두 번째 PC·현장 LAN3PC 검증이 아니다. 문서 보완 뒤 최종 ZIP의 commit/hash는 S15 배포 기록으로 연결한다. 별도 최종 전체 backend 실행은 **685개, 780.886초, OK(exit0)**로 통과했으며 위 좁은 회귀 수를 중복 합산하지 않는다.

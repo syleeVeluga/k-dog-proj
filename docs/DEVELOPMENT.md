@@ -62,7 +62,7 @@ uv run --locked python -X utf8 -m app.manage --data-dir "D:/K-DOG/data" preproce
 
 ## 패키지와 종단 리허설
 
-ZIP은 커밋된 깨끗한 작업 트리에서 만든다. S1 카탈로그·계산/문장/비교 규칙·HTML/CSS 템플릿·로컬 폰트와 잠금 운영 의존성을 포함하고, 고객 원본·영상·키·시험·개발 문서는 제외한다. `app.launcher.REQUIRED`가 S1 필수 자산을 검사한다.
+ZIP은 커밋된 깨끗한 작업 트리에서 만든다. S1 카탈로그·계산/문장/비교 규칙·HTML/CSS 템플릿·로컬 폰트와 잠금 운영 의존성, 운영 안내·계획·후속 문서를 포함한다. 고객 원본·영상·키·런타임 자료와 개발용 시험·빌드·실측 스크립트는 제외한다. 개발 명령과 시험 근거는 `release.json`의 commit에 해당하는 소스 저장소에서 확인한다. `app.launcher.REQUIRED`가 S1 필수 자산을 검사한다.
 
 ```powershell
 # 저장소 루트; 프로젝트 Python 사용
