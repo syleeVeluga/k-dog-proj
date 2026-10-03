@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from app.storage import REPO_ROOT, Store, encode, now, uid
 
 
-MANAGED = {"inputs", "videos", "runs", "reviews", "exports", "settings", "clips", "sheets", "results"}
+MANAGED = {"inputs", "videos", "runs", "reviews", "exports", "settings", "clips", "sheets", "results", "opinions", "finals"}
 REF_HASH = {"manifest_ref": "manifest_hash", "output_ref": "output_hash", "result_ref": "result_hash",
             "storage_ref": "sha256", "ref": "hash"}
 

@@ -20,6 +20,8 @@ export type ObservationV4 = {
 export type WalkPhaseV4 = { code: string; proximity_exception: 'none' | 'guardian_approach' | 'recheck' | 'unknown'; evidence: EvidenceV4[]; note: string | null };
 export type LinkedMemoV4 = { code: '개59'; text: string; item_codes: string[]; evidence: EvidenceV4[] };
 export type SheetReferenceV4 = { sheet_id: string; revision: number; ref: string; hash: string };
+export type InterpretationReferenceV4 = { kind: 'opinion' | 'final'; document_id: string; revision: number | null; ref: string; hash: string };
+export type InterpretationExposureV4 = { exposure_id: string; target: InterpretationReferenceV4; case_id: string; session_id: string; source_actor: string; viewer_username: string; viewer_rater_id: string; basic_result_id: string; basic_revision: number; basic_ref: string; basic_hash: string; video_hashes: string[]; recorded_at: string; reason: string };
 export type SheetSummaryV4 = { sheet_id: string; case_id: string; session_id: string; rater_id: string; rater_name: string; assigned_username: string; purpose: 'independent' | 'review' | 'consensus'; state: 'draft' | 'submitted'; revision: number; manifest_ref: string; manifest_hash: string; source_hash: string; active: boolean; own: boolean; rater_kind: 'human' | 'ai' };
 export type SheetWindowV4 = { window_id: string; segment: SegmentId; reference_video_id: string; start_seconds: number | null; end_seconds: number | null; status: string; reasons: string[]; event_ids: string[]; source_intervals: { video_id: string; start_seconds: number; end_seconds: number; evidence_id: string | null }[] };
 export type SheetDocumentV4 = {
@@ -27,6 +29,6 @@ export type SheetDocumentV4 = {
   purpose: SheetSummaryV4['purpose']; origin: 'human_web' | 'ai_service' | 'historical_import'; active: boolean; actor: string; recorded_at: string; change_reason: string; source_hash: string;
   source: { input_revision: number; input: { manifest_ref: string; manifest_hash: string }; asset_hashes: Record<string, string>; session: Session & { recording_s1: RecordingV4 }; windows: SheetWindowV4[]; batch_id: string; preprocess: { ref: string; hash: string; batch_id: string } | null };
   sheet: { sheet_id: string; case_id: string; session_id: string; batch_id: string; rater_id: string; rater_kind: 'human' | 'ai'; ai_exposed: boolean; input_revision: number; input_sha256: string; observations: ObservationV4[]; walk_phases: WalkPhaseV4[]; linked_memos: LinkedMemoV4[] };
-  previous: SheetReferenceV4[]; initial_submission: SheetReferenceV4 | null; exposures: SheetReferenceV4[]; ai_run_id: string | null;
+  previous: SheetReferenceV4[]; initial_submission: SheetReferenceV4 | null; exposures: SheetReferenceV4[]; interpretation_exposures: InterpretationExposureV4[]; ai_run_id: string | null;
 };
-export type SheetViewV4 = { summary: SheetSummaryV4; document: SheetDocumentV4; grants: SheetReferenceV4[]; outdated: boolean; missing_required_codes: string[]; policy_pending_codes: string[] };
+export type SheetViewV4 = { summary: SheetSummaryV4; document: SheetDocumentV4; grants: SheetReferenceV4[]; outdated: boolean; missing_required_codes: string[]; policy_pending_codes: string[]; effective_purpose: SheetSummaryV4['purpose']; interpretation_exposures: InterpretationExposureV4[] };

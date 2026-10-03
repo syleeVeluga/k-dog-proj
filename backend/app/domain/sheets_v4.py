@@ -7,6 +7,7 @@ from pydantic import Field, model_validator
 from .catalog_v4 import ContractV4, Hash, Text
 from .contracts_v4 import ScoreSheetV4
 from .media_v4 import MediaKey
+from .disclosures_v4 import InterpretationExposureV4
 from .recording_v4 import RecordingWindowV4, unique
 from app.input_models_v4 import SessionV4
 
@@ -70,6 +71,7 @@ class SheetDocumentV4(ContractV4):
     previous: tuple[SheetReferenceV4, ...] = ()
     initial_submission: SheetReferenceV4 | None = None
     exposures: tuple[SheetReferenceV4, ...] = ()
+    interpretation_exposures: tuple[InterpretationExposureV4, ...] = ()
     ai_run_id: MediaKey | None = None
     ai_failures: dict[str, str] = Field(default_factory=dict)
 
@@ -83,7 +85,10 @@ class SheetDocumentV4(ContractV4):
         unique(tuple(link.ref for link in self.previous), "previous reference")
         unique(tuple(link.revision for link in self.previous), "previous revision")
         unique(tuple(link.ref for link in self.exposures), "exposure")
-        if self.exposures and self.purpose == "independent":
+        unique(tuple(item.exposure_id for item in self.interpretation_exposures), "interpretation exposure")
+        if any((item.case_id, item.session_id) != (self.sheet.case_id, self.sheet.session_id) for item in self.interpretation_exposures):
+            raise ValueError("interpretation exposure belongs to another case or session")
+        if (self.exposures or self.interpretation_exposures) and self.purpose == "independent":
             raise ValueError("exposed revisions cannot be classified as independent")
         if self.initial_submission and self.initial_submission not in self.previous:
             raise ValueError("initial submission must identify a preserved revision")

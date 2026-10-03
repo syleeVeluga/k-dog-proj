@@ -12,6 +12,7 @@ from .domain.catalog_v4 import (ITEM_CODES, OPTIONAL_CODES, RESOURCES, VOCAL_COD
                                 Text, load_catalog_v4, load_mapping_v4, load_rules_v4)
 from .domain.contracts_v4 import LinkedMemoV4, ObservationV4, ScoreSheetV4, WalkPhaseV4
 from .domain.media_v4 import MediaKey
+from .domain.disclosures_v4 import InterpretationExposureV4
 from .domain.sheets_v4 import AI_ACCOUNT, BatchPointerV4, SheetDocumentV4, SheetInputV4, SheetReferenceV4
 from .domain.validation_v4 import validate_sheet_v4
 from .intake import selected_session
@@ -93,6 +94,8 @@ class SheetViewV4(Model):
     outdated: bool
     missing_required_codes: list[str]
     policy_pending_codes: list[str]
+    effective_purpose: Literal["independent", "review", "consensus"]
+    interpretation_exposures: list[InterpretationExposureV4]
 
     @field_validator("document", mode="before")
     @classmethod
@@ -103,6 +106,11 @@ class SheetViewV4(Model):
     @classmethod
     def grant_contracts(cls, value):
         return [SheetReferenceV4.model_validate_json(encode(item)) if isinstance(item, dict) else item for item in value]
+
+    @field_validator("interpretation_exposures", mode="before")
+    @classmethod
+    def interpretation_contracts(cls, value):
+        return [InterpretationExposureV4.model_validate_json(encode(item)) if isinstance(item, dict) else item for item in value]
 
 
 class SheetRevealResultV4(Model):
@@ -217,9 +225,12 @@ def view(store, sheet_id, user):
         grants = [{"sheet_id": item["target_sheet_id"], "revision": item["revision"], "ref": item["ref"], "hash": item["hash"]}
                   for item in db.execute("SELECT * FROM score_grants WHERE viewer_sheet_id=?", (sheet_id,))]
         case, _ = _case(store, db, row["case_id"])
+        interpreted = interpretation_exposure(store, db, row, doc)
         return {"summary": summary(row, user), "document": doc.model_dump(mode="json"), "grants": grants,
                 "outdated": doc.source.input_revision != case["input_revision"], "missing_required_codes": missing_required(doc),
-                "policy_pending_codes": [item.code for item in load_catalog_v4().items if item.policy_pending]}
+                "policy_pending_codes": [item.code for item in load_catalog_v4().items if item.policy_pending],
+                "effective_purpose": "review" if interpreted and doc.purpose == "independent" else doc.purpose,
+                "interpretation_exposures": [entry.model_dump(mode="json") for entry in interpreted.values()]}
 
 
 def revision(store, sheet_id, number, user):
@@ -295,6 +306,13 @@ def related_exposure(store, db, row, doc):
     return links, ai_exposed
 
 
+def interpretation_exposure(store, db, row, doc):
+    from .disclosures_v4 import inherited
+    records = {entry.exposure_id: entry for entry in doc.interpretation_exposures}
+    records.update(inherited(db, row["case_id"], row["session_id"], row["assigned_username"], row["rater_id"], doc.source))
+    return records
+
+
 def assign(store, case_id, session_id, value: SheetAssignmentV4, user):
     manager(user)
     value = SheetAssignmentV4.model_validate_json(value.model_dump_json())
@@ -328,9 +346,14 @@ def assign(store, case_id, session_id, value: SheetAssignmentV4, user):
     validate_recording_media_v4(store, source.session, source.session.recording_s1)
     _unchanged_sources(store, source, identities)
     source_data = source.model_dump(mode="json")
+    from .disclosures_v4 import inherited
+    with store.connect() as db:
+        interpreted = inherited(db, case_id, session_id, value.assigned_username, value.rater_id, source)
+    purpose = "review" if interpreted and value.purpose == "independent" else value.purpose
     digest, sheet_id = hashlib.sha256(encode(source_data).encode()).hexdigest(), uid()
     data = {"revision": 1, "state": "draft", "assigned_username": value.assigned_username, "rater_name": value.rater_name,
-            "purpose": value.purpose, "origin": "human_web", "active": True, "actor": user.username, "recorded_at": now(),
+            "purpose": purpose, "origin": "human_web", "active": True, "actor": user.username, "recorded_at": now(),
+            "interpretation_exposures": [entry.model_dump(mode="json") for entry in interpreted.values()],
             "change_reason": "S1 명시 배정", "source": source_data, "source_hash": digest,
             "sheet": {"sheet_id": sheet_id, "case_id": case_id, "session_id": session_id, "batch_id": source.batch_id,
                       "rater_id": value.rater_id, "rater_kind": "human", "input_revision": source.input_revision,
@@ -340,17 +363,19 @@ def assign(store, case_id, session_id, value: SheetAssignmentV4, user):
         manager(user, db)
         _case(store, db, case_id, value.expected_revision)
         _unchanged_sources(store, source, identities)
+        if inherited(db, case_id, session_id, value.assigned_username, value.rater_id, source) != interpreted:
+            raise HTTPException(409, "배정 중 같은 촬영의 해석을 열었습니다. 노출 이력을 다시 확인하세요.")
         account = db.execute("SELECT active,role FROM users WHERE username=?", (value.assigned_username,)).fetchone()
         if not account or not account["active"] or account["role"] not in ("operator", "reviewer", "admin"):
             raise HTTPException(409, "배정 계정 상태가 변경되었습니다.")
         for other in db.execute("SELECT * FROM score_sheets WHERE case_id=? AND session_id=?", (case_id, session_id)):
-            if other["source_hash"] == digest and other["rater_id"] == value.rater_id and other["purpose"] == value.purpose:
+            if other["source_hash"] == digest and other["rater_id"] == value.rater_id and other["purpose"] == purpose:
                 raise HTTPException(409, "같은 평가자·입력·목적의 시트가 있습니다.")
-            if value.purpose == "independent" and (other["assigned_username"] == value.assigned_username or other["rater_id"] == value.rater_id):
+            if purpose == "independent" and (other["assigned_username"] == value.assigned_username or other["rater_id"] == value.rater_id):
                 if same_filming(document_for(store, other).source, source):
                     raise HTTPException(409, "같은 촬영의 재배정·새 batch가 독립성을 초기화하지 않습니다.")
         db.execute("INSERT INTO score_sheets VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", (sheet_id, case_id, session_id, value.assigned_username,
-                   value.rater_id, value.rater_name, digest, value.purpose, "draft", 1, 1, ref, file_hash))
+                   value.rater_id, value.rater_name, digest, purpose, "draft", 1, 1, ref, file_hash))
         store.audit(db, user.username, case_id, "sheet.assign", {"sheet_id": sheet_id, "ref": ref, "hash": file_hash, "schema_version": "4.0"})
         return summary(row_for(store, db, sheet_id), user)
 
@@ -467,6 +492,10 @@ def revise(store, sheet_id, value, user, action):
         data = doc.model_dump(mode="json")
         data.update(revision=doc.revision + 1, actor=user.username, recorded_at=now(), change_reason=getattr(value, "reason", action),
                     previous=[*data["previous"], reference(row)])
+        interpreted = interpretation_exposure(store, db, row, doc)
+        data["interpretation_exposures"] = [entry.model_dump(mode="json") for entry in interpreted.values()]
+        if interpreted and doc.purpose == "independent":
+            data["purpose"] = "review"
         if action in ("save", "submit", "reopen"):
             inherited, exposed = related_exposure(store, db, row, doc)
             data["exposures"] = list({link["ref"]: link for link in [*data["exposures"], *inherited.values()]}.values())
@@ -529,6 +558,8 @@ def revise(store, sheet_id, value, user, action):
             manager(user, db)
         else:
             owner(db, current, user)
+        if interpretation_exposure(store, db, current, doc) != interpreted:
+            raise HTTPException(409, "저장 중 같은 촬영의 해석을 열었습니다. 노출 이력을 다시 확인하세요.")
         if action in ("save", "submit", "reopen"):
             inherited, exposed = related_exposure(store, db, current, doc)
             if not inherited.keys() <= {link["ref"] for link in data["exposures"]} or exposed and not data["sheet"]["ai_exposed"]:

@@ -159,8 +159,10 @@ def evaluation_context(store, db, row):
     links = {link.ref: link.model_dump(mode="json") for link in doc.exposures}
     links.update(inherited)
     exposed = doc.sheet.ai_exposed or ai_exposed
-    return {"purpose": "review" if (links or exposed) and doc.purpose == "independent" else doc.purpose,
-            "ai_exposed": exposed, "exposures": sorted(links.values(), key=lambda link: link["ref"])}
+    interpretations = sheets.interpretation_exposure(store, db, row, doc)
+    return {"purpose": "review" if (links or exposed or interpretations) and doc.purpose == "independent" else doc.purpose,
+            "ai_exposed": exposed, "exposures": sorted(links.values(), key=lambda link: link["ref"]),
+            "interpretation_exposures": [entry.model_dump(mode="json") for entry in interpretations.values()]}
 
 
 def write_result(store, data):

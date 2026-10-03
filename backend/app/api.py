@@ -42,6 +42,7 @@ from app.domain.catalog_v4 import BehaviorCatalogV4, load_catalog_v4
 from app.domain.sheets_v4 import SheetDocumentV4
 from app import judgements_v4
 from app import run_v4, scoring_ai_v4, settings_v4
+from app import opinions_v4, final_results_v4, disclosures_v4
 from app.domain.runs_v4 import ActionV4, RunViewV4, StartV4
 from app.domain.preprocess_v4 import BatchV4, PreprocessRequestV4, PreprocessStatusV4
 from app.domain.media_v4 import PreservedMediaRegistrationV4, StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
@@ -697,6 +698,58 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.put("/api/basic-results-s1/{result_id}/judgements", response_model=judgements_v4.ResultViewV4)
     def basic_s1_judgements(result_id: Key, value: judgements_v4.JudgementEditV4, user=Depends(reader)):
         return judgements_v4.revise(store, result_id, value, user)
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/opinions-s1", response_model=opinions_v4.OpinionViewV4)
+    def opinions_s1(case_id: Key, session_id: Key, viewer_sheet_id: Key | None = None, user=Depends(reader)):
+        return opinions_v4.view(store, case_id, session_id, user, viewer_sheet_id)
+
+    @app.put("/api/cases/{case_id}/sessions/{session_id}/opinions-s1", response_model=opinions_v4.OpinionViewV4)
+    def opinions_s1_save(case_id: Key, session_id: Key, value: opinions_v4.OpinionWriteV4, user=Depends(reader)):
+        return opinions_v4.save(store, case_id, session_id, value, user)
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/opinions-s1/metadata", response_model=opinions_v4.OpinionMetadataV4)
+    def opinions_s1_metadata(case_id: Key, session_id: Key, user=Depends(reader)):
+        return opinions_v4.metadata(store, case_id, session_id, user)
+
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/opinions-s1/reveal", response_model=disclosures_v4.InterpretationRevealResultV4)
+    def opinions_s1_reveal(case_id: Key, session_id: Key, value: disclosures_v4.InterpretationRevealV4, user=Depends(reader)):
+        if value.target.kind != "opinion":
+            raise HTTPException(422, "의견 판본만 열람할 수 있습니다.")
+        return disclosures_v4.reveal(store, case_id, session_id, value, user)
+
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/opinions-s1/reopen", response_model=opinions_v4.OpinionViewV4)
+    def opinions_s1_reopen(case_id: Key, session_id: Key, value: opinions_v4.OpinionActionV4, user=Depends(reader)):
+        return opinions_v4.action(store, case_id, session_id, value, user, "reopen")
+
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/opinions-s1/withdraw", response_model=opinions_v4.OpinionViewV4)
+    def opinions_s1_withdraw(case_id: Key, session_id: Key, value: opinions_v4.OpinionActionV4, user=Depends(reader)):
+        return opinions_v4.action(store, case_id, session_id, value, user, "withdraw")
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/final-results-s1", response_model=list[final_results_v4.FinalSummaryV4])
+    def final_s1_results(case_id: Key, session_id: Key, viewer_sheet_id: Key | None = None, user=Depends(reader)):
+        return final_results_v4.list_results(store, case_id, session_id, user, viewer_sheet_id)
+
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/final-results-s1", response_model=final_results_v4.FinalViewV4, status_code=201)
+    def final_s1_assemble(case_id: Key, session_id: Key, value: final_results_v4.AssembleFinalV4, user=Depends(reader)):
+        return final_results_v4.assemble(store, case_id, session_id, value, user)
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/final-results-s1/candidates", response_model=list[judgements_v4.ResultSummaryV4])
+    def final_s1_candidates(case_id: Key, session_id: Key, viewer_sheet_id: Key | None = None, user=Depends(reader)):
+        return opinions_v4.basic_candidates(store, case_id, session_id, user, viewer_sheet_id)
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/final-results-s1/candidates/{result_id}/{revision}", response_model=judgements_v4.ResultViewV4)
+    def final_s1_candidate(case_id: Key, session_id: Key, result_id: Key, revision: Annotated[int, ApiPath(ge=1)], viewer_sheet_id: Key | None = None, user=Depends(reader)):
+        return opinions_v4.basic_candidate(store, case_id, session_id, result_id, revision, user, viewer_sheet_id)
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/final-results-s1/{final_id}", response_model=final_results_v4.FinalViewV4)
+    def final_s1_result(case_id: Key, session_id: Key, final_id: Key, viewer_sheet_id: Key | None = None, user=Depends(reader)):
+        return final_results_v4.view(store, case_id, session_id, final_id, user, viewer_sheet_id)
+
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/final-results-s1/{final_id}/reveal", response_model=disclosures_v4.InterpretationRevealResultV4)
+    def final_s1_reveal(case_id: Key, session_id: Key, final_id: Key, value: disclosures_v4.InterpretationRevealV4, user=Depends(reader)):
+        if value.target.kind != "final" or value.target.document_id != final_id:
+            raise HTTPException(422, "선택한 최종 판본과 열람 대상이 다릅니다.")
+        return disclosures_v4.reveal(store, case_id, session_id, value, user)
 
     @app.put("/api/cases/{case_id}/sessions/{session_id}/segments", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def session_segments(case_id: Key, session_id: Key, value: SegmentsEdit, user=Depends(writer)):

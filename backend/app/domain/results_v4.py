@@ -5,6 +5,7 @@ from pydantic import Field, model_validator
 from .catalog_v4 import ContractV4, Hash, ItemCode, SCORING_VERSION, Text
 from .contracts_v4 import DecisionV4, EvidenceV4, ObservationV4
 from .media_v4 import MediaKey
+from .disclosures_v4 import InterpretationExposureV4
 from .recording_v4 import SafeBaseResultV4
 from .sheets_v4 import SheetDocumentV4, SheetReferenceV4
 
@@ -77,10 +78,11 @@ class EvaluationContextV4(ContractV4):
     purpose: Literal["independent", "review", "consensus"]
     ai_exposed: bool
     exposures: tuple[SheetReferenceV4, ...] = ()
+    interpretation_exposures: tuple[InterpretationExposureV4, ...] = ()
 
     @model_validator(mode="after")
     def exposure(self) -> Self:
-        if (self.exposures or self.ai_exposed) and self.purpose == "independent":
+        if (self.exposures or self.interpretation_exposures or self.ai_exposed) and self.purpose == "independent":
             raise ValueError("exposed results cannot claim independent evaluation")
         return self
 

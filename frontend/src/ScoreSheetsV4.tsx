@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { accessLost, api } from './api';
 import { BasicResultsV4 } from './BasicResultsV4';
 import { AiRevealedResultsV4, AiRunsV4 } from './AiRunsV4';
+import { FinalResultsV4 } from './FinalResultsV4';
 import type { AiBasicResultV4 } from './aiTypesV4';
 import { mayLeave, useEditBase, useUnsaved } from './Editing';
 import { formFields, type Case, type Run, type User } from './types';
@@ -52,6 +53,7 @@ export function ScoreSheetsV4({ item, user, run, refresh, close }: { item: Case;
     <p role="status">S1 Excel 가져오기 비활성 — 실제 빈양식·검증용 원본 G01/G04 수령 후 확인이 필요합니다.</p>
     {error && <p role="alert" className="error">{error}</p>}
     <AiRunsV4 key={`${item.case_id}:${item.selected_session_id}`} item={item} manager={manager} />
+    {manager && <FinalResultsV4 key={`final:${item.case_id}:${item.selected_session_id}`} item={item} sheets={rows} refreshSheets={reload} />}
     {manager && <details><summary>평가자 배정</summary><form onChange={() => { assignmentBase.current ??= item.input_revision; setAssignmentDirty(true); }} onSubmit={event => {
       event.preventDefault(); const values = formFields(event.currentTarget); const form = event.currentTarget;
       void work(async () => { await api(path, 'POST', { ...values, expected_revision: assignmentBase.current ?? item.input_revision, source_sheet_id: values.source_sheet_id || null }); form.reset(); assignmentBase.current = null; setAssignmentDirty(false); });
@@ -133,7 +135,8 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
     }
     if (!reason.trim()) throw new Error('저장·정정 사유를 기록하세요.');
   }
-  return <section className="scoring-editor" aria-label="내 S1 채점 시트"><h2>{doc.rater_name} · {purposes[doc.purpose]}</h2>
+  return <section className="scoring-editor" aria-label="내 S1 채점 시트"><h2>{doc.rater_name} · {purposes[historical ? doc.purpose : view.effective_purpose ?? doc.purpose]}</h2>
+    {!!view.interpretation_exposures?.length && <div role="status"><p>다른 평가자의 의견·최종 해석을 열람했습니다. 이 촬영의 후속 기록은 공개 후 검수로 구분하며 최초 독립 제출본은 보존됩니다.</p><details><summary>해석 열람 기록</summary><ul>{view.interpretation_exposures.map(exposure => <li key={exposure.exposure_id}>{exposure.target.kind === 'opinion' ? '의견' : '최종 결과'} · {exposure.source_actor} · {exposure.recorded_at} · {exposure.reason}</li>)}</ul></details></div>}
     {error && <p role="alert" className="error">{error}</p>}
     <p role="status">{doc.state === 'submitted' ? '제출본 잠금 · 원본은 보존됩니다.' : '초안 · 저장 후 제출합니다.'} · 다른 완료본 노출 {doc.exposures.length}개 · {doc.sheet.ai_exposed ? 'AI 결과 노출됨' : 'AI 결과 미노출'}</p>
     {view.outdated && <p role="status">접수·촬영 입력이 변경되었습니다. 배정 당시 고정한 영상과 실제 창을 사용합니다.</p>}
