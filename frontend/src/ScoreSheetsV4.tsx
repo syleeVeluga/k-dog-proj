@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { accessLost, api } from './api';
+import { BasicResultsV4 } from './BasicResultsV4';
 import { mayLeave, useEditBase, useUnsaved } from './Editing';
 import { formFields, type Case, type Run, type User } from './types';
 import type { BehaviorCatalogV4, BehaviorItemV4, EvidenceV4, LinkedMemoV4, ObservationV4, SheetDocumentV4, SheetSummaryV4, SheetViewV4, WalkPhaseV4 } from './ScoringTypesV4';
@@ -157,6 +158,7 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
     {!historical && view.grants.length > 0 && <details><summary>명시 공개된 완료본</summary><p>실제 열람하면 노출 이력을 기록하고 이후 입력은 검수 기록으로 구분합니다.</p>{view.grants.map(grant => <button key={grant.ref} disabled={busy || edit.dirty || doc.state !== 'submitted'} onClick={() => void work(async () => { const result = await api<{ target: SheetDocumentV4 }>(path + '/reveal', 'POST', { expected_revision: view.summary.revision, ref: grant.ref }); setRevealed(result.target); })}>공개 완료본 r{grant.revision} 열고 노출 기록</button>)}</details>}
     {!historical && revealed && <details open><summary>{revealed.rater_name} 공개 완료본 r{revealed.revision}</summary><ul>{revealed.sheet.observations.map(value => <li key={value.code}>{value.code} · {value.value ?? value.reason} · {statuses[value.status]}</li>)}</ul><details><summary>공개한 원관찰과 근거</summary><pre>{JSON.stringify(revealed.sheet, null, 2)}</pre></details></details>}
     <details><summary>고정 입력·revision/hash·노출 이력</summary><pre>{JSON.stringify({ sheet_id: sheetId, revision: doc.revision, source_hash: doc.source_hash, input: doc.source.input, batch: doc.source.batch_id, initial_submission: doc.initial_submission, exposures: doc.exposures, previous: doc.previous }, null, 2)}</pre></details>
+    {!historical && <BasicResultsV4 sheetId={sheetId} input={{ sheet_id: sheetId, revision: view.summary.revision, ref: view.summary.manifest_ref, hash: view.summary.manifest_hash }} blocked={busy || edit.dirty || doc.state !== 'submitted'} />}
   </section>;
 }
 

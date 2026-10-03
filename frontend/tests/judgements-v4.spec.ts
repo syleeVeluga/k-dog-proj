@@ -1,0 +1,138 @@
+import { test, expect } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+
+const headers = { 'X-KDOG-Request': '1' };
+
+test('S1 basic calculation preserves input, automatic decisions, manual evidence roles and revisions', async ({ page, request }, testInfo) => {
+  test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required');
+  test.setTimeout(120000);
+  page.setDefaultTimeout(15000);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await request.post('/api/auth/login', { headers, data: { username: 'admin', password: 'Browser-test-only-42' } });
+  let item = await (await request.post('/api/cases', { headers, data: { event_id: 'S1-JUDGEMENT', participant_id: 's1judgement', dog_name: '기본 판정 합성견' } })).json();
+  const bytes = execFileSync('ffmpeg', ['-v', 'error', '-nostdin', '-f', 'lavfi', '-i', 'testsrc2=size=64x64:rate=2:duration=48',
+    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov', 'pipe:1']);
+  const receipt = await (await request.post('/api/uploads', { headers, data: { request_id: 's1-judgement-video', filename: 's1-judgement-synthetic.mp4', expected_size: bytes.length } })).json();
+  expect((await request.put(`/api/uploads/${receipt.upload_id}/content`, { headers, params: { request_id: receipt.request_id }, data: bytes })).status()).toBe(200);
+  expect((await request.post(`/api/uploads/${receipt.upload_id}/link`, { headers, data: { case_id: item.case_id, session_id: item.selected_session_id, camera_id: 'CAM1', expected_revision: item.input_revision } })).status()).toBe(200);
+  item = await (await request.get(`/api/cases/${item.case_id}`)).json();
+  const video = item.manifest.sessions[0].videos[0], sessionPath = `/api/cases/${item.case_id}/sessions/${item.selected_session_id}`;
+  const spans: [string, number, number][] = [['entry', 0, 3], ['baseline', 3, 6], ['alone', 6, 12], ['reunion', 12, 32], ['ignore', 32, 33], ['stranger', 34, 42], ['exit', 44, 48]];
+  const recording = { video_id: video.video_id, confirmed: true, procedure_edition: 's1_confirmed', procedure_note: '합성 판정 촬영 창',
+    segments: ['entry', 'baseline', 'alone', 'reunion', 'ignore', 'walk', 'stranger', 'exit'].map(segment => {
+      const span = spans.find(value => value[0] === segment);
+      return { segment, video_id: video.video_id, ...(span ? { start_sec: span[1], end_sec: span[2] } : { state: 'not_performed', reason: '합성 걷기 생략' }) };
+    }) };
+  const saved = await request.put(sessionPath + '/recording-s1', { headers, data: { expected_revision: item.input_revision, recording } });
+  expect(saved.status(), await saved.text()).toBe(200); item = await saved.json();
+  const assigned = await request.post(sessionPath + '/sheets-s1', { headers, data: { expected_revision: item.input_revision, assigned_username: 'reviewer', rater_id: 's1-judge', rater_name: 'S1 판정 평가자' } });
+  expect(assigned.status(), await assigned.text()).toBe(201);
+  const sheet = await assigned.json(), sheetPath = `/api/score-sheets-s1/${sheet.sheet_id}`;
+  await page.goto('/');
+  await page.getByLabel('계정', { exact: true }).fill('reviewer');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
+  const catalog = await (await request.get('/api/catalog/behavior-s1')).json();
+  const observe = (code: string, value: number, window_id: string, start_seconds: number, end_seconds: number) => ({ code, value, status: 'observed', opportunity: 'present', validity: 'valid', whole_interval_observed: true,
+    evidence: [{ video_id: video.video_id, video_sha256: video.sha256, camera_id: 'CAM1', window_id, start_seconds, end_seconds, observed_seconds: end_seconds - start_seconds, note: '같은 영상 구간의 합성 원관찰' }] });
+  // The two owner codes deliberately share identical Evidence; their support/counter roles must remain distinct.
+  const observed = [observe('보23', 2, 'stranger_whole', 34, 42), observe('보16', 1, 'stranger_whole', 34, 42),
+    observe('개58', -2, 'alone_whole', 6, 12), observe('개18', 0, 'reunion_later', 27, 32)];
+  const observations = catalog.items.filter((value: { usage: string; optional: boolean }) => value.usage !== 'automatic' && !value.optional)
+    .map((value: { code: string }) => observed.find(row => row.code === value.code) ?? { code: value.code, value: null, status: 'unobserved', reason: '합성 시험 관찰 생략' });
+  const draft = await page.request.put(sheetPath, { headers, data: { expected_revision: sheet.revision, observations, reason: '합성 판정 원자료 입력' } });
+  expect(draft.status(), await draft.text()).toBe(200);
+  let summary = await draft.json();
+  const submitted = await page.request.post(sheetPath + '/submit', { headers, data: { expected_revision: summary.revision, reason: '합성 고정 원자료 제출' } });
+  expect(submitted.status(), await submitted.text()).toBe(200); summary = await submitted.json();
+  const sourceBefore = await (await page.request.get(sheetPath)).json();
+  await page.getByRole('button', { name: '독립 채점', exact: true }).click();
+  await page.getByRole('button', { name: 's1judgement 독립 채점 열기', exact: true }).click();
+  await page.getByRole('button', { name: '내 시트 열기', exact: true }).click();
+  const panel = page.getByRole('region', { name: 'S1 기본 결과', exact: true });
+  const calculate = panel.getByRole('button', { name: '제출 원자료로 계산', exact: true });
+  await panel.getByRole('combobox', { name: '입장·퇴장 같은 물건 확인', exact: true }).selectOption('yes');
+  await expect(calculate).toBeDisabled();
+  await panel.getByLabel('같은 물건 확인 근거', { exact: true }).fill('합성 같은 물건의 원본 확인');
+  const responsePromise = page.waitForResponse(value => value.url().endsWith('/basic-results-s1') && value.request().method() === 'POST');
+  await calculate.click();
+  const response = await responsePromise;
+  expect(response.status(), (await response.text()).slice(0, 1000)).toBe(201);
+  const initial = await response.json(), resultPath = `/api/basic-results-s1/${initial.summary.result_id}`;
+  expect(initial.document.conditions.same_object).toBe(true);
+  expect(initial.document.calculations.metrics.find((value: { key: string }) => value.key === 'W').value).toBe(2);
+  await expect(panel.getByText(/W: 2 · 계산됨/)).toBeVisible();
+  await expect(panel.getByText(/안전기지 실제 순서: 확인 필요 · 실제 접근·접촉·탐색 재개 순서를 기록하지 않음/)).toBeVisible();
+  await expect(panel.getByText('근거 부족으로 비율 보류', { exact: false })).toBeVisible();
+  const owner = panel.locator('section.panel').filter({ has: page.getByRole('heading', { name: '보호자 교육태도', exact: true }) });
+  const ownerChoice = owner.getByRole('combobox', { name: '보호자 교육태도 선택', exact: true });
+  await ownerChoice.selectOption('통제형');
+  await owner.getByLabel('보호자 교육태도 판단 이유', { exact: true }).fill('합성 작성 중 선택');
+  await panel.getByLabel('기본 판정 수정 사유', { exact: true }).fill('초안을 보존');
+  const saveDraft = page.waitForResponse(value => value.url().endsWith('/judgements') && value.request().method() === 'PUT');
+  await panel.getByRole('button', { name: '기본 판정 저장', exact: true }).click();
+  expect((await saveDraft).status()).toBe(200);
+  await expect(panel.getByRole('heading', { name: `결과 2판 · 원자료 ${summary.revision}판`, exact: true })).toBeVisible();
+  let result = await (await page.request.get(resultPath)).json();
+  expect(result.document.decisions).toEqual(initial.document.automatic_decisions);
+  expect(result.document.manual_decisions.find((value: { key: string }) => value.key === 'owner_type').label).toBe('통제형');
+  await owner.getByLabel('보호자 교육태도 판단 이유', { exact: true }).fill('새 계산 전에 보호할 미저장 초안');
+  page.once('dialog', dialog => dialog.dismiss());
+  await calculate.click();
+  await expect(owner.getByLabel('보호자 교육태도 판단 이유', { exact: true })).toHaveValue('새 계산 전에 보호할 미저장 초안');
+  expect(await (await page.request.get(sheetPath + '/basic-results-s1')).json()).toHaveLength(1);
+  await owner.getByRole('combobox', { name: '보호자 교육태도 상태', exact: true }).selectOption('complete');
+  await owner.getByText('보호자 교육태도 근거·반대 근거 선택', { exact: true }).click();
+  const support = owner.locator('.toolbar').filter({ hasText: '보23: 2' }), counter = owner.locator('.toolbar').filter({ hasText: '보16: 1' });
+  await support.getByLabel('근거로 선택', { exact: true }).check();
+  await counter.getByLabel('근거로 선택', { exact: true }).check();
+  await counter.getByLabel('반대 근거', { exact: true }).check();
+  await owner.getByLabel('보호자 교육태도 판단 이유', { exact: true }).fill('실제 지시 근거와 같은 장면의 반대 근거 검토');
+  await panel.getByLabel('기본 판정 수정 사유', { exact: true }).fill('완료 선택과 근거 역할 보존');
+  const completeResponse = page.waitForResponse(value => value.url().endsWith('/judgements') && value.request().method() === 'PUT');
+  await panel.getByRole('button', { name: '기본 판정 저장', exact: true }).click();
+  const complete = await completeResponse;
+  expect(complete.status(), await complete.text()).toBe(200);
+  result = await complete.json();
+  expect(result.document.automatic_decisions).toEqual(initial.document.automatic_decisions);
+  expect(result.document.calculations).toEqual(initial.document.calculations);
+  expect(result.document.decision_sources.owner_type).toBe('human');
+  expect(result.document.manual_decisions.find((value: { key: string }) => value.key === 'owner_type').counter_codes).toEqual(['보16']);
+  await expect(support.getByLabel('반대 근거', { exact: true })).not.toBeChecked();
+  await expect(counter.getByLabel('반대 근거', { exact: true })).toBeChecked();
+  // A delayed history request must freeze editing until that exact request has finished.
+  let release: () => void = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route(`**${resultPath}`, async route => { await gate; await route.continue(); });
+  await panel.getByRole('button', { name: '최신 기본 결과 불러오기', exact: true }).click();
+  await expect(ownerChoice).toBeDisabled();
+  await expect(panel.getByRole('button', { name: '보존 결과 1판', exact: true })).toBeDisabled();
+  release(); await expect(ownerChoice).toBeEnabled(); await page.unroute(`**${resultPath}`);
+  await owner.getByLabel('보호자 교육태도 판단 이유', { exact: true }).fill('충돌 뒤에도 보존할 판단');
+  await panel.getByLabel('기본 판정 수정 사유', { exact: true }).fill('동시 수정 충돌 검증');
+  const other = await page.request.put(resultPath + '/judgements', { headers, data: { expected_revision: result.summary.revision, reason: '합성 다른 탭의 보류 수정',
+    decisions: [{ key: 'owner_type', label: null, status: 'held', evidence_codes: [], counter_codes: [], counter_note: null, reason: '합성 다른 탭의 보류' }] } });
+  expect(other.status(), await other.text()).toBe(200);
+  const conflict = page.waitForResponse(value => value.url().endsWith('/judgements') && value.request().method() === 'PUT');
+  await panel.getByRole('button', { name: '기본 판정 저장', exact: true }).click();
+  expect((await conflict).status()).toBe(409);
+  await expect(panel.getByRole('alert')).toContainText('편집값은 유지했습니다');
+  await expect(owner.getByLabel('보호자 교육태도 판단 이유', { exact: true })).toHaveValue('충돌 뒤에도 보존할 판단');
+  page.once('dialog', dialog => dialog.accept());
+  await panel.getByRole('button', { name: '최신 기본 결과 불러오기', exact: true }).click();
+  await expect(panel.getByRole('heading', { name: `결과 4판 · 원자료 ${summary.revision}판`, exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: '보존 결과 1판', exact: true }).click();
+  await expect(ownerChoice).toBeDisabled();
+  await expect(panel.getByText('보존한 결과를 읽는 중입니다.', { exact: false })).toBeVisible();
+  const preserved = await (await page.request.get(resultPath + '/revisions/1')).json();
+  expect(preserved.document).toEqual(initial.document);
+  expect((await (await page.request.get(sheetPath)).json()).document).toEqual(sourceBefore.document);
+  expect((await request.get(resultPath)).status()).toBe(403);
+  await panel.getByText('장면 평균·합계와 고정 출처', { exact: true }).click();
+  await panel.screenshot({ path: testInfo.outputPath('judgements-s1.png'), animations: 'disabled' });
+  await page.setViewportSize({ width: 360, height: 800 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(errors).toEqual([]);
+});

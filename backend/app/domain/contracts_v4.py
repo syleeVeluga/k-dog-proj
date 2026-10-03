@@ -146,6 +146,7 @@ class DecisionV4(ContractV4):
     evidence_codes: tuple[ItemCode, ...]
     evidence: tuple[EvidenceV4, ...]
     counter_evidence: tuple[EvidenceV4, ...] = ()
+    counter_codes: tuple[ItemCode, ...] = ()
     counter_note: Text | None = None
     reason: Text
     rater_id: Text
@@ -166,4 +167,6 @@ class DecisionV4(ContractV4):
             raise ValueError("complete decision requires traceable item and scene evidence")
         if len(set(self.evidence_codes)) != len(self.evidence_codes):
             raise ValueError("duplicate decision evidence")
+        if len(set(self.counter_codes)) != len(self.counter_codes) or not set(self.counter_codes) <= set(self.evidence_codes):
+            raise ValueError("counter codes must be unique selected evidence codes")
         return self

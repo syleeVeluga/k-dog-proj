@@ -2,7 +2,7 @@ import shutil
 import unittest
 
 from app.api import create_app
-from app.domain.catalog_v4 import SEGMENTS
+from app.domain.catalog_v4 import OPTIONAL_CODES, SEGMENTS, load_catalog_v4
 from app.media import command
 from tests.support import AppCase
 
@@ -48,6 +48,29 @@ class PreprocessApiV4Tests(AppCase):
         self.assertEqual(reused.status_code, 200, reused.text)
         self.assertNotEqual(reused.json()["batch_id"], batch["batch_id"])
         self.assertEqual(reused.json()["clips"], batch["clips"])
+        # S07 integration: actual batch pins must remain usable by sheet calculation.
+        assignment = self.client.post(base + "/sheets-s1", json={"expected_revision": value["expected_revision"],
+            "assigned_username": "operator", "rater_id": "operator", "rater_name": "합성 평가자",
+            "preprocess": {**state["result_pointer"], "batch_id": batch["batch_id"]}})
+        self.assertEqual(assignment.status_code, 201, assignment.text)
+        sheet_id = assignment.json()["sheet_id"]
+        sheet_url = f"/api/score-sheets-s1/{sheet_id}"
+        observations = [{"code": item.code, "value": None, "status": "unobserved", "reason": "합성 미관찰"}
+                        for item in load_catalog_v4().rated_items() if item.code not in OPTIONAL_CODES]
+        self.assertEqual(self.client.put(sheet_url, json={"expected_revision": 1, "observations": observations}).status_code, 200)
+        submitted = self.client.post(sheet_url + "/submit", json={"expected_revision": 2, "reason": "합성 제출"}).json()
+        calculated = self.client.post(sheet_url + "/basic-results-s1", json={"input": {"sheet_id": sheet_id,
+            "revision": 3, "ref": submitted["manifest_ref"], "hash": submitted["manifest_hash"]}})
+        self.assertEqual(calculated.status_code, 201, calculated.text)
+        self.assertIsNone(calculated.json()["document"]["calculations"]["owner"]["ratios"])
+        result_id = calculated.json()["summary"]["result_id"]
+        self.assertEqual(self.client.get(f"/api/basic-results-s1/{result_id}").status_code, 200)
+        self.assertEqual(self.client_for("reviewer").get(f"/api/basic-results-s1/{result_id}").status_code, 403)
+        held = self.client.put(f"/api/basic-results-s1/{result_id}/judgements", json={"expected_revision": 1, "reason": "합성 판정 보류",
+            "decisions": [{"key": "attachment_type", "label": None, "status": "held", "evidence_codes": [], "reason": "관찰 부족"}]})
+        self.assertEqual(held.status_code, 200, held.text)
+        self.assertEqual(self.client.get(f"/api/basic-results-s1/{result_id}/revisions/1").json()["document"]["revision"], 1)
+        # End S07 integration.
         clip = batch["clips"][0]
         url = endpoint + f"/{batch['batch_id']}/clips/{clip['clip_id']}/original"
         downloaded = self.client_for("reviewer").get(url)

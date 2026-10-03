@@ -40,6 +40,7 @@ from app import settings
 from app import forms_v4, uploads, capture_v4, preprocess_v4, sheets_v4
 from app.domain.catalog_v4 import BehaviorCatalogV4, load_catalog_v4
 from app.domain.sheets_v4 import SheetDocumentV4
+from app import judgements_v4
 from app.domain.preprocess_v4 import BatchV4, PreprocessRequestV4, PreprocessStatusV4
 from app.domain.media_v4 import PreservedMediaRegistrationV4, StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
 from app import sheets, judgements, run_v3, scoring_ai, settings_v3
@@ -622,6 +623,26 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.get("/api/import/s1-workbook/status")
     def s1_workbook_status(user=Depends(writer)):
         return sheets_v4.workbook_preflight()
+
+    @app.get("/api/score-sheets-s1/{sheet_id}/basic-results-s1", response_model=list[judgements_v4.ResultSummaryV4])
+    def basic_s1_results(sheet_id: Key, user=Depends(reader)):
+        return judgements_v4.list_results(store, sheet_id, user)
+
+    @app.post("/api/score-sheets-s1/{sheet_id}/basic-results-s1", response_model=judgements_v4.ResultViewV4, status_code=201)
+    def basic_s1_calculate(sheet_id: Key, value: judgements_v4.CalculateV4, user=Depends(reader)):
+        return judgements_v4.create(store, sheet_id, value, user)
+
+    @app.get("/api/basic-results-s1/{result_id}", response_model=judgements_v4.ResultViewV4)
+    def basic_s1_result(result_id: Key, user=Depends(reader)):
+        return judgements_v4.view(store, result_id, user)
+
+    @app.get("/api/basic-results-s1/{result_id}/revisions/{revision}", response_model=judgements_v4.ResultViewV4)
+    def basic_s1_result_revision(result_id: Key, revision: Annotated[int, ApiPath(ge=1)], user=Depends(reader)):
+        return judgements_v4.view(store, result_id, user, revision)
+
+    @app.put("/api/basic-results-s1/{result_id}/judgements", response_model=judgements_v4.ResultViewV4)
+    def basic_s1_judgements(result_id: Key, value: judgements_v4.JudgementEditV4, user=Depends(reader)):
+        return judgements_v4.revise(store, result_id, value, user)
 
     @app.put("/api/cases/{case_id}/sessions/{session_id}/segments", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def session_segments(case_id: Key, session_id: Key, value: SegmentsEdit, user=Depends(writer)):
