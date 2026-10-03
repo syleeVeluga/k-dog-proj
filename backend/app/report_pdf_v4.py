@@ -9,7 +9,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Flowable, Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from .report_render_v4 import STATUS, comparison_legend, comparison_rows, number, presentation, survey_rows, time_text, timeline_rows, validate
+from .report_render_v4 import STATUS, comparison_legend, comparison_rows, external_notice, external_rows, number, presentation, survey_rows, time_text, timeline_rows, validate
 from .domain.comparisons_v4 import CohortPublicV4
 from .storage import REPO_ROOT
 
@@ -117,7 +117,11 @@ def render_pdf(profile, header, images=(), *, cohort=None):
             if row['value'] is not None:
                 story.append(SurveyBar(row['value'], row['minimum'], row['maximum'], 490))
             story.append(p(f"눈금 {row['minimum']}–{row['maximum']} · {row['detail']}", small))
-        story.append(p(design['external_notice'],small))
+        for row in external_rows(profile):
+            story.append(p(row[0], heading))
+            story.extend(p(text, small) for text in row[1:])
+        if profile.external_comparison is None:
+            story.append(p(external_notice(profile),small))
         section(3)
         story.append(p(design['scale_notice'], small))
         for label in comparison_legend(profile):
@@ -146,7 +150,7 @@ def render_pdf(profile, header, images=(), *, cohort=None):
             story.append(p(profile.actions_notice))
         story.extend([p("오늘의 관찰을 함께 읽으며",heading), *claims(profile.summary), p("관찰 범위와 출처",heading),
                       p("확정된 영상 원자료, 보호자 설문과 완료된 해석을 바탕으로 작성했습니다. 관찰되지 않은 행동을 하지 않는 행동으로 단정하지 않습니다."),
-                      p(design['scale_notice'],small), p(design['external_notice'],small),
+            p(design['scale_notice'],small), p(external_notice(profile),small),
                       p(f'생성 {header.generated_at} · 기본 결과 판본 {profile.source.basic.revision} · 원자료 판본 {profile.source.sheet.revision}',small)])
         if cohort:
             story.extend([p(cohort.interpretation_note, small), p(cohort.selection_note, small),

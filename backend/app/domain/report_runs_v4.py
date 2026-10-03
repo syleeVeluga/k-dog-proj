@@ -8,7 +8,7 @@ from .final_results_v4 import FinalReferenceV4, FinalResultV4
 from .report_profile_v4 import ReportProfileV4
 from .report_render_v4 import ReportHeaderV4
 from .sheets_v4 import InputPointerV4
-from .comparisons_v4 import CohortPublicV4, CohortReferenceV4
+from .comparisons_v4 import CohortPublicV4, CohortReferenceV4, ExternalReferenceV4
 
 REPORT_RUN_VERSION = "report-run-20261002-s1.1-1"
 REPORT_STAGES = ("content_v4", "validate_content_v4", "render_v4", "validate_output_v4", "publish_report_v4")
@@ -32,6 +32,7 @@ class ReportConfigV4(ContractV4):
     content_hashes: dict[str, Hash]
     provider_text_status: Literal["deferred_S16"] = "deferred_S16"
     comparison_snapshot: CohortReferenceV4 | None = None
+    external_comparison: ExternalReferenceV4 | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def stage_order(self) -> Self:

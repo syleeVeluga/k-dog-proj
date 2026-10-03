@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { accessLost, api, ApiError } from './api';
 import { useUnsaved } from './Editing';
 import type { Case, User } from './types';
-import type { SheetReferenceV4, SheetSummaryV4, SheetViewV4 } from './ScoringTypesV4';
+import type { SheetDocumentV4, SheetReferenceV4, SheetSummaryV4, SheetViewV4 } from './ScoringTypesV4';
 import type { BasicReferenceV4, BasicSummaryV4, FinalReferenceV4, FinalSummaryV4, FinalViewV4 } from './finalTypesV4';
-import type { CohortSummaryV4 } from './comparisonTypesV4';
+import type { CohortSelectionV4, CohortSummaryV4 } from './comparisonTypesV4';
+import type { ExternalReferenceV4 } from './externalTypesV4';
+import { ExternalComparisonPickerV4 } from './ExternalComparisonPickerV4';
 import type { ReportRunV4 } from './reportTypesV4';
 import type { ExportMemberSelectionV4, ExportViewV4, ValidationSummaryV4 } from './researchTypesV4';
 
@@ -18,7 +20,8 @@ export function ResearchExportsV4({ item, user }: { item: Case; user: User }) {
   const [sheets, setSheets] = useState<SheetSummaryV4[]>([]), [own, setOwn] = useState<SheetViewV4 | null>(null), [source, setSource] = useState<Source | null>(null);
   const [basics, setBasics] = useState<BasicSummaryV4[]>([]), [finals, setFinals] = useState<FinalSummaryV4[]>([]), [reports, setReports] = useState<ReportRunV4[]>([]);
   const [basic, setBasic] = useState<BasicReferenceV4 | null>(null), [final, setFinal] = useState<FinalReferenceV4 | null>(null), [report, setReport] = useState('');
-  const [members, setMembers] = useState<{ value: ExportMemberSelectionV4; label: string }[]>([]), [format, setFormat] = useState<'csv_zip' | 'xlsx'>('csv_zip'), [reason, setReason] = useState(''), [redact, setRedact] = useState('');
+  const [members, setMembers] = useState<{ value: ExportMemberSelectionV4; label: string; external: ExternalReferenceV4 | null }[]>([]), [format, setFormat] = useState<'csv_zip' | 'xlsx'>('csv_zip'), [reason, setReason] = useState(''), [redact, setRedact] = useState('');
+  const [external, setExternal] = useState<ExternalReferenceV4 | null>(null), [externalTarget, setExternalTarget] = useState<CohortSelectionV4 | null>(null);
   const [references, setReferences] = useState<ValidationSummaryV4[]>([]), [selectedReferences, setSelectedReferences] = useState<ValidationSummaryV4[]>([]), [cohorts, setCohorts] = useState<CohortSummaryV4[]>([]), [cohort, setCohort] = useState<CohortSummaryV4 | null>(null);
   const [history, setHistory] = useState<ExportViewV4[]>([]), [created, setCreated] = useState<ExportViewV4 | null>(null), [error, setError] = useState(''), [busy, setBusy] = useState(false), [unavailable, setUnavailable] = useState(false);
   const alive = useRef(true), pending = useRef(false), sequence = useRef(0), request = useRef({ key: '', id: '' });
@@ -41,6 +44,15 @@ export function ResearchExportsV4({ item, user }: { item: Case; user: User }) {
     }
   }
   useEffect(() => { alive.current = true; void reload().catch(e => { if (alive.current) { setError(message(e)); setUnavailable(accessLost(e)); } }); return () => { alive.current = false; sequence.current++; }; }, [path, user.username]);
+  useEffect(() => {
+    let current = true; setExternal(null); setExternalTarget(null);
+    if (source && own && (final || !source.viewer)) {
+      const document = final ? api<FinalViewV4>(path + `/final-results-s1/${final.final_id}?viewer_sheet_id=${own.summary.sheet_id}`).then(value => value.document.basic_document.input_document)
+        : api<SheetDocumentV4>(`/score-sheets-s1/${source.reference.sheet_id}/revisions/${source.reference.revision}`);
+      void document.then(value => { if (current) setExternalTarget({ case_id: item.case_id, session_id: item.selected_session_id, expected_revision: value.source.input_revision, input: value.source.input }); }).catch(e => { if (current) setError(message(e)); });
+    }
+    return () => { current = false; };
+  }, [path, source?.reference.hash, final?.hash, own?.summary.sheet_id]);
   async function work(action: () => Promise<void>) {
     if (pending.current) return; pending.current = true; setBusy(true); setError(''); const scope = context.current;
     try { await action(); } catch (e) { if (alive.current && scope === context.current) { setError(message(e)); if (accessLost(e)) { setOwn(null); setSource(null); setBasic(null); setFinal(null); setCreated(null); setUnavailable(true); } } }
@@ -65,12 +77,13 @@ export function ResearchExportsV4({ item, user }: { item: Case; user: User }) {
   function add() {
     if (!source || !own) return;
     if (members.some(row => same(row.value.sheet, source.reference))) { setError('이 원자료 판본을 이미 선택했습니다. 목록에서 제거한 뒤 다시 선택하세요.'); return; }
-    setMembers([...members, { label: `${own.document.rater_name} · ${source.label}`, value: { case_id: item.case_id, session_id: item.selected_session_id, sheet: source.reference, viewer_sheet_id: source.viewer ?? (final ? own.summary.sheet_id : null), basic, final, report_run_id: report || null } }]);
+    setMembers([...members, { label: `${own.document.rater_name} · ${source.label}`, external, value: { case_id: item.case_id, session_id: item.selected_session_id, sheet: source.reference, viewer_sheet_id: source.viewer ?? (final ? own.summary.sheet_id : null), basic, final, report_run_id: report || null } }]);
     setSource(null); setBasic(null); setFinal(null); setReport(''); setError('');
   }
   async function create() {
     if (!members.length || !reason.trim()) throw new Error('내보낼 원자료와 생성 사유를 선택하세요.');
-    const body = { format, members: members.map(row => row.value), references: selectedReferences.map(row => row.reference), comparison: cohort?.reference ?? null, redact_terms: redact.split('\n').map(value => value.trim()).filter(Boolean), reason: reason.trim() };
+    const externalComparisons = [...new Map(members.filter(row => row.external).map(row => [row.external!.hash, row.external!])).values()];
+    const body = { format, members: members.map(row => row.value), references: selectedReferences.map(row => row.reference), comparison: cohort?.reference ?? null, ...(externalComparisons.length ? { external_comparisons: externalComparisons } : {}), redact_terms: redact.split('\n').map(value => value.trim()).filter(Boolean), reason: reason.trim() };
     const key = JSON.stringify(body); if (request.current.key !== key) request.current = { key, id: crypto.randomUUID() };
     const scope = context.current, value = await api<ExportViewV4>('/exports-s1', 'POST', { ...body, request_id: request.current.id });
     if (!alive.current || scope !== context.current) return;
@@ -97,10 +110,12 @@ export function ResearchExportsV4({ item, user }: { item: Case; user: User }) {
         <label>같은 원자료의 기본 결과<select aria-label="같은 원자료의 기본 결과" value={basic ? `${basic.result_id}:${basic.revision}` : ''} onChange={event => { const row = basics.find(value => `${value.result_id}:${value.revision}` === event.target.value); setBasic(row ? { result_id: row.result_id, revision: row.revision, ref: row.manifest_ref, hash: row.manifest_hash } : null); setFinal(null); setReport(''); }}><option value="">기본 결과 포함 안 함</option>{basics.filter(row => same(row.input, source.reference)).map(row => <option key={`${row.result_id}:${row.revision}`} value={`${row.result_id}:${row.revision}`}>계산 r{row.revision} · {row.result_id.slice(0, 8)}</option>)}{basic && !basics.some(row => row.result_id === basic.result_id && row.revision === basic.revision) && <option value={`${basic.result_id}:${basic.revision}`}>최종본에 고정된 계산 r{basic.revision}</option>}</select></label>
         <label>최종 결과<select aria-label="최종 결과" value={final?.final_id ?? ''} onChange={event => void work(() => selectFinal(event.target.value))}><option value="">최종 결과 포함 안 함</option>{finals.map(row => <option key={row.reference.final_id} value={row.reference.final_id}>{row.recorded_at} · {row.actor} · {row.reference.final_id.slice(0, 8)}{row.requires_reveal ? ' · 명시 해석 공개 필요' : ''}</option>)}</select></label><p className="fine">다른 작성자의 최종본은 행사 의견 화면에서 명시 해석 공개를 먼저 기록하세요. 선택 시 원자료가 같은지 다시 확인합니다.</p>
         {final && <label>같은 최종본의 발급 리포트<select aria-label="같은 최종본의 발급 리포트" value={report} onChange={event => setReport(event.target.value)}><option value="">리포트 포함 안 함</option>{reports.filter(row => row.normal_publish_available && row.final.hash === final.hash && row.final.ref === final.ref).map(row => <option key={row.run_id} value={row.run_id}>{row.is_latest_issued ? '최근 발급' : '이전 발급'} · {row.run_id.slice(0, 8)}{row.outdated ? ' · 이전 입력' : ''}</option>)}</select></label>}
+        {source.viewer && !final && <p className="fine">타인 원자료에 외부 비교를 추가하려면 같은 원자료의 공개된 최종본을 선택하세요.</p>}
+        <ExternalComparisonPickerV4 target={externalTarget} value={external} onChange={setExternal} disabled={busy} />
         <button onClick={add}>고정 선택 목록에 추가</button>
       </>}
     </fieldset>
-    <fieldset disabled={busy}><legend>내보낼 고정 선택 {members.length}개</legend>{members.map((row, index) => <div key={row.value.sheet.ref}><p>{row.label}<br />원자료 r{row.value.sheet.revision} · {row.value.sheet.hash}<br />기본 결과 {row.value.basic ? `r${row.value.basic.revision} · ${row.value.basic.hash}` : '미포함'}<br />최종본 {row.value.final?.hash ?? '미포함'} · 리포트 {row.value.report_run_id ?? '미포함'}</p><button onClick={() => setMembers(members.filter((_, i) => i !== index))}>선택 {index + 1} 제거</button></div>)}
+    <fieldset disabled={busy}><legend>내보낼 고정 선택 {members.length}개</legend>{members.map((row, index) => <div key={row.value.sheet.ref}><p>{row.label}<br />원자료 r{row.value.sheet.revision} · {row.value.sheet.hash}<br />기본 결과 {row.value.basic ? `r${row.value.basic.revision} · ${row.value.basic.hash}` : '미포함'}<br />최종본 {row.value.final?.hash ?? '미포함'} · 리포트 {row.value.report_run_id ?? '미포함'}<br />외부 비교 {row.external ? `고정 ${row.external.snapshot_id.slice(0, 8)}` : '미포함'}</p><button onClick={() => setMembers(members.filter((_, i) => i !== index))}>선택 {index + 1} 제거</button></div>)}
       <label>연구 파일 형식<select aria-label="연구 파일 형식" value={format} onChange={event => setFormat(event.target.value as 'csv_zip' | 'xlsx')}><option value="csv_zip">CSV 묶음 ZIP</option><option value="xlsx">XLSX</option></select></label><label>추가 식별정보 제거 문구 (한 줄에 하나)<textarea value={redact} maxLength={10000} onChange={event => setRedact(event.target.value)} /></label><p className="fine">대상·보호자 이름, 참가자·행사 식별자와 평가자 계정은 자동 제거합니다. 자유서술에 포함된 다른 식별정보도 추가하세요.</p>
       {references.length > 0 && <fieldset><legend>검수 참고 출처 (현재 점수와 별도)</legend>{references.map(row => <label key={row.reference.validation_id} className="check"><input type="checkbox" checked={selectedReferences.some(selected => selected.reference.hash === row.reference.hash)} onChange={event => setSelectedReferences(event.target.checked ? [...selectedReferences, row] : selectedReferences.filter(selected => selected.reference.hash !== row.reference.hash))} />{row.filename} · {row.row_count}행 · G03 미확정</label>)}</fieldset>}
       {missingReference && <p role="alert">접근할 수 없는 참고 판본이 선택되어 있습니다. <button onClick={() => setSelectedReferences([])}>참고 선택 비우기</button></p>}

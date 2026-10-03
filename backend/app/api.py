@@ -44,6 +44,7 @@ from app import judgements_v4
 from app import run_v4, scoring_ai_v4, settings_v4
 from app import opinions_v4, final_results_v4, disclosures_v4
 from app import report_runs_v4, comparisons_v4
+from app import external_comparisons_v4
 from app import validation_data_v4, exports_v4
 from app.domain.runs_v4 import ActionV4, RunViewV4, StartV4
 from app.domain.preprocess_v4 import BatchV4, PreprocessRequestV4, PreprocessStatusV4
@@ -814,7 +815,27 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
 
     @app.get("/api/comparisons-s1/sources")
     def comparison_s1_sources(user=Depends(writer)):
-        return comparisons_v4.public_sources()
+        return comparisons_v4.public_sources(store,user)
+
+    @app.post("/api/comparisons-s1/evidence", response_model=external_comparisons_v4.FileV4, status_code=201)
+    async def comparison_s1_evidence(request: Request, filename: Annotated[str,Query(min_length=1,max_length=200)], user=Depends(administrator)):
+        data=bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data)>16*1024*1024:raise HTTPException(413,"연구 근거 파일은 16 MiB 이하만 등록할 수 있습니다.")
+        return external_comparisons_v4.upload_evidence(store,bytes(data),filename,user)
+
+    @app.post("/api/comparisons-s1/external-snapshots", response_model=external_comparisons_v4.ExternalViewV4, status_code=201)
+    def comparison_s1_external_create(value:external_comparisons_v4.ExternalCreateV4,user=Depends(writer)):
+        return external_comparisons_v4.create(store,value,user)
+
+    @app.get("/api/comparisons-s1/external-snapshots", response_model=list[external_comparisons_v4.ExternalSummaryV4])
+    def comparison_s1_external_list(user=Depends(writer)):
+        return external_comparisons_v4.list_snapshots(store,user)
+
+    @app.get("/api/comparisons-s1/external-snapshots/{snapshot_id}", response_model=external_comparisons_v4.ExternalViewV4)
+    def comparison_s1_external_view(snapshot_id:Key,user=Depends(writer)):
+        return external_comparisons_v4.view(store,snapshot_id,user)
 
     @app.get("/api/comparisons-s1/research")
     def comparison_s1_research(user=Depends(writer)):

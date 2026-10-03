@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { accessLost, api } from './api';
 import { useUnsaved } from './Editing';
+import { ExternalComparisonSettingsV4 } from './ExternalComparisonSettingsV4';
 import type { User } from './types';
 import type { CohortCandidateV4, CohortSelectionV4, CohortSummaryV4, CohortViewV4, ComparisonSourcesV4 } from './comparisonTypesV4';
 
@@ -82,8 +83,9 @@ export function ComparisonSettings({ user, onSaved }: { user: User; onSaved?: ()
       <div className="table-wrap"><table><thead><tr><th>영역 · 원척도</th><th>평균 · 유효 n</th><th>포함·제외</th></tr></thead><tbody>{view.document.domains.map(domain => <tr key={domain.domain}><td>{domain.domain}<br />{domain.scale_minimum}~{domain.scale_maximum}</td><td>{number(domain.mean)} · n={domain.n}</td><td>포함 {domain.included_case_ids.length} / 제외 {Object.keys(domain.excluded).length}<details><summary>개별 포함·제외 근거</summary>{domain.included_case_ids.map(id => <p key={id}>{id}: 포함</p>)}{Object.entries(domain.excluded).map(([id, why]) => <p key={id}>{id}: {exclusions[why] ?? why}</p>)}</details></td></tr>)}</tbody></table></div>
       <details><summary>고정 입력과 출처</summary><p>{view.document.survey_version} · {view.document.survey_policy}</p><p>집단 {view.reference.snapshot_id} · {view.reference.hash}</p>{view.document.members.map(member => <p key={member.case_id}>{member.case_id} / {member.session_id} · 입력 {member.input_revision}판 · {member.input.manifest_hash}</p>)}</details>
     </section>}
-    <h3>외부 비교 D06 · 확인 대기</h3><p>연구자의 문항 동등성·사용 조건 확인과 관리자의 기술 활성화는 별개입니다. 미승인 참고 수치는 리포트에 표시하지 않습니다.</p>
+    <h3>외부 비교 D06 · 출처별 확인 상태</h3><p>연구자의 문항 동등성·사용 조건 확인과 관리자의 기술 활성화는 별개입니다. 미승인 참고 수치는 리포트에 표시하지 않습니다.</p>
     {sources?.sources.map(source => <article key={source.source_id}><h4>{source.title}</h4><p>{source.reason}</p></article>)}{sources && <p>{sources.domestic_reason}</p>}
     <p className="fine">실제 외부 비교 활성화는 S17 문헌·연구 확인 자료가 갖춰진 뒤 진행합니다. 자체 집단을 넣지 않아도 정상 리포트를 생성할 수 있습니다.</p>
+    <details><summary>외부 비교 연구 확인·활성화 관리</summary><ExternalComparisonSettingsV4 user={user} onChanged={() => { void work(reload); onSaved?.(); }} /></details>
   </section>;
 }

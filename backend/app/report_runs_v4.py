@@ -10,8 +10,8 @@ from fastapi import HTTPException
 from pydantic import Field, field_validator
 
 from . import analysis, disclosures_v4, final_results_v4 as finals, media, opinions_v4 as opinions
-from . import comparisons_v4, report_profile_v4 as profiles, sheets_v4 as sheets, uploads
-from .domain.comparisons_v4 import CohortReferenceV4
+from . import comparisons_v4, external_comparisons_v4, report_profile_v4 as profiles, sheets_v4 as sheets, uploads
+from .domain.comparisons_v4 import CohortReferenceV4, ExternalReferenceV4
 from .domain.final_results_v4 import FinalReferenceV4, FinalResultV4
 from .domain.preprocess_v4 import BatchV4, FileV4
 from .domain.report_profile_v4 import ReportProfileV4
@@ -36,6 +36,7 @@ class ReportStartV4(Model):
     viewer_sheet_id: MediaKey | None = None
     reuse_run_id: MediaKey | None = None
     comparison: CohortReferenceV4 | None = None
+    external_comparison: ExternalReferenceV4 | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @field_validator("final", mode="before")
     @classmethod
@@ -46,6 +47,11 @@ class ReportStartV4(Model):
     @classmethod
     def comparison_contract(cls, value):
         return CohortReferenceV4.model_validate_json(encode(value)) if isinstance(value, dict) else value
+
+    @field_validator("external_comparison", mode="before")
+    @classmethod
+    def external_contract(cls, value):
+        return ExternalReferenceV4.model_validate_json(encode(value)) if isinstance(value, dict) else value
 
 
 class ReportActionV4(Model):
@@ -80,6 +86,9 @@ class ReportRunViewV4(Model):
     normal_publish_available: bool
     final: FinalReferenceV4
     steps: list[ReportStepViewV4]
+    external_comparison: ExternalReferenceV4 | None = None
+    external_comparison_status: Literal["not_selected", "approved", "blocked"] = "not_selected"
+    external_comparison_reason: str | None = None
 
     @field_validator("final", mode="before")
     @classmethod
@@ -87,10 +96,10 @@ class ReportRunViewV4(Model):
         return FinalReferenceV4.model_validate_json(encode(value)) if isinstance(value, dict) else value
 
 
-def config(comparison=None):
+def config(comparison=None, external_comparison=None):
     from .report_render_v4 import assets
     return ReportConfigV4(stages=tuple(ReportStageV4(stage=name) for name in REPORT_STAGES),
-        template_hashes=assets(), content_hashes=profiles.assets()[1], comparison_snapshot=comparison)
+        template_hashes=assets(), content_hashes=profiles.assets()[1], comparison_snapshot=comparison, external_comparison=external_comparison)
 
 
 def _actor(db, username):
@@ -128,6 +137,9 @@ def _source_access(store, db, snapshot, user, viewer_sheet_id=None):
         raise HTTPException(409, "리포트 원본·변환 부모의 고정 연결이 변경되었습니다.")
     if snapshot.cohort and comparisons_v4.for_report(store, snapshot.cohort.reference, user) != snapshot.cohort:
         raise HTTPException(409, "고정한 자체 비교 집단의 출처가 변경되었습니다.")
+    if snapshot.profile.external_comparison and external_comparisons_v4.for_output(store,
+            snapshot.profile.external_comparison.reference, user) != snapshot.profile.external_comparison:
+        raise HTTPException(409, "고정한 외부 비교의 현재 제공 조건이 변경되었습니다.")
     return case, manifest, basic_row
 
 
@@ -230,6 +242,8 @@ def verify_files(store, snapshot):
     pointers.extend(snapshot.media_sources)
     if snapshot.cohort:
         pointers.append(snapshot.cohort.reference)
+    if snapshot.profile.external_comparison:
+        pointers.extend(external_comparisons_v4.files(store, snapshot.profile.external_comparison.reference))
     stamps = {}
     for pointer in pointers:
         if pointer.ref not in stamps:
@@ -299,7 +313,15 @@ def enqueue(store, case_id, session_id, value: ReportStartV4, user):
     final = FinalResultV4.model_validate_json(encode(shown["document"]))
     profile = profiles.from_final(store, case_id, session_id, value.final.final_id, user, value.viewer_sheet_id)
     cohort = comparisons_v4.for_report(store, value.comparison, user) if value.comparison else None
-    configuration = config(value.comparison)
+    if value.external_comparison:
+        external = external_comparisons_v4.for_output(store, value.external_comparison, user)
+        source = final.basic_document.input_document.source
+        if (external.target.case_id, external.target.session_id, external.target.expected_revision, external.target.input) != (
+                case_id, session_id, source.input_revision, source.input):
+            raise HTTPException(409, "외부 비교와 최종 결과의 설문 원입력 판본이 다릅니다.")
+        profile = type(profile).model_validate_json(encode({**profile.model_dump(mode="json"),
+            "external_comparison": external.model_dump(mode="json"), "external_comparison_status": "approved_selected"}))
+    configuration = config(value.comparison, value.external_comparison)
     with store.connect() as db:
         basic_row, _ = opinions.selected_basic(store, db, case_id, session_id, final.basic, user, value.viewer_sheet_id)
         source_row = sheets.row_for(store, db, final.basic_document.input.sheet_id)
@@ -480,6 +502,8 @@ def process(worker, row):
     configuration = ReportConfigV4.model_validate_json(row["config_snapshot_json"])
     if configuration.comparison_snapshot != (snapshot.cohort.reference if snapshot.cohort else None):
         raise ValueError("cohort input and configuration pins differ")
+    if configuration.external_comparison != (snapshot.profile.external_comparison.reference if snapshot.profile.external_comparison else None):
+        raise ValueError("external comparison input and configuration pins differ")
     worker.check(row); verify_assets(configuration); verify_files(worker.store, snapshot)
     reuses = [ReportReuseV4.model_validate_json(encode(entry)) for entry in json.loads(row["reuse_manifest_json"])]
     if len(reuses) > 1:
@@ -629,12 +653,25 @@ def view(store, run_id, user, viewer_sheet_id=None):
             usage = json.loads(step["usage_json"])
             steps.append({"stage": step["stage"], "attempt": step["attempt"], "status": step["status"], "code": usage.get("code"),
                 "timing": {key: value for key, value in usage.get("timing", {}).items() if type(value) in (int, float)}, "reused": bool(usage.get("reused")), "provider_calls": 0})
+        external_status,external_reason="not_selected",None
+        external=snapshot.profile.external_comparison
+        if external:
+            try:
+                if external_comparisons_v4.for_output(store,external.reference,user)!=external:
+                    raise HTTPException(409,"외부 비교의 고정 승인 범위가 변경되었습니다.")
+                external_status="approved"
+            except HTTPException as exc:
+                if exc.status_code in (401,403):raise
+                external_status,external_reason="blocked",str(exc.detail)
+        available=bool(row["result_ref"]) and external_status!="blocked"
         return {"run_id": run_id, "case_id": row["case_id"], "session_id": row["session_id"], "kind": KIND,
             "input_revision": row["input_revision"], "status": row["status"], "updated_at": row["updated_at"], "failure_code": row["failure_code"],
-            "outdated": _outdated(store, db, row, snapshot, case), "result_available": bool(row["result_ref"]),
+            "outdated": _outdated(store, db, row, snapshot, case), "result_available": available,
             "is_latest_issued": bool(latest and latest["run_id"] == run_id), "publication_state": "issued" if row["result_ref"] else None,
-            "pending_reasons": ["G02"], "normal_publish_available": row["status"] == "succeeded" and bool(row["result_ref"]),
-            "final": snapshot.final.model_dump(mode="json"), "steps": steps}
+            "pending_reasons": ["G02"], "normal_publish_available": row["status"] == "succeeded" and available,
+            "final": snapshot.final.model_dump(mode="json"), "steps": steps,
+            "external_comparison":external.reference.model_dump(mode="json") if external else None,
+            "external_comparison_status":external_status,"external_comparison_reason":external_reason}
 
 
 def list_runs(store, case_id, session_id, user):
@@ -651,6 +688,20 @@ def purge_comparisons(db, snapshot_ids):
     for row in db.execute("SELECT run_id,input_snapshot_json FROM runs WHERE kind=?", (KIND,)):
         cohort = json.loads(row["input_snapshot_json"]).get("cohort")
         if cohort and cohort["reference"]["snapshot_id"] in revoked:
+            run_ids.add(row["run_id"])
+    for run_id in run_ids:
+        db.execute("DELETE FROM steps WHERE run_id=?", (run_id,))
+        db.execute("DELETE FROM changes WHERE target=?", (run_id,))
+        db.execute("DELETE FROM runs WHERE run_id=?", (run_id,))
+    return run_ids
+
+
+def purge_external(db, snapshot_ids):
+    revoked = set(snapshot_ids)
+    run_ids = set()
+    for row in db.execute("SELECT run_id,input_snapshot_json FROM runs WHERE kind=?", (KIND,)):
+        external = json.loads(row["input_snapshot_json"]).get("profile", {}).get("external_comparison")
+        if external and external["reference"]["snapshot_id"] in revoked:
             run_ids.add(row["run_id"])
     for run_id in run_ids:
         db.execute("DELETE FROM steps WHERE run_id=?", (run_id,))

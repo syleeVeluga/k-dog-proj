@@ -10,11 +10,11 @@ from fastapi import HTTPException
 from openpyxl import Workbook
 from pydantic import Field, field_validator
 
-from . import analysis, comparisons_v4, disclosures_v4, final_results_v4 as finals, judgements_v4 as basics
+from . import analysis, comparisons_v4, disclosures_v4, external_comparisons_v4, final_results_v4 as finals, judgements_v4 as basics
 from . import opinions_v4 as opinions, report_runs_v4 as reports, sheets_v4 as sheets, uploads, validation_data_v4 as validation
 from .domain.catalog_v4 import RESOURCES, load_catalog_v4
 from .domain.catalog_v3 import SurveyCatalogV3
-from .domain.comparisons_v4 import CohortReferenceV4
+from .domain.comparisons_v4 import CohortReferenceV4, ExternalReferenceV4
 from .domain.exports_v4 import ExportMemberV4, ExportSelectionV4, ExportSnapshotV4
 from .domain.final_results_v4 import FinalResultV4
 from .domain.media_v4 import MediaKey, StoredMediaV4
@@ -41,13 +41,14 @@ class ExportCreateV4(Model):
     members: list[ExportSelectionV4] = Field(min_length=1, max_length=100)
     references: list[ValidationReferenceV4] = Field(default_factory=list, max_length=100)
     comparison: CohortReferenceV4 | None = None
+    external_comparisons: list[ExternalReferenceV4] = Field(default_factory=list, max_length=100, exclude_if=lambda value: not value)
     redact_terms: list[str] = Field(default_factory=list, max_length=200)
     reason: str = Field(min_length=1, max_length=4000, pattern=r"\S")
 
-    @field_validator("members", "references", mode="before")
+    @field_validator("members", "references", "external_comparisons", mode="before")
     @classmethod
     def lists(cls, value, info):
-        kind = ExportSelectionV4 if info.field_name == "members" else ValidationReferenceV4
+        kind = {"members": ExportSelectionV4, "references": ValidationReferenceV4, "external_comparisons": ExternalReferenceV4}[info.field_name]
         return [kind.model_validate_json(encode(item)) if isinstance(item, dict) else item for item in value]
 
     @field_validator("comparison", mode="before")
@@ -174,6 +175,17 @@ def _parents(store, member, user):
     return files
 
 
+def _external_member(members, external):
+    target = external.target
+    for member in members:
+        source = member.sheet.source
+        if (member.selection.case_id == target.case_id and source.session.session_id == target.session_id
+                and source.input_revision == target.expected_revision
+                and source.input == target.input):
+            return member
+    raise HTTPException(409, "외부 비교 대상의 회차·입력 판본이 선택한 연구 원자료와 일치하지 않습니다.")
+
+
 def _snapshot(store, value, user):
     assets = _assets()
     identities = [(item.sheet.ref, item.sheet.hash) for item in value.members]
@@ -212,13 +224,24 @@ def _snapshot(store, value, user):
         parents[cohort.reference.ref] = cohort.reference.hash
     if not members:
         raise HTTPException(422, {"message":"연구용으로 내보낼 동의 확인 원자료가 없습니다.", "excluded":[{"pseudonym":row["pseudonym"], "reason":row["reason"]} for row in excluded]})
+    external = []
+    if len({pointer.snapshot_id for pointer in value.external_comparisons}) != len(value.external_comparisons):
+        raise HTTPException(422, "같은 외부 비교 snapshot을 중복 선택할 수 없습니다.")
+    for pointer in value.external_comparisons:
+        public = external_comparisons_v4.for_output(store, pointer, user)
+        _external_member(members, public)
+        for file in external_comparisons_v4.files(store, pointer):
+            if file.ref in parents and parents[file.ref] != file.hash:
+                raise HTTPException(409, "외부 비교 부모 파일의 hash가 충돌합니다.")
+            parents[file.ref] = file.hash
+        external.append(public)
     catalog = load_catalog_v4()
     survey_catalog = SurveyCatalogV3.model_validate_json((RESOURCES/"catalogs/survey-v3.json").read_bytes())
     surveys = tuple(survey_scores_v4(member.sheet.source.session,survey_catalog) for member in members)
     if _assets() != assets:raise HTTPException(409,"연구 파일 생성 중 카탈로그·설문 정책이 변경되었습니다.")
     return ExportSnapshotV4(export_id=uid(), request_id=value.request_id, request_hash=analysis.digest(value.model_dump(mode="json")),
         actor=user.username, created_at=now(), reason=value.reason, format=value.format, members=tuple(members), excluded=tuple(excluded),
-        references=tuple(value.references), reference_metadata=tuple(reference_metadata), cohort=cohort,
+        references=tuple(value.references), reference_metadata=tuple(reference_metadata), cohort=cohort, external_comparisons=tuple(external),
         parent_files=tuple(FileV4(ref=ref, hash=digest) for ref,digest in sorted(parents.items())), redactions=tuple(sorted((term for term in redactions if term), key=lambda text:(-len(text),text))),
         catalog=catalog,surveys=surveys,asset_hashes=assets)
 
@@ -259,6 +282,10 @@ def guard(store, snapshot, user):
             raise HTTPException(409, "검수 참고 출처가 변경되었습니다.")
     if snapshot.cohort and comparisons_v4.for_report(store, snapshot.cohort.reference, user) != snapshot.cohort:
         raise HTTPException(409, "연구 비교집단 출처가 변경되었습니다.")
+    for expected in snapshot.external_comparisons:
+        _external_member(snapshot.members, expected)
+        if external_comparisons_v4.for_output(store, expected.reference, user) != expected:
+            raise HTTPException(409, "연구 외부 비교의 승인·출처 또는 대상 조건이 변경되었습니다.")
 
 
 def _files(store, snapshot):
@@ -365,6 +392,24 @@ def tables(snapshot):
     if snapshot.cohort:
         for domain in snapshot.cohort.domains:
             output["comparisons"].append({"source":"selected_own_cohort","snapshot_sha256":snapshot.cohort.reference.hash,**domain.model_dump(mode="json")})
+    for external in snapshot.external_comparisons:
+        member = _external_member(snapshot.members, external)
+        for entry in external.entries:
+            scope, values, confirmation = entry.gate.scope, entry.gate.values, entry.gate.confirmation
+            output["comparisons"].append({"source":"external_reference", "participant":member.pseudonym, "session":member.session_alias,
+                "snapshot_sha256":external.reference.hash, "snapshot_revision":external.reference.revision,
+                "source_id":entry.gate.source_id, "title":_text(snapshot,entry.title), "literature":_text(snapshot,entry.literature),
+                "doi":entry.doi, "population_scope":_text(snapshot,entry.population_scope), "number_provenance":_text(snapshot,entry.number_provenance),
+                "domain":scope.domain, "question_ids":encode(scope.question_ids), "survey_version":scope.survey_version,
+                "policy_version":scope.policy_version, "question_text_sha256":scope.question_text_hash,
+                "scale_minimum":scope.scale_minimum, "scale_maximum":scope.scale_maximum, "aggregation":scope.aggregation,
+                "direction":scope.direction, "missing_policy":scope.missing_policy,
+                "population_requirements":encode({key:_text(snapshot,value) for key,value in scope.population_requirements.items()}),
+                "local_mean":entry.local_mean, "local_n":entry.local_n, "local_n_label":"유효 응답 문항", "mean":values.mean,
+                "standard_deviation":values.standard_deviation, "valid_n":values.valid_n, "total_n":values.total_n,
+                "external_valid_n_label":"외부 유효 표본", "external_total_n_label":"외부 전체 표본",
+                "research_sha256":confirmation.hash, "research_revision":confirmation.revision,
+                "activation_revision":entry.gate.activation_revision})
     _pairs(snapshot, output, catalog)
     return output
 
@@ -497,7 +542,8 @@ def create(store,value:ExportCreateV4,user):
         store.audit(db,user.username,snapshot.export_id,ACTION,{"export_id":snapshot.export_id,"ref":pointer.ref,"hash":pointer.hash,
             "request_id":value.request_id,"request_hash":request_hash,"case_ids":sorted({member.case_id for member in value.members}),
             "cohort_id":snapshot.cohort.reference.snapshot_id if snapshot.cohort else None,"report_run_ids":[member.report_run_id for member in value.members if member.report_run_id],
-            "validation_ids":[pointer.validation_id for pointer in value.references]})
+            "validation_ids":[pointer.validation_id for pointer in value.references],
+            "external_snapshot_ids":[pointer.snapshot_id for pointer in value.external_comparisons]})
     return view(store,snapshot.export_id,user)
 
 
@@ -521,13 +567,14 @@ def list_exports(store,user):
     return [view(store,export_id,user) for export_id in ids]
 
 
-def purge_deleted(db,*,cohort_ids=(),report_run_ids=(),validation_ids=()):
+def purge_deleted(db,*,cohort_ids=(),report_run_ids=(),validation_ids=(),external_snapshot_ids=()):
     deleted = {row[0] for row in db.execute("SELECT case_id FROM cases WHERE deletion_requested=1")}
     revoked = set()
     for row in db.execute("SELECT target,detail_json FROM changes WHERE action=?",(ACTION,)):
         data = json.loads(row["detail_json"])
         if (deleted.intersection(data["case_ids"]) or data.get("cohort_id") in set(cohort_ids)
-                or set(report_run_ids).intersection(data.get("report_run_ids",())) or set(validation_ids).intersection(data.get("validation_ids",()))):
+                or set(report_run_ids).intersection(data.get("report_run_ids",())) or set(validation_ids).intersection(data.get("validation_ids",()))
+                or set(external_snapshot_ids).intersection(data.get("external_snapshot_ids",()))):
             revoked.add(row["target"])
     for export_id in revoked:db.execute("DELETE FROM changes WHERE target=? AND action=?",(export_id,ACTION))
     return revoked

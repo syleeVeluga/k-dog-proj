@@ -31,6 +31,26 @@ def number(value):
     return "미산출" if value is None else f"{value:.2f}".rstrip("0").rstrip(".") if isinstance(value, float) else str(value)
 
 
+def external_rows(profile):
+    if profile.external_comparison is None:
+        return []
+    rows = []
+    for entry in profile.external_comparison.entries:
+        gate = entry.gate
+        rows.append((entry.title,
+            f"본인 설문 평균 {number(entry.local_mean)} · 유효 응답 문항 {entry.local_n}개 / 외부 참고 평균 {number(gate.values.mean)} · 표준편차 {number(gate.values.standard_deviation)} · 외부 유효 표본 n={gate.values.valid_n} · 외부 전체 표본 n={gate.values.total_n}",
+            f"설문 원척도 {gate.scope.scale_minimum}–{gate.scope.scale_maximum} · {', '.join(gate.scope.question_ids)} · {entry.population_scope}",
+            f"{entry.literature} · DOI {entry.doi}",
+            f"연구 확인 {gate.confirmation.revision}판 · 기술 활성화 {gate.activation_revision}판"))
+    return rows
+
+
+def external_notice(profile):
+    if profile.external_comparison:
+        return "명시 선택한 연구 확인 범위의 외부 설문 참고값입니다. 자체 집단·영상 점수·국내 규준·백분위와 구분합니다."
+    return presentation()["external_notice"]
+
+
 def fact_text(fact):
     unit = f" ({fact.unit})" if fact.unit and '~' in fact.unit else f" {fact.unit}"
     return number(fact.value) + (unit if fact.value is not None and fact.unit else "")
@@ -161,8 +181,10 @@ def render_html(profile, header, images=(), *, cohort=None):
         width = 0 if row['value'] is None else (row['value']-row['minimum'])/(row['maximum']-row['minimum'])*100
         bar = f'<div class="track"><div class="fill" style="width:{width:.3f}%"></div></div>' if row['value'] is not None else ''
         charts.append(f'<div class="survey-row"><div class="bar-label"><span>{e(row["title"])}</span><span class="survey">{e(number(row["value"]))}</span></div>{bar}{notice(f"눈금 {row['minimum']}–{row['maximum']} · {row['detail']}")}</div>')
+    external = ''.join('<article class="box"><h3>' + e(row[0]) + '</h3>' + ''.join(notice(text) for text in row[1:]) + '</article>' for row in external_rows(profile))
     section(2, '<p>평소 보호자 응답을 원래 눈금으로 표시합니다. 값이 작거나 크다는 사실만으로 좋고 나쁨을 정하지 않습니다.</p>' +
-            (notice(f'자체 비교 집단: {cohort.title} · 선택 {cohort.selection_count}개체') if cohort else '') + ''.join(charts) + notice(design['external_notice']))
+            (notice(f'자체 비교 집단: {cohort.title} · 선택 {cohort.selection_count}개체') if cohort else '') + ''.join(charts) + external +
+            (notice(external_notice(profile)) if profile.external_comparison is None else ''))
     rows = ''.join(f'<tr><td>{e(title)}</td><td class="survey">{e(survey)}</td><td class="video">{e(video)}' + ''.join(f'<p>{e(detail)}</p>' for detail in details) + '</td></tr>' for title,survey,video,details in comparison_rows(profile))
     section(3, f'<p>{e(design["scale_notice"])}</p>' + notice(' / '.join(comparison_legend(profile))) + f'<table><thead><tr><th>평소의 질문</th><th>설문 값</th><th>이번 영상 관찰</th></tr></thead><tbody>{rows}</tbody></table>')
     walk = '<div class="walk">' + ''.join(f'<div>{e(label)}<p>{e(interval)}</p>{notice(state)}</div>' for label,interval,state in timeline_rows(profile,'walk_phase')) + '</div>'
@@ -170,7 +192,7 @@ def render_html(profile, header, images=(), *, cohort=None):
     actions = ''.join(f'<article class="tip"><div class="number">{index+1}</div><div>{e(claim.text)}</div></article>' for index,claim in enumerate(profile.actions))
     section(5, actions + notice(profile.actions_notice) + '<h3>오늘의 관찰을 함께 읽으며</h3>' + paragraphs(profile.summary) +
             '<h3>관찰 범위와 출처</h3><p>확정된 영상 원자료, 보호자 설문과 완료된 해석을 바탕으로 작성했습니다. 관찰되지 않은 행동을 하지 않는 행동으로 단정하지 않습니다.</p>' +
-            notice(design['scale_notice']) + notice(design['external_notice']) + notice(f'생성 {header.generated_at} · 기본 결과 판본 {profile.source.basic.revision} · 원자료 판본 {profile.source.sheet.revision}') +
+            notice(design['scale_notice']) + notice(external_notice(profile)) + notice(f'생성 {header.generated_at} · 기본 결과 판본 {profile.source.basic.revision} · 원자료 판본 {profile.source.sheet.revision}') +
             (notice(cohort.interpretation_note) + notice(cohort.selection_note) + notice(f'자체 비교 snapshot {cohort.reference.snapshot_id} · 판본 {cohort.reference.revision}') if cohort else '') +
             notice('기본 여섯 장의 내용을 유지하며 긴 설명은 인쇄 시 다음 쪽으로 이어집니다.'))
     css = (REPO_ROOT / ASSETS[2]).read_text(encoding='utf8')

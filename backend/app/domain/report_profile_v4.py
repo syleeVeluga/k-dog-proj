@@ -8,6 +8,7 @@ from .final_results_v4 import FinalReferenceV4
 from .results_v4 import ResultReferenceV4
 from .preprocess_v4 import FileV4
 from .sheets_v4 import BatchPointerV4, InputPointerV4, SheetReferenceV4
+from .comparisons_v4 import ExternalPublicV4
 from ..survey_v4 import SurveyResultV4
 
 CONTENT_VERSION = "report-content-20261002-s1.1-1"
@@ -130,10 +131,16 @@ class ReportProfileV4(ContractV4):
     validation_issues: tuple[ValidationIssueV4, ...] = ()
     sentence_bank_status: Literal["pending_G02"] = "pending_G02"
     provider_text_status: Literal["deferred_S16"] = "deferred_S16"
-    external_comparison_status: Literal["pending_D06"] = "pending_D06"
+    external_comparison_status: Literal["pending_D06", "approved_selected"] = "pending_D06"
+    external_comparison: ExternalPublicV4 | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def renderer_contract(self) -> Self:
+        if (self.external_comparison is not None) != (self.external_comparison_status == "approved_selected"):
+            raise ValueError("external comparison status requires its explicitly selected snapshot")
+        if self.external_comparison and (self.external_comparison.target.case_id, self.external_comparison.target.session_id,
+                self.external_comparison.target.input) != (self.case_id, self.session_id, self.source.input):
+            raise ValueError("external comparison belongs to another report survey input")
         if tuple(card.key for card in self.cards) != ("education_attitude", "attachment", "social", "walking"):
             raise ValueError("S1 reports contain exactly the four confirmed result cards")
         ids = {fact.fact_id for fact in self.facts}

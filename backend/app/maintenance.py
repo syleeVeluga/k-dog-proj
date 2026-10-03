@@ -76,6 +76,12 @@ def references(store, db):
             for item in value:
                 visit(item)
         elif isinstance(value, dict):
+            if (all(key in value for key in ("reference", "target", "entries"))
+                    and isinstance(value["reference"], dict) and "snapshot_id" in value["reference"]):
+                # ExternalPublicV4 embeds raw population metadata, never file links.
+                visit({"reference": value["reference"], "input": value["target"]["input"],
+                       "confirmations": [entry["gate"]["confirmation"] for entry in value["entries"]]})
+                return
             for key, candidate in value.items():
                 if key == "conversion" and "upload_id" in value and "video_id" in value:
                     continue  # Tool settings are raw provenance, not file links.
@@ -101,6 +107,9 @@ def references(store, db):
                             visit([member["input"] for member in document["members"]])
                         elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-research":
                             visit(document["evidence"])
+                        elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-external":
+                            visit({"input": document["target"]["input"],
+                                   "confirmations": [entry["gate"]["confirmation"] for entry in document["entries"]]})
                         elif isinstance(document, dict) and document.get("artifact_kind") == "validation-reference":
                             visit(document["source"])
                         elif isinstance(document, dict) and document.get("artifact_kind") == "research-export":
@@ -201,10 +210,18 @@ def clean(store, *, purge_deleted=False):
         from app.report_runs_v4 import purge_comparisons as purge_reports
         revoked_cohorts = purge_comparisons(db)
         revoked_reports = purge_reports(db, revoked_cohorts)
+        from app.external_comparisons_v4 import purge_case as purge_external
+        from app.report_runs_v4 import purge_external as purge_external_reports
+        revoked_external = set()
+        deleted_cases = {row[0] for row in db.execute("SELECT case_id FROM cases WHERE deletion_requested=1")}
+        deleted_cases.update(row[0] for row in db.execute("SELECT target FROM changes WHERE action='deletion.record'"))
+        for case_id in deleted_cases:
+            revoked_external.update(purge_external(db, case_id))
+        revoked_reports.update(purge_external_reports(db, revoked_external))
         from app.validation_data_v4 import purge_deleted as purge_validation
         revoked_validation = purge_validation(db)
         from app.exports_v4 import purge_deleted as purge_exports
-        purge_exports(db, cohort_ids=revoked_cohorts, report_run_ids=revoked_reports, validation_ids=revoked_validation)
+        purge_exports(db, cohort_ids=revoked_cohorts, report_run_ids=revoked_reports, validation_ids=revoked_validation, external_snapshot_ids=revoked_external)
         if purge_deleted:
             db.execute("PRAGMA secure_delete=ON")
             removed_uploads = {json.loads(row[0])["upload_id"] for row in db.execute(

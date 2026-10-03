@@ -119,11 +119,29 @@ def _sources():
     return value,hashlib.sha256(raw).hexdigest()
 
 
-def public_sources():
+def public_sources(store=None, user=None):
     value,_=_sources()
-    return {"version":value["version"],"status":"pending_D06","sources":[{"source_id":item["source_id"],"title":item["title"],
+    result = {"version":value["version"],"status":"pending_D06","sources":[{"source_id":item["source_id"],"title":item["title"],
         "status":"blocked","reason":"연구 확인자료와 별도의 관리자 기술 활성화가 모두 필요합니다."} for item in value["sources"]],
         "domestic_status":value["domestic_status"],"domestic_reason":value["domestic_reason"]}
+    if store is not None:
+        with store.connect() as db:
+            _account(db,user)
+            for item in result["sources"]:
+                pointer=_record(db,RESEARCH_ACTION,item["source_id"])
+                activation=_record(db,ACTIVATION_ACTION,item["source_id"])
+                if not pointer or not activation:continue
+                try:
+                    reference=ResearchReferenceV4.model_validate_json(encode(pointer))
+                    doc=research_document(store,reference)
+                    source,digest=_source(item["source_id"])
+                    result_gate=gate(source,digest,doc,reference,TechnicalActivationV4.model_validate_json(encode(activation)),
+                        target_scope(item["source_id"]),doc.scope.population_requirements)
+                except (HTTPException,ValueError):continue
+                if result_gate.status=="approved":
+                    item.update(status="conditionally_available",reason="연구 확인과 기술 활성화가 기록되었습니다. 대상의 실제 설문·프로필 조건은 명시 snapshot 생성 시 검증합니다.")
+        if any(item["status"]=="conditionally_available" for item in result["sources"]):result["status"]="conditional_selection_available"
+    return result
 
 
 def _source(source_id):
@@ -336,7 +354,13 @@ def research_inventory(store,user):
     with store.connect() as db:
         _account(db,user,admin=True)
         sources,digest=_sources()
-        return {**sources,"asset_hash":digest,"confirmations":{source["source_id"]:_record(db,RESEARCH_ACTION,source["source_id"]) for source in sources["sources"]},
+        confirmations={source["source_id"]:_record(db,RESEARCH_ACTION,source["source_id"]) for source in sources["sources"]}
+        documents,errors={},{}
+        for source_id,pointer in confirmations.items():
+            try:documents[source_id]=research_document(store,ResearchReferenceV4.model_validate_json(encode(pointer))).model_dump(mode="json") if pointer else None
+            except HTTPException as exc:documents[source_id]=None;errors[source_id]=str(exc.detail)
+        return {**sources,"sources":[{**source,"scope":target_scope(source["source_id"]).model_dump(mode="json")} for source in sources["sources"]],
+            "asset_hash":digest,"confirmations":confirmations,"documents":documents,"document_errors":errors,
             "activations":{source["source_id"]:_record(db,ACTIVATION_ACTION,source["source_id"]) for source in sources["sources"]}}
 
 
@@ -369,6 +393,8 @@ def confirm_research(store,value:ConfirmResearchV4,user):
         if _record(db,RESEARCH_ACTION,doc.source_id)!=prior:raise HTTPException(409,"연구 확인자료가 동시에 변경되었습니다.")
         if _source(doc.source_id)[1]!=digest or research_document(store,pointer)!=doc:raise HTTPException(409,"연구 근거가 저장 중 변경되었습니다.")
         store.audit(db,user.username,doc.source_id,RESEARCH_ACTION,pointer.model_dump(mode="json"))
+        from .external_comparisons_v4 import record_impacts
+        record_impacts(store,db,doc.source_id,user.username,"연구 확인자료가 새 판본으로 변경되었습니다. 새 출력에는 다시 선택한 현재 승인 범위가 필요합니다.")
     return pointer
 
 
@@ -406,6 +432,8 @@ def activate_external(store,value:ActivateExternalV4,user):
             result=gate(source,digest,doc,reference,activation,target_scope(value.source_id),doc.scope.population_requirements if doc else {})
             if result.status!="approved":raise HTTPException(422,result.reason)
         store.audit(db,user.username,value.source_id,ACTIVATION_ACTION,activation.model_dump(mode="json"))
+        from .external_comparisons_v4 import record_impacts
+        record_impacts(store,db,value.source_id,user.username,"기술 활성화 판본이 변경되었습니다. 기존 발급 파일은 보존하며 현재 제공 조건을 다시 확인합니다.")
     return activation
 
 

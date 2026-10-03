@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { accessLost, api, ApiError } from './api';
 import type { Case, User } from './types';
-import type { FinalSummaryV4 } from './finalTypesV4';
+import type { FinalSummaryV4, FinalViewV4 } from './finalTypesV4';
 import type { SheetSummaryV4 } from './ScoringTypesV4';
 import type { ReportPublicationV4, ReportRunV4 } from './reportTypesV4';
-import type { CohortSummaryV4 } from './comparisonTypesV4';
+import type { CohortSelectionV4, CohortSummaryV4 } from './comparisonTypesV4';
+import type { ExternalReferenceV4 } from './externalTypesV4';
+import { ExternalComparisonPickerV4 } from './ExternalComparisonPickerV4';
 
 const active = new Set(['queued', 'running', 'retry_wait']);
 const states: Record<string, string> = { queued: '대기', running: '생성 중', retry_wait: '재시도 대기', succeeded: '발급 완료', failed: '실패·검토 필요', stopped: '중지', available: '관찰됨', partial: '일부 관찰', insufficient: '관찰 부족', held: '판단 보류' };
@@ -16,6 +18,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
   const [rows, setRows] = useState<ReportRunV4[]>([]), [finals, setFinals] = useState<FinalSummaryV4[]>([]), [sheets, setSheets] = useState<SheetSummaryV4[]>([]);
   const [viewer, setViewer] = useState(''), [finalId, setFinalId] = useState(''), [reuse, setReuse] = useState(''), [reason, setReason] = useState('');
   const [cohorts, setCohorts] = useState<CohortSummaryV4[]>([]), [cohortId, setCohortId] = useState('');
+  const [external, setExternal] = useState<ExternalReferenceV4 | null>(null), [externalTarget, setExternalTarget] = useState<CohortSelectionV4 | null>(null);
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true), [opened, setOpened] = useState<ReportPublicationV4 | null>(null);
   const alive = useRef(true), sequence = useRef(0), working = useRef(false), timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const request = useRef<{ fingerprint: string; request_id: string } | null>(null), openedId = useRef(''), frame = useRef<HTMLIFrameElement>(null);
@@ -26,6 +29,15 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
   const cohort = cohorts.find(value => value.reference.snapshot_id === cohortId);
   const own = sheets.filter(value => value.own && value.active && value.rater_kind === 'human' && value.state === 'submitted');
   const viewerRow = own.find(value => value.sheet_id === viewer);
+  useEffect(() => {
+    let current = true; setExternal(null); setExternalTarget(null);
+    if (selected && !selected.requires_reveal) void api<FinalViewV4>(path + `/final-results-s1/${selected.reference.final_id}` + query).then(value => {
+      if (!current) return;
+      const source = value.document.basic_document.input_document.source;
+      setExternalTarget({ case_id: item.case_id, session_id: item.selected_session_id, expected_revision: source.input_revision, input: source.input });
+    }).catch(value => { if (current) setError(message(value)); });
+    return () => { current = false; };
+  }, [path, viewer, selected?.reference.hash, selected?.requires_reveal]);
   function clearOutput() { openedId.current = ''; setOpened(null); }
   function filePath(runId: string, format: string, inline = false) { return path + `/report-runs-s1/${runId}/files/${format}` + query + (inline ? `${query ? '&' : '?'}inline=true` : ''); }
   async function reload(clearError = false) {
@@ -60,7 +72,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
   }
   async function start() {
     if (!selected || selected.requires_reveal || item.consents.analysis_feedback !== 'confirmed' || cohortId && !cohort) return;
-    const fields = { expected_revision: item.input_revision, final: selected.reference, viewer_sheet_id: viewer || null, reuse_run_id: reuse || null, comparison: cohort?.reference ?? null };
+    const fields = { expected_revision: item.input_revision, final: selected.reference, viewer_sheet_id: viewer || null, reuse_run_id: reuse || null, comparison: cohort?.reference ?? null, ...(external ? { external_comparison: external } : {}) };
     const fingerprint = JSON.stringify(fields);
     if (request.current?.fingerprint !== fingerprint) request.current = { fingerprint, request_id: crypto.randomUUID() };
     await api(path + '/report-runs-s1', 'POST', { ...fields, request_id: request.current.request_id }); request.current = null;
@@ -106,6 +118,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       <label>리포트 자체 비교집단<select aria-label="리포트 자체 비교집단" value={cohortId} onChange={event => { setCohortId(event.target.value); setReuse(''); }}><option value="">비교 없이 생성</option>{cohorts.map(value => <option key={value.reference.snapshot_id} value={value.reference.snapshot_id}>{value.title} · 선택 {value.selection_count}대상{value.outdated ? ' · 이전 응답 기준' : ''}</option>)}</select></label>
       {cohort && <p className="fine">명시한 자체 집단 {cohort.reference.snapshot_id} · {cohort.reference.hash}{cohort.outdated && ' · 일부 응답이 이후 변경됐으며 이 고정 집단의 당시 평균을 사용합니다.'}</p>}
       {!!cohortId && !cohort && <p role="status">선택한 집단을 현재 사용할 수 없습니다. 다른 집단 또는 비교 없음을 명시적으로 선택하세요.</p>}
+      <ExternalComparisonPickerV4 target={externalTarget} value={external} onChange={value => { setExternal(value); setReuse(''); }} disabled={busy || loading} />
       {!finals.length && <p>독립 채점 메뉴에서 고정 기본 결과를 선택하고 최종본을 먼저 만드세요.</p>}
       <label>공개·실행 제어 사유<input aria-label="공개·실행 제어 사유" value={reason} onChange={event => setReason(event.target.value)} maxLength={2000} /></label>
       {selected?.requires_reveal && <><p>다른 작성자의 해석은 명시 공개가 필요합니다. 먼저 독립 채점 메뉴에서 원자료를 공개하고 같은 입력의 본인 제출 시트를 선택하세요. 해석 열람 후 새 기록은 검수로 구분됩니다.</p><button disabled={!viewerRow || !reason.trim()} onClick={() => void work(reveal)}>선택한 최종 해석을 명시 공개</button></>}
@@ -120,6 +133,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       <p>{row.run_id} · 입력 {row.input_revision}판 · {new Date(row.updated_at).toLocaleString()}</p>
       <p className="fine">고정 최종본 {row.final.final_id} · {row.final.hash}</p>
       {row.failure_code && <p role="status">실행 사유: {row.failure_code}</p>}
+      {row.external_comparison_status === 'blocked' && <p role="status">외부 비교 제공 차단: {row.external_comparison_reason} · 당시 발급 이력과 파일은 보존됩니다.</p>}
       {row.pending_reasons.includes('G02') && <p className="fine">문장은행 G02 확인 대기. 검증된 프로그램 설명의 정상 발급을 막지 않습니다.</p>}
       <div className="toolbar">{active.has(row.status) && <button disabled={busy || !reason.trim()} onClick={() => void work(async () => { await api(`/report-runs-s1/${row.run_id}/stop`, 'POST', { expected_updated_at: row.updated_at, reason: reason.trim() }); })}>이 리포트 실행 중지</button>}
         {['failed', 'stopped'].includes(row.status) && <button disabled={busy || !reason.trim()} onClick={() => void work(async () => { await api(`/report-runs-s1/${row.run_id}/retry`, 'POST', { expected_updated_at: row.updated_at, reason: reason.trim() }); })}>고정 입력으로 리포트 재시도</button>}
@@ -130,6 +144,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       <p>{new Date(opened.created_at).toLocaleString()} · 입력 {opened.input_revision}판 · {rows.find(value => value.run_id === opened.run_id)?.outdated ? '이전 입력·기준' : '고정 입력'} · {opened.run_id}</p>
       <div className="form-grid" aria-label="리포트 네 결과 요약">{opened.profile.cards.map(card => <article className="panel" key={card.key}><h4>{card.title}</h4><p>{card.label ?? states[card.status]}</p>{card.claims.map(claim => <p key={claim.claim_id}>{claim.text}</p>)}</article>)}</div>
       {opened.cohort && <section aria-label="발급 당시 자체 집단"><h4>{opened.cohort.title} · 선택 {opened.cohort.selection_count}대상</h4><p>{opened.cohort.interpretation_note}</p><p>{opened.cohort.selection_note}</p><div className="table-wrap"><table><thead><tr><th>영역·원척도</th><th>평균·유효 n</th><th>제외</th></tr></thead><tbody>{opened.cohort.domains.map(domain => <tr key={domain.domain}><td>{domain.domain} · {domain.scale_minimum}~{domain.scale_maximum}</td><td>{domain.mean === null ? '평균 없음' : domain.mean.toLocaleString(undefined, { maximumFractionDigits: 3 })} · n={domain.n}</td><td>{domain.excluded_count}개{Object.entries(domain.exclusion_reasons).map(([why, count]) => <p key={why}>{why}: {count}</p>)}</td></tr>)}</tbody></table></div><p className="fine">비교 출처 {opened.cohort.reference.hash}</p></section>}
+      {opened.profile.external_comparison && <section aria-label="발급 당시 외부 비교"><h4>확인된 외부 참고 · 자체 집단과 별도</h4>{opened.profile.external_comparison.entries.map(entry => <article key={entry.gate.source_id}><h5>{entry.title}</h5><p>이 대상의 설문 평균 {entry.local_mean} · 유효 응답 {entry.local_n}문항</p><p>외부 참고 평균 {entry.gate.values.mean} · 표준편차 {entry.gate.values.standard_deviation} · 유효 n={entry.gate.values.valid_n} / 전체 n={entry.gate.values.total_n}</p><p>{entry.population_scope} · 원척도 {entry.gate.scope.scale_minimum}~{entry.gate.scope.scale_maximum}</p><p>{entry.literature} · DOI {entry.doi}</p><p className="fine">연구 확인 {entry.gate.confirmation.revision}판 · 기술 활성화 {entry.gate.activation_revision}판. 영상 규준·진단·백분위가 아닙니다.</p></article>)}</section>}
       {Object.entries(opened.output.image_issues).map(([scene, note]) => <p key={scene}>장면 {scene}: {note}</p>)}
       <div className="toolbar"><button disabled={busy} onClick={() => void work(() => download('html'))}>HTML 저장</button><button disabled={busy} onClick={() => void work(() => download('pdf'))}>PDF 저장</button><button disabled={busy} onClick={() => void work(() => download('manifest'))}>출처 manifest 저장</button><a href={'/api' + filePath(opened.run_id, 'html', true)} target="_blank" rel="noopener noreferrer">HTML 새 창</a><button disabled={busy} onClick={() => void work(print)}>열린 리포트 인쇄</button></div>
       <p className="fine">다운로드·인쇄 시 동의와 공개 권한을 다시 확인합니다. 외부로 자동 발송하지 않습니다.</p>

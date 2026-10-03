@@ -201,3 +201,47 @@ class ExternalGateV4(ContractV4):
         if self.status=="approved" and any(value is None for value in (self.values,self.scope,self.confirmation,self.activation_revision)):
             raise ValueError("approved comparison must pin both research and technical activation")
         return self
+
+
+class ExternalReferenceV4(FileV4):
+    snapshot_id: Text
+    revision: Revision
+
+
+class ExternalEntryV4(ContractV4):
+    title: Text
+    literature: Text
+    doi: Text
+    population_scope: Text
+    number_provenance: Text
+    gate: ExternalGateV4
+    local_mean: Finite
+    local_n: Annotated[int, Field(ge=1)]
+    population: dict[str, str] = {}
+
+    @model_validator(mode="after")
+    def approved_only(self) -> Self:
+        if self.gate.status != "approved":
+            raise ValueError("an external output entry requires a complete approval pin")
+        return self
+
+
+class ExternalSnapshotV4(ContractV4):
+    artifact_kind: Literal["comparison-external"] = "comparison-external"
+    snapshot_id: Text
+    revision: Literal[1] = 1
+    request_id: Text
+    request_hash: Hash
+    actor: Text
+    recorded_at: Text
+    reason: Text
+    target: CohortSelectionV4
+    source_hash: Hash
+    survey_assets: dict[str, Hash]
+    entries: Annotated[tuple[ExternalEntryV4, ...], Field(min_length=1)]
+
+
+class ExternalPublicV4(ContractV4):
+    reference: ExternalReferenceV4
+    target: CohortSelectionV4
+    entries: Annotated[tuple[ExternalEntryV4, ...], Field(min_length=1)]

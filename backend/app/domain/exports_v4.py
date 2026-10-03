@@ -8,7 +8,7 @@ from .sheets_v4 import SheetReferenceV4, SheetDocumentV4
 from .results_v4 import ResultReferenceV4, BasicResultV4
 from .final_results_v4 import FinalReferenceV4, FinalResultV4
 from .report_runs_v4 import ReportPublicationV4
-from .comparisons_v4 import CohortReferenceV4, CohortPublicV4
+from .comparisons_v4 import CohortReferenceV4, CohortPublicV4, ExternalPublicV4
 from .validation_data_v4 import ValidationReferenceV4
 from ..survey_v4 import SurveyResultV4
 
@@ -49,6 +49,7 @@ class ExportSnapshotV4(ContractV4):
     references: tuple[ValidationReferenceV4, ...] = ()
     reference_metadata: tuple[dict, ...] = ()
     cohort: CohortPublicV4 | None = None
+    external_comparisons: tuple[ExternalPublicV4, ...] = Field(default=(), exclude_if=lambda value: not value)
     parent_files: tuple[FileV4, ...]
     catalog: BehaviorCatalogV4
     surveys: tuple[SurveyResultV4, ...]
