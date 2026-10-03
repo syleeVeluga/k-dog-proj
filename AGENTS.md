@@ -2,16 +2,16 @@
 
 ## Project Structure & Module Organization
 
-K-DOG is an operator-facing dog/guardian assessment application. The current development source is `docs/큐브전달_20260929/`; read its 00 document, original 02 workbook, then 04/03/07/10 and the two mapping JSONs. 02b/02c are view-only references. Follow `docs/개발반영_20260929/` C00–C15 and Q01–Q12; do not apply the older scoring/report assumptions to the new edition. C00 adds isolated v3 source catalogs/contracts; the active application still uses the implemented 2026-09-13 P0/P1 until subsequent PRs connect v3. The 55-item routes and screens were removed in PR-10; read-only legacy modules remain for worker imports. `docs/` contains:
+K-DOG is an operator-facing dog/guardian assessment application. The final development target is the 2026-10-02 integrated specification v1.3 / S1.1. Start with `docs/개발반영_20261003/K-DOG_개발반영계획_v1.0_20261003.md`, then its requirement traceability, source inventory, open questions and individual PR-S00–S17 plans. Customer originals in ignored `docs/요구사항_20261003/` are local-only; obtain them through the project owner and verify the recorded hashes before source-dependent implementation. Do not commit participant data or these source files. At the review baseline `3654596`, C00–C07B of the 2026-09-29 edition are implemented, the API defaults to that edition, and S1 implementation has not started. A plan-document merge does not implement S1. On 2026-10-03 the user authorized discarding existing app scores and derived results: S01 resets them, preserves raw inputs/operational records, and starts S1 scores empty. Do not build old-score migration/read compatibility. Protect new S1 revisions normally. Remove replaced old execution paths only after checking callers. `docs/` contains:
 
-- `개발반영_20260929/K-DOG_개발기준변경검토_v1.1_20260930.md`: read first for the current transition and source precedence.
-- `개발반영_20260929/K-DOG_개발반영계획_v1.0_20260930.md`: current implementation sequence and per-PR verification/review procedure.
-- `개발반영_20260929/K-DOG_확인사항및검증자료_v1.0_20260930.md`: current unresolved policies Q01–Q12 and actual validation limits.
+- `K-DOG_개발기준변경검토_v1.0_20261003.md`: final requirements versus baseline implementation.
+- `개발반영_20261003/`: active S00–S17 plans, R01–R25/T01–T32 traceability, D01–D06/G01–G05, source access and review record.
+- `개발반영_20260929/`: prior C00–C15 plans and Q01–Q12 history; use completed infrastructure evidence, not superseded scoring/report assumptions.
 
-- `K-DOG_변경검토_v1.0_20260915.md`: the transition decision — what is reused, what is rewritten, schedule, open customer questions. Read first.
+- `K-DOG_변경검토_v1.0_20260915.md`: historical 42-item transition decision and implementation context.
 - `K-DOG_P0_구현계획_v1.0_20260916.md`: the file-level plan for PR-0 to PR-4 (catalog 42, survey 28, contracts v2, scoring v2 with golden tests), the item-ID table, and the rule interpretations (R1–R9) that still need customer confirmation.
 - `K-DOG_P1_구현계획_v1.0_20260916.md`: PR-5 to PR-11 — intake-2.0 (28-item survey, several video files, note), the frozen 55-item pipeline, and one PR per top-level menu (접수·설문·촬영), then preprocessing, legacy-screen removal and packaging.
-- `최종 고객 문서/`: the customer's requirement set. `00_먼저_읽어주세요` is the entry point; `03_행동_채점표_42항목_20260913.xlsx` is the de-facto specification (items, 1–5 labels, domain codes, axes, derived metrics and type formulas).
+- `최종 고객 문서/`, `큐브전달_20260929/`: historical 42-item and v3 sources. They do not override the final S1 specification.
 - `DEVELOPMENT.md`, `PILOT_OPERATIONS.md`: environment, commands, installation and operations.
 - `K-DOG_Gemini영상API_적용계획_v1.0_20260907.md`: Gemini video request contract (infrastructure).
 
@@ -46,7 +46,7 @@ No formatter, linter, or indentation configuration exists. For new code, use fou
 
 ## Testing Guidelines
 
-Tests use standard-library `unittest`; no coverage threshold is configured. Drive tests from the customer specification (`docs/최종 고객 문서/01_개발_요구사항`, `03` workbook formulas as golden values), especially scoring, permissions, exports, and interrupted-worker recovery. Keep the established safeguards (immutable per-attempt artifacts with occupancy tokens, re-checking deletion state before use, explicit reuse manifests, pinned revisions in exports, distinguishing missing observation from undecided rules). Name Python tests `test_<behavior>.py`. Keep fixture-based tests distinct from real provider validation. For documentation changes, check links and consistency across specifications.
+Tests use standard-library `unittest`; no coverage threshold is configured. For S1 changes, derive expectations from the final integrated specification, its calculation workbook and `docs/개발반영_20261003/` traceability/acceptance ledgers. Superseded 42-item/v3 values are not S1 golden values. Keep the established safeguards (immutable per-attempt artifacts with occupancy tokens, re-checking deletion state before use, explicit reuse manifests, pinned revisions in exports, distinguishing missing observation from undecided rules). Name Python tests `test_<behavior>.py`. Keep fixture-based tests distinct from real provider validation. For documentation changes, check links in the committed tree as well as local source hashes and consistency across specifications.
 
 ## Commit & Pull Request Guidelines
 
