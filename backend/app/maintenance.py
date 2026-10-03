@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from app.storage import REPO_ROOT, Store, encode, now, uid
 
 
-MANAGED = {"inputs", "videos", "runs", "reviews", "exports", "settings", "clips", "sheets", "results", "opinions", "finals"}
+MANAGED = {"inputs", "videos", "runs", "reviews", "exports", "settings", "clips", "sheets", "results", "opinions", "finals", "comparisons", "comparison-evidence"}
 REF_HASH = {"manifest_ref": "manifest_hash", "output_ref": "output_hash", "result_ref": "result_hash",
             "storage_ref": "sha256", "ref": "hash"}
 
@@ -97,6 +97,10 @@ def references(store, db):
                         schema = document.get("schema_version") if isinstance(document, dict) else None
                         if schema == "forms-record-4.0":
                             visit(document["source"])
+                        elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-cohort":
+                            visit([member["input"] for member in document["members"]])
+                        elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-research":
+                            visit(document["evidence"])
                         elif schema == "4.0" and document.get("artifact_kind") == "preprocess-batch":
                             visit({"input": document["input"], "source_files": document["source_files"],
                                    "clips": [{"original": clip.get("original"), "ai": clip.get("ai")}
@@ -189,6 +193,9 @@ def clean(store, *, purge_deleted=False):
     with offline(store), store.connect(write=True) as db:
         from app.uploads import collect_case_upload_ids, purge_upload_ids, recover_interrupted
         recover_interrupted(db)
+        from app.comparisons_v4 import purge_deleted as purge_comparisons
+        from app.report_runs_v4 import purge_comparisons as purge_reports
+        purge_reports(db, purge_comparisons(db))
         if purge_deleted:
             db.execute("PRAGMA secure_delete=ON")
             removed_uploads = {json.loads(row[0])["upload_id"] for row in db.execute(

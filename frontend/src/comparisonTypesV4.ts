@@ -1,0 +1,9 @@
+export type CohortReferenceV4 = { snapshot_id: string; revision: 1; ref: string; hash: string };
+export type CohortInputV4 = { manifest_ref: string; manifest_hash: string };
+export type CohortSelectionV4 = { case_id: string; session_id: string; expected_revision: number; input: CohortInputV4 };
+export type CohortCandidateV4 = { case_id: string; event_id: string; participant_id: string; dog_name: string; input_revision: number; input: CohortInputV4; sessions: { session_id: string; note: string; survey_version: string }[] };
+export type CohortSummaryV4 = { reference: CohortReferenceV4; title: string; selection_count: number; outdated: boolean };
+export type CohortDomainV4 = { domain: string; question_ids: string[]; scale_minimum: number; scale_maximum: number; mean: number | null; n: number; sum_values: number | null; included_case_ids: string[]; excluded: Record<string, string> };
+export type CohortViewV4 = { reference: CohortReferenceV4; outdated_member_case_ids: string[]; document: { snapshot_id: string; title: string; actor: string; recorded_at: string; reason: string; policy_version: string; survey_version: string; survey_policy: string; identity_limitation: string; members: { case_id: string; session_id: string; input_revision: number; input: CohortInputV4 }[]; domains: CohortDomainV4[] } };
+export type CohortPublicV4 = { reference: CohortReferenceV4; title: string; selection_count: number; selection_note: string; interpretation_note: string; domains: { domain: string; question_ids: string[]; scale_minimum: number; scale_maximum: number; mean: number | null; n: number; excluded_count: number; exclusion_reasons: Record<string, number> }[] };
+export type ComparisonSourcesV4 = { version: string; status: string; sources: { source_id: string; title: string; status: string; reason: string }[]; domestic_status: string; domestic_reason: string };
