@@ -1,0 +1,1131 @@
+{
+  "schema_version": "4.0",
+  "version": "s1-input-20261002-s1.1",
+  "catalog_version": "catalog-20261002-s1.1",
+  "excel_import_enabled": false,
+  "physical_verification": "not_received_G01_G04",
+  "entries": [
+    {
+      "code": "개5",
+      "input_address": "1_입장!D8",
+      "internal_address": "2_개행동!J5",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 2"
+      }
+    },
+    {
+      "code": "개45",
+      "input_address": "1_입장!D9",
+      "internal_address": "2_개행동!J45",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 37"
+      }
+    },
+    {
+      "code": "바6",
+      "input_address": "1_입장!D14",
+      "internal_address": "1_바디시그널!J6",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 2"
+      }
+    },
+    {
+      "code": "개6",
+      "input_address": "1_입장!D15",
+      "internal_address": "2_개행동!J6",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 3"
+      }
+    },
+    {
+      "code": "개7",
+      "input_address": "1_입장!D18",
+      "internal_address": "2_개행동!J7",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 4"
+      }
+    },
+    {
+      "code": "개30",
+      "input_address": "1_입장!D19",
+      "internal_address": "2_개행동!J30",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 26"
+      }
+    },
+    {
+      "code": "바14",
+      "input_address": "1_입장!D23",
+      "internal_address": "1_바디시그널!J14",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 3"
+      }
+    },
+    {
+      "code": "바46",
+      "input_address": "1_입장!D26",
+      "internal_address": "1_바디시그널!J46",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 11"
+      }
+    },
+    {
+      "code": "개8",
+      "input_address": "2_기준!D10",
+      "internal_address": "2_개행동!J8",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 5"
+      }
+    },
+    {
+      "code": "바17",
+      "input_address": "2_기준!D11",
+      "internal_address": "1_바디시그널!J17",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 4"
+      }
+    },
+    {
+      "code": "환경1",
+      "input_address": "2_기준!D14",
+      "internal_address": "2_개행동!J94",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 52"
+      }
+    },
+    {
+      "code": "바47",
+      "input_address": "2_기준!D15",
+      "internal_address": "1_바디시그널!J47",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 12"
+      }
+    },
+    {
+      "code": "보10",
+      "input_address": "3_혼자!D8",
+      "internal_address": "3_보호자행동!J10",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 5"
+      }
+    },
+    {
+      "code": "개9",
+      "input_address": "3_혼자!D9",
+      "internal_address": "2_개행동!J9",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 6"
+      }
+    },
+    {
+      "code": "개10",
+      "input_address": "3_혼자!D10",
+      "internal_address": "2_개행동!J10",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 7"
+      }
+    },
+    {
+      "code": "개58",
+      "input_address": "3_혼자!D11",
+      "internal_address": "2_개행동!J58",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 50"
+      }
+    },
+    {
+      "code": "개11",
+      "input_address": "3_혼자!D12",
+      "internal_address": "2_개행동!J11",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 8"
+      }
+    },
+    {
+      "code": "개12",
+      "input_address": "3_혼자!D13",
+      "internal_address": "2_개행동!J12",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 9"
+      }
+    },
+    {
+      "code": "바20",
+      "input_address": "3_혼자!D16",
+      "internal_address": "1_바디시그널!J20",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 5"
+      }
+    },
+    {
+      "code": "개60",
+      "input_address": "3_혼자!E19",
+      "internal_address": "2_개행동!J60",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 51"
+      }
+    },
+    {
+      "code": "바48",
+      "input_address": "3_혼자!D20",
+      "internal_address": "1_바디시그널!J48",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 13"
+      }
+    },
+    {
+      "code": "개17",
+      "input_address": "4_재회!D8",
+      "internal_address": "2_개행동!J17",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 14"
+      }
+    },
+    {
+      "code": "개18",
+      "input_address": "4_재회!D9",
+      "internal_address": "2_개행동!J18",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 15"
+      }
+    },
+    {
+      "code": "개19",
+      "input_address": "4_재회!D10",
+      "internal_address": "2_개행동!J19",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 16"
+      }
+    },
+    {
+      "code": "개44",
+      "input_address": "4_재회!D11",
+      "internal_address": "2_개행동!J44",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 36"
+      }
+    },
+    {
+      "code": "보11",
+      "input_address": "4_재회!D12",
+      "internal_address": "3_보호자행동!J11",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 6"
+      }
+    },
+    {
+      "code": "보38",
+      "input_address": "4_재회!D13",
+      "internal_address": "3_보호자행동!J38",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 19"
+      }
+    },
+    {
+      "code": "보22",
+      "input_address": "4_재회!D14",
+      "internal_address": "3_보호자행동!J22",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 13"
+      }
+    },
+    {
+      "code": "보25",
+      "input_address": "4_재회!F15",
+      "internal_address": "3_보호자행동!J25",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 16"
+      }
+    },
+    {
+      "code": "보39",
+      "input_address": "4_재회!D16",
+      "internal_address": "3_보호자행동!J39",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 20"
+      }
+    },
+    {
+      "code": "개47",
+      "input_address": "4_재회!D19",
+      "internal_address": "2_개행동!J47",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 39"
+      }
+    },
+    {
+      "code": "개21",
+      "input_address": "4_재회!D20",
+      "internal_address": "2_개행동!J21",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 17"
+      }
+    },
+    {
+      "code": "바26",
+      "input_address": "4_재회!D21",
+      "internal_address": "1_바디시그널!J26",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 7"
+      }
+    },
+    {
+      "code": "바49",
+      "input_address": "4_재회!D24",
+      "internal_address": "1_바디시그널!J49",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 14"
+      }
+    },
+    {
+      "code": "바54",
+      "input_address": "4_재회!D25",
+      "internal_address": "1_바디시그널!J54",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 15"
+      }
+    },
+    {
+      "code": "보12",
+      "input_address": "5_무시!D8",
+      "internal_address": "3_보호자행동!J12",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 7"
+      }
+    },
+    {
+      "code": "개22",
+      "input_address": "5_무시!D9",
+      "internal_address": "2_개행동!J22",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 18"
+      }
+    },
+    {
+      "code": "개23",
+      "input_address": "5_무시!D10",
+      "internal_address": "2_개행동!J23",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 19"
+      }
+    },
+    {
+      "code": "개48",
+      "input_address": "5_무시!D11",
+      "internal_address": "2_개행동!J48",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 40"
+      }
+    },
+    {
+      "code": "바29",
+      "input_address": "5_무시!D13",
+      "internal_address": "1_바디시그널!J29",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 8"
+      }
+    },
+    {
+      "code": "바50",
+      "input_address": "5_무시!D16",
+      "internal_address": "1_바디시그널!J50",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 16"
+      }
+    },
+    {
+      "code": "보13",
+      "input_address": "6_걷기!D8",
+      "internal_address": "3_보호자행동!J13",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 8"
+      }
+    },
+    {
+      "code": "개37",
+      "input_address": "6_걷기!D9",
+      "internal_address": "2_개행동!J37",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 29"
+      }
+    },
+    {
+      "code": "개38",
+      "input_address": "6_걷기!D10",
+      "internal_address": "2_개행동!J38",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 30"
+      }
+    },
+    {
+      "code": "개39",
+      "input_address": "6_걷기!D11",
+      "internal_address": "2_개행동!J39",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 31"
+      }
+    },
+    {
+      "code": "개40",
+      "input_address": "6_걷기!D12",
+      "internal_address": "2_개행동!J40",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 32"
+      }
+    },
+    {
+      "code": "개41",
+      "input_address": "6_걷기!D13",
+      "internal_address": "2_개행동!J41",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 33"
+      }
+    },
+    {
+      "code": "개42",
+      "input_address": "6_걷기!D14",
+      "internal_address": "2_개행동!J42",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 34"
+      }
+    },
+    {
+      "code": "개43",
+      "input_address": "6_걷기!D15",
+      "internal_address": "2_개행동!J43",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 35"
+      }
+    },
+    {
+      "code": "개24",
+      "input_address": "6_걷기!D16",
+      "internal_address": "2_개행동!J24",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 20"
+      }
+    },
+    {
+      "code": "개25",
+      "input_address": "6_걷기!D17",
+      "internal_address": "2_개행동!J25",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 21"
+      }
+    },
+    {
+      "code": "바32",
+      "input_address": "6_걷기!D19",
+      "internal_address": "1_바디시그널!J32",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 9"
+      }
+    },
+    {
+      "code": "개26",
+      "input_address": "6_걷기!D22",
+      "internal_address": "2_개행동!J26",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 22"
+      }
+    },
+    {
+      "code": "개36",
+      "input_address": "6_걷기!D23",
+      "internal_address": "2_개행동!J36",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 28"
+      }
+    },
+    {
+      "code": "개27",
+      "input_address": "6_걷기!D24",
+      "internal_address": "2_개행동!J27",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 23"
+      }
+    },
+    {
+      "code": "바51",
+      "input_address": "6_걷기!D25",
+      "internal_address": "1_바디시그널!J51",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 17"
+      }
+    },
+    {
+      "code": "보18",
+      "input_address": "7_낯선사람!D8",
+      "internal_address": "3_보호자행동!J18",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 12"
+      }
+    },
+    {
+      "code": "개13",
+      "input_address": "7_낯선사람!D9",
+      "internal_address": "2_개행동!J13",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 10"
+      }
+    },
+    {
+      "code": "개56",
+      "input_address": "7_낯선사람!D10",
+      "internal_address": "2_개행동!J56",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 48"
+      }
+    },
+    {
+      "code": "보16",
+      "input_address": "7_낯선사람!D11",
+      "internal_address": "3_보호자행동!J16",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 10"
+      }
+    },
+    {
+      "code": "보23",
+      "input_address": "7_낯선사람!D12",
+      "internal_address": "3_보호자행동!J23",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 14"
+      }
+    },
+    {
+      "code": "보26",
+      "input_address": "7_낯선사람!F13",
+      "internal_address": "3_보호자행동!J26",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 17"
+      }
+    },
+    {
+      "code": "개55",
+      "input_address": "7_낯선사람!D14",
+      "internal_address": "2_개행동!J55",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 47"
+      }
+    },
+    {
+      "code": "개15",
+      "input_address": "7_낯선사람!D15",
+      "internal_address": "2_개행동!J15",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 12"
+      }
+    },
+    {
+      "code": "개53",
+      "input_address": "7_낯선사람!D16",
+      "internal_address": "2_개행동!J53",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 45"
+      }
+    },
+    {
+      "code": "개51",
+      "input_address": "7_낯선사람!D17",
+      "internal_address": "2_개행동!J51",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 43"
+      }
+    },
+    {
+      "code": "개52",
+      "input_address": "7_낯선사람!D18",
+      "internal_address": "2_개행동!J52",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 44"
+      }
+    },
+    {
+      "code": "개54",
+      "input_address": "7_낯선사람!D20",
+      "internal_address": "2_개행동!J54",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 46"
+      }
+    },
+    {
+      "code": "개57",
+      "input_address": "7_낯선사람!D21",
+      "internal_address": "2_개행동!J57",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 49"
+      }
+    },
+    {
+      "code": "보17",
+      "input_address": "7_낯선사람!D22",
+      "internal_address": "3_보호자행동!J17",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 11"
+      }
+    },
+    {
+      "code": "보40",
+      "input_address": "7_낯선사람!D23",
+      "internal_address": "3_보호자행동!J40",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 21"
+      }
+    },
+    {
+      "code": "보24",
+      "input_address": "7_낯선사람!D24",
+      "internal_address": "3_보호자행동!J24",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 15"
+      }
+    },
+    {
+      "code": "보27",
+      "input_address": "7_낯선사람!F25",
+      "internal_address": "3_보호자행동!J27",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 18"
+      }
+    },
+    {
+      "code": "개14",
+      "input_address": "7_낯선사람!D26",
+      "internal_address": "2_개행동!J14",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 11"
+      }
+    },
+    {
+      "code": "개16",
+      "input_address": "7_낯선사람!D27",
+      "internal_address": "2_개행동!J16",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 13"
+      }
+    },
+    {
+      "code": "개49",
+      "input_address": "7_낯선사람!D30",
+      "internal_address": "2_개행동!J49",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 41"
+      }
+    },
+    {
+      "code": "바23",
+      "input_address": "7_낯선사람!D31",
+      "internal_address": "1_바디시그널!J23",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 6"
+      }
+    },
+    {
+      "code": "바52",
+      "input_address": "7_낯선사람!D34",
+      "internal_address": "1_바디시그널!J52",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 18"
+      }
+    },
+    {
+      "code": "바55",
+      "input_address": "7_낯선사람!D35",
+      "internal_address": "1_바디시그널!J55",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 19"
+      }
+    },
+    {
+      "code": "개34",
+      "input_address": "8_퇴장!D8",
+      "internal_address": "2_개행동!J34",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 27"
+      }
+    },
+    {
+      "code": "보14",
+      "input_address": "8_퇴장!D9",
+      "internal_address": "3_보호자행동!J14",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 9"
+      }
+    },
+    {
+      "code": "개28",
+      "input_address": "8_퇴장!D10",
+      "internal_address": "2_개행동!J28",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 24"
+      }
+    },
+    {
+      "code": "개29",
+      "input_address": "8_퇴장!D11",
+      "internal_address": "2_개행동!J29",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 25"
+      }
+    },
+    {
+      "code": "개46",
+      "input_address": "8_퇴장!D12",
+      "internal_address": "2_개행동!J46",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 38"
+      }
+    },
+    {
+      "code": "보5",
+      "input_address": "8_퇴장!D13",
+      "internal_address": "3_보호자행동!J5",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 2"
+      }
+    },
+    {
+      "code": "보6",
+      "input_address": "8_퇴장!D14",
+      "internal_address": "3_보호자행동!J6",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 3"
+      }
+    },
+    {
+      "code": "보9",
+      "input_address": "8_퇴장!D15",
+      "internal_address": "3_보호자행동!J9",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 4"
+      }
+    },
+    {
+      "code": "개50",
+      "input_address": "8_퇴장!D16",
+      "internal_address": "2_개행동!J50",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 42"
+      }
+    },
+    {
+      "code": "바35",
+      "input_address": "8_퇴장!D18",
+      "internal_address": "1_바디시그널!J35",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 10"
+      }
+    },
+    {
+      "code": "바53",
+      "input_address": "8_퇴장!D21",
+      "internal_address": "1_바디시그널!J53",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 20"
+      }
+    }
+  ],
+  "column_roles": {
+    "D": "raw_numeric_input",
+    "F": "observation_evidence_or_reason",
+    "G": "review_memo"
+  },
+  "linked_memo": {
+    "code": "개59",
+    "counts_as_active_item": false
+  },
+  "walk_phase_metadata": [
+    {
+      "code": "개38",
+      "address": "6_걷기!H10"
+    },
+    {
+      "code": "개39",
+      "address": "6_걷기!H11"
+    },
+    {
+      "code": "개40",
+      "address": "6_걷기!H12"
+    },
+    {
+      "code": "개41",
+      "address": "6_걷기!H13"
+    },
+    {
+      "code": "개42",
+      "address": "6_걷기!H14"
+    },
+    {
+      "code": "개43",
+      "address": "6_걷기!H15"
+    }
+  ],
+  "source": {
+    "schema_version": "4.0",
+    "source_id": "SRC02",
+    "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+    "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+    "location": "2절 / 부록 A; 주소 선언만 확인, 실물 미수령"
+  }
+}

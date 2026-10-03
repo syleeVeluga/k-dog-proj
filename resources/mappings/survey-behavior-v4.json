@@ -1,0 +1,505 @@
+{
+  "schema_version": "4.0",
+  "version": "survey-behavior-20261002-s1.1",
+  "catalog_version": "catalog-20261002-s1.1",
+  "survey_version": "survey-20260929-v3",
+  "policy_version": "survey-policy-20261002-s1.1",
+  "entries": [
+    {
+      "question_id": "Q01",
+      "behavior_codes": [
+        "보6",
+        "보9",
+        "보22",
+        "보39",
+        "보23",
+        "보24"
+      ],
+      "relationship": "영역 맥락",
+      "condition": "1~6번 평균과 영상 유형은 별도 측정. 개별 문항을 영상으로 검증하지 않음.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A7:J7"
+      }
+    },
+    {
+      "question_id": "Q02",
+      "behavior_codes": [
+        "보6",
+        "보9",
+        "보22",
+        "보39",
+        "보23",
+        "보24"
+      ],
+      "relationship": "영역 맥락",
+      "condition": "1~6번 평균과 영상 유형은 별도 측정. 개별 문항을 영상으로 검증하지 않음.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A8:J8"
+      }
+    },
+    {
+      "question_id": "Q03",
+      "behavior_codes": [
+        "보6",
+        "보9",
+        "보22",
+        "보39",
+        "보23",
+        "보24"
+      ],
+      "relationship": "영역 맥락",
+      "condition": "1~6번 평균과 영상 유형은 별도 측정. 개별 문항을 영상으로 검증하지 않음.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A9:J9"
+      }
+    },
+    {
+      "question_id": "Q04",
+      "behavior_codes": [
+        "보6",
+        "보9",
+        "보22",
+        "보39",
+        "보23",
+        "보24"
+      ],
+      "relationship": "영역 맥락",
+      "condition": "1~6번 평균과 영상 유형은 별도 측정. 개별 문항을 영상으로 검증하지 않음.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A10:J10"
+      }
+    },
+    {
+      "question_id": "Q05",
+      "behavior_codes": [
+        "보6",
+        "보9",
+        "보22",
+        "보39",
+        "보23",
+        "보24"
+      ],
+      "relationship": "영역 맥락",
+      "condition": "1~6번 평균과 영상 유형은 별도 측정. 개별 문항을 영상으로 검증하지 않음.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A11:J11"
+      }
+    },
+    {
+      "question_id": "Q06",
+      "behavior_codes": [
+        "보6",
+        "보9",
+        "보22",
+        "보39",
+        "보23",
+        "보24"
+      ],
+      "relationship": "영역 맥락",
+      "condition": "1~6번 평균과 영상 유형은 별도 측정. 개별 문항을 영상으로 검증하지 않음.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A12:J12"
+      }
+    },
+    {
+      "question_id": "Q07",
+      "behavior_codes": [],
+      "relationship": "설문 단독",
+      "condition": "과거 노력은 이날 영상으로 검증하지 않음. 7·8번은 원문에 평소 조건을 추가한 문항.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A13:J13"
+      }
+    },
+    {
+      "question_id": "Q08",
+      "behavior_codes": [],
+      "relationship": "설문 단독",
+      "condition": "과거 노력은 이날 영상으로 검증하지 않음. 7·8번은 원문에 평소 조건을 추가한 문항.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A14:J14"
+      }
+    },
+    {
+      "question_id": "Q09",
+      "behavior_codes": [],
+      "relationship": "설문 단독",
+      "condition": "과거 노력은 이날 영상으로 검증하지 않음. 7·8번은 원문에 평소 조건을 추가한 문항.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A15:J15"
+      }
+    },
+    {
+      "question_id": "Q10",
+      "behavior_codes": [
+        "개55"
+      ],
+      "relationship": "상황상 대응",
+      "condition": "개13 안전문 밖 10초와 구분. 동일 척도는 아님.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A16:J16"
+      }
+    },
+    {
+      "question_id": "Q11",
+      "behavior_codes": [
+        "개51",
+        "개52",
+        "개53"
+      ],
+      "relationship": "상황상 대응",
+      "condition": "미접촉은 접촉 항목 null, 개53 경로 유지. S1 대응 변경: 개51·52·53. 꼬리 등 폐기 항목은 사용하지 않음.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A17:J17"
+      }
+    },
+    {
+      "question_id": "Q12",
+      "behavior_codes": [],
+      "relationship": "설문 단독",
+      "condition": "통제된 큰 소리 자극 없음. 행사 소음은 사건 기록.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A18:J18"
+      }
+    },
+    {
+      "question_id": "Q13",
+      "behavior_codes": [
+        "개30",
+        "개34",
+        "보14"
+      ],
+      "relationship": "상황상 대응",
+      "condition": "보14 조건 확인. 코드 차이를 두려움 감소량으로 변환하지 않음. S1 대응 변경: 개30·34; 보14. 꼬리 등 폐기 항목은 사용하지 않음.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A19:J19"
+      }
+    },
+    {
+      "question_id": "Q14",
+      "behavior_codes": [
+        "개5",
+        "개6",
+        "개8",
+        "환경1"
+      ],
+      "relationship": "상황상 보조 대응",
+      "condition": "다양한 낯선 상황에 대한 평소 보고와 행사장 한 장면의 차이. S1 대응 변경: 개5·6·8; 환경1. 꼬리 등 폐기 항목은 사용하지 않음.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A20:J20"
+      }
+    },
+    {
+      "question_id": "Q15",
+      "behavior_codes": [],
+      "relationship": "설문 단독",
+      "condition": "보호자가 느끼는 친밀감. 영상 애착과 합산하지 않음. 20번은 원문보다 개가 즐긴다는 의미가 추가됨.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A21:J21"
+      }
+    },
+    {
+      "question_id": "Q16",
+      "behavior_codes": [],
+      "relationship": "설문 단독",
+      "condition": "보호자가 느끼는 친밀감. 영상 애착과 합산하지 않음. 20번은 원문보다 개가 즐긴다는 의미가 추가됨.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A22:J22"
+      }
+    },
+    {
+      "question_id": "Q17",
+      "behavior_codes": [],
+      "relationship": "설문 단독",
+      "condition": "보호자가 느끼는 친밀감. 영상 애착과 합산하지 않음. 20번은 원문보다 개가 즐긴다는 의미가 추가됨.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A23:J23"
+      }
+    },
+    {
+      "question_id": "Q18",
+      "behavior_codes": [],
+      "relationship": "설문 단독",
+      "condition": "보호자가 느끼는 친밀감. 영상 애착과 합산하지 않음. 20번은 원문보다 개가 즐긴다는 의미가 추가됨.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A24:J24"
+      }
+    },
+    {
+      "question_id": "Q19",
+      "behavior_codes": [],
+      "relationship": "설문 단독",
+      "condition": "보호자가 느끼는 친밀감. 영상 애착과 합산하지 않음. 20번은 원문보다 개가 즐긴다는 의미가 추가됨.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A25:J25"
+      }
+    },
+    {
+      "question_id": "Q20",
+      "behavior_codes": [],
+      "relationship": "설문 단독",
+      "condition": "보호자가 느끼는 친밀감. 영상 애착과 합산하지 않음. 20번은 원문보다 개가 즐긴다는 의미가 추가됨.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A26:J26"
+      }
+    },
+    {
+      "question_id": "Q21",
+      "behavior_codes": [],
+      "relationship": "설문 단독",
+      "condition": "보호자가 느끼는 친밀감. 영상 애착과 합산하지 않음. 20번은 원문보다 개가 즐긴다는 의미가 추가됨.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A27:J27"
+      }
+    },
+    {
+      "question_id": "Q22",
+      "behavior_codes": [
+        "개9",
+        "개10",
+        "개58",
+        "개11",
+        "개60"
+      ],
+      "relationship": "상황상 대응",
+      "condition": "22·23은 C-BARQ 분리 요인의 개념 요약 문항. 미국 원척도 평균과 직접 비교하지 않음.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A28:J28"
+      }
+    },
+    {
+      "question_id": "Q23",
+      "behavior_codes": [
+        "개9",
+        "개10",
+        "개58",
+        "개11",
+        "개60"
+      ],
+      "relationship": "상황상 대응",
+      "condition": "22·23은 C-BARQ 분리 요인의 개념 요약 문항. 미국 원척도 평균과 직접 비교하지 않음.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A29:J29"
+      }
+    },
+    {
+      "question_id": "Q24",
+      "behavior_codes": [
+        "개17",
+        "개18",
+        "개19",
+        "개44",
+        "개47"
+      ],
+      "relationship": "상황상 대응",
+      "condition": "반김과 안정이 한 문항에 결합. 같은 C-BARQ 원문 문항이 아님. S1 대응 변경: 개17·18·19·44·47. 꼬리 등 폐기 항목은 사용하지 않음.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A30:J30"
+      }
+    },
+    {
+      "question_id": "Q25",
+      "behavior_codes": [
+        "개24",
+        "개25",
+        "개37",
+        "개38",
+        "개39",
+        "개40",
+        "개41",
+        "개42",
+        "개43",
+        "개27"
+      ],
+      "relationship": "보조 비교",
+      "condition": "단독 응답 보존. 집에서 따라옴과 낯선 방 근접 비율을 동일 점수로 합치지 않음.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A31:J31"
+      }
+    },
+    {
+      "question_id": "Q26",
+      "behavior_codes": [],
+      "relationship": "설문 단독",
+      "condition": "6−응답으로 역채점. 한 차례 영상으로 평소 감정 기복 판정 금지.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A32:J32"
+      }
+    },
+    {
+      "question_id": "Q27",
+      "behavior_codes": [],
+      "relationship": "설문 단독",
+      "condition": "6−응답으로 역채점. 한 차례 영상으로 평소 감정 기복 판정 금지.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A33:J33"
+      }
+    },
+    {
+      "question_id": "Q28",
+      "behavior_codes": [],
+      "relationship": "설문 단독",
+      "condition": "6−응답으로 역채점. 한 차례 영상으로 평소 감정 기복 판정 금지.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "설문 28문항!A34:J34"
+      }
+    }
+  ],
+  "groups": [
+    [
+      "교육 방식",
+      "Q1~6 평균, 1~5",
+      "보6·9·22·39·23·24와 영역 맥락 비교. 설문 평균으로 보호자 유형을 만들지 않음."
+    ],
+    [
+      "사회화 노력",
+      "Q7~9 평균, 1~5",
+      "과거 노력의 보고. 한 번의 영상 사회성 결과와 원인·결과로 단정하지 않음."
+    ],
+    [
+      "낯선 사람 두려움",
+      "Q10·11 평균, 0~4",
+      "개13·55·15·51·52·53·54와 단계별 비교. Q10 접근, Q11 접촉 관련 자기보고를 구분."
+    ],
+    [
+      "비사회적 두려움",
+      "Q12~14 평균, 0~4",
+      "개5·6·8·30·34·환경1과 주제 연결. Q12 소음에 직접 대응하는 영상 과제는 없음."
+    ],
+    [
+      "정서적 친밀감",
+      "Q15~21 평균, 1~5",
+      "보호자의 보고. 개의 애착 유형과 동일 척도가 아님."
+    ],
+    [
+      "분리·재회·따라옴",
+      "Q22·23 평균 / Q24 / Q25, 1~5",
+      "각각 분리 / 재회 / 걷기와 개념적으로 비교. 원문 C-BARQ 완전 하위척도라고 부르지 않음."
+    ],
+    [
+      "감정 일관성",
+      "Q26~28 각각 6−응답 후 평균",
+      "높을수록 보고된 일관성. 짧은 영상으로 보호자의 기분 변화 성향을 확정하지 않음."
+    ]
+  ],
+  "fear_missing_policy": "any_missing_holds_that_group",
+  "other_partial_missing_policy": "policy_pending_D05",
+  "policy_source": {
+    "schema_version": "4.0",
+    "source_id": "SRC02",
+    "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+    "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+    "location": "10.1절"
+  }
+}
