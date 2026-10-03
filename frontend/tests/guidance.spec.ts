@@ -13,6 +13,12 @@ test('신규 접수 입력은 이동 취소와 저장 오류 뒤에도 유지된
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(page.getByRole('button', { name: '로그아웃' })).toBeVisible();
+  const existing = await page.request.post('/api/cases', { headers,
+    data: { event_id: 'GUIDE', participant_id: 'previous', dog_name: '기존 접수 합성견' } });
+  expect(existing.status()).toBe(201);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'previous 상세 열기', exact: true })).toBeVisible();
+  await page.getByText('참가자 등록', { exact: true }).click();
   await page.getByLabel('행사 ID', { exact: true }).fill('GUIDE');
   await page.getByLabel('참가자 ID', { exact: true }).fill('new');
   await page.getByLabel('반려견 이름', { exact: true }).fill('입력보호견');

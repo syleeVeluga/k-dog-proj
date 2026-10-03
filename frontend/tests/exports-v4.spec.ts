@@ -80,9 +80,12 @@ test('S14 research download pins S1 raw/basic/final and preserves zero, negative
   const xlsxEvent = page.waitForEvent('download'); await panel.locator('details[open]').getByRole('button', { name: /연구 파일 다운로드/ }).click(); const xlsx = await xlsxEvent; const xlsxPath = info.outputPath(xlsx.suggestedFilename()); await xlsx.saveAs(xlsxPath);
   const typed = JSON.parse(execFileSync('uv', ['run', '--locked', 'python', '-X', 'utf8', '-c', "import sys,json,openpyxl; w=openpyxl.load_workbook(sys.argv[1],data_only=False); values=list(w['raw_observations'].values); rows=[dict(zip(values[0],r)) for r in values[1:]]; print(json.dumps({r['code']:r['value'] for r in rows},ensure_ascii=False)); w.close()", xlsxPath], { cwd: backend, encoding: 'utf8' })); expect(typed['개5']).toBe(0); expect(typed['개45']).toBe(-2); expect(typed['개6']).toBeNull();
   await page.setViewportSize({ width: 360, height: 800 }); await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); await panel.screenshot({ path: info.outputPath('research-export-s1-360.png') });
+  const lastVisibleCases = await (await page.request.get('/api/cases')).json();
+  await page.route('**/api/cases', route => route.request().method() === 'GET' ? route.fulfill({ json: lastVisibleCases }) : route.continue());
   const current = await (await page.request.get(`/api/cases/${data.item.case_id}`)).json();
   expect((await page.request.post(`/api/cases/${data.item.case_id}/deletion`, { headers, data: { expected_revision: current.input_revision } })).status()).toBe(200);
-  let leaked = false; page.on('download', () => { leaked = true; }); await panel.locator('details[open]').getByRole('button', { name: /연구 파일 다운로드/ }).click(); await expect(panel.getByRole('alert')).toBeVisible(); expect(leaked).toBe(false);
+  const deniedDownload = page.waitForResponse(response => response.url().includes('/exports-s1/') && response.url().endsWith('/download'));
+  let leaked = false; page.on('download', () => { leaked = true; }); await panel.locator('details[open]').getByRole('button', { name: /연구 파일 다운로드/ }).click(); expect((await deniedDownload).ok()).toBe(false); await expect(panel.getByRole('alert')).toBeVisible(); expect(leaked).toBe(false);
 });
 
 test('S14 already-revealed target is selectable; grant-only and reviewer export access remain blocked', async ({ page, request }) => {

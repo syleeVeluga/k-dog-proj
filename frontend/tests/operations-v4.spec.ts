@@ -48,7 +48,7 @@ test('S1 관리자는 임시 원자료를 검증 백업하고 계정 철회로 �
   const manifest = JSON.parse(readFileSync(join(backup.path, 'backup.json'), 'utf8'));
   expect(manifest.secrets_included).toBe(false);
   expect(backup.file_count).toBe(Object.keys(manifest.files).length);
-  const inputs = Object.keys(manifest.files).filter(ref => ref.startsWith('inputs/')).map(ref => JSON.parse(readFileSync(join(backup.path, ref), 'utf8')));
+  const inputs = Object.keys(manifest.files).filter(ref => ref.startsWith('inputs/') && ref.endsWith('.json')).map(ref => JSON.parse(readFileSync(join(backup.path, ref), 'utf8')));
   expect(inputs.some(input => input.case_id === item.case_id && input.schema_version === 'intake-4.0')).toBe(true);
   const verified = JSON.parse(execFileSync('../backend/.venv/Scripts/python.exe', ['-X', 'utf8', '-c',
     "import hashlib,json,pathlib,sqlite3,sys; p=pathlib.Path(sys.argv[1]); m=json.loads((p/'backup.json').read_text()); d=sqlite3.connect(p/'kdog.sqlite3'); print(json.dumps({'hashes_ok':all(hashlib.sha256((p/r).read_bytes()).hexdigest()==h for r,h in m['files'].items()),'sessions':d.execute('SELECT COUNT(*) FROM users WHERE session_hash IS NOT NULL').fetchone()[0],'case_present':d.execute('SELECT COUNT(*) FROM cases WHERE case_id=?',(sys.argv[2],)).fetchone()[0]}))",

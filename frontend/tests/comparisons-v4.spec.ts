@@ -40,7 +40,7 @@ test('S1 cohorts pin explicit same-edition responses, preserve valid n and retri
   expect(fear).toMatchObject({ mean: 0, n: 1, scale_minimum: 0, scale_maximum: 4 }); expect(education).toMatchObject({ mean: 3, n: 1 });
   await expect(detail.getByRole('row').filter({ hasText: fear.domain })).toContainText('0 · n=1'); await expect(detail.getByRole('row').filter({ hasText: fear.domain })).toContainText('포함 1 / 제외 1');
   const sources = await (await page.request.get('/api/comparisons-s1/sources')).text(); expect(sources).not.toContain('42926'); expect(sources).not.toContain('reference_values');
-  await expect(panel.getByRole('heading', { name: '외부 비교 D06 · 확인 대기', exact: true })).toBeVisible();
+  await expect(panel.getByRole('heading', { name: '외부 비교 D06 · 출처별 확인 상태', exact: true })).toBeVisible();
   const changed = await page.request.put(`/api/cases/${first.item.case_id}/survey`, { headers, data: { expected_revision: first.item.input_revision, session_id: first.item.selected_session_id, survey_version: 'survey-20260929-v3', answers: { ...first.answers, s10: 4, s11: 4 }, not_applicable: [], blank_reasons: {} } }); expect(changed.status()).toBe(200);
   await panel.getByRole('button', { name: '비교 후보·이력 새로고침', exact: true }).click(); await expect(detail.getByText(/고정 이후 입력이 변경된 대상 1개/)).toBeVisible(); await expect(detail.getByRole('row').filter({ hasText: fear.domain })).toContainText('0 · n=1');
   await page.setViewportSize({ width: 360, height: 800 }); await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

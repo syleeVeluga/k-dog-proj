@@ -6,14 +6,17 @@ test('S1 imports use the pinned Forms workflow and old endpoints cannot save', a
   await page.getByLabel('계정', { exact: true }).fill('operator');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
+  const existing = await page.request.post('/api/cases', { headers: { 'X-KDOG-Request': '1' }, data: { event_id: 'S1-RETIREMENT', participant_id: 'retirement-existing', dog_name: '구판 경로 퇴역 합성견' } });
+  expect(existing.status()).toBe(201);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'retirement-existing 상세 열기', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '자료 가져오기', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toBeVisible();
   await expect(page.getByLabel('Forms 파일', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '설문', exact: true }).click();
   const details = page.locator('details').filter({ has: page.locator('summary', { hasText: 'Forms 참가자·설문 함께 등록' }) }).first();
-  if (!(await details.getAttribute('open')) && !await details.evaluate(element => (element as HTMLDetailsElement).open)) {
-    await details.locator('summary').click();
-  }
+  await expect(details).toHaveAttribute('open');
   await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toBeVisible();
   await expect(page.getByText('설문 파일 가져오기 (CSV·Excel)', { exact: true })).toHaveCount(0);
   const blocked = await page.request.post('/api/imports/commit', { headers: { 'X-KDOG-Request': '1' }, data: { rows: [] } });

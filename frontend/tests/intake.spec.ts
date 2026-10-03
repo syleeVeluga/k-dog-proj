@@ -18,12 +18,22 @@ async function login(page: Page, username = 'operator') {
   await expect(page.getByRole('button', { name: '로그아웃' })).toBeVisible();
 }
 
+async function openRegistrationWithExistingCase(page: Page, participantId: string) {
+  const existing = await page.request.post('/api/cases', { headers,
+    data: { event_id: 'BROWSER-TEST', participant_id: participantId, dog_name: '기존 접수 합성견' } });
+  expect(existing.status()).toBe(201);
+  await page.reload();
+  await expect(page.getByRole('button', { name: `${participantId} 상세 열기`, exact: true })).toBeVisible();
+  await page.getByText('참가자 등록', { exact: true }).click();
+}
+
 test('shell: favicon and identifier constraints are valid', async ({ page }) => {
   const patternErrors: string[] = [];
   page.on('console', message => {
     if (message.type() === 'error' && message.text().startsWith('Pattern attribute value')) patternErrors.push(message.text());
   });
   await login(page);
+  await openRegistrationWithExistingCase(page, 'shell-existing');
   const inputs = page.locator('input[pattern]');
   await expect(inputs).toHaveCount(2);
   for (const input of await inputs.all()) {
@@ -44,6 +54,7 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await login(page);
+  await openRegistrationWithExistingCase(page, 'desktop-existing');
   await page.getByLabel('행사 ID', { exact: true }).fill('BROWSER-TEST');
   await page.getByLabel('참가자 ID', { exact: true }).fill('0001');
   await page.getByLabel('순번', { exact: true }).fill('1');
@@ -78,7 +89,7 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
     await expect(receipt.getByText('대상 연결 완료', { exact: true })).toBeVisible();
   }
   await expect(page.getByRole('combobox', { name: '기준 영상', exact: true }).locator('option')).toHaveCount(3);
-  const item = (await (await page.request.get('/api/cases')).json()).find((c: { event_id: string }) => c.event_id === 'BROWSER-TEST');
+  const item = (await (await page.request.get('/api/cases')).json()).find((c: { event_id: string; participant_id: string }) => c.event_id === 'BROWSER-TEST' && c.participant_id === '0001');
   const firstSession = item.selected_session_id;
   expect(item.manifest.schema_version).toBe('intake-4.0');
   expect(item.manifest.sessions[0].videos.map((video: { camera_id: string }) => video.camera_id)).toEqual(['CAM1', 'CAM2']);
@@ -106,9 +117,11 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
   await expect(page.getByRole('status').filter({ hasText: '1개 원행의 참가자·설문 등록을 확인했습니다.' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { name: '접수', exact: true })).toBeVisible();
-  await expect(page.getByText('28/28', { exact: true })).toBeVisible();
-  await expect(page.getByRole('cell', { name: '1', exact: true })).toBeVisible();
-  await expect(page.getByRole('cell', { name: '2개', exact: true })).toBeVisible();
+  await page.getByRole('combobox', { name: '행사 필터', exact: true }).selectOption('BROWSER-TEST');
+  const savedRow = page.getByRole('row').filter({ has: page.getByRole('button', { name: '0001 상세 열기', exact: true }) });
+  await expect(savedRow.getByText('28/28', { exact: true })).toBeVisible();
+  await expect(savedRow.getByRole('cell', { name: '1', exact: true })).toBeVisible();
+  await expect(savedRow.getByRole('cell', { name: '2개', exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('desktop-list.png'), fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: '촬영', exact: true }).click();
   await page.getByRole('button', { name: '0001 촬영 열기' }).click();
