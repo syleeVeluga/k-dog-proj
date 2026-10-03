@@ -6,18 +6,15 @@ K-DOG is an operator-facing dog/guardian assessment application. The final devel
 
 - `K-DOG_개발기준변경검토_v1.0_20261003.md`: final requirements versus baseline implementation.
 - `개발반영_20261003/`: active S00–S17 plans, R01–R25/T01–T32 traceability, D01–D06/G01–G05, source access and review record.
-- `개발반영_20260929/`: prior C00–C15 plans and Q01–Q12 history; use completed infrastructure evidence, not superseded scoring/report assumptions.
+- The prior 2026-09-29 C00–C15 plans and Q01–Q12 ledger (`개발반영_20260929/`) were removed from the working tree on 2026-10-03; read them at commit `056ed7a` for completed infrastructure evidence, not superseded scoring/report assumptions.
 
-- `K-DOG_변경검토_v1.0_20260915.md`: historical 42-item transition decision and implementation context.
-- `K-DOG_P0_구현계획_v1.0_20260916.md`: the file-level plan for PR-0 to PR-4 (catalog 42, survey 28, contracts v2, scoring v2 with golden tests), the item-ID table, and the rule interpretations (R1–R9) that still need customer confirmation.
-- `K-DOG_P1_구현계획_v1.0_20260916.md`: PR-5 to PR-11 — intake-2.0 (28-item survey, several video files, note), the frozen 55-item pipeline, and one PR per top-level menu (접수·설문·촬영), then preprocessing, legacy-screen removal and packaging.
-- `최종 고객 문서/`, `큐브전달_20260929/`: historical 42-item and v3 sources. They do not override the final S1 specification.
+- `큐브전달_20260929/`: historical v3 source, still checked by `app.import_catalogs --check`. It does not override the final S1 specification.
 - `DEVELOPMENT.md`, `PILOT_OPERATIONS.md`: environment, commands, installation and operations.
 - `K-DOG_Gemini영상API_적용계획_v1.0_20260907.md`: Gemini video request contract (infrastructure).
 
-Earlier 55-item documents (PRD v0.4, implementation guide, M1–M6 records) were removed on 2026-09-15 and exist only in git history before commit `7124809`. Do not treat their scoring, aggregation or report rules as current.
+Earlier 55-item documents (PRD v0.4, implementation guide, M1–M6 records) were removed on 2026-09-15 and exist only in git history before commit `7124809`. The 9월 13일 `최종 고객 문서/` source folder (42-item edition; it was not final — the final source is `docs/요구사항_20261003/`) and the plans/reviews built on it (변경검토 0915, P0/P1, 검수결과·검수인계·채점규칙 확인요청, `검수개선/`, `리포트구현/`) were removed on 2026-10-03; read them at commit `056ed7a`. Do not treat their scoring, aggregation or report rules as current.
 
-`backend/app/domain/*_v3.py` contains the separate 9월 29일 contracts for 117 original rows, 113 used rows, 109 direct entries and four automatic rows, with raw Korean row codes. The unmodified `base.py/catalog.py/contracts.py/validation.py` remain the 42-item v2 edition. `backend/app/legacy/` holds read-only 55-item modules still imported by the frozen worker; no new features there. `backend/app/import_catalogs.py` defaults to the v2 source; `--spec 20260929` reads the new source via `import_catalogs_v3.py`, and `--spec all --check` checks both editions. `resources/catalogs/*-v1.json` remains read-only and checked against `resources/source/` by tests. `backend/app/api.py` provides the FastAPI API; `storage.py` manages SQLite and immutable input files; `worker.py` runs analysis stages. `frontend/` contains the React UI. Tests and synthetic fixtures live in `backend/tests/` and `frontend/tests/`; extracted catalogs, rules and mappings live in `resources/`. Create directories only when needed.
+`backend/app/domain/*_v3.py` contains the separate 9월 29일 contracts for 117 original rows, 113 used rows, 109 direct entries and four automatic rows, with raw Korean row codes. The unmodified `base.py/catalog.py/contracts.py/validation.py` remain the 42-item v2 edition. `backend/app/legacy/` holds read-only 55-item modules still imported by the frozen worker; no new features there. `backend/app/import_catalogs.py` extracts/checks only the 9월 29일 source via `import_catalogs_v3.py`; the 9월 13일 source folder (`최종 고객 문서/`) was removed on 2026-10-03, so the committed `*-v2.json` catalogs are kept as-is and no longer re-verified against Excel. `resources/catalogs/*-v1.json` remains read-only and checked against `resources/source/` by tests. `backend/app/api.py` provides the FastAPI API; `storage.py` manages SQLite and immutable input files; `worker.py` runs analysis stages. `frontend/` contains the React UI. Tests and synthetic fixtures live in `backend/tests/` and `frontend/tests/`; extracted catalogs, rules and mappings live in `resources/`. Create directories only when needed.
 
 ## Build, Test, and Development Commands
 
@@ -50,7 +47,7 @@ Tests use standard-library `unittest`; no coverage threshold is configured. For 
 
 ## Commit & Pull Request Guidelines
 
-Use concise, type-prefixed subjects (`docs:`, `feat:`, `fix:`, `release:`, `merge:`) such as `docs: clarify retry behavior`. Work in one branch per PR and follow the PR procedure in `docs/K-DOG_P0_구현계획_v1.0_20260916.md` §0 (implement → verify → review → triage findings → apply accepted ones → push). PRs should describe scope, affected requirements, validation performed, and unresolved issues. Link related issues when available; include screenshots for UI changes.
+Use concise, type-prefixed subjects (`docs:`, `feat:`, `fix:`, `release:`, `merge:`) such as `docs: clarify retry behavior`. Work in one branch per PR and follow the PR procedure in `docs/개발반영_20260929/K-DOG_개발반영계획_v1.0_20260930.md` (implement → verify → review → triage findings → apply accepted ones → push). PRs should describe scope, affected requirements, validation performed, and unresolved issues. Link related issues when available; include screenshots for UI changes.
 
 ## Security & Agent Instructions
 

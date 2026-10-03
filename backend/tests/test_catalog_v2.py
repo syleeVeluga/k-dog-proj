@@ -1,14 +1,11 @@
-import hashlib
 import json
 import unittest
 from collections import Counter
 from pathlib import Path
 
-from openpyxl import load_workbook
 from pydantic import ValidationError
 
 from app.domain.catalog import BEHAVIOR_IDS, BehaviorCatalog, DOMAIN_COUNTS
-from app.import_catalogs import BEHAVIOR_V2_FILE, CUSTOMER_DIR, read_behavior_v2
 
 ROOT = Path(__file__).resolve().parents[2]
 CATALOG = ROOT / "resources/catalogs/behavior-v2.json"
@@ -41,12 +38,10 @@ class BehaviorCatalogV2Tests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.catalog = BehaviorCatalog.model_validate_json(CATALOG.read_bytes())
-        cls.source = CUSTOMER_DIR / cls.catalog.source_filename
 
-    def test_layout_counts_and_source_hash(self):
-        self.assertEqual(self.catalog.source_filename, BEHAVIOR_V2_FILE)
+    def test_layout_counts(self):
+        self.assertEqual(self.catalog.source_filename, "03_행동_채점표_42항목_20260913.xlsx")
         self.assertEqual(self.catalog.version, "catalog-20260913-v2")
-        self.assertEqual(hashlib.sha256(self.source.read_bytes()).hexdigest(), self.catalog.source_sha256)
         self.assertEqual(tuple(item.item_id for item in self.catalog.items), BEHAVIOR_IDS)
         self.assertEqual(Counter(item.sheet for item in self.catalog.items),
                          {"1_바디시그널": 9, "2_개행동": 24, "3_보호자행동": 9})
@@ -62,25 +57,6 @@ class BehaviorCatalogV2Tests(unittest.TestCase):
                 self.assertEqual(item.domain is None, item.axis_label == "참고")
                 self.assertEqual(item.domain is None, item.domain_label.startswith("—"))
 
-    def test_every_cell_matches_the_workbook(self):
-        book = load_workbook(self.source, data_only=False)
-        try:
-            for item in self.catalog.items:
-                sheet, row = book[item.sheet], item.source_row
-                with self.subTest(item=item.item_id):
-                    self.assertEqual((item.segment_label, item.text, item.domain_label, item.axis_label, item.domain, item.scale),
-                                     tuple(sheet[f"{column}{row}"].value for column in ("A", "B", "H", "I", "AD", "AY")))
-                    original = {f"{column}{row}": sheet[f"{column}{row}"].value for column in "CDEFG"
-                                if sheet[f"{column}{row}"].value is not None}
-                    if item.value_type == "scale":
-                        self.assertEqual({label.source_cell: label.text for label in item.labels}, original)
-                        for label in item.labels:
-                            self.assertEqual(label.score, "CDEFG".index(label.source_cell[0]) + 1)
-                    else:
-                        self.assertEqual(original, {f"C{row}": item.note})
-        finally:
-            book.close()
-
     def test_segments_follow_the_procedure(self):
         segments = {item.item_id: item.segment for item in self.catalog.items}
         self.assertEqual([segments[f"BS-{n:02d}"] for n in range(1, 10)],
@@ -88,10 +64,6 @@ class BehaviorCatalogV2Tests(unittest.TestCase):
         self.assertEqual(segments["DOG-04"], "baseline")
         self.assertEqual({segments[f"OWN-{n:02d}"] for n in range(1, 6)}, {None})
         self.assertEqual([segments[f"OWN-{n:02d}"] for n in range(6, 10)], ["alone", "reunion", "ignore", "walk"])
-
-    def test_reader_reproduces_the_committed_json(self):
-        content = read_behavior_v2(self.source).model_dump_json(indent=2) + "\n"
-        self.assertEqual(content, CATALOG.read_text(encoding="utf-8"))
 
     def test_contract_rejects_invented_layouts(self):
         data = json.loads(CATALOG.read_text(encoding="utf-8"))
