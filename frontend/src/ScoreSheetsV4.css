@@ -1,0 +1,17 @@
+.scoring-s1 { min-width: 0; overflow-wrap: anywhere; }
+.scoring-s1 fieldset { min-width: 0; }
+.scoring-s1 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: .8rem; }
+.scoring-s1 input, .scoring-s1 select, .scoring-s1 textarea { box-sizing: border-box; max-width: 100%; min-width: 0; }
+.scoring-s1 select { width: 100%; }
+.scoring-s1 button { white-space: normal; max-width: 100%; }
+.scoring-s1 video { display: block; width: 100%; max-width: 640px; }
+.scoring-s1 pre { max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
+.scoring-s1 .sheet-list { padding-left: 1.2rem; }
+.scoring-s1 .sheet-list > li { margin-block: 1rem; }
+.scoring-s1 .scoring-item { padding: 1rem; margin-block: 1rem; border: 1px solid var(--border, #d8dee5); border-radius: 8px; }
+.scoring-s1 .evidence-editor { padding: .8rem; margin-block: .8rem; border-left: 3px solid #698d91; background: #f4f8f8; }
+@media (max-width: 600px) {
+  .scoring-s1 .toolbar { display: flex; flex-direction: column; align-items: stretch; }
+  .scoring-s1 .section-title { align-items: flex-start; flex-wrap: wrap; }
+  .scoring-s1 .scoring-item { padding: .6rem; }
+}

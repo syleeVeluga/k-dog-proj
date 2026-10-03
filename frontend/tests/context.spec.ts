@@ -10,9 +10,14 @@ test('72명 목록에서 업무 맥락 유지 및 교수의 회차 조회는 읽
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(page.getByRole('button', { name: '로그아웃' })).toBeVisible();
   try {
-    const csv = 'event_id,participant_id,dog_name,sequence_no\n' + Array.from({ length: 72 }, (_, i) => `CTX-A,C${String(i).padStart(3, '0')},맥락견${i},${i + 1}`).join('\n') + '\nCTX-B,C071,다른행사견,1\n';
-    const preview = await (await page.request.post('/api/imports/preview?kind=participants&format=csv', { headers, data: csv })).json();
-    expect((await page.request.post('/api/imports/commit', { headers, data: { rows: preview.rows } })).ok()).toBe(true);
+    for (let i = 0; i < 73; i++) {
+      const response = await page.request.post('/api/cases', { headers, data: {
+        event_id: i === 72 ? 'CTX-B' : 'CTX-A', participant_id: `C${String(i === 72 ? 71 : i).padStart(3, '0')}`,
+        dog_name: i === 72 ? '다른행사견' : `맥락견${i}`, sequence_no: i === 72 ? 1 : i + 1,
+      } });
+      expect(response.status()).toBe(201);
+      expect((await response.json()).manifest.schema_version).toBe('intake-4.0');
+    }
     let item = (await (await page.request.get('/api/cases')).json()).find((c: { event_id: string; participant_id: string }) => c.event_id === 'CTX-A' && c.participant_id === 'C071');
     const firstSession = item.selected_session_id;
     const version = (await (await page.request.get('/api/catalog/survey')).json()).version;
@@ -34,11 +39,12 @@ test('72명 목록에서 업무 맥락 유지 및 교수의 회차 조회는 읽
     await expect(context.getByRole('heading')).toBeInViewport();
     await page.getByLabel('선택 세션', { exact: true }).selectOption(firstSession);
     await page.getByRole('button', { name: '설문 보기', exact: true }).click();
-    await expect(page.getByLabel('설문 현황')).toContainText('등록 28/28 · 응답 28 · 해당 없음 0 · 미응답 0');
+    await expect(page.getByLabel('설문 현황')).toContainText('수치 응답 28/28 · 명시 빈칸 사유 0개 · 등록 완료 기준 미확정');
     await expect(context).toContainText('1차 촬영');
     await page.getByRole('button', { name: '촬영 자료 보기', exact: true }).click();
-    await expect(page.getByLabel('촬영 자료')).toContainText('1차 촬영');
-    await expect(page.getByRole('button', { name: '8구간 초안 저장' })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'S1 촬영 기록', exact: true })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: '실제 촬영 절차', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '파일 수신 시작·재시도', exact: true })).toHaveCount(0);
     await page.setViewportSize({ width: 768, height: 1024 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(context.getByRole('heading')).toBeInViewport();

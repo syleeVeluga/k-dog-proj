@@ -1,0 +1,32 @@
+import { test, expect } from '@playwright/test';
+
+test('S1 imports use the pinned Forms workflow and old endpoints cannot save', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.getByLabel('계정', { exact: true }).fill('operator');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
+  const existing = await page.request.post('/api/cases', { headers: { 'X-KDOG-Request': '1' }, data: { event_id: 'S1-RETIREMENT', participant_id: 'retirement-existing', dog_name: '구판 경로 퇴역 합성견' } });
+  expect(existing.status()).toBe(201);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'retirement-existing 상세 열기', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '자료 가져오기', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toBeVisible();
+  await expect(page.getByLabel('Forms 파일', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '설문', exact: true }).click();
+  const details = page.locator('details').filter({ has: page.locator('summary', { hasText: 'Forms 참가자·설문 함께 등록' }) }).first();
+  await expect(details).toHaveAttribute('open');
+  await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toBeVisible();
+  await expect(page.getByText('설문 파일 가져오기 (CSV·Excel)', { exact: true })).toHaveCount(0);
+  const blocked = await page.request.post('/api/imports/commit', { headers: { 'X-KDOG-Request': '1' }, data: { rows: [] } });
+  expect(blocked.status()).toBe(409);
+  await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+  await page.getByLabel('계정', { exact: true }).fill('developer');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '공급자 키 관리', exact: true })).toBeVisible();
+  expect(Object.keys(await (await page.request.get('/api/developer/settings')).json())).toEqual(['keys']);
+  expect((await page.request.post('/api/developer/settings/drafts', { headers: { 'X-KDOG-Request': '1' }, data: {} })).status()).toBe(409);
+  expect(errors).toEqual([]);
+});

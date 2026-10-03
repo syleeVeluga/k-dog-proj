@@ -16,7 +16,7 @@ from tests.support import AppCase, PASSWORD
 class SheetTests(AppCase):
     def setUp(self):
         super().setUp()
-        self.app = create_app(self.root)
+        self.app = create_app(self.root, intake_spec="20260929")
         self.store = self.app.state.store
         with self.store.connect(write=True) as db:
             create_user(db, UserCreate(username="reviewer2", password=PASSWORD, role="reviewer"))

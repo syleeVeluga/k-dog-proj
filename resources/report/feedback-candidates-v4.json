@@ -1,0 +1,2024 @@
+{
+  "schema_version": "4.0",
+  "version": "feedback-candidates-20261002-s1.1",
+  "approved_sentence_bank": false,
+  "gate": "G02",
+  "items": [
+    {
+      "candidate_id": "T01",
+      "area": "오늘의 결과",
+      "topic": "보호자 교육태도",
+      "source_adoption": "미정",
+      "source_status": "현행 계산+해석",
+      "rule_ids": "R03·R04",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A7:N7"
+      }
+    },
+    {
+      "candidate_id": "T02",
+      "area": "오늘의 결과",
+      "topic": "반려견과 보호자의 애착관계",
+      "source_adoption": "미정",
+      "source_status": "복합 해석",
+      "rule_ids": "R04·R05",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A8:N8"
+      }
+    },
+    {
+      "candidate_id": "T03",
+      "area": "오늘의 결과",
+      "topic": "사회성 사람과 비사회적 반응",
+      "source_adoption": "미정",
+      "source_status": "복합 해석",
+      "rule_ids": "R06·R07·R14",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A9:N9"
+      }
+    },
+    {
+      "candidate_id": "T04",
+      "area": "오늘의 결과",
+      "topic": "함께걷기",
+      "source_adoption": "미정",
+      "source_status": "현행 계산",
+      "rule_ids": "R08",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A10:N10"
+      }
+    },
+    {
+      "candidate_id": "S01",
+      "area": "설문 요약",
+      "topic": "가르치는 방식",
+      "source_adoption": "미정",
+      "source_status": "현행 산식",
+      "rule_ids": "R02·R07",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A11:N11"
+      }
+    },
+    {
+      "candidate_id": "S02",
+      "area": "설문 요약",
+      "topic": "사회화에 들인 노력",
+      "source_adoption": "미정",
+      "source_status": "현행 산식",
+      "rule_ids": "R02·R07",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A12:N12"
+      }
+    },
+    {
+      "candidate_id": "S03",
+      "area": "설문 요약",
+      "topic": "낯선 사람에 대한 두려움",
+      "source_adoption": "미정",
+      "source_status": "현행 산식",
+      "rule_ids": "R02·R07",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A13:N13"
+      }
+    },
+    {
+      "candidate_id": "S04",
+      "area": "설문 요약",
+      "topic": "비사회적 두려움",
+      "source_adoption": "미정",
+      "source_status": "현행 산식",
+      "rule_ids": "R02·R07",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A14:N14"
+      }
+    },
+    {
+      "candidate_id": "S05",
+      "area": "설문 요약",
+      "topic": "정서적 친밀감",
+      "source_adoption": "미정",
+      "source_status": "현행 산식",
+      "rule_ids": "R02·R07",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A15:N15"
+      }
+    },
+    {
+      "candidate_id": "S06",
+      "area": "설문 요약",
+      "topic": "떨어졌을 때 불안·찾기",
+      "source_adoption": "미정",
+      "source_status": "현행 산식",
+      "rule_ids": "R02·R07",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A16:N16"
+      }
+    },
+    {
+      "candidate_id": "S07",
+      "area": "설문 요약",
+      "topic": "다시 만났을 때 안정",
+      "source_adoption": "미정",
+      "source_status": "현행 산식",
+      "rule_ids": "R02·R07",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A17:N17"
+      }
+    },
+    {
+      "candidate_id": "S08",
+      "area": "설문 요약",
+      "topic": "일상에서 따라오기",
+      "source_adoption": "미정",
+      "source_status": "현행 산식",
+      "rule_ids": "R02·R07",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A18:N18"
+      }
+    },
+    {
+      "candidate_id": "S09",
+      "area": "설문 요약",
+      "topic": "감정의 일관성",
+      "source_adoption": "미정",
+      "source_status": "현행 산식",
+      "rule_ids": "R02·R07",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A19:N19"
+      }
+    },
+    {
+      "candidate_id": "Q01",
+      "area": "설문 개별 피드백",
+      "topic": "무언가를 가르칠 때 단계적으로 시도한다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A20:N20"
+      }
+    },
+    {
+      "candidate_id": "Q02",
+      "area": "설문 개별 피드백",
+      "topic": "문제행동이 있으면 그 원인을 파악하려 한다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A21:N21"
+      }
+    },
+    {
+      "candidate_id": "Q03",
+      "area": "설문 개별 피드백",
+      "topic": "문제행동을 고칠 때 대신할 행동을 가르치려 한다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A22:N22"
+      }
+    },
+    {
+      "candidate_id": "Q04",
+      "area": "설문 개별 피드백",
+      "topic": "책·영상 등으로 훈련 방법을 배우려 노력한다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A23:N23"
+      }
+    },
+    {
+      "candidate_id": "Q05",
+      "area": "설문 개별 피드백",
+      "topic": "두려워하는 것에 천천히 적응할 시간을 준다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A24:N24"
+      }
+    },
+    {
+      "candidate_id": "Q06",
+      "area": "설문 개별 피드백",
+      "topic": "두려운 것을 좋은 경험과 연결해 극복하도록 돕는다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A25:N25"
+      }
+    },
+    {
+      "candidate_id": "Q07",
+      "area": "설문 개별 피드백",
+      "topic": "어릴 때(늦게 데려온 반려견은 평소에) 다른 개들을 많이 만나게 하려 노력했다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A26:N26"
+      }
+    },
+    {
+      "candidate_id": "Q08",
+      "area": "설문 개별 피드백",
+      "topic": "사회화 시기에(늦게 데려온 반려견은 평소에) 다양한 경험을 하도록 노력했다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A27:N27"
+      }
+    },
+    {
+      "candidate_id": "Q09",
+      "area": "설문 개별 피드백",
+      "topic": "다른 사람들과 접촉할 기회를 갖도록 노력했다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A28:N28"
+      }
+    },
+    {
+      "candidate_id": "Q10",
+      "area": "설문 개별 피드백",
+      "topic": "아이와 함께 외출 중에 낯선 사람이 아이를 향해 곧장 다가올 때",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A29:N29"
+      }
+    },
+    {
+      "candidate_id": "Q11",
+      "area": "설문 개별 피드백",
+      "topic": "낯선 사람이 아이를 만지거나 쓰다듬으려 할 때",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A30:N30"
+      }
+    },
+    {
+      "candidate_id": "Q12",
+      "area": "설문 개별 피드백",
+      "topic": "갑작스럽거나 큰 소리(청소기 소리 · 자동차 굉음 · 공사음 · 물건 떨어지는 소리 등)가 날 때",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A31:N31"
+      }
+    },
+    {
+      "candidate_id": "Q13",
+      "area": "설문 개별 피드백",
+      "topic": "산책길이나 길가에 낯설거나 이상한 물건이 있을 때",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A32:N32"
+      }
+    },
+    {
+      "candidate_id": "Q14",
+      "area": "설문 개별 피드백",
+      "topic": "낯선 상황(첫 자동차 타기 · 첫 엘리베이터 타기 · 첫 동물병원 방문 등)을 처음 겪을 때",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A33:N33"
+      }
+    },
+    {
+      "candidate_id": "Q15",
+      "area": "설문 개별 피드백",
+      "topic": "반려견과 나는 서로 긍정적인 영향을 준다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A34:N34"
+      }
+    },
+    {
+      "candidate_id": "Q16",
+      "area": "설문 개별 피드백",
+      "topic": "반려견과 자주 눈을 맞춘다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A35:N35"
+      }
+    },
+    {
+      "candidate_id": "Q17",
+      "area": "설문 개별 피드백",
+      "topic": "함께 있는 것만으로 행복하다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A36:N36"
+      }
+    },
+    {
+      "candidate_id": "Q18",
+      "area": "설문 개별 피드백",
+      "topic": "시간이 나면 함께 시간을 보내려 한다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A37:N37"
+      }
+    },
+    {
+      "candidate_id": "Q19",
+      "area": "설문 개별 피드백",
+      "topic": "반려견과 나는 서로 의지한다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A38:N38"
+      }
+    },
+    {
+      "candidate_id": "Q20",
+      "area": "설문 개별 피드백",
+      "topic": "자주 만지고 쓰다듬으며, 아이도 이를 즐긴다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A39:N39"
+      }
+    },
+    {
+      "candidate_id": "Q21",
+      "area": "설문 개별 피드백",
+      "topic": "서로 사랑한다고 느낀다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A40:N40"
+      }
+    },
+    {
+      "candidate_id": "Q22",
+      "area": "설문 개별 피드백",
+      "topic": "내가 잠깐 자리를 비우면 아이가 불안해한다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A41:N41"
+      }
+    },
+    {
+      "candidate_id": "Q23",
+      "area": "설문 개별 피드백",
+      "topic": "내가 안 보이면 나를 찾아다닌다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A42:N42"
+      }
+    },
+    {
+      "candidate_id": "Q24",
+      "area": "설문 개별 피드백",
+      "topic": "내가 돌아오면 반갑게 맞이하고 금방 안정된다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A43:N43"
+      }
+    },
+    {
+      "candidate_id": "Q25",
+      "area": "설문 개별 피드백",
+      "topic": "내가 다른 방으로 가면 아이가 따라온다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A44:N44"
+      }
+    },
+    {
+      "candidate_id": "Q26",
+      "area": "설문 개별 피드백",
+      "topic": "내 기분에 따라 아이를 대하는 방식이 달라진다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A45:N45"
+      }
+    },
+    {
+      "candidate_id": "Q27",
+      "area": "설문 개별 피드백",
+      "topic": "내 기분에 따라 더 심하게 혼내곤 한다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A46:N46"
+      }
+    },
+    {
+      "candidate_id": "Q28",
+      "area": "설문 개별 피드백",
+      "topic": "반려견 때문에 자주 화가 난다",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R02",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A47:N47"
+      }
+    },
+    {
+      "candidate_id": "O01",
+      "area": "보호자 교육태도",
+      "topic": "앞서 당기는 개에게 맞추는 방식",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R01·R03",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A48:N48"
+      }
+    },
+    {
+      "candidate_id": "O02",
+      "area": "보호자 교육태도",
+      "topic": "뒤처지거나 버티는 개를 돕는 방식",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R01·R03",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A49:N49"
+      }
+    },
+    {
+      "candidate_id": "O03",
+      "area": "보호자 교육태도",
+      "topic": "줄 당김 때 말로 요청하는 방식",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R01·R03",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A50:N50"
+      }
+    },
+    {
+      "candidate_id": "O04",
+      "area": "보호자 교육태도",
+      "topic": "떠나기 전 인사·접촉 방식",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R01·R03",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A51:N51"
+      }
+    },
+    {
+      "candidate_id": "O05",
+      "area": "보호자 교육태도",
+      "topic": "재회 때 신체접촉 방식",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R01·R03",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A52:N52"
+      }
+    },
+    {
+      "candidate_id": "O06",
+      "area": "보호자 교육태도",
+      "topic": "개가 피할 때 보호자의 대응",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R01·R03",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A53:N53"
+      }
+    },
+    {
+      "candidate_id": "O07",
+      "area": "보호자 교육태도",
+      "topic": "개가 다가올 때 보호자의 대응",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R01·R03",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A54:N54"
+      }
+    },
+    {
+      "candidate_id": "O08",
+      "area": "보호자 교육태도",
+      "topic": "낯선 사람 앞에서 말·손짓으로 안내",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R01·R03",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A55:N55"
+      }
+    },
+    {
+      "candidate_id": "O09",
+      "area": "보호자 교육태도",
+      "topic": "낯선 사람 앞에서 찾아온 개에게 대응",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R01·R03",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A56:N56"
+      }
+    },
+    {
+      "candidate_id": "O10",
+      "area": "보호자 교육태도",
+      "topic": "보호자 개입이 있었던 장면",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R01·R03",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A57:N57"
+      }
+    },
+    {
+      "candidate_id": "O11",
+      "area": "보호자 교육태도",
+      "topic": "장면에 따라 달라지는 보호자 대응",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R01·R03",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A58:N58"
+      }
+    },
+    {
+      "candidate_id": "A01",
+      "area": "애착관계",
+      "topic": "분리 초기 문 쪽 반응",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R05·R11",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A59:N59"
+      }
+    },
+    {
+      "candidate_id": "A02",
+      "area": "애착관계",
+      "topic": "분리 이후 머무름·이동",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R05·R11",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A60:N60"
+      }
+    },
+    {
+      "candidate_id": "A03",
+      "area": "애착관계",
+      "topic": "분리 초기와 이후의 흐름",
+      "source_adoption": "미정",
+      "source_status": "현행 계산+해석",
+      "rule_ids": "R05·R09·R10",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A61:N61"
+      }
+    },
+    {
+      "candidate_id": "A04",
+      "area": "애착관계",
+      "topic": "처음 문을 보지 않다가 뒤늦게 찾음",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R05·R09·R10",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A62:N62"
+      }
+    },
+    {
+      "candidate_id": "A05",
+      "area": "애착관계",
+      "topic": "혼자 있을 때 몸 상태",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R05·R11",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A63:N63"
+      }
+    },
+    {
+      "candidate_id": "A06",
+      "area": "애착관계",
+      "topic": "혼자 있을 때 소리",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R05·R11",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A64:N64"
+      }
+    },
+    {
+      "candidate_id": "A07",
+      "area": "애착관계",
+      "topic": "다시 들어왔을 때 자발적 접근",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R05·R11",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A65:N65"
+      }
+    },
+    {
+      "candidate_id": "A08",
+      "area": "애착관계",
+      "topic": "보호자의 접촉을 받는 방식",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R05·R11",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A66:N66"
+      }
+    },
+    {
+      "candidate_id": "A09",
+      "area": "애착관계",
+      "topic": "재회 후반의 몸과 소리",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R05·R11",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A67:N67"
+      }
+    },
+    {
+      "candidate_id": "A10",
+      "area": "애착관계",
+      "topic": "혼자와 재회 후반의 몸 상태 변화",
+      "source_adoption": "미정",
+      "source_status": "현행 계산+해석",
+      "rule_ids": "R05·R09·R10",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A68:N68"
+      }
+    },
+    {
+      "candidate_id": "A11",
+      "area": "애착관계",
+      "topic": "접촉이 끝난 뒤 거리·확인",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R05·R11",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A69:N69"
+      }
+    },
+    {
+      "candidate_id": "A12",
+      "area": "애착관계",
+      "topic": "다가가다 멈추거나 물러서는 모습",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R05·R11",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A70:N70"
+      }
+    },
+    {
+      "candidate_id": "A13",
+      "area": "애착관계",
+      "topic": "보호자 있을 때와 없을 때 탐색",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R05·R11",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A71:N71"
+      }
+    },
+    {
+      "candidate_id": "A14",
+      "area": "애착관계",
+      "topic": "안전기지와 관련해 볼 수 있는 흐름",
+      "source_adoption": "미정",
+      "source_status": "복합 해석",
+      "rule_ids": "R05·R11",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A72:N72"
+      }
+    },
+    {
+      "candidate_id": "A15",
+      "area": "애착관계",
+      "topic": "낯선 상황에서 보호자를 확인하고 다시 나감",
+      "source_adoption": "미정",
+      "source_status": "복합 해석",
+      "rule_ids": "R05·R11",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A73:N73"
+      }
+    },
+    {
+      "candidate_id": "N01",
+      "area": "사회성 · 사람",
+      "topic": "안전문 밖 사람을 처음 봤을 때",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R06·R12",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A74:N74"
+      }
+    },
+    {
+      "candidate_id": "N02",
+      "area": "사회성 · 사람",
+      "topic": "사람이 가까이 다가올 때",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R06·R12",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A75:N75"
+      }
+    },
+    {
+      "candidate_id": "N03",
+      "area": "사회성 · 사람",
+      "topic": "낯선 사람이 이름을 불렀을 때",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R06·R12",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A76:N76"
+      }
+    },
+    {
+      "candidate_id": "N04",
+      "area": "사회성 · 사람",
+      "topic": "자발적 접근과 접촉 성립",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R06·R12",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A77:N77"
+      }
+    },
+    {
+      "candidate_id": "N05",
+      "area": "사회성 · 사람",
+      "topic": "낯선 사람 접촉 수용·회피",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R06·R12",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A78:N78"
+      }
+    },
+    {
+      "candidate_id": "N06",
+      "area": "사회성 · 사람",
+      "topic": "낯선 사람이 떠날 때",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R06·R12",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A79:N79"
+      }
+    },
+    {
+      "candidate_id": "N07",
+      "area": "사회성 · 사람",
+      "topic": "낯선 사람과 거리를 확보하는 신호",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R06·R12",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A80:N80"
+      }
+    },
+    {
+      "candidate_id": "N08",
+      "area": "사회성 · 사람",
+      "topic": "낯선 사람 전 과정의 몸과 소리",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R06·R12",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A81:N81"
+      }
+    },
+    {
+      "candidate_id": "N09",
+      "area": "사회성 · 사람",
+      "topic": "낯선 사람 대응이 단계마다 달라짐",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R06·R12",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A82:N82"
+      }
+    },
+    {
+      "candidate_id": "N10",
+      "area": "사회성 · 사람",
+      "topic": "사람 사회성의 대표 설명 유형",
+      "source_adoption": "미정",
+      "source_status": "제안",
+      "rule_ids": "R06·R12",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A83:N83"
+      }
+    },
+    {
+      "candidate_id": "N11",
+      "area": "사회성 · 사람",
+      "topic": "보호자와 낯선 사람 접촉의 차이",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R06·R12",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A84:N84"
+      }
+    },
+    {
+      "candidate_id": "E01",
+      "area": "사회성 · 비사회적 환경",
+      "topic": "처음 방에 들어오는 방식",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R09·R13·R14",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A85:N85"
+      }
+    },
+    {
+      "candidate_id": "E02",
+      "area": "사회성 · 비사회적 환경",
+      "topic": "낯선 바닥을 지나는 방식",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R09·R13·R14",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A86:N86"
+      }
+    },
+    {
+      "candidate_id": "E03",
+      "area": "사회성 · 비사회적 환경",
+      "topic": "처음 공간에서 냄새 맡기",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R09·R13·R14",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A87:N87"
+      }
+    },
+    {
+      "candidate_id": "E04",
+      "area": "사회성 · 비사회적 환경",
+      "topic": "새 물건을 만났을 때 회피 정도",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R09·R13·R14",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A88:N88"
+      }
+    },
+    {
+      "candidate_id": "E05",
+      "area": "사회성 · 비사회적 환경",
+      "topic": "새 물건에 코를 대기까지 시간",
+      "source_adoption": "미정",
+      "source_status": "S1 출력 중단",
+      "rule_ids": "R09·R13·R14",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A89:N89"
+      }
+    },
+    {
+      "candidate_id": "E06",
+      "area": "사회성 · 비사회적 환경",
+      "topic": "입장과 퇴장 문 통과 변화",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R09·R13·R14",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A90:N90"
+      }
+    },
+    {
+      "candidate_id": "E07",
+      "area": "사회성 · 비사회적 환경",
+      "topic": "물건을 다시 만났을 때의 변화",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R09·R13·R14",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A91:N91"
+      }
+    },
+    {
+      "candidate_id": "E08",
+      "area": "사회성 · 비사회적 환경",
+      "topic": "입장과 퇴장의 냄새·리드줄",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R09·R13·R14",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A92:N92"
+      }
+    },
+    {
+      "candidate_id": "E09",
+      "area": "사회성 · 비사회적 환경",
+      "topic": "낯선 환경에서 보이는 첫 반응 묶음",
+      "source_adoption": "미정",
+      "source_status": "현행 계산+해석",
+      "rule_ids": "R09·R13·R14",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A93:N93"
+      }
+    },
+    {
+      "candidate_id": "E10",
+      "area": "사회성 · 비사회적 환경",
+      "topic": "기준의 환경 탐색과 머무는 모습",
+      "source_adoption": "미정",
+      "source_status": "현행 관찰+해석",
+      "rule_ids": "R24",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A94:N94"
+      }
+    },
+    {
+      "candidate_id": "E11",
+      "area": "사회성 · 비사회적 환경",
+      "topic": "환경에 적응해 가는 모습",
+      "source_adoption": "미정",
+      "source_status": "복합 해석",
+      "rule_ids": "R09·R13·R14",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A95:N95"
+      }
+    },
+    {
+      "candidate_id": "E12",
+      "area": "사회성 · 비사회적 환경",
+      "topic": "소음에 대한 두려움",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R09·R13·R14",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A96:N96"
+      }
+    },
+    {
+      "candidate_id": "W01",
+      "area": "함께걷기",
+      "topic": "여섯 이동·정지 장면별 거리",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R08·R15",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A97:N97"
+      }
+    },
+    {
+      "candidate_id": "W02",
+      "area": "함께걷기",
+      "topic": "이동할 때와 멈췄을 때의 근접",
+      "source_adoption": "미정",
+      "source_status": "현행 계산",
+      "rule_ids": "R08·R15",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A98:N98"
+      }
+    },
+    {
+      "candidate_id": "W03",
+      "area": "함께걷기",
+      "topic": "걷기 시작 직전 위치",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R08·R15",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A99:N99"
+      }
+    },
+    {
+      "candidate_id": "W04",
+      "area": "함께걷기",
+      "topic": "함께 걸을 때 주된 거리",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R08·R15",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A100:N100"
+      }
+    },
+    {
+      "candidate_id": "W05",
+      "area": "함께걷기",
+      "topic": "걷는 동안 보호자 확인",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R08·R15",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A101:N101"
+      }
+    },
+    {
+      "candidate_id": "W06",
+      "area": "함께걷기",
+      "topic": "움직임을 맞춘 비율",
+      "source_adoption": "미정",
+      "source_status": "추가 측정",
+      "rule_ids": "R08·R15",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A102:N102"
+      }
+    },
+    {
+      "candidate_id": "W07",
+      "area": "함께걷기",
+      "topic": "가까이 있었던 시간 비율",
+      "source_adoption": "미정",
+      "source_status": "추가 측정",
+      "rule_ids": "R08·R15",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A103:N103"
+      }
+    },
+    {
+      "candidate_id": "W08",
+      "area": "함께걷기",
+      "topic": "보호자를 향한 머리 방향 비율",
+      "source_adoption": "미정",
+      "source_status": "추가 측정",
+      "rule_ids": "R08·R15",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A104:N104"
+      }
+    },
+    {
+      "candidate_id": "B01",
+      "area": "몸의 표현과 변화",
+      "topic": "구간별 꼬리 위치",
+      "source_adoption": "미정",
+      "source_status": "S1 출력 중단",
+      "rule_ids": "R16·R17",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A105:N105"
+      }
+    },
+    {
+      "candidate_id": "B02",
+      "area": "몸의 표현과 변화",
+      "topic": "사람을 처음 본 순간의 꼬리 변화",
+      "source_adoption": "미정",
+      "source_status": "선택 관찰",
+      "rule_ids": "R16·R17",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A106:N106"
+      }
+    },
+    {
+      "candidate_id": "B03",
+      "area": "몸의 표현과 변화",
+      "topic": "접촉·낯선 사람 때 꼬리 흔들림",
+      "source_adoption": "미정",
+      "source_status": "S1 출력 중단",
+      "rule_ids": "R16·R17",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A107:N107"
+      }
+    },
+    {
+      "candidate_id": "B04",
+      "area": "몸의 표현과 변화",
+      "topic": "구간별 몸털기와 몸긁기 횟수",
+      "source_adoption": "미정",
+      "source_status": "선택 관찰",
+      "rule_ids": "R16·R17",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A108:N108"
+      }
+    },
+    {
+      "candidate_id": "B05",
+      "area": "몸의 표현과 변화",
+      "topic": "바닥·분리 직후 몸 털기",
+      "source_adoption": "미정",
+      "source_status": "S1 출력 중단",
+      "rule_ids": "R16·R17",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A109:N109"
+      }
+    },
+    {
+      "candidate_id": "B06",
+      "area": "몸의 표현과 변화",
+      "topic": "구간별 소리의 양·종류",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R16·R17",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A110:N110"
+      }
+    },
+    {
+      "candidate_id": "B07",
+      "area": "몸의 표현과 변화",
+      "topic": "몸 상태의 시간 순서",
+      "source_adoption": "미정",
+      "source_status": "관찰 설명",
+      "rule_ids": "R16·R17",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A111:N111"
+      }
+    },
+    {
+      "candidate_id": "B08",
+      "area": "몸의 표현과 변화",
+      "topic": "오늘 반복된 행동 특징",
+      "source_adoption": "미정",
+      "source_status": "제안",
+      "rule_ids": "R16·R17",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A112:N112"
+      }
+    },
+    {
+      "candidate_id": "P01",
+      "area": "설문과 영상 함께 보기",
+      "topic": "가르치는 방식과 실제 대응",
+      "source_adoption": "미정",
+      "source_status": "복합 해석",
+      "rule_ids": "R18",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A113:N113"
+      }
+    },
+    {
+      "candidate_id": "P02",
+      "area": "설문과 영상 함께 보기",
+      "topic": "사회화 노력과 현재 반응",
+      "source_adoption": "미정",
+      "source_status": "복합 해석",
+      "rule_ids": "R18",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A114:N114"
+      }
+    },
+    {
+      "candidate_id": "P03",
+      "area": "설문과 영상 함께 보기",
+      "topic": "보호자가 느끼는 친밀감과 개의 애착",
+      "source_adoption": "미정",
+      "source_status": "복합 해석",
+      "rule_ids": "R18",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A115:N115"
+      }
+    },
+    {
+      "candidate_id": "P04",
+      "area": "설문과 영상 함께 보기",
+      "topic": "평소의 분리 반응과 오늘",
+      "source_adoption": "미정",
+      "source_status": "복합 해석",
+      "rule_ids": "R18",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A116:N116"
+      }
+    },
+    {
+      "candidate_id": "P05",
+      "area": "설문과 영상 함께 보기",
+      "topic": "평소 재회와 오늘의 재회",
+      "source_adoption": "미정",
+      "source_status": "복합 해석",
+      "rule_ids": "R18",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A117:N117"
+      }
+    },
+    {
+      "candidate_id": "P06",
+      "area": "설문과 영상 함께 보기",
+      "topic": "평소 낯선 사람 반응과 오늘",
+      "source_adoption": "미정",
+      "source_status": "복합 해석",
+      "rule_ids": "R18",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A118:N118"
+      }
+    },
+    {
+      "candidate_id": "P07",
+      "area": "설문과 영상 함께 보기",
+      "topic": "평소 환경 반응과 오늘",
+      "source_adoption": "미정",
+      "source_status": "복합 해석",
+      "rule_ids": "R18",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A119:N119"
+      }
+    },
+    {
+      "candidate_id": "P08",
+      "area": "설문과 영상 함께 보기",
+      "topic": "평소 따라오기와 함께걷기",
+      "source_adoption": "미정",
+      "source_status": "복합 해석",
+      "rule_ids": "R18",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A120:N120"
+      }
+    },
+    {
+      "candidate_id": "C01",
+      "area": "비교 참고값",
+      "topic": "우리 참여 집단에서의 위치",
+      "source_adoption": "미정",
+      "source_status": "현행 산식",
+      "rule_ids": "R19",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A121:N121"
+      }
+    },
+    {
+      "candidate_id": "C02",
+      "area": "비교 참고값",
+      "topic": "미국의 낯선 사람 두려움 참고값",
+      "source_adoption": "미정",
+      "source_status": "참고값 조건부",
+      "rule_ids": "R19",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A122:N122"
+      }
+    },
+    {
+      "candidate_id": "C03",
+      "area": "비교 참고값",
+      "topic": "미국의 비사회적 두려움 참고값",
+      "source_adoption": "미정",
+      "source_status": "참고값 조건부",
+      "rule_ids": "R19",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A123:N123"
+      }
+    },
+    {
+      "candidate_id": "C04",
+      "area": "비교 참고값",
+      "topic": "국내 연구의 교육·친밀감 등 참고값",
+      "source_adoption": "미정",
+      "source_status": "재확인 필요",
+      "rule_ids": "R19·R23",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A124:N124"
+      }
+    },
+    {
+      "candidate_id": "C05",
+      "area": "비교 참고값",
+      "topic": "집단 분포와 개인 위치 표시",
+      "source_adoption": "미정",
+      "source_status": "제안",
+      "rule_ids": "R19",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A125:N125"
+      }
+    },
+    {
+      "candidate_id": "M01",
+      "area": "장면과 총평",
+      "topic": "오늘의 구간 순서·관찰 시간",
+      "source_adoption": "미정",
+      "source_status": "추가 기록",
+      "rule_ids": "R20",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A126:N126"
+      }
+    },
+    {
+      "candidate_id": "M02",
+      "area": "장면과 총평",
+      "topic": "기억에 남는 장면",
+      "source_adoption": "미정",
+      "source_status": "제안",
+      "rule_ids": "R20",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A127:N127"
+      }
+    },
+    {
+      "candidate_id": "M03",
+      "area": "장면과 총평",
+      "topic": "잘하고 있는 점",
+      "source_adoption": "미정",
+      "source_status": "제안",
+      "rule_ids": "R21",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A128:N128"
+      }
+    },
+    {
+      "candidate_id": "M04",
+      "area": "장면과 총평",
+      "topic": "가장 먼저 도와줄 부분",
+      "source_adoption": "미정",
+      "source_status": "제안",
+      "rule_ids": "R04·R21",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A129:N129"
+      }
+    },
+    {
+      "candidate_id": "M05",
+      "area": "장면과 총평",
+      "topic": "보호자가 해볼 행동",
+      "source_adoption": "미정",
+      "source_status": "제안",
+      "rule_ids": "R21",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A130:N130"
+      }
+    },
+    {
+      "candidate_id": "M06",
+      "area": "장면과 총평",
+      "topic": "종합 의견",
+      "source_adoption": "미정",
+      "source_status": "복합 해석",
+      "rule_ids": "R04·R21",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A131:N131"
+      }
+    },
+    {
+      "candidate_id": "M07",
+      "area": "장면과 총평",
+      "topic": "관찰 범위와 다음에 확인할 점",
+      "source_adoption": "미정",
+      "source_status": "현행 처리",
+      "rule_ids": "R01·R22",
+      "application_status": "candidate_only_G02",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "피드백 전체목록!A132:N132"
+      }
+    }
+  ]
+}

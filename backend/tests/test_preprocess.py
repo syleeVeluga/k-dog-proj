@@ -139,15 +139,15 @@ class PreprocessTests(AppCase):
         self.assertEqual(too_long.exception.status_code, 422)
         self.assertFalse(list(self.store.path("clips").rglob("*.mp4")) if self.store.path("clips").exists() else [])
 
-    def test_cli_runs_preprocessing_with_an_active_operator(self):
+    def test_cli_rejects_legacy_preprocessing_and_inactive_role(self):
         import sys
         self.segments()
-        result = subprocess.run([sys.executable, "-X", "utf8", "-m", "app.manage", "--data-dir", str(self.root), "preprocess", self.item["case_id"], "--actor", "operator"],
+        arguments = ["--request-id", "old-cli-request", "--expected-revision", str(self.item["input_revision"])]
+        result = subprocess.run([sys.executable, "-X", "utf8", "-m", "app.manage", "--data-dir", str(self.root), "preprocess", self.item["case_id"], "--actor", "operator", *arguments],
                         cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, encoding="utf-8", timeout=300)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        summary = json.loads(result.stdout)
-        self.assertEqual((summary["clips"], summary["video_id"]), (11, self.video_id))
-        denied = subprocess.run([sys.executable, "-X", "utf8", "-m", "app.manage", "--data-dir", str(self.root), "preprocess", self.item["case_id"], "--actor", "reviewer"],
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("S1", result.stderr)
+        denied = subprocess.run([sys.executable, "-X", "utf8", "-m", "app.manage", "--data-dir", str(self.root), "preprocess", self.item["case_id"], "--actor", "reviewer", *arguments],
                         cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, encoding="utf-8", timeout=120)
         self.assertNotEqual(denied.returncode, 0)
 
@@ -273,9 +273,12 @@ class PreprocessTests(AppCase):
     def test_real_launcher_worker_and_manual_preprocess_coexist(self):
         import threading
         import httpx
+        from app import reset_s1
         from app.launcher import launch
         from tests.test_packaging import free_port
         self.segments()
+        reset_s1.execute(self.store, "admin")
+        self.item = self.get_case(self.item)
         port, stop = free_port(), threading.Event()
         path = f"/api/cases/{self.item['case_id']}/sessions/{self.session['session_id']}/preprocess"
         def ready(_children):
@@ -286,18 +289,24 @@ class PreprocessTests(AppCase):
                 pass
             with httpx.Client(base_url=f"http://127.0.0.1:{port}", headers={"X-KDOG-Request": "1"}, timeout=120, trust_env=False) as client:
                 self.assertEqual(client.post("/api/auth/login", json={"username": "operator", "password": PASSWORD}).status_code, 200)
-                self.assertIsNone(client.get(path).json()["result"])
-                response = client.post(path, json={"expected_revision": self.item["input_revision"]})
-                self.assertEqual(response.status_code, 200, response.text)
-                result = response.json()
-                self.assertEqual((result["status"], len(result["result"]["clips"]), result["outdated"]), ("complete", 11, False))
-                first = result["result"]["clips"][0]["ref"]
-                again = client.post(path, json={"expected_revision": self.item["input_revision"]}).json()
-                self.assertNotEqual(first, again["result"]["clips"][0]["ref"])
-                self.client = client
-                self.segments(WINDOWS[:-1] + [(42.0, 44.0)])
-                self.assertTrue(client.get(path).json()["outdated"])
-                self.assertEqual(client.post(path, json={"expected_revision": self.item["input_revision"] - 1}).status_code, 409)
+                self.assertEqual(client.get("/api/health").json()["spec"], "20261002")
+                self.assertEqual(client.post(path, json={"expected_revision": self.item["input_revision"]}).status_code, 409)
+            # Explicit legacy fixture retains media/lock coverage while the production
+            # S1 launcher keeps the retired execution route unavailable.
+            self.login("operator")
+            status = self.client.get(path)
+            self.assertEqual(status.status_code, 200, status.text)
+            self.assertIsNone(status.json()["result"])
+            response = self.client.post(path, json={"expected_revision": self.item["input_revision"]})
+            self.assertEqual(response.status_code, 200, response.text)
+            result = response.json()
+            self.assertEqual((result["status"], len(result["result"]["clips"]), result["outdated"]), ("complete", 11, False))
+            first = result["result"]["clips"][0]["ref"]
+            again = self.client.post(path, json={"expected_revision": self.item["input_revision"]}).json()
+            self.assertNotEqual(first, again["result"]["clips"][0]["ref"])
+            self.segments(WINDOWS[:-1] + [(42.0, 44.0)])
+            self.assertTrue(self.client.get(path).json()["outdated"])
+            self.assertEqual(self.client.post(path, json={"expected_revision": self.item["input_revision"] - 1}).status_code, 409)
             stop.set()
         launch(self.root, port, open_browser=False, stop_event=stop, ready=ready)
 

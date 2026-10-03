@@ -1,0 +1,56 @@
+{
+  "schema_version": "4.0",
+  "version": "comparison-sources-20261002-s1.1-1",
+  "default_status": "pending_D06",
+  "source": {
+    "schema_version": "4.0",
+    "source_id": "SRC02",
+    "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+    "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+    "location": "10.2 미국 참고값 표22, R19, D06"
+  },
+  "sources": [
+    {
+      "source_id": "us2026-stranger-fear",
+      "title": "미국 보호자 보고: 낯선 사람에 대한 두려움",
+      "literature": "Serpell & Powell (2026), Prevalence and severity of behavior problems in dogs in the United States: A re-assessment, Journal of Veterinary Behavior 83, 8–13, Table 1",
+      "doi": "10.1016/j.jveb.2025.11.005",
+      "domain": "낯선 사람 두려움",
+      "question_ids": ["s10", "s11"],
+      "scale_minimum": 0,
+      "scale_maximum": 4,
+      "direction": "higher_more_fear",
+      "aggregation": "mean",
+      "missing_policy": "complete_group_required",
+      "reference_values": {"mean": 0.66, "standard_deviation": 0.91, "valid_n": 42926, "total_n": 43517},
+      "research_status": "pending",
+      "technical_enabled": false,
+      "original_question_equivalence": "pending",
+      "translation_usage": "pending",
+      "population_scope": "미국 보호자 보고 개 행동 설문; 영상 규준이 아님",
+      "number_provenance": "통합명세 참고 기록이며 원논문 수치·사용 조건 대조 승인이 아님"
+    },
+    {
+      "source_id": "us2026-nonsocial-fear",
+      "title": "미국 보호자 보고: 비사회적 두려움",
+      "literature": "Serpell & Powell (2026), Prevalence and severity of behavior problems in dogs in the United States: A re-assessment, Journal of Veterinary Behavior 83, 8–13, Table 1",
+      "doi": "10.1016/j.jveb.2025.11.005",
+      "domain": "비사회적 두려움",
+      "question_ids": ["s12", "s13", "s14"],
+      "scale_minimum": 0,
+      "scale_maximum": 4,
+      "direction": "higher_more_fear",
+      "aggregation": "mean",
+      "missing_policy": "complete_group_required",
+      "reference_values": {"mean": 1.03, "standard_deviation": 0.78, "valid_n": 42764, "total_n": 43517},
+      "research_status": "pending",
+      "technical_enabled": false,
+      "original_question_equivalence": "pending",
+      "translation_usage": "pending",
+      "population_scope": "미국 보호자 보고 개 행동 설문; 영상 규준이 아님",
+      "number_provenance": "통합명세 참고 기록이며 원논문 수치·사용 조건 대조 승인이 아님"
+    }
+  ],
+  "domestic_status": "pending_D06",
+  "domestic_reason": "교육·친밀감 참고값은 수정 문항·대상 범위·원문 산식·화면 사용 조건 확인 전이며 미국 두려움 비교 또는 S1 영상 지표에 혼합하지 않습니다."
+}

@@ -18,7 +18,7 @@ from tests.support import AppCase
 class IntakeV3Tests(AppCase):
     def setUp(self):
         super().setUp()
-        self.app = create_app(self.root)
+        self.app = create_app(self.root, intake_spec="20260929")
         self.client = self.client_for("operator")
 
     def test_current_defaults_and_legacy_consent_never_expand(self):
@@ -67,7 +67,7 @@ class IntakeV3Tests(AppCase):
             deleted = Store(root / "deleted")
             with deleted.connect() as db:
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM cases").fetchone()[0], 0)
-                self.assertEqual(maintenance.deletion_records(deleted), {("TEST", "0001")})
+                self.assertEqual(maintenance.deletion_records(deleted), {(item["case_id"], "TEST", "0001")})
         self.assertEqual(self.client.get(path).status_code, 404)
 
     def test_csv_and_xlsx_consent_states_match_and_invalid_values_reject(self):

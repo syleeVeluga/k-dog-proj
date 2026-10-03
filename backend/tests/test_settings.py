@@ -184,7 +184,7 @@ class SettingsTests(AppCase):
             self.delete_case(saved)
             maintenance.clean(self.store, purge_deleted=True)
             self.assertNotIn("가상견".encode(), (self.store.root / "kdog.sqlite3").read_bytes())
-            self.assertEqual(maintenance.deletion_records(self.store), {("M2", "0001")})
+            self.assertEqual(maintenance.deletion_records(self.store), {(item["case_id"], "M2", "0001")})
             maintenance.restore(self.store, root / "backup", root / "deleted-restored")
             recovered = Store(root / "deleted-restored")
             with recovered.connect() as db:
@@ -244,7 +244,9 @@ class SettingsTests(AppCase):
                 self.store.audit(db, "admin", "new-absent-case", "deletion.record", {"event_id": "NEW", "participant_id": "8888"})
             maintenance.restore(self.store, root / "backup", root / "recovered")
             recovered = Store(root / "recovered")
-            self.assertEqual(maintenance.deletion_records(recovered), {("OLDER", "9999"), ("NEW", "8888")})
+            self.assertEqual(maintenance.deletion_records(recovered), {
+                ("absent-case", "OLDER", "9999"), ("new-absent-case", "NEW", "8888"),
+            })
 
     def test_provider_echoes_are_redacted_even_in_json_escapes_and_request_headers(self):
         from app.gemini import request, BASE

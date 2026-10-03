@@ -12,6 +12,31 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Historical fixtures stay in the repository, outside the S1 product package.
+# The remaining old assets are still read by shared imports and raw-input reset.
+RETIRED_FILES = frozenset({
+    "backend/app/exports.py", "backend/app/developer_sample.py",
+    "resources/catalogs/behavior-v1.json", "resources/catalogs/behavior-v2.json",
+    "resources/catalogs/survey-v1.json", "resources/rules/pending-v1.json",
+    "resources/rules/preprocess-v1.json", "resources/mappings/results-v3.json",
+    "resources/mappings/survey-behavior-v3.json",
+})
+OPERATING_DOCUMENTS = frozenset({
+    "README.md", "docs/DEVELOPMENT.md", "docs/PILOT_OPERATIONS.md",
+    "docs/K-DOG_개발기준변경검토_v1.0_20261003.md",
+    "docs/개발반영_20261003/검증이미지/S17_외부비교_모바일_합성.png",
+    "docs/개발반영_20261003/검증이미지/S17_PDF_외부비교_합성.png",
+})
+
+
+def product_file(name):
+    return name not in RETIRED_FILES and (
+        name.startswith("backend/app/") and name.endswith(".py") or
+        name.startswith("resources/") and Path(name).suffix in (".json", ".ttf", ".txt", ".md", ".html", ".css") or
+        name in OPERATING_DOCUMENTS or
+        name.startswith("docs/개발반영_20261003/") and name.endswith(".md")
+    )
+
 
 def build(destination):
     destination = destination.resolve()
@@ -20,10 +45,7 @@ def build(destination):
     subprocess.run([shutil.which("npm.cmd") or shutil.which("npm"), "run", "build"],
                    cwd=ROOT / "frontend", check=True)
     tracked = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT).decode().split("\0")
-    files = {name: ROOT / name for name in tracked if (
-        name.startswith("backend/app/") and name.endswith(".py") or
-        name.startswith("resources/") and Path(name).suffix in (".json", ".ttf", ".txt", ".md")
-    )}
+    files = {name: ROOT / name for name in tracked if product_file(name)}
     for name in ("README.md", "backend/pyproject.toml", "backend/uv.lock", "docs/PILOT_OPERATIONS.md"):
         files[name] = ROOT / name
     for name in ("Install.cmd", "Start.cmd", "install.ps1"):

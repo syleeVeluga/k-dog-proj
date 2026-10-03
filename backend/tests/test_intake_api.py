@@ -416,10 +416,10 @@ class IntakeTests(AppCase):
         item = self.make_case()
         with self.store.connect(write=True) as db:
             tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-            self.assertEqual(tables, {"users", "cases", "runs", "steps", "changes", "score_sheets", "score_grants", "basic_results"})
+            self.assertEqual(tables, {"users", "cases", "runs", "steps", "changes", "score_sheets", "score_grants", "basic_results", "upload_receipts"})
             self.assertEqual(db.execute("PRAGMA foreign_keys").fetchone()[0], 1)
             self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0], "wal")
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 10)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 11)
             db.execute("INSERT INTO runs(run_id,case_id,session_id,input_revision,input_snapshot_json,"
                        "config_snapshot_json,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
                        ("run-1", item["case_id"], item["selected_session_id"], 1, "{}", "{}", "queued", "now", "now"))
@@ -461,7 +461,7 @@ class IntakeTests(AppCase):
         for _ in range(2):
             migrated = Store(self.root)
             with migrated.connect() as db:
-                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 10)
+                self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 11)
                 row = migrated.case(db, item["case_id"])
                 manifest = migrated.manifest(row)
                 run = db.execute("SELECT * FROM runs WHERE run_id='legacy-run'").fetchone()
@@ -543,7 +543,7 @@ class IntakeTests(AppCase):
             # The SPA static mount answers unknown paths: GET → 404, other methods → 405. Either way no API route handles them.
             self.assertIn(response.status_code, (404, 405), (method, path, response.status_code))
         routes = {getattr(route, "path", "") for route in self.client.app.routes}
-        self.assertFalse({route for route in routes if "/analysis" in route or "/reports/" in route or "/exports" in route or route.endswith(("/evaluation", "/report"))})
+        self.assertFalse({route for route in routes if "/analysis" in route or "/reports/" in route or route == "/api/exports" or route.startswith("/api/exports/") or route.endswith(("/evaluation", "/report"))})
 
     def test_server_process_restart_restores_registered_inputs(self):
         with socket.socket() as listener:
@@ -580,6 +580,10 @@ class IntakeTests(AppCase):
 
         old_client = self.client
         item = self.make_case()  # Registered under the original survey before the production server restarts.
+        from app.reset_s1 import execute
+        execute(self.store, "admin")
+        with self.store.connect() as db:
+            item = self.store.view(self.store.case(db, item["case_id"])).model_dump(mode="json")
         try:
             with server() as client:
                 self.client = client

@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from app.observation_models import ObservationResponse, VideoResponse
+from app.storage import uid
 
 
 BASE = "https://generativelanguage.googleapis.com"
@@ -250,6 +251,11 @@ class GeminiObserver:
                 if clip.size_bytes > 2_000_000_000:
                     raise ProviderError("v3_file_size_limit")
                 guard()
+                upload_id = uid()
+                if self.store:
+                    with self.store.connect(write=True) as db:
+                        self.store.audit(db, context["audit_actor"], context["run_id"], "remote.upload_started",
+                                         {"upload_id": upload_id, "credential_reference": reference})
                 _, headers = request("POST", BASE + "/upload/v1beta/files", key, data={"file": {"display_name": "kdog-v3-clip"}}, headers={
                     "X-Goog-Upload-Protocol": "resumable", "X-Goog-Upload-Command": "start",
                     "X-Goog-Upload-Header-Content-Length": str(clip.size_bytes), "X-Goog-Upload-Header-Content-Type": "video/mp4"})
@@ -264,7 +270,11 @@ class GeminiObserver:
                 name = remote["name"]
                 if not re.fullmatch(r"files/[A-Za-z0-9_-]+", name):
                     raise ProviderError("provider_response_invalid")
-                names.append(name)
+                names.append((name, upload_id))
+                if self.store:
+                    with self.store.connect(write=True) as db:
+                        self.store.audit(db, context["audit_actor"], context["run_id"], "remote.uploaded",
+                                         {"upload_id": upload_id, "remote_file_name": name, "credential_reference": reference})
                 deadline = time.monotonic() + 300
                 while remote.get("state") == "PROCESSING":
                     if time.monotonic() >= deadline:
@@ -306,11 +316,15 @@ class GeminiObserver:
             raise ProviderError("provider_response_invalid", uncertain=True, usage=usage) from None
         finally:
             failures = []
-            for name in names:
+            for name, upload_id in names:
                 try:
                     request("DELETE", BASE + "/v1beta/" + name, key)
                 except ProviderError:
                     failures.append(name)
+                else:
+                    if self.store:
+                        with self.store.connect(write=True) as db:
+                            self.store.audit(db, context["audit_actor"], context["run_id"], "remote.deleted", {"upload_id": upload_id})
             usage["remote_cleanup_pending"] = bool(failures)
             if failures and self.store:
                 with self.store.connect(write=True) as db:

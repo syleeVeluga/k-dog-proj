@@ -43,9 +43,10 @@ def heartbeat(store, row):
 
 
 class Worker:
-    def __init__(self, store, *, observer=None, evaluator=None, reporter=None, probe=inspect_media, v3_work=None):
+    def __init__(self, store, *, observer=None, evaluator=None, reporter=None, probe=inspect_media, v3_work=None, v4_work=None):
         self.store = store
         self.v3_work = v3_work
+        self.v4_work = v4_work
         # Injection is only a Python test seam; CLI/API never offer a fake provider.
         self.observer = observer if observer is not None else GeminiObserver(store)
         self.probe = probe
@@ -108,7 +109,7 @@ class Worker:
         if previous and previous["status"] == "retry_wait" and previous["retry_at"] > now():
             return None
         # Schema repair has its own one-repair cap inside the shared three-attempt budget.
-        schema_code = "v3_schema_invalid" if row["kind"] != "legacy" else "evaluation_schema_invalid" if stage in ("evaluate", "report") else "observation_schema_invalid"
+        schema_code = "v4_schema_invalid" if row["kind"] == "s1" else "v3_schema_invalid" if row["kind"] != "legacy" else "evaluation_schema_invalid" if stage in ("evaluate", "report") else "observation_schema_invalid"
         repair_limit = config.get("max_schema_repairs", 1)
         if provider_stage:
             with self.store.connect() as db:
@@ -218,6 +219,12 @@ class Worker:
         return artifact.model_dump(mode="json")
 
     def process(self, row):
+        if row["kind"] == "report_v4":
+            from app import report_runs_v4
+            return report_runs_v4.process(self, row)
+        if row["kind"] == "s1":
+            from app import run_v4
+            return run_v4.process(self, row)
         if row["kind"] != "legacy":
             from app import run_v3
             if row["kind"] == "scoring_v3":
@@ -531,7 +538,7 @@ class Worker:
         except (HTTPException, OSError, ValueError, KeyError):
             with self.store.connect(write=True) as db:
                 current = db.execute("SELECT * FROM cases WHERE case_id=?", (row["case_id"],)).fetchone()
-                stopped = current["deletion_requested"]
+                stopped = not current or current["deletion_requested"]
                 changed = db.execute("UPDATE runs SET status=?,claim_token=NULL,lease_expires_at=NULL,updated_at=? "
                            "WHERE run_id=? AND claim_token=? AND status='running'",
                            ("stopped" if stopped else "failed", now(), row["run_id"], row["claim_token"])).rowcount

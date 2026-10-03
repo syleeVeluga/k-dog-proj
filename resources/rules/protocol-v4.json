@@ -1,0 +1,344 @@
+{
+  "schema_version": "4.0",
+  "version": "protocol-20261002-s1.1",
+  "catalog_version": "catalog-20261002-s1.1",
+  "source": {
+    "schema_version": "4.0",
+    "source_id": "SRC02",
+    "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+    "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+    "location": "3~6절 / 부록 A"
+  },
+  "segments": [
+    {
+      "segment": "entry",
+      "label": "입장",
+      "nominal_seconds": 30,
+      "start_event": "개가 방 문턱을 넘음",
+      "procedure": "방 문 → 비닐 바닥 → 물건 옆 5초 정지 → 의자. 목줄 고리가 풀리면 종료."
+    },
+    {
+      "segment": "baseline",
+      "label": "기준",
+      "nominal_seconds": 20,
+      "start_event": "목줄 고리가 풀림",
+      "procedure": "보호자는 의자에서 동일 안내책자를 읽음. 분리 구간 전까지 20초."
+    },
+    {
+      "segment": "alone",
+      "label": "혼자",
+      "nominal_seconds": 60,
+      "start_event": "보호자 몸이 완전히 문 밖으로 나감",
+      "procedure": "문 밖에서 보이지 않게 대기. 재회 문 열림으로 종료. 처음 10초와 이후 50초를 구별."
+    },
+    {
+      "segment": "reunion",
+      "label": "재회",
+      "nominal_seconds": 30,
+      "start_event": "보호자가 문을 엶",
+      "procedure": "0~15초 의자로 이동·착석·대기. 15초 신호 후 이름 1회·접촉 기회. 30초 종료 신호."
+    },
+    {
+      "segment": "ignore",
+      "label": "무시",
+      "nominal_seconds": 20,
+      "start_event": "만지기를 멈춤",
+      "procedure": "말·시선·접촉 없음. 이후 이름 1회와 S로 이동은 전환 기록."
+    },
+    {
+      "segment": "walk",
+      "label": "걷기",
+      "nominal_seconds": 30,
+      "start_event": "S에서 첫걸음",
+      "procedure": "S→A, 정지 5초 → A→C, 정지 5초 → C→S, 정지 5초. 마지막 정지 끝이 종료."
+    },
+    {
+      "segment": "stranger",
+      "label": "낯선",
+      "nominal_seconds": 30,
+      "start_event": "착석 뒤 5초 대기 후 요원이 닫힌 안전문 밖에 섬",
+      "procedure": "문 밖 대기 → 입실 → 정지선 접근 → 부름 → 접촉 또는 대기 → 같은 문으로 나감."
+    },
+    {
+      "segment": "exit",
+      "label": "퇴장",
+      "nominal_seconds": 30,
+      "start_event": "목줄 채운 뒤 첫걸음",
+      "procedure": "물건 옆 5초 정지 → 바닥 → 방 문. 개가 문턱 밖으로 나가면 종료."
+    }
+  ],
+  "windows": [
+    {
+      "window_id": "entry_whole",
+      "segment": "entry",
+      "anchor": "actual_segment",
+      "start_offset": 0,
+      "end_offset": null,
+      "nominal_seconds": 30,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "baseline_whole",
+      "segment": "baseline",
+      "anchor": "actual_segment",
+      "start_offset": 0,
+      "end_offset": null,
+      "nominal_seconds": 20,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "alone_whole",
+      "segment": "alone",
+      "anchor": "actual_segment",
+      "start_offset": 0,
+      "end_offset": null,
+      "nominal_seconds": 60,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "reunion_whole",
+      "segment": "reunion",
+      "anchor": "actual_segment",
+      "start_offset": 0,
+      "end_offset": null,
+      "nominal_seconds": 30,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "ignore_whole",
+      "segment": "ignore",
+      "anchor": "actual_segment",
+      "start_offset": 0,
+      "end_offset": null,
+      "nominal_seconds": 20,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "walk_whole",
+      "segment": "walk",
+      "anchor": "actual_segment",
+      "start_offset": 0,
+      "end_offset": null,
+      "nominal_seconds": 30,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "stranger_whole",
+      "segment": "stranger",
+      "anchor": "actual_segment",
+      "start_offset": 0,
+      "end_offset": null,
+      "nominal_seconds": 30,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "exit_whole",
+      "segment": "exit",
+      "anchor": "actual_segment",
+      "start_offset": 0,
+      "end_offset": null,
+      "nominal_seconds": 30,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "alone_initial",
+      "segment": "alone",
+      "anchor": "actual_segment",
+      "start_offset": 0,
+      "end_offset": 10,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "alone_later",
+      "segment": "alone",
+      "anchor": "actual_segment",
+      "start_offset": 10,
+      "end_offset": 60,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "reunion_approach",
+      "segment": "reunion",
+      "anchor": "actual_segment",
+      "start_offset": 0,
+      "end_offset": 15,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "reunion_later",
+      "segment": "reunion",
+      "anchor": "actual_segment",
+      "start_offset": 15,
+      "end_offset": 30,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "stranger_gate",
+      "segment": "stranger",
+      "anchor": "actual_segment",
+      "start_offset": 0,
+      "end_offset": 10,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "stranger_approach",
+      "segment": "stranger",
+      "anchor": "actual_segment",
+      "start_offset": 12,
+      "end_offset": 16,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "stranger_call",
+      "segment": "stranger",
+      "anchor": "actual_call",
+      "start_offset": 0,
+      "end_offset": 4,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "entry_free",
+      "segment": "entry",
+      "anchor": "actual_free_movement",
+      "start_offset": null,
+      "end_offset": null,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "entry_object",
+      "segment": "entry",
+      "anchor": "actual_object_stop_and_passage",
+      "start_offset": null,
+      "end_offset": null,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "exit_free",
+      "segment": "exit",
+      "anchor": "actual_free_movement",
+      "start_offset": null,
+      "end_offset": null,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "exit_object",
+      "segment": "exit",
+      "anchor": "actual_object_stop_and_passage",
+      "start_offset": null,
+      "end_offset": null,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "reunion_contact",
+      "segment": "reunion",
+      "anchor": "actual_contact",
+      "start_offset": 0,
+      "end_offset": null,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "reunion_tail_event",
+      "segment": "reunion",
+      "anchor": "first_clear_head_turn",
+      "start_offset": -2,
+      "end_offset": 3,
+      "status": "optional_trial"
+    },
+    {
+      "window_id": "stranger_contact",
+      "segment": "stranger",
+      "anchor": "actual_contact",
+      "start_offset": 0,
+      "end_offset": null,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "stranger_tail_event",
+      "segment": "stranger",
+      "anchor": "first_clear_head_turn",
+      "start_offset": -2,
+      "end_offset": 3,
+      "status": "optional_trial"
+    },
+    {
+      "window_id": "stranger_exit",
+      "segment": "stranger",
+      "anchor": "actual_staff_exit",
+      "start_offset": 0,
+      "end_offset": null,
+      "status": "confirmed"
+    },
+    {
+      "window_id": "separation_departure",
+      "segment": "alone",
+      "anchor": "actual_guardian_departure_preparation",
+      "end_event": "guardian_fully_outside",
+      "start_offset": null,
+      "end_offset": null,
+      "status": "confirmed"
+    }
+  ],
+  "walk_phases": [
+    [
+      "개37",
+      "S 첫걸음 직전",
+      "시작값이며 분모 6에 넣지 않음"
+    ],
+    [
+      "개38·39",
+      "S→A 이동 / A 정지 5초",
+      "국면별 주된 시간의 거리 등급 0~3"
+    ],
+    [
+      "개40·41",
+      "A→C 이동 / C 정지 5초",
+      "S를 지나 C까지 한 이동 국면"
+    ],
+    [
+      "개42·43",
+      "C→S 이동 / S 정지 5초",
+      "마지막 5초 후 의자로 이동·착석"
+    ]
+  ],
+  "stranger_script": [
+    [
+      "0~10초",
+      "닫힌 안전문 밖에 서 있음",
+      "개13 안전문 반응. 직접 접촉으로 읽지 않음."
+    ],
+    [
+      "10~12초",
+      "안전문을 열고 입실",
+      "실제 문 열림·입실 시각 기록"
+    ],
+    [
+      "12~16초",
+      "이름을 부르기 전에 정지선까지 접근",
+      "개55. 회피·굳음·으르렁이면 선 이전에도 중단."
+    ],
+    [
+      "16~20초",
+      "정지선에서 이름 1회, 제자리 대기",
+      "개15 부름 후 4초 반응"
+    ],
+    [
+      "20~23초",
+      "개가 자발적으로 손 닿는 곳에 있고 회피하지 않으면 최대 3초 접촉",
+      "개51·52. 서서 옆으로 가슴·어깨를 만짐. 쫓아가 만지지 않음. 기존 접촉 꼬리 바45는 제외."
+    ],
+    [
+      "23~25초",
+      "접촉 종료 후 대기. 미접촉이면 20~25초 대기",
+      "개53 접촉 경로. 미접촉을 접촉 반응 0점으로 넣지 않음."
+    ],
+    [
+      "25~30초",
+      "돌아서 문으로 퇴장, 추가 부름·손짓 없음",
+      "개54. 실제 첫걸음~안전문 통과. 한 바퀴 돌기 없음."
+    ]
+  ],
+  "pending_policies": {
+    "D03": "개21 현재 전반 0~15초 배치 유지; 전체30초 집계안 미확정. 보5 사건간 종합·동률·최소량 미확정.",
+    "D05": "추가 무효 조건은 확인 전 임의 적용하지 않음."
+  }
+}

@@ -1,6 +1,6 @@
 # PR-S11 리포트HTML과PDF
 
-버전: v1.0 · 2026-10-03 · 상태: 구현 전 · 선행: S10 · 기준: main 3654596
+버전: v1.0 · 2026-10-03 · 상태: 구현·자동 검증·시각 검수 완료 · 선행: S10 · 기준: main 3654596
 
 상위: [전체 계획](K-DOG_개발반영계획_v1.0_20261003.md). 공통 검증·리뷰·버전 확인·저장 보호는 상위 §7을 적용한다.
 
@@ -50,8 +50,9 @@
 
 ## 구현 및 검증 기록
 
-- [ ] 구현·변경 파일 및 commit/PR 기록
-- [ ] 명세 기대값과 실제 시험 결과·미실행 사유 기록
-- [ ] 라이브러리/API 최신·선택 버전·확인일·근거 기록
-- [ ] 리뷰 발견사항과 수용/보류/거절·수정·재검증 기록
-- [ ] 남은 D/G 확인, 활성/보류 기능, 다음 PR 인계 기록
+- [x] `domain/report_render_v4.py`, `report_render_v4.py`, `report_pdf_v4.py`, presentation/HTML/CSS, 합성 출력 builder와 backend/browser 시험을 구현했다. `veluga/s11-report-rendering`의 이 기록을 포함하는 commit. 원본 SRC08 HTML hash `7c8dc17df586cde89ded852a17bc6324d504c3833f92755633a03a555a4ed763`, SRC09 PDF hash `9785d3d6cf4c30bc733f7dae66245e0b005370440189ffce407db1a8e5278d67`를 재확인하고 견본 6쪽 전부를 열어 구조만 반영했다. 원본 이름·사진·예비 점수는 복사하지 않았다.
+- [x] 2026-10-04 backend5개와 브라우저2개(13.4초) 통과. 네 카드·3장면/사진없음·실제 시간표·설문0/원척도·음수·역채점·분모·문자 escape·외부 HTTP0·내장 폰트/사진·잘못된 사진 hash/시각 거절을 확인했다. 기본 정상/결측 HTML 인쇄와 서버PDF는 각각6쪽이다.
+- [x] 서버PDF 일반6쪽과 긴한글12쪽 전 페이지 PNG를 직접 검수했다. 400회 반복 원문이 두 summary 위치에서 총800회 모두 보존되고 마지막 표식2개와 초과쪽 안내를 pypdf로 확인했다. 브라우저PDF 정상6쪽 전체와 긴한글10쪽 전환을 별도 검수했으며 긴 원문600회와 끝표식2개가 보존된다. desktop/360px 카드1열과 잘림 없는 표를 직접 확인했다. QA 산출물은 참가자 없는 합성 파일이며 임시 검증 폴더에만 둔다.
+- [x] 라이브러리/API 확인 2026-10-04: ReportLab 최신/선택5.0.1, Python3.14 기존 잠금 유지. [PyPI](https://pypi.org/project/reportlab/), [Platypus](https://docs.reportlab.com/reportlab/userguide/ch5_platypus/), [CJK 문단](https://docs.reportlab.com/reportlab/userguide/ch6_paragraphs/), [표](https://docs.reportlab.com/reportlab/userguide/ch7_tables/). 검증 도구만 기존 bundle 사용: pypdf 최신6.19.0/선택6.10.0(Python≥3.9, [PyPI](https://pypi.org/project/pypdf/), [선택 API](https://pypdf.readthedocs.io/en/6.10.0/user/extract-text.html)); Poppler 최신26.09.0/선택26.07.0([공식](https://poppler.freedesktop.org/)). 새 설치·lock 변경 없음. 기존 NanumGothic/NotoSansSymbols와 해당 OFL 사용 조건을 유지했다.
+- [x] 독립 cold review 수용: PDF 설문/영상 셀 색 분리, 실제 역채점 문항만 원응답/변환값 병기, 원항목 의미와 척도 범례, 잘못된 단일문항 제목과 조사 문구 수정, 브라우저 인쇄9쪽 문제를 인쇄 전용 여백/표 배치로 수정해6쪽 재검증했다. CSS의 data-section 선택자를 태그 개수로 세던 시험도 실제 section 태그 기준으로 고쳤다.
+- [x] blocking 내용 오류는 출력하지 않는다. G02 문장 은행 미수령만으로 명세 기반의 검증된 출력 전체를 보류하거나 새 사람 승인을 강제하지 않는다. 명시한 preview는 별도로 표시한다. 실제 영상 사진·현장 인쇄기 검증은 E08/E10 후속이며 S12가 원본 frame PTS/hash와 생성·발급·다운로드 권한을 연결한다. 교체 구판 출력 경로의 최종 정리는 S15에 인계한다.
