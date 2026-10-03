@@ -1,0 +1,18 @@
+{
+  "version": "report-presentation-20261002-s1.1-app-1",
+  "source_hashes": {
+    "SRC08": "7c8dc17df586cde89ded852a17bc6324d504c3833f92755633a03a555a4ed763",
+    "SRC09": "9785d3d6cf4c30bc733f7dae66245e0b005370440189ffce407db1a8e5278d67"
+  },
+  "colors": {
+    "ink": "#153D39", "video": "#087F77", "survey": "#C9523C",
+    "mint": "#D4EDBF", "background": "#F2F6F1", "line": "#DFE9E2", "muted": "#506661"
+  },
+  "font": "resources/fonts/NanumGothic-Regular.ttf",
+  "symbols_font": "resources/fonts/NotoSansSymbols.ttf",
+  "sections": ["오늘의 결과", "오늘의 장면들", "평소의 우리를 그래프로", "평소와 오늘, 나란히", "가까워지고, 함께 걷고", "내일부터 해볼 작은 실천"],
+  "legend": "청록은 영상 관찰, 코랄은 보호자 설문입니다. 색은 등급을 뜻하지 않습니다.",
+  "scale_notice": "설문과 영상은 서로 다른 질문과 눈금을 사용합니다. 두 값을 빼거나 하나의 점수로 합치지 않습니다.",
+  "external_notice": "외부 연구 비교는 승인 전입니다. 전체 보호자의 평균이나 순위를 뜻하지 않습니다.",
+  "overflow_notice": "긴 설명과 근거를 보존하기 위해 기본 6쪽 이후에 이어지는 쪽이 있습니다."
+}

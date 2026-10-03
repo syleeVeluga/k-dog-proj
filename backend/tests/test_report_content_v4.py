@@ -104,4 +104,3 @@ class ReportContentV4Tests(unittest.TestCase):
         two=reports.build(final,pointer,batch=batch)
         self.assertEqual(one,two)
         self.assertEqual(reports.validate_profile(one,final,pointer,batch=batch),one)
-

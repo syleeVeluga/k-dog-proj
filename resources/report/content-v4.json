@@ -17,7 +17,7 @@
   "external_comparison_status": "pending_D06",
   "templates": {
     "selected_type": "오늘 관찰된 {title}: {label}",
-    "missing_type": "{title}을 설명하기 위한 관찰을 더 확인해야 합니다.",
+    "missing_type": "{title}에 관한 관찰을 더 확인해야 합니다.",
     "walking": "함께 걷는 여섯 국면 중 {numerator}개에서 가까운 거리가 인정되었습니다({percent}%).",
     "walking_meaning": "이 비율은 가까운 거리로 인정된 국면의 비율이며, 가까이 있었던 시간이나 복종 정도를 뜻하지 않습니다.",
     "walking_missing": "함께 걷기의 거리와 보호자 접근 예외를 더 확인해야 합니다.",
