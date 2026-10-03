@@ -33,7 +33,7 @@ async function fixture(request: APIRequestContext, participant: string) {
   return { item, base, final: await final.json(), sheet: submitted, observations };
 }
 
-test.beforeEach(({ page }) => { test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required'); page.setDefaultTimeout(15000); });
+test.beforeEach(({ page }) => { page.setDefaultTimeout(15000); });
 
 test('S1 report uses explicit final pins, recovers a lost create response and stops/retries without duplicate creation', async ({ page, request }) => {
   test.setTimeout(120000); const data = await fixture(request, 's1report-run'); await login(page); await open(page, 's1report-run');

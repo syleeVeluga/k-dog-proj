@@ -25,7 +25,7 @@ async function fixture(request: APIRequestContext, participant: string) {
   return { item, base, sheet: submitted, basic, final: await final.json(), observations };
 }
 async function openExport(page: Page, participant: string) { await page.getByRole('button', { name: '독립 채점', exact: true }).click(); await page.getByRole('button', { name: `${participant} 독립 채점 열기`, exact: true }).click(); await page.getByText('연구 내보내기', { exact: true }).click(); return page.getByRole('region', { name: 'S1 연구 내보내기', exact: true }); }
-test.beforeEach(({ page }) => { test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required'); page.setDefaultTimeout(15000); });
+test.beforeEach(({ page }) => { page.setDefaultTimeout(15000); });
 
 test('S14 reference workbook preserves raw cells, formulas, unknown identity and idempotent reference-only registration', async ({ page }, info) => {
   test.setTimeout(120000); await login(page); const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));

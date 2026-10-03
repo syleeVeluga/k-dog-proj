@@ -5,7 +5,6 @@ const headers = { 'X-KDOG-Request': '1' };
 const password = 'Browser-test-only-42';
 
 test('S1 scoring preserves explicit zero, null states, source evidence, independent locks and exposure', async ({ page, request, browser }, testInfo) => {
-  test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required');
   test.setTimeout(180000);
   page.setDefaultTimeout(15000);
   const errors: string[] = [];

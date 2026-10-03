@@ -1,7 +1,6 @@
-"""The rehearsal script runs the whole intake→preprocess flow on synthetic media in a throwaway folder (2 pairs here, 72 by default)."""
+"""S1 receipt→sheet→PDF rehearsal uses synthetic media in a throwaway folder."""
 
 import importlib.util
-import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -26,12 +25,14 @@ class RehearsalTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="kdog-rehearsal-test-") as temporary:
             report = rehearsal.rehearse(Path(temporary), pairs=2, seconds=20.0, event="RTEST")
             self.assertEqual((report["pairs"], report["clips"]), (2, 2 * report["clips_per_pair"]))
-            self.assertEqual(sum(report["survey_separation_types"].values()), 2)
+            self.assertEqual(report["published_reports"], 2)
+            self.assertEqual(report["spec"], "20261002")
+            self.assertEqual(report["logical_clients"], 3)
+            self.assertFalse(report["physical_pcs_verified"])
+            self.assertEqual(report["external_ai_calls"], 0)
             self.assertGreater(report["clip_bytes"], 0)
-            self.assertEqual(set(report["stages_sec"]), {"synthetic_media", "intake_import", "survey_import", "video_register", "segments_confirm", "preprocess"})
-            clips = list(Path(temporary).glob("clips/*/*/*/clips.json"))
-            self.assertEqual(len(clips), 2)
-            self.assertEqual(json.loads(clips[0].read_text(encoding="utf-8"))["rules_version"], "preprocess-v2-excel-provisional")
+            self.assertEqual(set(report["stages_sec"]), {"synthetic_media", "forms_import", "concurrent_upload", "video_link", "recording", "preprocess", "independent_sheet_and_calculation", "report_publish"})
+            self.assertGreaterEqual(report["total_sec"], sum(report["stages_sec"].values()) - 0.02)
 
     def test_cli_refuses_a_non_empty_data_dir(self):
         with tempfile.TemporaryDirectory(prefix="kdog-rehearsal-cli-") as temporary:

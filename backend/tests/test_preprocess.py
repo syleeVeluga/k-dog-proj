@@ -139,15 +139,15 @@ class PreprocessTests(AppCase):
         self.assertEqual(too_long.exception.status_code, 422)
         self.assertFalse(list(self.store.path("clips").rglob("*.mp4")) if self.store.path("clips").exists() else [])
 
-    def test_cli_runs_preprocessing_with_an_active_operator(self):
+    def test_cli_rejects_legacy_preprocessing_and_inactive_role(self):
         import sys
         self.segments()
-        result = subprocess.run([sys.executable, "-X", "utf8", "-m", "app.manage", "--data-dir", str(self.root), "preprocess", self.item["case_id"], "--actor", "operator"],
+        arguments = ["--request-id", "old-cli-request", "--expected-revision", str(self.item["input_revision"])]
+        result = subprocess.run([sys.executable, "-X", "utf8", "-m", "app.manage", "--data-dir", str(self.root), "preprocess", self.item["case_id"], "--actor", "operator", *arguments],
                         cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, encoding="utf-8", timeout=300)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        summary = json.loads(result.stdout)
-        self.assertEqual((summary["clips"], summary["video_id"]), (11, self.video_id))
-        denied = subprocess.run([sys.executable, "-X", "utf8", "-m", "app.manage", "--data-dir", str(self.root), "preprocess", self.item["case_id"], "--actor", "reviewer"],
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("S1", result.stderr)
+        denied = subprocess.run([sys.executable, "-X", "utf8", "-m", "app.manage", "--data-dir", str(self.root), "preprocess", self.item["case_id"], "--actor", "reviewer", *arguments],
                         cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, encoding="utf-8", timeout=120)
         self.assertNotEqual(denied.returncode, 0)
 

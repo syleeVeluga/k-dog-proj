@@ -33,7 +33,6 @@ async function fixture(request: APIRequestContext, participant: string) {
   const basic = await revised.json(); const basicRef = { result_id: basic.summary.result_id, revision: basic.summary.revision, ref: basic.summary.manifest_ref, hash: basic.summary.manifest_hash };
   return { item, path, sheet: submitted, basic, basicRef, observations, evidence };
 }
-test.beforeEach(() => test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required'));
 
 test('S1 opinions preserve completion gates, typed evidence, conflict drafts and immutable final priority', async ({ page, request }, testInfo) => {
   test.setTimeout(180000); page.setDefaultTimeout(15000); const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));

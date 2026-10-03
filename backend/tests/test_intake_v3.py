@@ -67,7 +67,7 @@ class IntakeV3Tests(AppCase):
             deleted = Store(root / "deleted")
             with deleted.connect() as db:
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM cases").fetchone()[0], 0)
-                self.assertEqual(maintenance.deletion_records(deleted), {("TEST", "0001")})
+                self.assertEqual(maintenance.deletion_records(deleted), {(item["case_id"], "TEST", "0001")})
         self.assertEqual(self.client.get(path).status_code, 404)
 
     def test_csv_and_xlsx_consent_states_match_and_invalid_values_reject(self):

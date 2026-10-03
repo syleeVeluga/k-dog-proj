@@ -81,6 +81,27 @@ class PreprocessV4Tests(unittest.TestCase):
         request = PreprocessRequestV4(request_id=request_id, expected_revision=self.current()["input_revision"], **changes)
         return preprocess.execute(self.store, self.case_id, self.session_id, "op", request)
 
+    def test_cli_executes_s1_and_reuses_only_the_same_explicit_request(self):
+        import subprocess
+        import sys
+        linked = self.upload()
+        self.recording(linked.video_id)
+        command = [sys.executable, "-X", "utf8", "-m", "app.manage", "--data-dir", str(self.store.root),
+                   "preprocess", self.case_id, "--actor", "op", "--request-id", "s1-cli-request",
+                   "--expected-revision", str(self.current()["input_revision"])]
+        first = subprocess.run(command, cwd=Path(__file__).resolve().parents[1], capture_output=True,
+                               text=True, encoding="utf-8", timeout=60)
+        self.assertEqual(first.returncode, 0, first.stderr)
+        first_result = json.loads(first.stdout)
+        self.assertEqual(first_result["status"], "complete")
+        self.assertGreater(first_result["clips"], 0)
+        repeated = subprocess.run(command, cwd=Path(__file__).resolve().parents[1], capture_output=True,
+                                  text=True, encoding="utf-8", timeout=30)
+        self.assertEqual(repeated.returncode, 0, repeated.stderr)
+        self.assertEqual(json.loads(repeated.stdout), first_result)
+        with self.store.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='preprocess_v4.completed'").fetchone()[0], 1)
+
     @staticmethod
     def event(key, kind, video, start, end, codes=()):
         return {"event_id": key, "kind": kind, "video_id": video, "segment": "entry", "seconds": start,

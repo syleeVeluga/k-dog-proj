@@ -12,6 +12,23 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Historical fixtures stay in the repository, outside the S1 product package.
+# The remaining old assets are still read by shared imports and raw-input reset.
+RETIRED_FILES = frozenset({
+    "backend/app/exports.py", "backend/app/developer_sample.py",
+    "resources/catalogs/behavior-v1.json", "resources/catalogs/behavior-v2.json",
+    "resources/catalogs/survey-v1.json", "resources/rules/pending-v1.json",
+    "resources/rules/preprocess-v1.json", "resources/mappings/results-v3.json",
+    "resources/mappings/survey-behavior-v3.json",
+})
+
+
+def product_file(name):
+    return name not in RETIRED_FILES and (
+        name.startswith("backend/app/") and name.endswith(".py") or
+        name.startswith("resources/") and Path(name).suffix in (".json", ".ttf", ".txt", ".md", ".html", ".css")
+    )
+
 
 def build(destination):
     destination = destination.resolve()
@@ -20,10 +37,7 @@ def build(destination):
     subprocess.run([shutil.which("npm.cmd") or shutil.which("npm"), "run", "build"],
                    cwd=ROOT / "frontend", check=True)
     tracked = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT).decode().split("\0")
-    files = {name: ROOT / name for name in tracked if (
-        name.startswith("backend/app/") and name.endswith(".py") or
-        name.startswith("resources/") and Path(name).suffix in (".json", ".ttf", ".txt", ".md")
-    )}
+    files = {name: ROOT / name for name in tracked if product_file(name)}
     for name in ("README.md", "backend/pyproject.toml", "backend/uv.lock", "docs/PILOT_OPERATIONS.md"):
         files[name] = ROOT / name
     for name in ("Install.cmd", "Start.cmd", "install.ps1"):

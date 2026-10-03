@@ -3,7 +3,7 @@ import { Notification } from './Notification';
 import { DeveloperSettings, Recovery } from './DeveloperSettings';
 import { api } from './api';
 import { mayLeave } from './Editing';
-import { Importer } from './Importer';
+import { FormsImporter } from './FormsImporter';
 import { Users } from './Users';
 import { Intake } from './pages/Intake';
 import { Survey } from './pages/Survey';
@@ -151,7 +151,7 @@ export function App() {
           <DeveloperSettings />
           <button onClick={() => void run(async () => setNotice((await api<{ message: string }>('/developer/status')).message))}>인증 상태 확인</button>
         </section>
-          : page === 'import' ? <Importer run={run} catalog={catalog} catalogVersion={catalog?.version ?? ''} done={async message => { setNotice(message); await reload(); }} />
+          : page === 'import' ? <FormsImporter cases={cases} run={run} done={async message => { setNotice(message); await reload(); }} />
           : page === 'validation' ? <ValidationData user={user} />
           : page === 'users' ? <Users run={run} />
           : page === 'data' ? <section><h1>자료 관리</h1><Recovery /></section>

@@ -4,7 +4,6 @@ import { execFileSync } from 'node:child_process';
 const headers = { 'X-KDOG-Request': '1' };
 
 test('S1 preserved video registers its camera and source without replacing raw media', async ({ page }) => {
-  test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required');
   await page.goto('/');
   await page.getByLabel('계정', { exact: true }).fill('operator');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
@@ -43,7 +42,6 @@ test('S1 preserved video registers its camera and source without replacing raw m
 });
 
 test('S1 actual recording: windows, events, observations, offsets, immutable edits and reviewer', async ({ page }, testInfo) => {
-  test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required');
   test.setTimeout(120000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -66,6 +64,7 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
   await page.getByRole('button', { name: '촬영', exact: true }).click();
   await page.getByRole('button', { name: 's1rec 촬영 열기' }).click();
   const panel = page.getByLabel('S1 촬영 기록', { exact: true });
+  await panel.getByRole('combobox', { name: '기준 영상', exact: true }).selectOption(videos[0].video_id);
   await panel.getByRole('combobox', { name: '실제 촬영 절차', exact: true }).selectOption('s1_confirmed');
   await panel.getByLabel('절차 확인 근거', { exact: true }).fill('합성 S1 순서 확인, 실제 시각 직접 기록');
   const names = ['입장', '기준', '혼자', '재회', '무시', '걷기', '낯선 사람', '퇴장'];
@@ -146,6 +145,28 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
     elements: Array.from(document.querySelectorAll('body *')).filter(element => element.getBoundingClientRect().right > window.innerWidth + 1)
       .slice(-12).map(element => ({ tag: element.tagName, class: element.className, text: element.textContent?.slice(0, 60), right: element.getBoundingClientRect().right })) }));
   expect(overflow.width <= overflow.viewport, JSON.stringify(overflow)).toBe(true);
+  const firstSession = item.selected_session_id;
+  await page.getByText('재촬영 세션 추가', { exact: true }).click();
+  await page.getByRole('button', { name: '새 촬영 시작', exact: true }).click();
+  await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('');
+  let persisted = await (await page.request.get(`/api/cases/${item.case_id}`)).json();
+  const secondSession = persisted.selected_session_id;
+  expect(persisted.manifest.sessions.find((value: { session_id: string }) => value.session_id === firstSession).recording_s1.segments[7].end_sec).toBe(46);
+  expect(persisted.manifest.sessions.find((value: { session_id: string }) => value.session_id === secondSession).recording_s1).toBeNull();
+  persisted = await (await page.request.post(`/api/cases/${item.case_id}/sessions`, { headers, data: { session_id: firstSession, expected_revision: persisted.input_revision } })).json();
+  await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('46');
+  await panel.getByRole('button', { name: '확정본 수정 시작', exact: true }).click();
+  await panel.getByLabel('퇴장 끝', { exact: true }).fill('47');
+  page.once('dialog', dialog => dialog.dismiss());
+  persisted = await (await page.request.post(`/api/cases/${item.case_id}/sessions`, { headers, data: { session_id: secondSession, expected_revision: persisted.input_revision } })).json();
+  await expect(panel.getByText(/다른 변경이 저장되었습니다/)).toBeVisible();
+  await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('47');
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true }).click();
+  await page.getByRole('button', { name: 's1rec 촬영 열기', exact: true }).click();
+  await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('');
+  persisted = await (await page.request.post(`/api/cases/${item.case_id}/sessions`, { headers, data: { session_id: firstSession, expected_revision: persisted.input_revision } })).json();
+  await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('46');
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await page.getByLabel('계정', { exact: true }).fill('reviewer');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');

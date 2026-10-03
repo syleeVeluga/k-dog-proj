@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 
-test('Forms 원라벨 검증·일괄 등록·재시도·명시적 연결과 입력 충돌', async ({ page }, testInfo) => {
-  test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required');
+for (const format of ['csv', 'xlsx']) {
+test(`Forms ${format} 원라벨 검증·일괄 등록·재시도·명시적 연결과 입력 충돌`, async ({ page }, testInfo) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await page.getByLabel('계정', { exact: true }).fill('operator');
@@ -9,10 +10,17 @@ test('Forms 원라벨 검증·일괄 등록·재시도·명시적 연결과 입�
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await page.getByText('Forms 참가자·설문 함께 등록', { exact: true }).click();
   const form = page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true });
-  await form.getByLabel('폼 행사 ID', { exact: true }).fill('FORMS-BROWSER');
-  const buffer = Buffer.from('강아지,보호자,Q10,Q11\n합성 동명이견,동명이인,없음,2\n합성 동명이견,동명이인,2,4\n');
-  await form.getByLabel('Forms 파일', { exact: true }).setInputFiles({ name: 'synthetic-forms.csv', mimeType: 'text/csv', buffer });
+  const eventId = `FORMS-BROWSER-${format}`;
+  await form.getByLabel('폼 행사 ID', { exact: true }).fill(eventId);
+  const buffer = format === 'csv' ? Buffer.from('강아지,보호자,Q10,Q11\n합성 동명이견,동명이인,없음,2\n합성 동명이견,동명이인,2,4\n')
+    : execFileSync('../backend/.venv/Scripts/python.exe', ['-X', 'utf8', '-c', "import io,sys; from openpyxl import Workbook; w=Workbook(); w.active.title='안내'; w.active.append(['설명']); s=w.create_sheet('실제입력'); s.append(['강아지','보호자','Q10','Q11']); s.append(['합성 동명이견','동명이인','없음',2]); s.append(['합성 동명이견','동명이인',2,4]); b=io.BytesIO(); w.save(b); sys.stdout.buffer.write(b.getvalue())"]);
+  await form.getByLabel('Forms 파일', { exact: true }).setInputFiles({ name: `synthetic-forms.${format}`, mimeType: 'application/octet-stream', buffer });
   await form.getByRole('button', { name: 'Forms 열 확인', exact: true }).click();
+  if (format === 'xlsx') {
+    await expect(form.getByLabel('원본 시트', { exact: true })).toHaveValue('안내');
+    await form.getByLabel('원본 시트', { exact: true }).selectOption('실제입력');
+    await form.getByRole('button', { name: 'Forms 열 확인', exact: true }).click();
+  }
   await form.getByLabel('폼 열 dog_name', { exact: true }).selectOption('강아지');
   await form.getByLabel('폼 열 guardian_name', { exact: true }).selectOption('보호자');
   await form.getByText('28문항과 빈칸 사유 연결', { exact: true }).click();
@@ -31,7 +39,7 @@ test('Forms 원라벨 검증·일괄 등록·재시도·명시적 연결과 입�
   await expect(form.getByText('이미 확정한 파일입니다. 재확정해도 참가자가 추가되지 않습니다.')).toBeVisible();
   await form.getByRole('button', { name: 'Forms 전체 확정', exact: true }).click();
   const cases = await (await page.request.get('/api/cases')).json();
-  expect(cases.filter((c: { event_id: string }) => c.event_id === 'FORMS-BROWSER')).toHaveLength(2);
+  expect(cases.filter((c: { event_id: string }) => c.event_id === eventId)).toHaveLength(2);
   const first = cases.find((c: { case_id: string }) => c.case_id === preview.rows[0].case_id);
   expect(first.manifest.sessions[0].survey.s10).toBe(0);
 
@@ -66,6 +74,7 @@ test('Forms 원라벨 검증·일괄 등록·재시도·명시적 연결과 입�
   await form.getByLabel('파일 배치', { exact: true }).selectOption('transposed');
   await form.getByRole('button', { name: 'Forms 열 확인', exact: true }).click();
   await expect(form.getByText('기존 참가자·회차에 명시적으로 연결 (0)', { exact: true })).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath('forms-v4.png'), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath(`forms-v4-${format}.png`), fullPage: true });
   expect(errors).toEqual([]);
 });
+}

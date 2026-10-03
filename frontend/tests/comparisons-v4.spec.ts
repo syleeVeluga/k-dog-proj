@@ -12,7 +12,7 @@ async function makeCase(page: Page, id: string, missing: boolean) {
   const response = await page.request.put(`/api/cases/${item.case_id}/survey`, { headers, data: { expected_revision: item.input_revision, session_id: item.selected_session_id, survey_version: 'survey-20260929-v3', answers, not_applicable: [], blank_reasons: missing ? { s01: '합성 미응답', s10: '합성 미응답' } : {} } });
   expect(response.status(), await response.text()).toBe(200); return { item: await response.json(), answers };
 }
-test.beforeEach(({ page }) => { test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required'); page.setDefaultTimeout(15000); });
+test.beforeEach(({ page }) => { page.setDefaultTimeout(15000); });
 
 test('S1 cohorts pin explicit same-edition responses, preserve valid n and retries, and hide revoked source details', async ({ page }, testInfo) => {
   test.setTimeout(120000); const errors: string[] = []; page.on('pageerror', value => errors.push(value.message)); await login(page);

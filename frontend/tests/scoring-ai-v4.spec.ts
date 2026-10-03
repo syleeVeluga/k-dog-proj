@@ -18,7 +18,6 @@ async function openScoring(page: Page, participant: string) {
   await page.getByRole('button', { name: `${participant} 독립 채점 열기`, exact: true }).click();
 }
 
-test.beforeEach(() => test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required'));
 
 test('S1 AI settings use explicit raw scope, immutable activation, schema-only validation and conflict guards', async ({ page, request }, testInfo) => {
   test.setTimeout(120000);

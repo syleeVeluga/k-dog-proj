@@ -59,7 +59,7 @@ class ResetS1Tests(unittest.TestCase):
             db.execute("INSERT INTO basic_results VALUES (?,?,?,?,?,?,?)", ("result", "sheet", "case", "session", 1, self.result_ref, result_hash))
             self.store.audit(db, "admin", "case", "basic.calculate", {"ref": self.result_ref, "hash": result_hash})
             self.store.audit(db, "admin", "settings", "settings.draft", {"ref": settings_ref, "hash": settings_hash})
-            self.store.audit(db, "admin", "case", "deletion.record", {"event_id": "ABSENT", "participant_id": "deleted"})
+            self.store.audit(db, "admin", "absent-case", "deletion.record", {"event_id": "ABSENT", "participant_id": "deleted"})
             self.old_run = dict(db.execute("SELECT * FROM runs").fetchone())
             self.old_step = dict(db.execute("SELECT * FROM steps").fetchone())
 
@@ -111,7 +111,7 @@ class ResetS1Tests(unittest.TestCase):
         self.assertEqual(maintenance.file_hash(self.store.path(self.video[0])), self.video[1])
         self.assertTrue(self.store.path("settings/old.json").exists())
         self.assertTrue(self.store.path("secrets/credential.bin").exists())
-        self.assertIn(("ABSENT", "deleted"), maintenance.deletion_records(self.store))
+        self.assertIn(("absent-case", "ABSENT", "deleted"), maintenance.deletion_records(self.store))
 
     def test_original_30_answers_camera_and_checklist_survive_as_source_only_bytes(self):
         ref, raw = self.original_input()
@@ -278,6 +278,7 @@ class ResetS1Tests(unittest.TestCase):
         with recovered.connect() as db:
             self.assertEqual(recovered.manifest(recovered.case(db, "case")).schema_version, "intake-4.0")
             self.assertEqual(db.execute("SELECT COUNT(*) FROM runs").fetchone()[0], 0)
+        self.assertIn(("absent-case", "ABSENT", "deleted"), maintenance.deletion_records(recovered))
 
     def test_failed_remote_deletion_and_upload_response_loss_survive_reset_and_retry(self):
         with self.store.connect(write=True) as db:

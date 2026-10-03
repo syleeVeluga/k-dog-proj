@@ -1,6 +1,6 @@
 # PR-S15 배포와통합인수
 
-버전: v1.0 · 2026-10-03 · 상태: 구현 전 · 선행: S14 · 기준: main 3654596
+버전: v1.0 · 2026-10-03 · 상태: 구현·통합 검증 중 · 선행: S14 · 기준: main 3654596
 
 상위: [전체 계획](K-DOG_개발반영계획_v1.0_20261003.md). 공통 검증·리뷰·버전 확인·저장 보호는 상위 §7을 적용한다.
 
@@ -56,3 +56,47 @@ S1 기능을 중앙 서버와 촬영용 3PC에서 설치·사용·복구하고, 
 - [ ] 라이브러리/API 최신·선택 버전·확인일·근거 기록
 - [ ] 리뷰 발견사항과 수용/보류/거절·수정·재검증 기록
 - [ ] 남은 D/G 확인, 활성/보류 기능, 다음 PR 인계 기록
+
+### 2026-10-04 구현·cold review·로컬 전환
+
+- 기본 실행은 S1이다. CLI `preprocess`는 명시 request ID/expected revision과 `preprocess_v4`를 사용한다. 실제 저장된 AI run kind `s1`을 worker 시작과 초기화 제외 목록에 일치시켜 재시작이 차단되거나 새 S1 실행이 구판으로 제거되지 않게 했다. `test_deployment_v4`의 실제 subprocess·최초/반복 초기화와 `test_preprocess_v4`의 실제 CLI/응답 재시도 회귀를 추가했다.
+- `scripts/rehearsal.py`는 빈 합성 자료 폴더에서 Forms→3개 별도 촬영 계정 동시 수신→CAM1/2/3 연결→실제 구간/offset→FFmpeg→독립 사람 시트→계산/최종→실제 HTML/PDF 발급을 검사한다. 원본/클립/고정 최종 hash, 총 벽시계/단계 시간을 기록한다. 2쌍 리허설·빈폴더 보호·필수자산 시험3개(35.182초), 별도 1쌍10초 CLI(13.001초)를 통과했다. 외부 AI0건이며 물리3PC·대용량 실측과 구분한다.
+- `launcher.REQUIRED`를 S1 필수 자산으로 변경하고 패키지에 오프라인 HTML/CSS를 포함한다. graft caller와 실제 startup 파일 접근을 대조하여 제품에서 쓰지 않는 v1/v2 행동/설문 일부·pending/preprocess-v1·v3 mapping 7개와 구 export/개발자 sample 모듈2개를 ZIP 대상에서 제외했다. 공통 Worker/Store/API import에서 필요한 역사 자산은 보존한다.
+- cold review P1: 기존 `/imports` 경로가 오류행을 버리고 정상행만 등록하여 S02 원본 보존을 우회했다. S1에서 구 경로를 종료하고 App/설문 진입을 FormsImporter로 통합했다. cold review P2: 구 개발자 설정 draft/activate가 남아 있었다. S1에서 종료하고 키 상태 GET만 남겼다. HTTP/패키지/역사적 명시 fixture5개(4.840초), 실제 브라우저 importer-v4/retirement-v4/settings3개(11.2초), build를 통과했다.
+- cold review P1: 참가자 ID 수정 뒤 삭제하면 과거 ID의 백업에서 동일 사례가 되살아났다. 삭제 tombstone의 안정 case_id를 복원에 다시 적용하고 반복 복원에서도 보존했다. `test_deletion_restore_v4`는 정리 전/후 두 경로와 이중 복원을 검증한다. S14 참고 source hash 폐쇄와 함께 독립21개(36.258초) 통과했다.
+- 실제 로컬 운영 자료: 원 DB 보존본과 사전 검증 백업152파일을 만들고 승인된 S1 초기화를 적용했다. 참가자2·계정2, 원입력2·영상참조6의 hash를 보존했고 구판 run9/step111을 제거했다. 새 점수/기본결과는0건, 원격 정리 대기0건이다. 초기화 반복 complete, 사후 백업14파일, 별도 새 폴더 복원13참조, 초기화 이전 백업409거절을 확인했다. 보호된 운영 폴더의 상세 증거는 저장소에 넣지 않는다.
+- 원본 검사: `uv run --locked python -X utf8 -m app.import_catalogs --spec 20261002 --check`로 S1 8개 추출 자산, `--spec 20260929 --check`로 역사 v3 6개 자산을 실제 대조했다. `app.import_catalogs_v4`는 CLI가 아니므로 해당 모듈 직접 실행의 성공 종료를 검증 근거로 쓰지 않는다. G01/G04 미수령과 Excel 점수 import 비활성은 유지한다.
+- 첫 전체 backend643개(883.082초)에서 구 route substring 및 구판 전처리 CLI 인자 시험2개가 실패했다. 현행 경계에 맞춰 정정했고 intake23개(50.717초)·구판 CLI 거절/실제 S1 CLI2개(11.553초)를 통과했다. 추가 변경을 포함한 전체 회귀를 다시 실행 중이며 실패를 통과로 덮어 기록하지 않는다.
+- 새 의존성/lock 변경 없음. 2026-10-04 공식 확인: [React](https://react.dev/versions) 최신19.3.0/선택19.2.8, [Playwright](https://playwright.dev/docs/release-notes) 최신·선택1.63.0, [FastAPI](https://pypi.org/project/fastapi/) 최신0.142.2/선택0.141.1. 관련 없는 업그레이드를 제외하고 기존 잠금 API를 build/HTTP/브라우저로 확인했다.
+
+실제 새 ZIP·최종 전체 회귀·S1 UI 공통 보호 시험의 통합 결과는 아래에 추가한다. 깨끗한 OS·실제 LAN/3PC·실제 영상 품질·시간은 후속 대장 E01–E10의 별도 상태다.
+
+
+### S1 제품 브라우저 회귀 전환
+
+`backend/tests/browser_server.py`는 제품 기본 `create_app`의 S1을 사용한다. 판본 환경변수와 edition skip을 제거하여 `frontend/`의 `npm run test:e2e` 한 번으로 현행 제품 전체를 실행한다. 서버·백업은 저장소 밖 같은 임시 상위 폴더에 격리하며 worker와 실제 공급자는 실행하지 않는다. 역사적 API fixture는 backend에 유지한다.
+
+| 교체된 UI 시험 | 현행 S1 대응 시험과 유지한 보호 행동 |
+| --- | --- |
+| `importer.spec.ts` | `importer-v4.spec.ts`의 CSV/XLSX 각각 실제 시트·열 선택, 원라벨 검증, 동명이인 별도 ID, 전체 확정 원자성, 재시도 멱등, 명시 기존 회차 연결·revision 충돌. `intake.spec.ts`의 360px 중복행·수정 후 확정도 유지. |
+| `recording.spec.ts`, `recording-v3.spec.ts` | `recording-v4.spec.ts`의 실제 합성 FFmpeg 영상·8구간/6국면·사건·offset·관찰 근거, 확정 잠금, 동시 변경 뒤 draft 보존/409, 새 회차 원자료 분리, 외부 회차 변경 시 이동 취소, reviewer 읽기 전용. `uploads-v4.spec.ts`의 묶음 부분 실패·응답 유실 후 동일 수신물 재사용, 3브라우저 연결 충돌·재접속·완료 파일 재전송 금지. |
+| `preprocess.spec.ts`, `preprocess-v3.spec.ts` | `preprocess-v4.spec.ts`의 실제 3CAM 합성 클립·원본/AI 프레임·연속 오디오, 미확인 offset 제외·가림/신체/오디오 구별, 명시 재사용과 새 재시도, immutable batch, 입력 충돌·이전 입력 표시, 진행/실패/중단/조회 실패 및 reviewer 권한. |
+| `survey.spec.ts`, `survey-v3.spec.ts` | `survey-v4.spec.ts`, `guidance.spec.ts`, `intake.spec.ts`의 28 원응답, 정상0·빈칸과 사유·역채점·원척도, 확정 결측과 D05 보류 구별, 임의 총점 금지, Forms 등록, 360px·reviewer 조회. 구판 부분평균/NA 기대값은 S1 정답으로 복사하지 않음. |
+| `scoring-v3.spec.ts` | `scoring-v4.spec.ts`의 고정 입력·원코드, 0/음수/null 및 근거, 사람 독립 배정·제출 잠금, 실제 공개 전 접근 금지, 공개 후 review·최초 제출 보존, 동시 저장 충돌·보존본 읽기 전용. |
+| `scoring-ai-v3.spec.ts` | `scoring-ai-v4.spec.ts`의 설정 불변 판본·명시 원관찰 범위·스키마 검증, 예정42호출·D04 대기, 실행/중지/재시도/재사용·부분실패·불명 과금, 권한 및 공개 철회. 실제 공급자 호출0. |
+| `judgements-v3.spec.ts` | `judgements-v4.spec.ts`의 입력 고정·청취/발성량·자동 계산/사람 판단 분리·근거/반대근거·보류·동시 수정·보존판본. S1 계산식은 backend 원문 시험으로 별도 검증. |
+
+공통 `context/guidance/integrity/notifications/intake` 5파일은 S1 fixture로 옮겨 72명 목록과 행사/참가자/회차 맥락, 미저장 입력, 목록 연결·손상자료 구별, 화면 내 알림, 등록/새로고침/모바일, 개발자 자료 차단·reviewer 쓰기 차단을 유지한다. `settings.spec.ts`의 실제 키 저장/폐기·화면/브라우저 저장소 비노출과 가짜 연결 응답은 그대로 유지한다. 새 `operations-v4.spec.ts`는 관리자 계정 생성/철회·열린 세션 만료·실제 임시 S1 HTTP 백업·전체 파일 hash/로그인 세션 제외·백업 상태/권한을 검사한다. 복원 자체는 종료가 필요한 CLI/backend 통합 시험의 범위다.
+
+브라우저 전환의 대상 실행 결과와 최종 전체 실행 결과는 검증을 마친 뒤 이어 기록한다. 단순 skip을 통과로 계산하지 않는다.
+
+
+- S1 브라우저 전환 보강9개는 모두 통과 근거를 확보했다. 최초 실행에서 Forms CSV/XLSX·빈 채점·보존 영상·설문·부분 실패 수신6개, 명시 기준영상 선택과 고유 수신물 선택/재시도 응답 확인 뒤 기록2·수신2개(41.7초), 운영 백업1개(16.0초)를 확인했다. 운영 시험은 실제 201 생성 응답, S1 입력 보존, 백업 전 파일 SHA-256 대조, 로그인 세션0, 직원 철회·권한·360px까지 검사한다. 로그인 완료 대기와 backup API/파일 계약에 대한 시험 가정을 실제 계약에 맞춰 수정했으며 제품 동작을 시험에 맞춰 바꾸지 않았다.
+- 공통5파일10개는 acceptance 독립 담당이 S1 전환 후 모두 통과한 실행 근거를 확인했다. 현재 수집은 22파일40개, edition skip/fixme와 판본 환경변수 참조0이다. 최종 단일 전체 실행은 S17 통합을 포함하여 root가 별도 기록한다.
+- 문서 cold review에서는 installer의 Enter가 기존 계정 존재를 확인한다는 잘못된 설명을 수정했다. 생략 가능하나 최초 admin·키관리 developer가 필요하고 실제 생성 CLI를 안내한다. 카탈로그 검증의 실행 없는 `import_catalogs_v4` 명령을 실제 `app.import_catalogs --spec 20261002 --check`로 정정하고 역사 v3는 explicit spec로 분리했다. Q26–Q28 감정의 일관성 역채점을 포함한 전체28문항을 안내한다.
+
+### 통합 동결 전 추가 확인
+
+- 앱 제품 버전을 backend/frontend 및 두 lockfile에서 0.3.0으로 일치시켜 구 v0.2.0 설치물과 구분했다. 의존성 버전은 변경하지 않았고 `uv lock --check --offline`이 통과했다.
+- 전체 backend 663개(1201.612초)의 실패4/오류2는 안정 case_id를 추가한 삭제 이력 계약의 기존 시험 기대값과, 무관한 삭제 fixture가 보존 사례 ID를 재사용한 문제였다. 제품의 안정 ID 보호를 유지하며 시험만 수정했고 intake-v3/reset/settings/반복 삭제복원 36개(61.450초)가 통과했다. S17 최종 변경을 포함한 전체 회귀는 별도 최종 기록으로 남긴다.
+- 마지막 독립 packaging/rehearsal cold review는 제품 allowlist·필수 S1 HTML/CSS/폰트·공통 worker import, CLI의 실제 S1 run kind와 request/revision, 새 설치 격리·재시작·손상 거절, 합성 리허설의 무공급자 실행을 검토했다. 수용이 필요한 추가 발견사항은 없었다.

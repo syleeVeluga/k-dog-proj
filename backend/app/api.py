@@ -60,6 +60,10 @@ class SecretEdit(Model):
     value: Annotated[SecretStr, Field(min_length=8, max_length=512)]
 
 
+class DeveloperKeys(Model):
+    keys: list[settings.KeyState]
+
+
 class FormsFile(Model):
     config: forms_v4.FormsPreviewRequestV4
     file_base64: Annotated[str, Field(max_length=45 * 1024 * 1024)]
@@ -144,9 +148,9 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 raise HTTPException(403, "이 작업에 필요한 권한이 없습니다.")
             if s1:
                 path = request.url.path
-                retired = {"runs-v3", "sheets", "score-sheets", "basic-results", "behavior-v3", "preprocess", "recording", "stimuli", "segments", "settings-v3", "scoring-ai"}
-                if retired.intersection(path.split("/")) or path.endswith("/trial"):
-                    raise HTTPException(409, "S1 기능 준비 중입니다. 재분석이 필요합니다.")
+                retired = {"runs-v3", "sheets", "score-sheets", "basic-results", "behavior-v3", "preprocess", "recording", "stimuli", "segments", "settings-v3", "scoring-ai", "imports"}
+                if retired.intersection(path.split("/")) or path.endswith("/trial") or path.startswith("/api/developer/settings/"):
+                    raise HTTPException(409, "이전 판본 실행 경로는 종료되었습니다. S1 화면을 사용하세요.")
                 if path.startswith(("/api/cases", "/api/import", "/api/forms")):
                     with store.connect() as db:
                         old = db.execute("SELECT 1 FROM cases WHERE manifest_schema_version!='intake-4.0' LIMIT 1").fetchone()
@@ -188,8 +192,11 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def retry_run_v3(run_id: Key, value: RunActionV3, user=Depends(writer)):
         return run_v3.action(store, run_id, value, user, retry=True)
 
-    @app.get("/api/developer/settings", response_model=settings.SettingsView)
+    @app.get("/api/developer/settings", response_model=DeveloperKeys | settings.SettingsView)
     def developer_settings(user=Depends(developer)):
+        if s1:
+            return {"keys": [{"provider": provider, "available": vault.available(store, provider),
+                "reference": (vault.state(store, provider) or {}).get("reference", "environment")} for provider in vault.PROVIDERS]}
         return settings.view(store)
 
     @app.get("/api/settings-s1", response_model=settings_v4.AiSettingsViewV4)

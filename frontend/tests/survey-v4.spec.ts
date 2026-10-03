@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 
 test('S1 설문은 확정 결측·역채점·등록 상태와 외부 승인 대기를 분리한다', async ({ page }, testInfo) => {
-  test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required');
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await page.getByLabel('계정', { exact: true }).fill('operator');
@@ -31,6 +30,19 @@ test('S1 설문은 확정 결측·역채점·등록 상태와 외부 승인 대�
   await page.getByText('설문 원응답', { exact: false }).click();
   await expect(page.locator('.survey-values p').filter({ has: page.locator('b', { hasText: /^10$/ }) }).locator('strong')).toHaveText('0');
   await expect(page.getByText('빈칸 사유: 본 적 없음', { exact: true })).toBeVisible();
+  await expect(page.getByText('척도: 0 전혀없다', { exact: false }).first()).toBeVisible();
+  await expect(page.locator('.survey-values p')).toHaveCount(28);
+  await expect(page.getByText(/총점 \d/)).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('survey-v4.png'), fullPage: true });
+  await page.setViewportSize({ width: 360, height: 800 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+  await page.getByLabel('계정', { exact: true }).fill('reviewer');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await page.getByRole('button', { name: '설문', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'SURVEY-S1-001 설문 현황 열기', exact: true }).click();
+  await expect(page.getByText('수치 응답 26/28', { exact: false })).toBeVisible();
   expect(errors).toEqual([]);
 });

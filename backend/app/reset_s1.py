@@ -76,7 +76,7 @@ def _plan(store, db):
             upgrade_to_s1(manifest)  # Validate the complete conversion before touching any records.
             cases.append({"case_id": row["case_id"], "revision": row["input_revision"],
                           "input_path": row["manifest_ref"], "input_digest": row["manifest_hash"]})
-    runs = [r[0] for r in db.execute("SELECT run_id FROM runs WHERE kind NOT IN ('scoring_v4','report_v4')")]
+    runs = [r[0] for r in db.execute("SELECT run_id FROM runs WHERE kind NOT IN ('s1','report_v4')")]
     sheets = []
     for row in db.execute("SELECT s.sheet_id,s.manifest_ref,c.manifest_schema_version FROM score_sheets s JOIN cases c ON c.case_id=s.case_id"):
         try:

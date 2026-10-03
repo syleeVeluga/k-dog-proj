@@ -48,6 +48,8 @@ def main():
     preprocess.add_argument("case_id")
     preprocess.add_argument("--session-id", help="비우면 현재 선택 세션")
     preprocess.add_argument("--actor", required=True, help="기록에 사용할 활성 운영자·관리자 계정")
+    preprocess.add_argument("--request-id", required=True, help="명시 S1 전처리 요청 ID; 같은 요청 재시도 시 유지")
+    preprocess.add_argument("--expected-revision", type=int, required=True, help="확인한 현재 입력 판본")
     usage = sub.add_parser("usage-report", help="행사·참가자·시도별 사용량과 명시한 단가 추정 JSON")
     usage.add_argument("--event-id")
     usage.add_argument("--prices", type=Path, help="통화·출처·모델별 계량 단가 JSON")
@@ -72,7 +74,8 @@ def main():
     if args.command == "preprocess":
         import json
         from fastapi import HTTPException
-        from app import preprocess as clips
+        from app import preprocess_v4 as clips
+        from app.domain.preprocess_v4 import PreprocessRequestV4
         from app.media import MediaError
         if not (args.data_dir / "kdog.sqlite3").is_file():
             parser.error("현재 데이터 DB가 필요합니다.")
@@ -85,10 +88,11 @@ def main():
             if not case:
                 parser.error("참가자를 찾을 수 없습니다.")
         try:
-            result = clips.execute(store, args.case_id, args.session_id or case["selected_session_id"], args.actor)
+            result = clips.execute(store, args.case_id, args.session_id or case["selected_session_id"], args.actor,
+                PreprocessRequestV4(request_id=args.request_id, expected_revision=args.expected_revision))
         except (HTTPException, MediaError) as exc:
             parser.error(f"전처리 실패: {getattr(exc, 'detail', exc)}")
-        print(json.dumps({k: v for k, v in result.items() if k != "clips"} | {"clips": len(result["clips"])}, ensure_ascii=False, indent=2))
+        print(json.dumps(result.model_dump(mode="json", exclude={"clips"}) | {"clips": len(result.clips)}, ensure_ascii=False, indent=2))
         return
     if args.command == "usage-report":
         import json
@@ -131,7 +135,7 @@ def main():
         store = Store(args.data_dir)
         with store.connect() as db:
             old_inputs = db.execute("SELECT 1 FROM cases WHERE manifest_schema_version!='intake-4.0' LIMIT 1").fetchone()
-            old_runs = db.execute("SELECT 1 FROM runs WHERE kind NOT IN ('scoring_v4','report_v4') LIMIT 1").fetchone()
+            old_runs = db.execute("SELECT 1 FROM runs WHERE kind NOT IN ('s1','report_v4') LIMIT 1").fetchone()
             if old_inputs or old_runs:
                 parser.error("S1 worker 실행 전 reset-s1 --actor <관리자> --apply로 기존 결과를 초기화하세요.")
         worker = Worker(store)

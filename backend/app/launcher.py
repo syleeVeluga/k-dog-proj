@@ -85,10 +85,14 @@ def process_group():
         kernel.CloseHandle(job)
 
 
-# Files the 42-item app reads at runtime, including the survey mapping the intake-1.0 → 2.0 migration needs on first launch.
-# The v1 catalogs stay packaged for stored 55-item runs but are not startup requirements.
-REQUIRED = ("frontend/dist/index.html", "resources/catalogs/behavior-v2.json", "resources/catalogs/survey-v2.json",
-            "resources/catalogs/survey-v1-to-v2.json", "resources/rules/scoring-v2.json", "resources/rules/preprocess-v2.json",
+# S1 operation needs its pinned scoring, survey, content and renderer assets.
+REQUIRED = ("frontend/dist/index.html", "resources/catalogs/behavior-v4.json", "resources/catalogs/survey-v3.json",
+            "resources/rules/scoring-v4.json", "resources/rules/preprocess-v4.json", "resources/rules/protocol-v4.json",
+            "resources/rules/survey-policy-v4.json", "resources/mappings/s1-input-v4.json",
+            "resources/mappings/survey-behavior-v4.json", "resources/mappings/results-v4.json",
+            "resources/report/content-v4.json", "resources/report/feedback-candidates-v4.json",
+            "resources/report/comparison-sources-v4.json", "resources/report/presentation-v4.json",
+            "resources/report/templates/s1.html", "resources/report/templates/s1.css",
             "resources/fonts/NanumGothic-Regular.ttf", "resources/fonts/NotoSansSymbols.ttf")
 
 

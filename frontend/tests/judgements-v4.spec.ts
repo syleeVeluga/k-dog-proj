@@ -4,7 +4,6 @@ import { execFileSync } from 'node:child_process';
 const headers = { 'X-KDOG-Request': '1' };
 
 test('S1 basic calculation preserves input, automatic decisions, manual evidence roles and revisions', async ({ page, request }, testInfo) => {
-  test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required');
   test.setTimeout(120000);
   page.setDefaultTimeout(15000);
   const errors: string[] = [];

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
-import { Importer } from '../Importer';
 import { FormsImporter } from '../FormsImporter';
 import { SurveyView } from '../SurveyView';
 import { CaseFilters, matchesCase } from '../CaseFilters';
@@ -28,11 +27,7 @@ export function Survey({ cases, selected, select, filters, catalog, writable, ru
   return <>
     <section className="page-heading"><div><p className="eyebrow">SURVEY</p><h1>설문</h1><p className="muted">보호자 설문 28문항은 CSV·Excel 파일로 등록합니다. 여기서는 등록 현황, 판본별 집계와 빈칸 사유를 확인합니다. 등록 완료·비교 자격의 미확정 기준은 별도로 표시합니다.</p></div>
       <div className="count"><strong>{registered.toString().padStart(2, '0')}</strong><span>모두 응답 / {cases.length}명</span></div></section>
-    {!selected && writable && <details className="panel"><summary>Forms 참가자·설문 함께 등록</summary><FormsImporter cases={cases} run={run} done={async message => { notify(message); await reload(); }} /></details>}
-    {!selected && writable && <details className="panel" open={registered < cases.length}><summary>설문 파일 가져오기 (CSV·Excel)</summary>
-      <p className="fine">열은 <span className="mono">event_id, participant_id, survey_version, s01 … s28</span>이며 신판 10~14번은 0~4, 나머지는 1~5입니다. 빈칸 사유는 s01_reason … s28_reason 선택 열에 기록합니다. 구판 7~9번의 NA는 구판에서만 허용합니다. 양식은 아래에서 내려받습니다.</p>
-      <Importer fixedKind="survey" run={run} catalog={catalog} catalogVersion={catalog?.version ?? ''} done={async message => { notify(message); await reload(); }} />
-    </details>}
+    {!selected && writable && <details className="panel" open={registered < cases.length}><summary>Forms 참가자·설문 함께 등록</summary><FormsImporter cases={cases} run={run} done={async message => { notify(message); await reload(); }} /></details>}
     {!selected && <><CaseFilters cases={cases} {...filters} /><div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자</th><th>반려견 / 보호자</th><th>설문</th><th>미응답</th><th>해당 없음</th><th>현황</th></tr></thead>
       <tbody>{sorted.map(c => { const s = sessionOf(c); const count = surveyHandled(s); const missing = SURVEY_TOTAL - count;
         return <tr key={c.case_id}><td data-label="순번"><strong className="mono">{c.sequence_no ?? '—'}</strong></td>

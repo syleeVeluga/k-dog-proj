@@ -1,0 +1,71 @@
+import { test, expect } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+test('S1 관리자는 임시 원자료를 검증 백업하고 계정 철회로 열린 세션을 종료한다', async ({ page, browser }) => {
+  const headers = { 'X-KDOG-Request': '1' }, password = 'Browser-test-only-42';
+  await page.goto('/');
+  await page.getByLabel('계정', { exact: true }).fill('admin');
+  await page.getByLabel('비밀번호', { exact: true }).fill(password);
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
+  const created = await page.request.post('/api/cases', { headers, data: { event_id: 'S1-OPERATIONS', participant_id: 'BACKUP-001', dog_name: '백업 합성견' } });
+  expect(created.status()).toBe(201);
+  const item = await created.json();
+  expect(item.manifest.schema_version).toBe('intake-4.0');
+  await page.getByRole('button', { name: '직원 계정', exact: true }).click();
+  await page.getByText('직원 계정 추가', { exact: true }).click();
+  await page.getByLabel('새 계정', { exact: true }).fill('s1-revoked-staff');
+  await page.getByLabel('초기 비밀번호', { exact: true }).fill(password);
+  await page.getByRole('combobox', { name: '새 계정 역할' }).selectOption('operator');
+  await page.getByRole('button', { name: '계정 생성', exact: true }).click();
+  const account = page.locator('.user-row').filter({ has: page.locator('strong', { hasText: /^s1-revoked-staff$/ }) });
+  await expect(account).toBeVisible();
+  const client = await browser.newContext();
+  try {
+    const staff = await client.newPage();
+    await staff.goto('/');
+    await staff.getByLabel('계정', { exact: true }).fill('s1-revoked-staff');
+    await staff.getByLabel('비밀번호', { exact: true }).fill(password);
+    await staff.getByRole('button', { name: '로그인', exact: true }).click();
+    await expect(staff.getByRole('button', { name: 'BACKUP-001 상세 열기', exact: true })).toBeVisible();
+    await account.getByLabel('활성', { exact: true }).uncheck();
+    await account.getByRole('button', { name: '계정 변경 저장', exact: true }).click();
+    await expect(staff.getByRole('button', { name: '로그인', exact: true })).toBeVisible();
+    await expect(staff.getByRole('button', { name: 'BACKUP-001 상세 열기', exact: true })).toHaveCount(0);
+    expect((await staff.request.get('/api/cases')).status()).toBe(401);
+  } finally { await client.close(); }
+  await page.getByRole('button', { name: '자료 관리', exact: true }).click();
+  await page.getByText('자료 백업·복구', { exact: true }).click();
+  await expect(page.getByText(/남은 공간 .* GB · 삭제 요청/)).toBeVisible();
+  const backupResponse = page.waitForResponse(response => response.url().endsWith('/api/admin/backups') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: '자료 백업 생성 · 키 제외', exact: true }).click();
+  const response = await backupResponse;
+  expect(response.status(), await response.text()).toBe(201);
+  const backup = await response.json();
+  await expect(page.getByRole('status').filter({ hasText: '검증된 백업 저장 완료:' })).toBeVisible();
+  const manifest = JSON.parse(readFileSync(join(backup.path, 'backup.json'), 'utf8'));
+  expect(manifest.secrets_included).toBe(false);
+  expect(backup.file_count).toBe(Object.keys(manifest.files).length);
+  const inputs = Object.keys(manifest.files).filter(ref => ref.startsWith('inputs/')).map(ref => JSON.parse(readFileSync(join(backup.path, ref), 'utf8')));
+  expect(inputs.some(input => input.case_id === item.case_id && input.schema_version === 'intake-4.0')).toBe(true);
+  const verified = JSON.parse(execFileSync('../backend/.venv/Scripts/python.exe', ['-X', 'utf8', '-c',
+    "import hashlib,json,pathlib,sqlite3,sys; p=pathlib.Path(sys.argv[1]); m=json.loads((p/'backup.json').read_text()); d=sqlite3.connect(p/'kdog.sqlite3'); print(json.dumps({'hashes_ok':all(hashlib.sha256((p/r).read_bytes()).hexdigest()==h for r,h in m['files'].items()),'sessions':d.execute('SELECT COUNT(*) FROM users WHERE session_hash IS NOT NULL').fetchone()[0],'case_present':d.execute('SELECT COUNT(*) FROM cases WHERE case_id=?',(sys.argv[2],)).fetchone()[0]}))",
+    backup.path, item.case_id], { encoding: 'utf8' }));
+  expect(verified).toEqual({ hashes_ok: true, sessions: 0, case_present: 1 });
+  await page.getByRole('button', { name: '접수', exact: true }).click();
+  await page.getByRole('button', { name: '자료 관리', exact: true }).click();
+  await page.getByText('자료 백업·복구', { exact: true }).click();
+  await expect(page.getByText(`최근 백업: ${backup.path}`, { exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 360, height: 800 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+  await page.getByLabel('계정', { exact: true }).fill('reviewer');
+  await page.getByLabel('비밀번호', { exact: true }).fill(password);
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '자료 관리', exact: true })).toHaveCount(0);
+  expect((await page.request.post('/api/admin/backups', { headers })).status()).toBe(403);
+  expect((await page.request.get('/api/admin/recovery')).status()).toBe(403);
+});

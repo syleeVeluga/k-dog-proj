@@ -11,7 +11,6 @@ async function login(page: Page, account = 'operator') {
 }
 
 test('S1 synthetic media: multi-camera output, actual frames, reuse, revision conflict and reviewer', async ({ page }, testInfo) => {
-  test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required');
   test.setTimeout(180000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -134,7 +133,6 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
 });
 
 test('S1 state refresh shows running, interrupted, failed and unavailable without polling', async ({ page }) => {
-  test.skip(process.env.KDOG_TEST_INTAKE_SPEC !== '20261002', 'S1 browser fixture required');
   await login(page);
   const item = await (await page.request.post('/api/cases', { headers, data: { event_id: 'S1-PREPROCESS-STATE', participant_id: 's1state', dog_name: '상태 표시 합성견' } })).json();
   let current = 'running', count = 0;
