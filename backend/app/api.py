@@ -41,6 +41,8 @@ from app import forms_v4, uploads, capture_v4, preprocess_v4, sheets_v4
 from app.domain.catalog_v4 import BehaviorCatalogV4, load_catalog_v4
 from app.domain.sheets_v4 import SheetDocumentV4
 from app import judgements_v4
+from app import run_v4, scoring_ai_v4, settings_v4
+from app.domain.runs_v4 import ActionV4, RunViewV4, StartV4
 from app.domain.preprocess_v4 import BatchV4, PreprocessRequestV4, PreprocessStatusV4
 from app.domain.media_v4 import PreservedMediaRegistrationV4, StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
 from app import sheets, judgements, run_v3, scoring_ai, settings_v3
@@ -178,6 +180,58 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.get("/api/developer/settings", response_model=settings.SettingsView)
     def developer_settings(user=Depends(developer)):
         return settings.view(store)
+
+    @app.get("/api/settings-s1", response_model=settings_v4.AiSettingsViewV4)
+    def ai_settings_s1(user=Depends(developer)):
+        return settings_v4.view(store)
+
+    @app.post("/api/settings-s1", response_model=dict[str, str], status_code=201)
+    def ai_draft_s1(value: settings_v4.AiDraftV4, user=Depends(developer)):
+        return settings_v4.save(store, value, user.username)
+
+    @app.get("/api/settings-s1/{version}/diff", response_model=settings_v4.AiDifferenceV4)
+    def ai_difference_s1(version: Key, user=Depends(developer)):
+        return settings_v4.difference(store, version)
+
+    @app.post("/api/settings-s1/{version}/activate", response_model=dict[str, str])
+    def ai_activate_s1(version: Key, value: settings_v4.AiActivateV4, user=Depends(developer)):
+        return settings_v4.activate(store, version, value, user.username)
+
+    @app.post("/api/settings-s1/{version}/validate-s1", response_model=settings_v4.AiTrialResultV4)
+    def ai_validate_s1(version: Key, value: settings_v4.AiTrialV4, user=Depends(developer)):
+        return settings_v4.trial(store, version, value, user.username)
+
+    @app.get("/api/scoring-ai-s1/readiness", response_model=scoring_ai_v4.AiReadinessV4)
+    def ai_readiness_s1(user=Depends(reader)):
+        return scoring_ai_v4.readiness(store)
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/runs-s1", response_model=list[RunViewV4])
+    def ai_runs_s1(case_id: Key, session_id: Key, user=Depends(reader)):
+        with store.connect() as db:
+            preprocess_v4._case(store, db, case_id, session_id, user.username, selected=False)
+            ids = [row[0] for row in db.execute("SELECT run_id FROM runs WHERE case_id=? AND session_id=? AND kind='s1' ORDER BY created_at DESC",
+                                               (case_id, session_id))]
+        return [run_v4.view(store, run_id, user) for run_id in ids]
+
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/runs-s1", response_model=RunViewV4, status_code=201)
+    def ai_start_s1(case_id: Key, session_id: Key, value: StartV4, user=Depends(writer)):
+        return scoring_ai_v4.start(store, case_id, session_id, value, user)
+
+    @app.get("/api/runs-s1/{run_id}", response_model=RunViewV4)
+    def ai_run_s1(run_id: Key, user=Depends(reader)):
+        return run_v4.view(store, run_id, user)
+
+    @app.post("/api/runs-s1/{run_id}/stop", response_model=RunViewV4)
+    def ai_stop_s1(run_id: Key, value: ActionV4, user=Depends(writer)):
+        return run_v4.action(store, run_id, value, user)
+
+    @app.post("/api/runs-s1/{run_id}/retry", response_model=RunViewV4)
+    def ai_retry_s1(run_id: Key, value: ActionV4, user=Depends(writer)):
+        return run_v4.action(store, run_id, value, user, retry=True)
+
+    @app.post("/api/score-sheets-s1/{sheet_id}/reveal-ai-s1", response_model=scoring_ai_v4.AiRevealResultV4)
+    def ai_reveal_s1(sheet_id: Key, value: sheets_v4.SheetRevealV4, user=Depends(reader)):
+        return scoring_ai_v4.reveal(store, sheet_id, value, user)
 
     @app.get("/api/developer/settings-v3", response_model=settings_v3.AiSettingsViewV3)
     def ai_settings_v3(user=Depends(developer)):

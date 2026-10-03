@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { accessLost, api } from './api';
 import { BasicResultsV4 } from './BasicResultsV4';
+import { AiRevealedResultsV4, AiRunsV4 } from './AiRunsV4';
+import type { AiBasicResultV4 } from './aiTypesV4';
 import { mayLeave, useEditBase, useUnsaved } from './Editing';
 import { formFields, type Case, type Run, type User } from './types';
 import type { BehaviorCatalogV4, BehaviorItemV4, EvidenceV4, LinkedMemoV4, ObservationV4, SheetDocumentV4, SheetSummaryV4, SheetViewV4, WalkPhaseV4 } from './ScoringTypesV4';
@@ -49,6 +51,7 @@ export function ScoreSheetsV4({ item, user, run, refresh, close }: { item: Case;
     <p>숫자 83개 · 메모 3개 · 자동 4개. 원값 0과 빈값을 구분하고 실제 관찰 근거를 기록합니다.</p>
     <p role="status">S1 Excel 가져오기 비활성 — 실제 빈양식·검증용 원본 G01/G04 수령 후 확인이 필요합니다.</p>
     {error && <p role="alert" className="error">{error}</p>}
+    <AiRunsV4 key={`${item.case_id}:${item.selected_session_id}`} item={item} manager={manager} />
     {manager && <details><summary>평가자 배정</summary><form onChange={() => { assignmentBase.current ??= item.input_revision; setAssignmentDirty(true); }} onSubmit={event => {
       event.preventDefault(); const values = formFields(event.currentTarget); const form = event.currentTarget;
       void work(async () => { await api(path, 'POST', { ...values, expected_revision: assignmentBase.current ?? item.input_revision, source_sheet_id: values.source_sheet_id || null }); form.reset(); assignmentBase.current = null; setAssignmentDirty(false); });
@@ -93,6 +96,8 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
   const [segment, setSegment] = useState(''); const [search, setSearch] = useState('');
   const [reason, setReason] = useState(''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const [revealed, setRevealed] = useState<SheetDocumentV4 | null>(null); const [historical, setHistorical] = useState<SheetDocumentV4 | null>(null);
+  const [revealedResults, setRevealedResults] = useState<AiBasicResultV4[]>([]);
+  const revealedRef = useRef<string | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const edit = useEditBase(latest); const clean = useRef(true); clean.current = !edit.dirty;
   const path = `/score-sheets-s1/${sheetId}`;
@@ -100,8 +105,8 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
   useEffect(() => {
     let active = true; let timer: ReturnType<typeof setTimeout>;
     async function poll() {
-      try { const value = await api<SheetViewV4>(path); if (active) { setLatest(value); setUnavailable(false); if (clean.current) adopt(value); } }
-      catch (failure) { if (active) { setError(errorText(failure)); if (accessLost(failure)) { setUnavailable(true); setRevealed(null); setHistorical(null); } } }
+      try { const value = await api<SheetViewV4>(path); if (active) { setLatest(value); setUnavailable(false); if (clean.current) adopt(value); if (revealedRef.current && !value.grants.some(grant => grant.ref === revealedRef.current)) { setRevealed(null); setRevealedResults([]); revealedRef.current = null; } } }
+      catch (failure) { if (active) { setError(errorText(failure)); if (accessLost(failure)) { setUnavailable(true); setRevealed(null); setRevealedResults([]); setHistorical(null); } } }
       if (active) timer = setTimeout(poll, 2000);
     }
     void poll(); return () => { active = false; clearTimeout(timer); };
@@ -118,7 +123,7 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
   async function work(action: () => Promise<unknown>) {
     setBusy(true); setError('');
     try { await action(); const saved = await api<SheetViewV4>(path); setLatest(saved); adopt(saved); edit.reset(); setReason(''); await done(); }
-    catch (failure) { setError(errorText(failure)); if (accessLost(failure)) { setUnavailable(true); setRevealed(null); } }
+    catch (failure) { setError(errorText(failure)); if (accessLost(failure)) { setUnavailable(true); setRevealed(null); setRevealedResults([]); } }
     finally { setBusy(false); }
   }
   function checkDraft() {
@@ -155,8 +160,9 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
       <button disabled={busy || edit.dirty || view.missing_required_codes.length > 0} onClick={() => void work(() => api(path + '/submit', 'POST', { expected_revision: view.summary.revision, reason: `평가자 ${purposes[doc.purpose]} 제출` }))}>{purposes[doc.purpose]} 제출·잠금</button>
     </div></>}
     {edit.dirty && <button disabled={busy} onClick={() => { if (edit.discard() && latest) { adopt(latest); setReason(''); setError(''); } }}>미저장 입력 버리고 최신 조회</button>}
-    {!historical && view.grants.length > 0 && <details><summary>명시 공개된 완료본</summary><p>실제 열람하면 노출 이력을 기록하고 이후 입력은 검수 기록으로 구분합니다.</p>{view.grants.map(grant => <button key={grant.ref} disabled={busy || edit.dirty || doc.state !== 'submitted'} onClick={() => void work(async () => { const result = await api<{ target: SheetDocumentV4 }>(path + '/reveal', 'POST', { expected_revision: view.summary.revision, ref: grant.ref }); setRevealed(result.target); })}>공개 완료본 r{grant.revision} 열고 노출 기록</button>)}</details>}
+    {!historical && view.grants.length > 0 && <details><summary>명시 공개된 완료본</summary><p>실제 열람하면 노출 이력을 기록하고 이후 입력은 검수 기록으로 구분합니다.</p>{view.grants.map(grant => <button key={grant.ref} disabled={busy || edit.dirty || doc.state !== 'submitted'} onClick={() => void work(async () => { const result = await api<{ target: SheetDocumentV4; results: AiBasicResultV4[] }>(path + '/reveal-ai-s1', 'POST', { expected_revision: view.summary.revision, ref: grant.ref }); revealedRef.current = grant.ref; setRevealed(result.target); setRevealedResults(result.results); })}>공개 완료본 r{grant.revision} 열고 노출 기록</button>)}</details>}
     {!historical && revealed && <details open><summary>{revealed.rater_name} 공개 완료본 r{revealed.revision}</summary><ul>{revealed.sheet.observations.map(value => <li key={value.code}>{value.code} · {value.value ?? value.reason} · {statuses[value.status]}</li>)}</ul><details><summary>공개한 원관찰과 근거</summary><pre>{JSON.stringify(revealed.sheet, null, 2)}</pre></details></details>}
+    {!historical && revealed && <AiRevealedResultsV4 results={revealedResults} />}
     <details><summary>고정 입력·revision/hash·노출 이력</summary><pre>{JSON.stringify({ sheet_id: sheetId, revision: doc.revision, source_hash: doc.source_hash, input: doc.source.input, batch: doc.source.batch_id, initial_submission: doc.initial_submission, exposures: doc.exposures, previous: doc.previous }, null, 2)}</pre></details>
     {!historical && <BasicResultsV4 sheetId={sheetId} input={{ sheet_id: sheetId, revision: view.summary.revision, ref: view.summary.manifest_ref, hash: view.summary.manifest_hash }} blocked={busy || edit.dirty || doc.state !== 'submitted'} />}
   </section>;

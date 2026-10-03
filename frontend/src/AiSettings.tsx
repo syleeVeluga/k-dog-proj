@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 import { useEditBase } from './Editing';
 import { Notification } from './Notification';
+import { AiSettingsV4 } from './AiSettingsV4';
 
 type Stage = { model: string; prompt: string; processing_mode: 'static' | 'agentic'; fps: number | null; media_resolution: string; thinking_level: string; max_output_tokens: number };
 type Pipeline = { groups: Record<string, Stage>; judgement: Stage; q11_scope_confirmed: boolean; max_attempts: number; max_ai_calls: number; max_schema_repairs: number };
@@ -9,6 +10,13 @@ type View = { active_version: string; config: Pipeline; groups: Record<string, {
 type Difference = { active_version: string; version: string; config: Pipeline; diff: string };
 
 export function AiSettings() {
+  const [spec, setSpec] = useState(''), [error, setError] = useState('');
+  useEffect(() => { let active = true; api<{ spec: string }>('/health').then(value => { if (active) setSpec(value.spec); }).catch(value => { if (active) setError(String(value)); }); return () => { active = false; }; }, []);
+  if (!spec) return <p role="status">{error || 'AI 설정 판본 확인 중'}</p>;
+  return spec === '20261002' ? <AiSettingsV4 /> : <LegacyAiSettings />;
+}
+
+function LegacyAiSettings() {
   const [latest, setLatest] = useState<View | null>(null);
   const [draft, setDraft] = useState<Pipeline | null>(null);
   const [group, setGroup] = useState('judgement');

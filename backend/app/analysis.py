@@ -173,6 +173,9 @@ def validated_prepared(row, payload):
 
 
 def check_access(store, db, row):
+    if row["kind"] == "s1":
+        from app import run_v4
+        return run_v4.check_access(store, db, row)
     store.case(db, row["case_id"])
 
 
@@ -239,11 +242,16 @@ def adopt(store, row, step, ref, output_hash, usage):
         raise HTTPException(409, "attempt 경로가 일치하지 않습니다.")
     candidate = {**dict(step), "output_ref": ref, "output_hash": output_hash}
     _, _, _, stamp = step_output(store, row, candidate)
+    if row["kind"] == "s1":
+        from app import run_v4
+        source_stamps = run_v4.verify_files(store, run_v4.snapshot_for(row))
     with store.connect(write=True) as db:
         current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
         if not current or current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
             raise HTTPException(409, "오래된 실행 결과를 채택할 수 없습니다.")
         check_access(store, db, current)
+        if row["kind"] == "s1":
+            run_v4.check_stamps(store, source_stamps)
         try:
             if file_stamp(store.path(ref)) != stamp:
                 raise ValueError("changed artifact")
