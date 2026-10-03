@@ -21,11 +21,13 @@ export type Session = {
   segments: SegmentTimes | null;
   stimuli: StimulusTimes | null;
   recording: RecordingV3 | null;
-  protocol_version: 'protocol-20260929-v3' | 'protocol-20260913-v2' | 'unconfirmed';
+  protocol_version: 'protocol-20261002-s1.1' | 'protocol-20260929-v3' | 'protocol-20260913-v2' | 'unconfirmed';
+  scoring_catalog_version?: 'catalog-20261002-s1.1';
+  recording_review_required?: boolean;
   protocol_source: 'new_session' | 'confirmed_v2_recording' | 'unconfirmed';
   survey_blank_reasons: Record<string, string>;
 };
-export const protocolName = (session: Session) => session.protocol_version === 'protocol-20260929-v3' ? '9월 29일' : session.protocol_version === 'protocol-20260913-v2' ? '9월 13일' : '촬영 판본 미확인';
+export const protocolName = (session: Session) => session.protocol_version === 'protocol-20261002-s1.1' ? 'S1.1 · 10월 2일' : session.protocol_version === 'protocol-20260929-v3' ? '9월 29일' : session.protocol_version === 'protocol-20260913-v2' ? '9월 13일' : '촬영 판본 미확인';
 export type ConsentState = 'unknown' | 'declined' | 'confirmed';
 export type Consents = { analysis_feedback: ConsentState; stranger_contact: ConsentState };
 export const consentNames: Record<ConsentState, string> = { unknown: '미확인', declined: '거절', confirmed: '확인' };
@@ -43,6 +45,7 @@ export type Case = {
   input_revision: number; selected_session_id: string;
   deletion_requested: boolean;
   consents: Consents;
+  scoring_status?: 'reanalysis_required';
   manifest: { schema_version: string; sessions: Session[]; migration_note?: string | null };
 };
 export const sessionOf = (item: Case) => item.manifest.sessions.find(s => s.session_id === item.selected_session_id)!;

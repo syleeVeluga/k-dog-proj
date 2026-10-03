@@ -18,7 +18,7 @@ from tests.support import AppCase
 class IntakeV3Tests(AppCase):
     def setUp(self):
         super().setUp()
-        self.app = create_app(self.root)
+        self.app = create_app(self.root, intake_spec="20260929")
         self.client = self.client_for("operator")
 
     def test_current_defaults_and_legacy_consent_never_expand(self):

@@ -580,6 +580,10 @@ class IntakeTests(AppCase):
 
         old_client = self.client
         item = self.make_case()  # Registered under the original survey before the production server restarts.
+        from app.reset_s1 import execute
+        execute(self.store, "admin")
+        with self.store.connect() as db:
+            item = self.store.view(self.store.case(db, item["case_id"])).model_dump(mode="json")
         try:
             with server() as client:
                 self.client = client

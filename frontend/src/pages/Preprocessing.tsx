@@ -19,7 +19,7 @@ const windowLabels: Record<string, string> = { alone_initial: '분리 초기0~10
 
 export function Preprocessing({ cases, selected, select, filters, writable }: { cases: Case[]; selected: Case | null; select: (item: Case) => void; filters: CaseFilterProps; writable: boolean }) {
   return <section><h1>전처리</h1><p>기준 영상을 구간별로 잘라 분석용 파일을 만듭니다. 원본과 오디오는 보존됩니다. 실행·재시도는 운영자가 버튼을 눌러 시작합니다.</p>
-    {selected ? <PreprocessPanel key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} /> : <>
+    {selected ? selected.manifest.schema_version === 'intake-4.0' ? <p role="status">S1 전처리 기능 준비 중입니다. 원본 자료로 재분석이 필요합니다.</p> : <PreprocessPanel key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} /> : <>
       <CaseFilters cases={cases} {...filters} /><div className="table-wrap"><table><thead><tr><th>행사 / 참가자</th><th>반려견</th><th>작업</th></tr></thead><tbody>
         {cases.filter(c => matchesCase(c, filters.search, filters.eventFilter)).map(c => <tr key={c.case_id}><td>{c.event_id} / {c.participant_id}</td><td>{c.dog_name}</td><td><button onClick={() => select(c)} aria-label={`${c.participant_id} 전처리 열기`}>열기</button></td></tr>)}
       </tbody></table></div></>}

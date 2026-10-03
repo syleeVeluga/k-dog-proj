@@ -40,6 +40,10 @@ def main():
     clean = sub.add_parser("clean", help="API·worker 종료 후 미참조 파일 정리")
     clean.add_argument("--purge-deleted", action="store_true", help="삭제 요청된 참가자 DB·파일도 영구 삭제")
     sub.add_parser("recovery-status")
+    reset_s1 = sub.add_parser("reset-s1", help="원입력을 보존하고 구판 평가 결과를 S1으로 초기화 (API·worker 종료 필요)")
+    reset_s1.add_argument("--actor", required=True, help="활성 운영 관리자 계정")
+    reset_s1.add_argument("--apply", action="store_true", help="생략하면 제거 범위만 점검")
+    reset_s1.add_argument("--retry-remote", action="store_true", help="남아 있는 공급자 파일 삭제를 재시도")
     preprocess = sub.add_parser("preprocess", help="확정한 8구간으로 기준 영상을 잘라 불변 클립을 만든다 (FFmpeg)")
     preprocess.add_argument("case_id")
     preprocess.add_argument("--session-id", help="비우면 현재 선택 세션")
@@ -48,6 +52,23 @@ def main():
     usage.add_argument("--event-id")
     usage.add_argument("--prices", type=Path, help="통화·출처·모델별 계량 단가 JSON")
     args = parser.parse_args()
+    if args.command == "reset-s1":
+        import json
+        from fastapi import HTTPException
+        from app import reset_s1
+        if not (args.data_dir / "kdog.sqlite3").is_file():
+            parser.error("현재 데이터 DB가 필요합니다. 초기화할 데이터 루트를 명시하세요.")
+        store = Store(args.data_dir)
+        try:
+            if args.retry_remote:
+                result = reset_s1.retry_remote_cleanup(store, args.actor)
+            else:
+                result = reset_s1.execute(store, args.actor) if args.apply else reset_s1.preview(store)
+                result["remote_cleanup_pending"] = len(reset_s1.pending_remote_cleanup(store))
+        except (HTTPException, OSError, ValueError) as exc:
+            parser.error(f"S1 초기화 실패: {getattr(exc, 'detail', type(exc).__name__)}")
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
     if args.command == "preprocess":
         import json
         from fastapi import HTTPException
@@ -107,7 +128,13 @@ def main():
     if args.command == "worker":
         from app.worker import Worker
         from app.maintenance import runtime_lock
-        worker = Worker(Store(args.data_dir))
+        store = Store(args.data_dir)
+        with store.connect() as db:
+            old_inputs = db.execute("SELECT 1 FROM cases WHERE manifest_schema_version!='intake-4.0' LIMIT 1").fetchone()
+            old_runs = db.execute("SELECT 1 FROM runs WHERE kind NOT IN ('scoring_v4','report_v4') LIMIT 1").fetchone()
+            if old_inputs or old_runs:
+                parser.error("S1 worker 실행 전 reset-s1 --actor <관리자> --apply로 기존 결과를 초기화하세요.")
+        worker = Worker(store)
         try:
             with runtime_lock(worker.store, "worker"):
                 if os.environ.get("KDOG_SUPERVISED") == "1":

@@ -19,6 +19,7 @@ export function CaseDetail({ item, writable, run, refresh, back }: {
       <span className="tag">입력 버전 {item.input_revision}</span></section>
     <div className="detail-grid" id="sessions">
       <section className="panel"><h2>촬영 세션</h2>
+        {item.manifest.schema_version === 'intake-4.0' && <p role="status"><strong>S1 재분석 필요</strong> · 아직 채점값이 없습니다. 원본 자료를 확인한 뒤 새로 채점합니다.</p>}
         <p>촬영 기준: <strong>{protocolName(session)}</strong> · 설문 판본: <span className="mono">{session.survey_version}</span></p>
         <p>분석·피드백 동의: {consentNames[item.consents.analysis_feedback]} · 낯선 요원 접촉 동의: {consentNames[item.consents.stranger_contact]}</p>
         <p className="fine">영상 {session.videos.length}개 · 구간 {({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(session)]} · 설문 {surveyHandled(session)}/{SURVEY_TOTAL} · {session.note || '촬영 메모 없음'}</p>

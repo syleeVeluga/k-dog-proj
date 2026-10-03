@@ -13,7 +13,8 @@ from fastapi import HTTPException
 
 from app.input_models import CaseView, DogProfile, Manifest
 from app.legacy.input_models_v1 import upgrade
-from app.input_models_v3 import CaseViewV3, ConsentsV3, ManifestV3, PriorInputV3, parse_manifest, upgrade_v2
+from app.input_models_v3 import CaseViewV3, ConsentsV3, ManifestV3, PriorInputV3, upgrade_v2
+from app.input_models_v4 import CaseViewV4, ManifestV4, PriorInputV4, parse_manifest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -230,7 +231,7 @@ class Store:
             raise HTTPException(409, "잘못된 관리 파일 경로입니다.")
         return path
 
-    def manifest(self, row) -> Manifest | ManifestV3:
+    def manifest(self, row) -> Manifest | ManifestV3 | ManifestV4:
         try:
             data = self.path(row["manifest_ref"]).read_bytes()
         except OSError as exc:
@@ -250,7 +251,7 @@ class Store:
             raise HTTPException(409, "입력 참조가 일치하지 않습니다.")
         if "manifest_schema_version" in row.keys() and value.schema_version != row["manifest_schema_version"]:
             raise HTTPException(409, "입력 판본 참조가 일치하지 않습니다.")
-        if isinstance(value, ManifestV3):
+        if isinstance(value, (ManifestV3, ManifestV4)):
             try:
                 consents = ConsentsV3.model_validate_json(row["consents_v3_json"])
             except ValueError as exc:
@@ -259,7 +260,7 @@ class Store:
                 raise HTTPException(409, "동의 기록 참조가 일치하지 않습니다.")
         return value
 
-    def write_manifest(self, manifest: Manifest | ManifestV3) -> tuple[str, str]:
+    def write_manifest(self, manifest: Manifest | ManifestV3 | ManifestV4) -> tuple[str, str]:
         type(manifest).model_validate_json(manifest.model_dump_json())
         data = manifest.model_dump_json().encode("utf-8")
         key = f"inputs/{manifest.case_id}-r{manifest.input_revision}-{uid()}.json"
@@ -283,7 +284,7 @@ class Store:
         with self.connect() as db:
             run = db.execute("SELECT status FROM runs WHERE run_id=?", (row["display_run_id"],)).fetchone()
         manifest = self.manifest(row)
-        model = CaseViewV3 if isinstance(manifest, ManifestV3) else CaseView
+        model = CaseViewV4 if isinstance(manifest, ManifestV4) else CaseViewV3 if isinstance(manifest, ManifestV3) else CaseView
         return model(
             analysis_status=run["status"] if run else "not_started",
             **{name: row[name] for name in (
@@ -292,12 +293,13 @@ class Store:
             )},
             consent_confirmed=bool(row["consent_confirmed"]), dog=DogProfile.model_validate_json(row["dog_profile_json"]),
             deletion_requested=bool(row["deletion_requested"]), manifest=manifest,
-            **({"consents": manifest.consents} if isinstance(manifest, ManifestV3) else {}),
+            **({"consents": manifest.consents} if isinstance(manifest, (ManifestV3, ManifestV4)) else {}),
         )
 
-    def save(self, db, row, manifest: Manifest | ManifestV3, actor: str, action: str):
-        if isinstance(manifest, ManifestV3):
-            manifest.prior_inputs.append(PriorInputV3(ref=row["manifest_ref"], hash=row["manifest_hash"],
+    def save(self, db, row, manifest: Manifest | ManifestV3 | ManifestV4, actor: str, action: str):
+        if isinstance(manifest, (ManifestV3, ManifestV4)):
+            prior_model = PriorInputV4 if isinstance(manifest, ManifestV4) else PriorInputV3
+            manifest.prior_inputs.append(prior_model(ref=row["manifest_ref"], hash=row["manifest_hash"],
                                                      revision=row["input_revision"], schema_version=row["manifest_schema_version"]))
         manifest.input_revision = row["input_revision"] + 1
         manifest.display_run_id = None
@@ -307,7 +309,7 @@ class Store:
             "manifest_ref=?, manifest_hash=?, updated_at=? WHERE case_id=?",
             (manifest.input_revision, manifest.selected_session_id, key, digest, now(), row["case_id"]),
         )
-        if isinstance(manifest, ManifestV3):
+        if isinstance(manifest, (ManifestV3, ManifestV4)):
             db.execute("UPDATE cases SET manifest_schema_version=?,consents_v3_json=? WHERE case_id=?",
                        (manifest.schema_version, manifest.consents.model_dump_json(), row["case_id"]))
         self.audit(db, actor, row["case_id"], action, {"revision": manifest.input_revision})

@@ -67,3 +67,29 @@
 - [ ] 라이브러리/API 최신·선택 버전·확인일·근거 기록
 - [ ] 리뷰 발견사항과 수용/보류/거절·수정·재검증 기록
 - [ ] 남은 D/G 확인, 활성/보류 기능, 다음 PR 인계 기록
+
+### 2026-10-03 backend 초기화 구현·검증 기록
+
+구현 파일은 `backend/app/reset_s1.py`, `manage.py`, `maintenance.py`, `analysis.py`, `worker.py`, `gemini.py`, `backend/tests/test_reset_s1.py`다. 명시한 데이터 루트의 관리자 명령으로 점검/적용하며, DB에 고정한 작업 목록과 초기화 ID를 기록한다. 원입력 참조 전환·결과 DB 제거를 먼저 원자적으로 반영한 후 목록의 파일만 정리한다. 중단 후 재실행은 이미 생성된 S1 결과를 대상으로 확장하지 않는다. 원본/수령 MP4·현재 설문 원응답·계정·설정·키·동의/삭제 기록은 유지한다.
+
+운영 자료의 읽기 전용 점검에서 `intake-1.0`의 30문항(q01–q30), camera_id·capture_mode·checklist가 기존 1→2→3 자동 전환의 현재 입력에 모두 남지 않는 점을 확인했다. 원본 1.0 입력 JSON의 정확한 바이트와 해시를 `raw_input_sources`의 `source_only` 참조로 보존한다. 이는 S1 이전 revision 연결이나 구점수 조회 경로가 아니며, S1 `prior_inputs`는 4.0 입력만 허용한다. 초기화 전에 원본 입력의 해시·case/event 식별과 모든 원본 영상의 해시·관리 경로를 검증하며, 보존된 원본의 참가자 식별과 촬영 사실도 원문 그대로 남긴다. 원본 파일 또는 영상이 바뀌면 결과 제거 전에 중단한다.
+
+```powershell
+# API와 worker 종료 후, 실제 운영 데이터 루트를 명시한다.
+uv run --locked python -X utf8 -m app.manage --data-dir <데이터루트> reset-s1 --actor <관리자>
+uv run --locked python -X utf8 -m app.manage --data-dir <데이터루트> reset-s1 --actor <관리자> --apply
+# 공급자 파일 정리는 별도 명시 재시도. 업로드 응답 유실로 이름을 모르면 미확인 상태를 유지한다.
+uv run --locked python -X utf8 -m app.manage --data-dir <데이터루트> reset-s1 --actor <관리자> --retry-remote
+```
+
+실행 중 API/worker/전처리는 기존 offline 잠금으로 배제한다. CLI worker는 점유 전에 구판 접수 또는 실행이 남았는지 확인하여 `reset-s1` 적용을 요구한다. 초기화로 없어진 실행의 늦은 산출물 게시/채택은 거절한다. 공급자 업로드 의도·반환 파일명·삭제 확인은 별도 영속 기록으로 남기고, 예약된 호출의 정산 정보가 없으면 비용을 0 또는 성공으로 바꾸지 않는다. 초기화 전 백업은 초기화 후 저장소로 복원할 수 없으며, 새 백업은 DB의 초기화 ID와 일치해야 한다.
+
+독립 cold review에서 다음 세 발견사항을 모두 수용하여 수정했다. 손상된 S1 시트는 삭제 대상으로 추정하지 않고 중단하며, XLSX 내보내기는 바이너리를 JSON으로 해석하지 않고 해시가 검증된 고정 원본의 판본/구성원으로 분류한다. 실패한 예약 호출에 계량 정보가 없으면 과금 미확인을 유지한다. 삭제 응답 유실 뒤 같은 파일·credential reference의 재시도에서 확인한 404는 원격 정리 범위에서만 부재 확인으로 처리하며, 파일명이 없는 업로드는 미확인으로 남긴다.
+
+검증은 합성 자료로 수행했다. `uv run --locked python -X utf8 -m unittest discover -s tests -p test_reset_s1.py -v` **16개 통과**: 원입력/설정/계정 유지, 1.0 원본 30응답·카메라·체크리스트의 정확한 바이트 보존 및 백업/복원, 원본 JSON/영상 해시 손상 시 초기화 전 중단, 결과 제거, 중단 재시도와 신규 S1 결과 보호, 손상 S1·내보내기 판본 보호, 변경된 원본/외부 경로 거절, 늦은 worker, 구백업 차단/새 백업 복원, 원격 업로드/삭제 응답 유실·정산 미확인, 실제 subprocess CLI worker의 초기화 전 차단/이후 시작. `test_settings.py` **13개 통과**로 백업·삭제 이력·키·권한 회귀를 확인했다. `git diff --check` 통과, `graft build`로 코드 그래프를 갱신했다. 전체 backend·브라우저·접수 전환 결과는 총괄 실행 기록에서 별도로 정리한다.
+
+2026-10-04 런처 공존 회귀는 `test_preprocess.PreprocessTests.test_real_launcher_worker_and_manual_preprocess_coexist` **1개 통과**로 재검증했다. 실제 런처/worker는 합성 자료를 S1으로 초기화한 후 시작하며, 실제 서버의 S1 판본과 구 전처리 API 차단을 확인한다. 같은 임시 저장소의 명시적 구판 시험용 API에서만 기존 11클립·불변 재시도·변경 후 outdated·낡은 revision 거절을 검증하여 worker/전처리 잠금 공존을 유지한다. 제품에 구판 실행 옵션은 추가하지 않았다.
+
+2026-10-03 라이브러리/API 확인: FastAPI 최신 안정판 0.142.2와 기존 잠금 0.141.1을 [공식 릴리스](https://fastapi.tiangolo.com/release-notes/)·[PyPI](https://pypi.org/project/fastapi/)에서 확인했다. 관련 없는 프레임워크 변경을 피하기 위해 기존 0.141.1을 유지하며 Python 3.14 환경에서 검증했다. Pydantic 2.13.5와 HTTPX 0.28.1도 기존 잠금을 유지한다. 신규 패키지는 설치하지 않았다. Gemini는 기존 REST Files API `/v1beta/files`를 유지하며 [Files API](https://ai.google.dev/api/files)의 파일 삭제/빈 성공 응답, [오류 코드](https://ai.google.dev/gemini-api/docs/api-errors)의 404 부재 의미를 확인했다. 모델 변경·실제 공급자 호출은 하지 않았다.
+
+이 기록은 backend 코드 및 합성 검증의 완료다. 실제 운영 저장소 초기화·원본 영상 판독·유료 호출은 실행하지 않았으며 실제 적용/자료 인수는 별도 기록이 필요하다. commit/PR은 총괄 단계 검증 후 기록한다.

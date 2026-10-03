@@ -211,6 +211,7 @@ def claim(store):
 
 
 def write_output(store, row, step, payload):
+    guard(store, row["run_id"], row["claim_token"], renew=False)
     ref = f"runs/{row['run_id']}/{step['step_id']}/output.json"
     path = store.path(ref)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -240,7 +241,7 @@ def adopt(store, row, step, ref, output_hash, usage):
     _, _, _, stamp = step_output(store, row, candidate)
     with store.connect(write=True) as db:
         current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
-        if current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
+        if not current or current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
             raise HTTPException(409, "오래된 실행 결과를 채택할 수 없습니다.")
         check_access(store, db, current)
         try:

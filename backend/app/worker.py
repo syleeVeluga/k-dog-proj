@@ -531,7 +531,7 @@ class Worker:
         except (HTTPException, OSError, ValueError, KeyError):
             with self.store.connect(write=True) as db:
                 current = db.execute("SELECT * FROM cases WHERE case_id=?", (row["case_id"],)).fetchone()
-                stopped = current["deletion_requested"]
+                stopped = not current or current["deletion_requested"]
                 changed = db.execute("UPDATE runs SET status=?,claim_token=NULL,lease_expires_at=NULL,updated_at=? "
                            "WHERE run_id=? AND claim_token=? AND status='running'",
                            ("stopped" if stopped else "failed", now(), row["run_id"], row["claim_token"])).rowcount

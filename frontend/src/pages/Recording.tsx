@@ -38,9 +38,10 @@ export function Recording({ cases, selected, select, filters, writable, run, rel
           <td data-label="구간"><span className={state === 'confirmed' ? 'tag green' : 'tag'}>{({ none: '없음', draft: '초안', confirmed: '확정' })[state]}</span></td>
           <td data-label="작업"><button aria-label={`${c.participant_id} 촬영 열기`} onClick={() => { if (mayLeave()) select(c); }}>열기 ↗</button></td></tr>;
       })}</tbody></table>{!sorted.length && <div className="empty"><h2>표시할 참가자가 없습니다.</h2><p>검색·행사 필터 또는 접수 등록을 확인하세요.</p></div>}</div></>}
-    {selected && sessionOf(selected).protocol_version === 'protocol-20260929-v3' && <RecordingPanelV3 key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run}
+    {selected?.manifest.schema_version === 'intake-4.0' && <section className="panel"><h2>S1 촬영 자료</h2><p role="status">S1 촬영 사건·관찰창 기능 준비 중입니다. 원본 영상을 보관하고 재분석에 사용합니다.</p>{writable && <VideoUpload item={selected} session={sessionOf(selected)} refresh={async () => { await reload(); }} />}</section>}
+    {selected && selected.manifest.schema_version !== 'intake-4.0' && sessionOf(selected).protocol_version === 'protocol-20260929-v3' && <RecordingPanelV3 key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run}
       refresh={async message => { await reload(); if (message) notify(message); }} close={() => { if (mayLeave()) select(null); }} />}
-    {selected && sessionOf(selected).protocol_version !== 'protocol-20260929-v3' && <RecordingPanel key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run} notify={notify}
+    {selected && selected.manifest.schema_version !== 'intake-4.0' && sessionOf(selected).protocol_version !== 'protocol-20260929-v3' && <RecordingPanel key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run} notify={notify}
       refresh={async message => { await reload(); if (message) notify(message); }} close={() => { if (mayLeave()) select(null); }} />}
   </>;
 }

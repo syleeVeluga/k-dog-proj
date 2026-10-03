@@ -38,6 +38,7 @@ from app.input_models_v3 import RunCreateV3, RunActionV3, RunViewV3
 from app import secrets as vault
 from app.input_models import Model
 from app.input_models_v3 import CaseCreateV3, CaseEditV3, CaseViewV3, ImportCommitV3, ImportPreviewV3, ImportMappingV3, SurveyEditV3, RecordingEditV3, PreprocessStatusV3
+from app.input_models_v4 import CaseViewV4
 
 
 class SecretEdit(Model):
@@ -49,7 +50,7 @@ DEFAULT_DATA = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "K-DOG" 
 
 
 def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127.0.0.1:8000",
-               intake_spec: Literal["20260913", "20260929"] = "20260929") -> FastAPI:
+               intake_spec: Literal["20260913", "20260929", "20261002"] = "20261002") -> FastAPI:
     origin = urlsplit(public_origin)
     if not origin.hostname or origin.scheme not in ("http", "https") or origin.path or origin.query or origin.fragment or origin.username:
         raise ValueError("K-DOG origin에는 스킴·호스트·포트만 지정하세요.")
@@ -58,7 +59,8 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     store = Store(data_dir or DEFAULT_DATA)
     old_catalog = SurveyCatalog.model_validate_json((REPO_ROOT / "resources/catalogs/survey-v2.json").read_bytes())
     current_catalog = SurveyCatalogV3.model_validate_json((REPO_ROOT / "resources/catalogs/survey-v3.json").read_bytes())
-    catalog = current_catalog if intake_spec == "20260929" else old_catalog
+    s1 = intake_spec == "20261002"
+    catalog = current_catalog if intake_spec != "20260913" else old_catalog
     dummy_password = password_hash(secrets.token_urlsafe(32))
     @asynccontextmanager
     async def lifespan(app):
@@ -71,7 +73,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
 
     @app.get("/api/health")
     def health():
-        return {"service": "K-DOG", "instance": os.environ.get("KDOG_INSTANCE", "")}
+        return {"service": "K-DOG", "instance": os.environ.get("KDOG_INSTANCE", ""), "spec": intake_spec}
 
     @app.middleware("http")
     async def boundary(request: Request, call_next):
@@ -107,9 +109,19 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             return user_view(authenticate(db, request.cookies.get(COOKIE)))
 
     def roles(*allowed):
-        def check(user: Annotated[UserView, Depends(current)]):
+        def check(request: Request, user: Annotated[UserView, Depends(current)]):
             if user.role not in allowed:
                 raise HTTPException(403, "이 작업에 필요한 권한이 없습니다.")
+            if s1:
+                path = request.url.path
+                retired = {"runs-v3", "sheets", "score-sheets", "basic-results", "behavior-v3", "preprocess", "recording", "stimuli", "segments", "settings-v3", "scoring-ai"}
+                if retired.intersection(path.split("/")) or path.endswith(("/survey/result", "/trial")):
+                    raise HTTPException(409, "S1 기능 준비 중입니다. 재분석이 필요합니다.")
+                if path.startswith(("/api/cases", "/api/import")):
+                    with store.connect() as db:
+                        old = db.execute("SELECT 1 FROM cases WHERE manifest_schema_version!='intake-4.0' LIMIT 1").fetchone()
+                    if old:
+                        raise HTTPException(409, "S1 초기화가 필요합니다. 관리 명령으로 원입력을 보존하여 전환하세요.")
             return user
         return check
 
@@ -283,7 +295,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             return current_catalog
         raise HTTPException(422, "지원하지 않는 설문 판본입니다.")
 
-    @app.get("/api/cases", response_model=list[CaseView | CaseViewV3])
+    @app.get("/api/cases", response_model=list[CaseView | CaseViewV3 | CaseViewV4])
     def cases(response: Response, user=Depends(reader)):
         values, unavailable = [], 0
         with store.connect() as db:
@@ -297,18 +309,18 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         response.headers["X-KDOG-Unavailable-Cases"] = str(unavailable)
         return values
 
-    @app.post("/api/cases", response_model=CaseView | CaseViewV3, status_code=201)
+    @app.post("/api/cases", response_model=CaseView | CaseViewV3 | CaseViewV4, status_code=201)
     def add_case(value: CaseCreateV3, user=Depends(writer)):
         with store.connect(write=True) as db:
-            case_id = create_case(store, db, value, user.username, catalog.version)
+            case_id = create_case(store, db, value, user.username, catalog.version, s1=s1)
             return store.view(store.case(db, case_id))
 
-    @app.get("/api/cases/{case_id}", response_model=CaseView | CaseViewV3)
+    @app.get("/api/cases/{case_id}", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def get_case(case_id: Key, user=Depends(reader)):
         with store.connect() as db:
             return store.view(store.case(db, case_id))
 
-    @app.put("/api/cases/{case_id}", response_model=CaseView | CaseViewV3)
+    @app.put("/api/cases/{case_id}", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def edit_case(case_id: Key, value: CaseEditV3, user=Depends(writer)):
         with store.connect(write=True) as db:
             row = store.case(db, case_id, expected=value.expected_revision)
@@ -327,7 +339,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 "after": value.model_dump(exclude={"expected_revision"})})
             return store.view(store.case(db, case_id))
 
-    @app.put("/api/cases/{case_id}/survey", response_model=CaseView | CaseViewV3)
+    @app.put("/api/cases/{case_id}/survey", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def survey(case_id: Key, value: SurveyEditV3, user=Depends(writer)):
         with store.connect(write=True) as db:
             save_survey(store, db, case_id, value, user.username, current_catalog if value.survey_version == current_catalog.version else old_catalog)
@@ -355,13 +367,13 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.audit(db, user.username, case_id, "deletion.request", {})
         return Message(message="삭제 요청을 접수했습니다.")
 
-    @app.post("/api/cases/{case_id}/sessions", response_model=CaseView | CaseViewV3)
+    @app.post("/api/cases/{case_id}/sessions", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def sessions(case_id: Key, value: SessionEdit, user=Depends(writer)):
         with store.connect(write=True) as db:
             row = store.case(db, case_id, expected=value.expected_revision)
             manifest = store.manifest(row)
             if value.session_id is None:
-                session = new_session(catalog.version, value.note)
+                session = new_session(catalog.version, value.note, s1=s1)
                 manifest.sessions.append(session)
                 manifest.selected_session_id = session.session_id
             else:
@@ -371,7 +383,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.save(db, row, manifest, user.username, "session.select")
             return store.view(store.case(db, case_id))
 
-    @app.post("/api/cases/{case_id}/videos", response_model=CaseView | CaseViewV3, status_code=201)
+    @app.post("/api/cases/{case_id}/videos", response_model=CaseView | CaseViewV3 | CaseViewV4, status_code=201)
     async def upload_video(case_id: Key, request: Request,
                            session_id: Key,
                            filename: Annotated[str, Query(min_length=1, max_length=200)],
@@ -436,7 +448,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.case(db, case_id)
             return FileResponse(path, filename=f"{video_id}{path.suffix}", content_disposition_type="inline")
 
-    @app.put("/api/cases/{case_id}/sessions/{session_id}", response_model=CaseView | CaseViewV3)
+    @app.put("/api/cases/{case_id}/sessions/{session_id}", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def session_metadata(case_id: Key, session_id: Key, value: SessionMetadata, user=Depends(writer)):
         with store.connect(write=True) as db:
             row = store.case(db, case_id, expected=value.expected_revision)
@@ -446,7 +458,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.save(db, row, manifest, user.username, "session.metadata")
             return store.view(store.case(db, case_id))
 
-    @app.put("/api/cases/{case_id}/sessions/{session_id}/segments", response_model=CaseView | CaseViewV3)
+    @app.put("/api/cases/{case_id}/sessions/{session_id}/segments", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def session_segments(case_id: Key, session_id: Key, value: SegmentsEdit, user=Depends(writer)):
         """Store the eight segment windows against one registered file; confirming locks them for scoring (변경검토 §5)."""
         with store.connect(write=True) as db:
@@ -493,7 +505,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.save(db, row, manifest, user.username, "recording.confirm" if value.confirm else "recording.update")
             return store.view(store.case(db, case_id))
 
-    @app.put("/api/cases/{case_id}/sessions/{session_id}/stimuli", response_model=CaseView | CaseViewV3)
+    @app.put("/api/cases/{case_id}/sessions/{session_id}/stimuli", response_model=CaseView | CaseViewV3 | CaseViewV4)
     def session_stimuli(case_id: Key, session_id: Key, value: StimulusEdit, user=Depends(writer)):
         from app.domain.validation import validate_stimulus_moments
         from app.media import MediaError, probe
@@ -641,7 +653,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 if row.participant is not None and row.survey is None and row.case_id is None:
                     if (row.event_id, row.participant_id) != (row.participant.event_id, row.participant.participant_id):
                         raise HTTPException(422, "미리보기 참가자 연결이 일치하지 않습니다.")
-                    create_case(store, db, row.participant, user.username, catalog.version)
+                    create_case(store, db, row.participant, user.username, catalog.version, s1=s1)
                 elif row.participant is None and row.survey is not None and row.case_id is not None:
                     current_case = store.case(db, row.case_id)
                     if (row.event_id, row.participant_id) != (current_case["event_id"], current_case["participant_id"]):

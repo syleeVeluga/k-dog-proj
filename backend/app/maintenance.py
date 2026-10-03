@@ -142,7 +142,9 @@ def backup(store, destination, actor):
             if file_hash(target) != expected:
                 raise HTTPException(409, "복사한 파일 해시가 일치하지 않습니다.")
         refs["kdog.sqlite3"] = file_hash(destination / "kdog.sqlite3")
-        manifest = {"schema": "kdog-backup-1", "created_at": now(), "files": refs, "secrets_included": False}
+        from app.reset_s1 import boundary
+        manifest = {"schema": "kdog-backup-1", "created_at": now(), "files": refs, "secrets_included": False,
+                    "s1_reset_id": boundary(db)}
         (destination / "backup.json").write_text(encode(manifest), encoding="utf-8")
         result = {"path": str(destination), "created_at": manifest["created_at"], "file_count": len(refs)}
         store.audit(db, actor, destination.name, "backup.create", result)
@@ -209,6 +211,10 @@ def restore(store, source, destination):
         manifest = json.loads((source / "backup.json").read_bytes())
         if manifest.get("schema") != "kdog-backup-1" or manifest.get("secrets_included") is not False or "kdog.sqlite3" not in manifest.get("files", {}):
             raise HTTPException(409, "지원하지 않는 백업입니다.")
+        from app.reset_s1 import boundary
+        with store.connect() as db:
+            if boundary(db) and manifest.get("s1_reset_id") != boundary(db):
+                raise HTTPException(409, "S1 초기화 이전 백업은 복원할 수 없습니다. 같은 초기화 이후 백업을 사용하세요.")
         for ref, expected in manifest["files"].items():
             path = (source / ref).resolve()
             if not path.is_relative_to(source) or path.relative_to(source).as_posix() != ref or (ref != "kdog.sqlite3" and ref.split("/")[0] not in MANAGED):
@@ -229,6 +235,8 @@ def restore(store, source, destination):
                     raise HTTPException(409, "복원 중 백업 내용이 변경되었습니다.")
             restored = Store(staged)
             with restored.connect(write=True) as db:
+                if boundary(db) != manifest.get("s1_reset_id"):
+                    raise HTTPException(409, "백업의 S1 초기화 기록이 데이터베이스와 일치하지 않습니다.")
                 if db.execute("PRAGMA integrity_check").fetchone()[0] != "ok" or db.execute("PRAGMA foreign_key_check").fetchone():
                     raise HTTPException(409, "복원 DB 무결성 검사에 실패했습니다.")
                 db.execute("UPDATE users SET session_hash=NULL,session_expires=NULL")

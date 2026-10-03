@@ -36,7 +36,7 @@ class PreprocessV3Tests(AppCase):
 
     def setUp(self):
         super().setUp()
-        self.app = create_app(self.root)
+        self.app = create_app(self.root, intake_spec="20260929")
         self.store = self.app.state.store
         self.client = self.client_for("operator")
         self.item = self.upload(self.make_case(), self.source.read_bytes()).json()

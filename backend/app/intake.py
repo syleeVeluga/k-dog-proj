@@ -14,20 +14,24 @@ from app.input_models import CaseCreate
 from app.storage import now, uid
 from app.domain.catalog_v3 import PROTOCOL_VERSION, SURVEY_VERSION, SurveyCatalogV3
 from app.input_models_v3 import CaseCreateV3, ConsentsV3, ImportPreviewV3, ImportRowV3, ManifestV3, SessionV3, SurveyEditV3
+from app.input_models_v4 import ManifestV4, SessionV4, new_session_v4
 
 # 04 설문지: 7~9번은 「해당 없음」 칸이 있다. 가져오기 파일에서는 이 문자열로 표시한다.
 NOT_APPLICABLE_TOKENS = ("NA", "na", "N/A", "해당없음", "해당 없음")
 
 
-def new_session(survey_version: str = SURVEY_VERSION, note="") -> SessionV3:
+def new_session(survey_version: str = SURVEY_VERSION, note="", *, s1=True) -> SessionV3 | SessionV4:
+    if s1:
+        return new_session_v4(uid(), note, survey_version)
     return SessionV3(session_id=uid(), note=note, survey_version=survey_version,
                      protocol_version=PROTOCOL_VERSION if survey_version == SURVEY_VERSION else "protocol-20260913-v2",
                      protocol_source="new_session", survey=dict.fromkeys(SURVEY_IDS), survey_not_applicable=[], videos=[])
 
 
-def create_case(store, db, value: CaseCreate, actor: str, version: str):
-    session = new_session(version)
-    manifest = ManifestV3(case_id=uid(), event_id=value.event_id,
+def create_case(store, db, value: CaseCreate, actor: str, version: str, *, s1=True):
+    session = new_session(version, s1=s1)
+    manifest_model = ManifestV4 if s1 else ManifestV3
+    manifest = manifest_model(case_id=uid(), event_id=value.event_id,
                         participant_id=value.participant_id, input_revision=1,
                         selected_session_id=session.session_id, sessions=[session],
                         consents=getattr(value, "consents", ConsentsV3()))
