@@ -82,6 +82,15 @@ export type SurveyResultV3 = {
   standalone: { item_id: string; raw: number | null; blank_reason: string | null };
 };
 
+export type SurveyResultV4 = Omit<SurveyResultV3, 'comparison_status' | 'domains'> & {
+  policy_version: 'survey-policy-20261002-s1.1';
+  calculation_status: 'complete' | 'partial' | 'unavailable';
+  external_comparison_status: 'pending_approval'; external_comparison_reason: string;
+  domains: { domain: string; question_ids: string[]; answered_count: number; target_count: number; mean: number | null; denominator: number | null; aggregation: 'mean' | 'reverse_mean' | 'single_raw'; status: 'calculated' | 'policy_pending' | 'insufficient_responses' | 'missing'; reason: string | null }[];
+  items: { item_id: string; raw: number | null; converted: number | null; reverse_scored: boolean; blank_reason: string | null }[];
+  pending_policies: string[];
+};
+
 export const SEGMENTS_V3: [SegmentId, string][] = [['entry', '입장'], ['baseline', '기준'], ['alone', '혼자'], ['reunion', '재회'], ['ignore', '무시'], ['walk', '걷기'], ['stranger', '낯선 사람'], ['exit', '퇴장']];
 export type CaptureState = 'performed' | 'shortened' | 'not_performed' | 'welfare_stopped';
 export type CaptureWindow = { segment: SegmentId; video_id: string; state: CaptureState; start_sec: number | null; end_sec: number | null; reason: string | null };

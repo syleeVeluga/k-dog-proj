@@ -89,7 +89,14 @@ def references(store, db):
                         raise HTTPException(409, "백업 대상 파일 해시가 일치하지 않습니다.")
                     found[candidate] = actual
                     if path.suffix == ".json":
-                        visit(json.loads(path.read_bytes()))
+                        document = json.loads(path.read_bytes())
+                        # Forms headers, labels and raw cells are user data, even when
+                        # a header happens to be named ref, storage_ref or *_json.
+                        schema = document.get("schema_version") if isinstance(document, dict) else None
+                        if schema == "forms-record-4.0":
+                            visit(document["source"])
+                        elif schema != "forms-source-row-4.0":
+                            visit(document)
                 elif key.endswith("_json") and isinstance(candidate, str):
                     visit(json.loads(candidate))
                 else:
@@ -162,7 +169,13 @@ def clean(store, *, purge_deleted=False):
     with offline(store), store.connect(write=True) as db:
         if purge_deleted:
             db.execute("PRAGMA secure_delete=ON")
+            from app.forms_v4 import purge_case_imports
+            # A restored backup can predate the case creation but still contain
+            # its Forms preview. Apply the current ledger even without a case row.
+            for deletion in db.execute("SELECT target,detail_json FROM changes WHERE action='deletion.record'").fetchall():
+                purge_case_imports(store, db, deletion["target"], identity=json.loads(deletion["detail_json"]))
             for case in db.execute("SELECT * FROM cases WHERE deletion_requested=1").fetchall():
+                purge_case_imports(store, db, case["case_id"])
                 actor = db.execute("SELECT username FROM users ORDER BY username LIMIT 1").fetchone()[0]
                 store.audit(db, actor, case["case_id"], "deletion.record", {"event_id": case["event_id"], "participant_id": case["participant_id"]})
                 runs = [r[0] for r in db.execute("SELECT run_id FROM runs WHERE case_id=?", (case["case_id"],))]

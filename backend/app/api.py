@@ -1,5 +1,7 @@
 """Local-first intake API (접수·설문·촬영·계정·개발자 키). All participant media is served through authorization."""
 
+import base64
+import binascii
 import hashlib
 import json
 import os
@@ -25,6 +27,7 @@ from app.domain.sheets_v3 import SheetDocumentV3
 from app.domain.contracts import SessionSegments, SurveyAnswers, SurveyResult
 from app.scoring import survey_scores
 from app.survey_v3 import SurveyResultV3, survey_scores_v3
+from app.survey_v4 import SurveyResultV4, survey_scores_v4
 from app.input_models import (
     CaseView, ImportColumns, Key, Login, Message,
     Revision, SegmentTimes, SegmentsEdit, SessionEdit, SessionMetadata, StoredVideo, UserCreate, UserEdit, UserView,
@@ -33,16 +36,22 @@ from app.input_models import (
 from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
 from app import settings
+from app import forms_v4
 from app import sheets, judgements, run_v3, scoring_ai, settings_v3
 from app.input_models_v3 import RunCreateV3, RunActionV3, RunViewV3
 from app import secrets as vault
 from app.input_models import Model
 from app.input_models_v3 import CaseCreateV3, CaseEditV3, CaseViewV3, ImportCommitV3, ImportPreviewV3, ImportMappingV3, SurveyEditV3, RecordingEditV3, PreprocessStatusV3
-from app.input_models_v4 import CaseViewV4
+from app.input_models_v4 import CaseViewV4, SessionV4
 
 
 class SecretEdit(Model):
     value: Annotated[SecretStr, Field(min_length=8, max_length=512)]
+
+
+class FormsFile(Model):
+    config: forms_v4.FormsPreviewRequestV4
+    file_base64: Annotated[str, Field(max_length=45 * 1024 * 1024)]
 
 
 COOKIE = "kdog_session"
@@ -115,9 +124,9 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             if s1:
                 path = request.url.path
                 retired = {"runs-v3", "sheets", "score-sheets", "basic-results", "behavior-v3", "preprocess", "recording", "stimuli", "segments", "settings-v3", "scoring-ai"}
-                if retired.intersection(path.split("/")) or path.endswith(("/survey/result", "/trial")):
+                if retired.intersection(path.split("/")) or path.endswith("/trial"):
                     raise HTTPException(409, "S1 기능 준비 중입니다. 재분석이 필요합니다.")
-                if path.startswith(("/api/cases", "/api/import")):
+                if path.startswith(("/api/cases", "/api/import", "/api/forms")):
                     with store.connect() as db:
                         old = db.execute("SELECT 1 FROM cases WHERE manifest_schema_version!='intake-4.0' LIMIT 1").fetchone()
                     if old:
@@ -345,7 +354,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             save_survey(store, db, case_id, value, user.username, current_catalog if value.survey_version == current_catalog.version else old_catalog)
             return store.view(store.case(db, case_id))
 
-    @app.get("/api/cases/{case_id}/survey/result", response_model=SurveyResult | SurveyResultV3)
+    @app.get("/api/cases/{case_id}/survey/result", response_model=SurveyResult | SurveyResultV3 | SurveyResultV4)
     def survey_result(case_id: Key, session_id: Key | None = None, user=Depends(reader)):
         """Deterministic, so it is computed on read: domain answer counts and the separation type, never a total (01 §6)."""
         with store.connect() as db:
@@ -353,6 +362,10 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         session = next((item for item in manifest.sessions if item.session_id == (session_id or manifest.selected_session_id)), None)
         if session is None:
             raise HTTPException(422, "이 참가자의 촬영 회차가 아닙니다.")
+        if s1:
+            if session.survey_version != current_catalog.version:
+                raise HTTPException(409, "이 회차는 과거 설문 원자료 참고 상태입니다. S1 설문 산출에 포함하지 않습니다.")
+            return survey_scores_v4(SessionV4.model_validate(session), current_catalog)
         if session.survey_version == current_catalog.version:
             return survey_scores_v3(session, current_catalog)
         return survey_scores(SurveyAnswers(answers=session.survey, not_applicable=tuple(session.survey_not_applicable)), old_catalog)
@@ -617,6 +630,35 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def input_template(kind: Literal["participants", "survey"], format: Literal["csv", "xlsx"] = "csv", user=Depends(writer)):
         return Response(template(kind, format, catalog.version), media_type="application/octet-stream",
                         headers={"Content-Disposition": f'attachment; filename="kdog-{kind}.{format}"'})
+
+    @app.post("/api/forms/columns", response_model=ImportColumns)
+    async def forms_columns(request: Request, format: Literal["csv", "xlsx"],
+                            layout: Literal["rows", "transposed"] = "rows", sheet: str | None = None, user=Depends(writer)):
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > forms_v4.MAX_BYTES:
+                raise HTTPException(413, "입력 파일은 32 MiB 이하로 나누어 등록하세요.")
+        return forms_v4.inspect_columns(bytes(data), format, sheet, layout)
+
+    @app.post("/api/forms/preview", response_model=forms_v4.FormsPreviewV4)
+    async def forms_preview(request: Request, user=Depends(writer)):
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > 45 * 1024 * 1024:
+                raise HTTPException(413, "입력 파일은 32 MiB 이하로 나누어 등록하세요.")
+        from pydantic import ValidationError
+        try:
+            value = FormsFile.model_validate_json(data)
+            source = base64.b64decode(value.file_base64, validate=True)
+        except (ValidationError, binascii.Error, ValueError):
+            raise HTTPException(422, "파일과 열 연결 형식을 확인하세요.") from None
+        return forms_v4.preview(store, source, value.config, user.username)
+
+    @app.post("/api/forms/commit", response_model=forms_v4.FormsCommitResultV4)
+    def forms_commit(value: forms_v4.FormsCommitRequestV4, user=Depends(writer)):
+        return forms_v4.commit(store, value, user.username)
 
     @app.post("/api/imports/preview", response_model=ImportPreviewV3)
     async def import_preview(request: Request, kind: Literal["participants", "survey"],
