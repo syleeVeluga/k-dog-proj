@@ -1,0 +1,22 @@
+{
+  "schema_version": "4.0",
+  "version": "preprocess-20261002-s1.1",
+  "catalog_version": "catalog-20261002-s1.1",
+  "source": {
+    "schema_version": "4.0",
+    "source_id": "SRC02",
+    "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+    "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+    "location": "3~6절 / 부록 G D01"
+  },
+  "camera_mapping": {
+    "CAM1": "1",
+    "CAM2": "3",
+    "CAM3": "2"
+  },
+  "camera_layout_status": "provisional_D01",
+  "visibility_threshold": null,
+  "unknown_threshold_policy": "do_not_invent",
+  "deduplicate_audio_across_cameras": true,
+  "preserve_original_time_and_offset": true
+}

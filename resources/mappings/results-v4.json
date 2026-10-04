@@ -1,0 +1,221 @@
+{
+  "schema_version": "4.0",
+  "version": "results-20261002-s1.1",
+  "catalog_version": "catalog-20261002-s1.1",
+  "entries": [
+    {
+      "order": 1,
+      "label": "보호자 교육태도",
+      "linked_ids": "T01 / R03·04",
+      "behavior_codes": [
+        "보6",
+        "보9",
+        "보22",
+        "보39",
+        "보23",
+        "보24",
+        "보38",
+        "보40"
+      ],
+      "linked_memo": false,
+      "evidence": "보6·9·22·39·23·24; 기회 보38·40. 설문 Q01~06은 별도 자기보고.",
+      "process": "3장면 배점과 조건으로 자동 초안. 유효 선택·완료 의견 순서 적용.",
+      "output": "허용형 / 조율형 / 통제형 + 구체적 사례",
+      "missing": "판정보류 안내 + 관찰된 사례",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "리포트 출력 연결!A7:H7"
+      }
+    },
+    {
+      "order": 2,
+      "label": "반려견과 보호자의 애착관계",
+      "linked_ids": "T02 / R05·09·10",
+      "behavior_codes": [
+        "개9",
+        "개10",
+        "개58",
+        "개11",
+        "개17",
+        "개18",
+        "개19",
+        "개44",
+        "개47",
+        "개22",
+        "개23",
+        "개48",
+        "개21",
+        "보12"
+      ],
+      "linked_memo": false,
+      "evidence": "개9·10·58·11, 개17·18·19·44·47, 개22·23·48·21, 보12. 설문 Q22~24와 Q15~21은 별도.",
+      "process": "S1 25조합·몸 상태 변화·접촉 근거를 결합한 AI 해석 또는 유효 선택. 완료 의견 우선.",
+      "output": "기존 관계 이름 4가지 중 하나 + 근거 장면",
+      "missing": "유형 보류 + 확인된 장면",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "리포트 출력 연결!A8:H8"
+      }
+    },
+    {
+      "order": 3,
+      "label": "사회성 사람과 비사회적 반응",
+      "linked_ids": "T03 / R06·07·13·24",
+      "behavior_codes": [
+        "개13",
+        "개55",
+        "개15",
+        "개51",
+        "개52",
+        "개54",
+        "개16",
+        "개14",
+        "개53",
+        "개5",
+        "개6",
+        "개8",
+        "개30",
+        "개34",
+        "환경1",
+        "보14"
+      ],
+      "linked_memo": false,
+      "evidence": "사람 개13·55·15·51·52·54·16·14·53. 환경 개5·6·8·30·34·환경1·보14. Q10~11/Q12~14.",
+      "process": "사람의 접근·접촉 단계와 물건 회피·탐색을 각각 설명. 설문 두려움 0~4 평균은 따로 표시.",
+      "output": "사람 반응 한 문장 / 환경 반응 한 문장",
+      "missing": "없는 하위영역만 추가 관찰 안내",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "리포트 출력 연결!A9:H9"
+      }
+    },
+    {
+      "order": 4,
+      "label": "함께걷기",
+      "linked_ids": "T04 / R08",
+      "behavior_codes": [
+        "개38",
+        "개39",
+        "개40",
+        "개41",
+        "개42",
+        "개43",
+        "보13",
+        "개26",
+        "개36",
+        "개27"
+      ],
+      "linked_memo": false,
+      "evidence": "개38~43 거리 + 보13 + 6_걷기 H10:H15 근접 예외. 개26·36·27 자동.",
+      "process": "거리 0/1이고 근접 예외가 해당 없음인 국면만 1, 보호자 접근이면 0, 거리 2/3이면 0. 이동(개38·40·42)의 합이 개26, 정지(개39·41·43)의 합이 개36. 개27=(개26+개36)/6. 예외로 제외한 국면도 분모 6에 남김.",
+      "output": "거리동조 국면 n/6와 % + 원거리·예외 설명",
+      "missing": "보13=1/2, 여섯 거리 0~3의 정수, 가까운 국면의 예외 확인 완료. 재확인 또는 가까운 국면의 예외 빈칸이면 보류. 보13=2 주의 병기, 3 무효. 개37 제외. 앉기·엎드림 자체는 제외 사유 아님. 개의 동시 이동을 별도 필수조건으로 추가하지 않음.",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "리포트 출력 연결!A10:H10"
+      }
+    },
+    {
+      "order": 5,
+      "label": "기억에 남는 장면",
+      "linked_ids": "M02 / R20",
+      "behavior_codes": [],
+      "linked_memo": true,
+      "evidence": "유효 원항목 + 개59/F 관찰메모 + 영상파일·카메라·시각",
+      "process": "관찰 의견 지정 장면 우선, 전후 변화·서로 다른 영역, 중복 제거, 최대3개.",
+      "output": "상황 + 실제 행동 + 짧은 의미",
+      "missing": "후보 없으면 안내로 대체",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "리포트 출력 연결!A11:H11"
+      }
+    },
+    {
+      "order": 6,
+      "label": "설문 요약과 평소 대비",
+      "linked_ids": "S01~09·Q01~28 / R02·18",
+      "behavior_codes": [],
+      "linked_memo": false,
+      "evidence": "28개 설문 원응답, 해당 영상 관찰",
+      "process": "설문 묶음 평균/역채점. 같은 장면 관련 영상은 별도 설명.",
+      "output": "가르침·사회화노력·친밀감·일관성 등",
+      "missing": "누락 묶음만 보류; 영상 없음은 자기보고만",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "리포트 출력 연결!A12:H12"
+      }
+    },
+    {
+      "order": 7,
+      "label": "장면과 변화의 세부 설명",
+      "linked_ids": "A·N·E·W·B 계열",
+      "behavior_codes": [],
+      "linked_memo": false,
+      "evidence": "활성 영상90항목과 메모; 상세 사전 참조",
+      "process": "기준 탐색+머무름, 혼자/재회 몸 변화, 물건 회피 전후. 선택 횟수·꼬리 사건 병기.",
+      "output": "확인된 장면의 설명",
+      "missing": "선택 관찰만 없으면 해당 문장 생략",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "리포트 출력 연결!A13:H13"
+      }
+    },
+    {
+      "order": 8,
+      "label": "비교 그래프",
+      "linked_ids": "C01~05 / R19·23",
+      "behavior_codes": [],
+      "linked_memo": false,
+      "evidence": "동일 정의·버전의 실제집단 통계 또는 검증된 외부자료",
+      "process": "문항·척도·분모 일치 확인된 값만 비교",
+      "output": "근거가 있는 비교값과 표본수",
+      "missing": "근거 없으면 외부 비교 생략",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "리포트 출력 연결!A14:H14"
+      }
+    },
+    {
+      "order": 9,
+      "label": "총평과 함께 해볼 일",
+      "linked_ids": "M03~06 / R04·21",
+      "behavior_codes": [],
+      "linked_memo": false,
+      "evidence": "최종 영역 결과와 원항목·장면, 완료된 도움 의견",
+      "process": "동일 최종 결과를 재사용해 강점·도움·실천 1~3개 구성",
+      "output": "총평 + 지금 해볼 행동",
+      "missing": "확인된 영역으로 범위 축소",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "리포트 출력 연결!A15:H15"
+      }
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FormsImporter } from '../FormsImporter';
 import type { FormEvent } from 'react';
 import { api } from '../api';
 import { mayLeave, useUnsaved } from '../Editing';
@@ -15,7 +16,7 @@ type Props = {
   filters: CaseFilterProps;
 };
 
-// 접수 메뉴: 참가자 목록·등록·상세. 설문은 자료 가져오기, 영상·구간은 촬영 메뉴(PR-8)가 맡는다.
+// 접수 메뉴: 참가자 등록과 Forms 일괄 등록, 원입력 상세.
 export function Intake({ user, cases, selected, writable, run, reload, select, status, notify, filters }: Props) {
   const [filter, setFilter] = useState('all');
   const [dirty, setDirty] = useState(false);
@@ -57,9 +58,10 @@ export function Intake({ user, cases, selected, writable, run, reload, select, s
           <td data-label="반려견 / 보호자">{c.dog_name}<small>{c.guardian_name ? `${c.guardian_name} 님` : '보호자명 없음'}{c.dog.breed ? ` · ${c.dog.breed}` : ''}</small></td>
           <td data-label="동의"><span className={c.consent_confirmed ? 'tag green' : 'tag'}>{c.consent_confirmed ? '확인' : '미확인'}</span></td>
           <td data-label="설문"><span className={count === SURVEY_TOTAL ? 'tag green' : 'tag'}>{count}/{SURVEY_TOTAL}</span>{s.survey_version === 'survey-20260929-v3' && <small>빈칸 사유 {Object.keys(s.survey_blank_reasons ?? {}).length}개 · 완료 기준 미확정</small>}</td><td data-label="영상">{s.videos.length}개</td>
-          <td data-label="구간">{({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(s)]}<small>{protocolName(s)}</small></td>
+          <td data-label="구간">{({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(s)]}<small>{protocolName(s)}</small>{c.manifest.schema_version === 'intake-4.0' && <small>S1 재분석 필요</small>}</td>
           <td data-label="자료"><button aria-label={`${c.participant_id} 상세 열기`} onClick={() => { if (mayLeave()) { setDirty(false); void run(async () => select(await api<Case>(`/cases/${c.case_id}`))); } }}>열기 ↗</button></td></tr>;
       })}</tbody></table>{!visible.length && <div className="empty"><h2>{cases.length ? '조건에 맞는 참가자가 없습니다.' : '첫 참가자를 등록하세요.'}</h2><p>행사와 참가자 ID를 먼저 확인한 뒤 자료를 연결합니다.</p></div>}</div>
+    {writable && <details className="panel"><summary>Forms 참가자·설문 함께 등록</summary><FormsImporter cases={cases} run={run} done={async message => { notify(message); await reload(); }} /></details>}
     {writable && <details className="panel" open={!cases.length}><summary>참가자 등록</summary>
       <form onSubmit={register} onChange={() => setDirty(true)}>
         <div className="form-grid"><label>행사 ID<input aria-label="행사 ID" name="event_id" placeholder="KDOG-2026" pattern="[A-Za-z0-9_\-]+" required /><small>필수 · 같은 행사에는 같은 ID. 예: KDOG-2026. 영문·숫자·밑줄·하이픈.</small></label>

@@ -1,186 +1,105 @@
-# K-DOG Windows 설치·파일럿 운영 안내
+# K-DOG Windows 설치·S1 운영 안내
 
-버전: v1.4 · 2026-09-16 · 42항목 판 P1 (v0.2.0)
+버전: v1.5 · 2026-10-04 · 통합명세 v1.3 / S1.1
 
-## 일반 사용자 빠른 실행
+## 일반 사용자 실행
 
-설치 담당자가 준비를 마친 PC라면 일반 사용자는 이 절만 따르면 된다. 준비물은 **K-DOG 앱 폴더**와 전달받은 **앱 계정 이름·비밀번호**다.
+설치 담당자가 준비한 앱 폴더의 `Start.cmd`를 실행하고 표시되는 주소로 접속한다. 중앙 서버 운영에서는 촬영 PC마다 앱을 설치하거나 DB를 만들지 않고 담당자가 전달한 동일 HTTPS 주소를 브라우저에서 연다. 앱 계정은 Windows 계정과 별개이며 기본 비밀번호는 없다. 업무 중 중앙 서버와 실행 창을 유지하고 종료할 때 담당자가 Ctrl+C로 API·worker를 함께 종료한다. 브라우저 탭만 닫아도 서버 작업은 계속된다.
 
-1. 앱 폴더에서 `Start.cmd`를 두 번 클릭한다. 별도의 Python이나 개발 도구를 열지 않는다.
-2. `K-DOG 실행 중: http://127.0.0.1:8000`이 보일 때까지 K-DOG 실행 창을 닫지 않고 기다린다. 보통 브라우저가 자동으로 열린다.
-3. 브라우저가 열리지 않으면 Microsoft Edge에서 `http://127.0.0.1:8000`을 입력한다. 이 주소는 현재 PC에서만 열리는 로컬 주소다.
-4. 전달받은 K-DOG 앱 계정으로 로그인한다. Windows 로그인 비밀번호와 K-DOG 앱 비밀번호는 서로 다를 수 있다.
-5. 사용하는 동안 K-DOG 실행 창을 열어 둔다. 브라우저 탭만 닫아도 처리는 계속된다.
-6. 업무가 끝나면 K-DOG 실행 창을 선택하고 Ctrl+C를 누른다. `Terminate batch job (Y/N)?`이 표시되면 `Y`를 입력하고 Enter를 누른다. 실행 창이 닫힌 뒤에는 브라우저나 PC를 종료해도 된다.
+실제 영상·장비 품질과 시간, 실제 중앙 서버/3PC·깨끗한 OS 검수는 [후속 대장](개발반영_20261003/K-DOG_실측및확인후속대장_v1.0_20261003.md) E01–E10에 있다. 합성 시험이나 현재 Windows의 새 폴더 설치를 현장 검수 완료로 해석하지 않는다.
 
-오류가 보이면 반복해서 실행하거나 새 계정을 만들지 않는다. 첫 오류가 보이는 K-DOG 실행 창을 캡처하고 설치 담당자에게 전달한다. 화면에 참가자 자료·키·비밀번호가 보이면 가리고 전달한다.
+배포 ZIP에는 이 안내와 계획·후속 문서가 포함된다. 개발 명령·시험 근거는 [소스 저장소](https://github.com/syleeVeluga/k-dog-proj)에서 `release.json`의 commit을 선택해 확인한다. 개발용 시험·스크립트와 고객 원본은 설치 ZIP에 포함하지 않는다.
 
-## 지원 환경 확인
+## 설치 담당자
 
-| 환경 | 지원 판단 |
-|---|---|
-| 최신 보안 업데이트가 적용된 Windows 11 x64 | 지원·검증 환경. 현재 배포 기본값이다. |
-| Windows 10 x64 | 이번 실기 검증 대상이 아니다. [Microsoft 일반 지원](https://www.microsoft.com/windows/end-of-support)이 2025-10-14 종료되었으므로, 유효한 ESU와 조직 보안 승인이 있는 기존 PC에서만 제한적으로 사용하고 신규 배포는 Windows 11을 사용한다. |
-| Windows on ARM, 32비트 Windows, Windows S 모드, Windows Server | 미검증·미지원이다. x64 기반의 일반 Windows 11 PC를 사용한다. [S 모드 해제](https://support.microsoft.com/windows/switching-out-of-s-mode-in-windows)는 되돌릴 수 없으므로 앱 사용자가 임의로 변경하지 않는다. |
-| macOS·Linux | 미지원이다. Windows DPAPI 키 저장소와 Windows 실행 스크립트를 사용한다. |
-| Edge·Chrome 최신 안정 버전 | 권장한다. 자동 브라우저 시험은 Chromium 계열에서 수행했다. Firefox와 다른 브라우저는 운영 검증 대상이 아니다. |
+대상은 Windows 11 x64와 Chromium 계열 브라우저다. Windows ARM/32비트/S모드·다른 OS는 검증 대상이 아니다. 프로그램·자료는 로컬 디스크에 두며 네트워크 공유·동기화 폴더·이동식 드라이브는 운영 검수 대상이 아니다. 공급자 키는 Windows DPAPI로 보호하므로 설치·키 등록·API·worker는 같은 Windows 사용자로 실행한다.
 
-Windows의 **설정 → 시스템 → 정보 → 시스템 종류**에서 `64비트 운영 체제, x64 기반 프로세서`인지 확인한다. S 모드, 회사의 앱 실행 제한, 백신/EDR 정책으로 CMD·PowerShell·uv·FFmpeg 실행이 차단되면 사용자가 보안 설정을 우회하지 말고 IT 관리자에게 요청한다.
-
-프로그램과 자료는 짧은 로컬 경로를 권장한다. 예: `C:/K-DOG/app-v0.2.0`, `D:/K-DOG/data`. 네트워크 공유, OneDrive 동기화 폴더, 이동식 드라이브는 운영 검증 대상이 아니므로 사용하지 않는다. 한글과 공백이 포함된 로컬 설치 경로는 패키지 검증을 통과했다.
-
-K-DOG는 키를 등록한 **동일한 Windows 사용자 계정**으로 설치·실행한다. 다른 Windows 사용자로 전환하거나 `다른 사용자로 실행`하면 `%LOCALAPPDATA%`, 사용자 환경 변수와 암호화 키가 달라진다. 평소 계정이 아닌 관리자 계정으로 `Start.cmd`를 실행하지 않는다.
-
-## 설치 담당자용 설치
-
-대상 PC의 준비와 최초 계정 생성은 설치 담당자가 수행한다. 앱의 관리자/개발자 로그인과 Windows 실행 계정은 별개다. API와 worker, 키 등록은 같은 Windows 계정으로 실행한다. 최초 설치에는 인터넷이 필요하며, 설치가 끝난 앱의 실행에는 Node.js·npm·Git이 필요 없다. Python 3.14는 `uv`가 설치 과정에서 내려받으므로 별도로 먼저 설치하지 않아도 된다. `Install.cmd`는 Windows PowerShell 5.1로 검증했으며 PowerShell 7을 별도로 설치할 필요가 없다.
-
-### 1. 전달 파일 확인
-
-[GitHub v0.2.0 릴리즈](https://github.com/syleeVeluga/k-dog-proj/releases/tag/v0.2.0)에서 같은 이름의 ZIP과 SHA-256 파일 두 개를 받는다. 예: `kdog-v0.2.0-windows-x64.zip`, `kdog-v0.2.0-windows-x64.zip.sha256`. 둘을 같은 폴더에 둔 뒤 PowerShell에서 다음을 실행한다. GitHub의 자동 생성 `Source code` 압축 파일은 설치 패키지가 아니다.
+1. 개발자가 전달한 **S1 ZIP과 동일 이름의 SHA-256 파일**을 받는다. GitHub의 구판 v0.2.0 또는 자동 생성 Source code ZIP은 S1 설치물로 사용하지 않는다.
+2. [uv 공식 설치](https://docs.astral.sh/uv/getting-started/installation/)와 [FFmpeg 공식 다운로드](https://ffmpeg.org/download.html/)의 Windows 안내를 따른다. `uv --version`, `ffmpeg -version`, `ffprobe -version`을 새 PowerShell에서 확인한다. H.264/AAC 디코더와 libx264/AAC 인코더가 필요하다.
+3. 다음과 같이 ZIP hash를 검사하고 빈 새 폴더(예: `C:/K-DOG/app-s1`)에 푼다. ZIP 내부에서 직접 실행하지 않는다.
 
 ```powershell
-$zip = (Resolve-Path ".\kdog-v0.2.0-windows-x64.zip").Path
-$expected = ((Get-Content -LiteralPath "$zip.sha256" -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
-$actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-if ($actual -ne $expected) { throw "ZIP SHA-256이 일치하지 않습니다. 실행하지 말고 파일을 다시 받으세요." }
-"SHA-256 확인 완료: $actual"
+$releaseZip = (Resolve-Path './kdog-s1-windows-x64.zip').Path
+$expectedHash = ((Get-Content -LiteralPath "$releaseZip.sha256" -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
+$actualHash = (Get-FileHash -LiteralPath $releaseZip -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actualHash -ne $expectedHash) { throw 'ZIP SHA-256 불일치' }
 ```
 
-파일명이 다르면 첫 줄만 실제 ZIP 이름으로 바꾼다. 불일치하면 압축을 풀거나 실행하지 않는다. ZIP을 신뢰하는 경로에서 받았고 해시가 일치한 뒤 Windows가 다운로드 파일을 차단할 때만 `Unblock-File -LiteralPath $zip`을 실행한다. `release.json`은 압축 내부 파일의 무결성 목록이며 ZIP의 배포자 인증이나 코드 서명을 대체하지 않는다.
+4. 자료 기본 경로는 `%LOCALAPPDATA%/K-DOG/data`다. 별도 자료 경로는 실행 전에 `KDOG_DATA_DIR`을 프로그램 밖 로컬 폴더로 지정한다. 기존 데이터 경로를 바꾸면 다른 DB가 열리므로 경로를 먼저 확인한다.
+5. `Install.cmd`는 잠금 운영 의존성과 Python 3.14 환경을 설치한다. 인터넷은 최초 설치에 필요하다. 관리자(`admin`)와 개발자(`developer`) 계정은 숨김 비밀번호 프롬프트로 만든다. 계정 이름에서 Enter를 누르면 기존 계정 유무와 관계없이 생략하므로, 최초 로그인 전에 관리자 계정이 반드시 있어야 한다. 공급자 키를 관리하려면 개발자 계정도 필요하다. 생략했다면 프로그램 `backend/`에서 아래 명령으로 생성한다. 관리자가 직원용 operator/reviewer 계정을 발급한다. 설치 후에는 Node.js/npm/Git이 필요 없다.
 
-### 2. 필수 도구 준비
+   ```powershell
+   .venv/Scripts/python.exe -X utf8 -m app.manage create-user manager --role admin
+   .venv/Scripts/python.exe -X utf8 -m app.manage create-user key-manager --role developer
+   ```
 
-1. [uv 공식 Windows 설치 안내](https://docs.astral.sh/uv/getting-started/installation/)에 따라 uv를 설치한다. 조직이 허용한 경우 `winget install --id=astral-sh.uv -e`를 사용할 수 있다.
-2. [FFmpeg 공식 다운로드 안내](https://ffmpeg.org/download.html)의 Windows 빌드 링크에서 FFmpeg를 설치하고 `ffmpeg.exe`, `ffprobe.exe`가 있는 폴더를 PATH에 등록한다. 빌드에는 H.264/AAC 디코더와 libx264/AAC 인코더가 필요하다.
-3. 설치 후 **새 PowerShell 창**을 열어 다음 세 명령이 모두 성공하는지 확인한다.
+6. `Start.cmd --check`로 파일·Python·FFmpeg를 확인하고 `Start.cmd`를 실행한다. 기본 로컬 주소는 `http://127.0.0.1:8000`이다. 첫 실행으로 AI 호출이나 공급자 연결 시험을 자동 수행하지 않는다. 공급자 키 등록·연결 시험·실제 AI 분석은 명시 조작이며 비용이 발생할 수 있다.
+
+조직 정책으로 차단되면 IT 담당자가 검토한다. `.venv`를 다른 PC/폴더로 복사하지 않는다. 업데이트는 앱 종료·백업 후 새 프로그램 폴더에 설치하고 같은 자료 경로를 지정한다.
+
+## 구판에서 S1으로 전환
+
+사용자가 승인한 전환 정책은 **기존 점수·분석·리포트·파생 결과 폐기, 원입력·원영상·접수·운영 기록 보존**이다. 구판 점수를 S1 점수로 읽거나 변환하지 않는다. 운영 앱을 종료한 뒤 아래 명령을 프로그램 `backend/`에서 실행한다. `--actor`는 활성 admin 계정이다.
 
 ```powershell
-uv --version
-ffmpeg -version
-ffprobe -version
+.venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" backup "E:/K-DOG/before-s1" --actor manager
+.venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" reset-s1 --actor manager
+.venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" reset-s1 --actor manager --apply
+.venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" backup "E:/K-DOG/after-s1" --actor manager
 ```
 
-### 3. 프로그램과 자료 경로 준비
+미적용 명령은 대상 수를 보여준다. `--apply`는 원본 hash 검증과 고정 작업 계획으로 처리한다. 원격 공급자 파일 삭제 대기가 있으면 키 상태를 확인한 뒤 같은 자료 루트에서 `reset-s1 --actor manager --retry-remote`로 재시도한다. 초기화 재실행은 이미 고정한 작업만 처리하며 이후 새 S1 시트·결과를 지우지 않는다. 초기화 전 구판 백업은 S1 결과 복원용으로 허용되지 않는다. 원본 보존 백업으로 따로 관리한다.
 
-ZIP은 반드시 빈 새 프로그램 폴더에 압축 해제한다. 압축 파일 내부에서 `Install.cmd`를 직접 열지 않는다. 예: `C:/K-DOG/app-v0.2.0`. 프로그램 폴더에는 운영 자료를 두지 않는다.
+2026-10-04 현재 로컬 운영 루트에서 백업 후 실제 전환을 수행했다. 참가자2·계정2와 원입력2·영상참조6의 hash를 보존하고 구판 run9/step111을 제거했다. 반복 초기화·초기화 이후 백업/새 폴더 복원·초기화 이전 백업 거절을 확인했다. 이 기록은 다른 PC/현장 전환을 완료한 뜻이 아니다.
 
-자료의 기본 위치는 `%LOCALAPPDATA%/K-DOG/data`다. 다른 위치를 사용할 때에는 설치 전에 다음처럼 사용자 환경 변수를 설정하고 새 PowerShell 창을 연다. 기존 자료를 다시 열 때 경로 철자와 드라이브가 이전 실행과 같은지 먼저 확인한다.
+## 중앙 서버와 촬영 PC3대
+
+서버 한 대가 DB·원본·불변 산출물과 worker를 소유한다. 촬영 PC3대와 메인 조회 PC는 **같은 서버 주소**에 각 계정으로 접속한다. 각 PC의 `%LOCALAPPDATA%`에 별도 DB를 운영하도록 안내하지 않는다.
+
+기본 `Start.cmd`는 loopback 감독 실행이다. 중앙 서버는 IT 담당자가 HTTPS 인증서·DNS·TLS reverse proxy를 준비한 후 다음 API와 worker를 각각 감독하여 실행한다. 아래 주소는 예시이므로 실제 인증서의 origin으로 바꾼다. proxy가 같은 서버이면 API는 loopback에 유지한다.
 
 ```powershell
-[Environment]::SetEnvironmentVariable('KDOG_DATA_DIR', 'D:\K-DOG\data', 'User')
-[Environment]::GetEnvironmentVariable('KDOG_DATA_DIR', 'User')
+# 중앙 서버 backend/: 서로 별도 감독 프로세스
+.venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" serve --host 127.0.0.1 --port 8000 --public-origin "https://kdog.example.org"
+.venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" worker
 ```
 
-`KDOG_DATA_DIR`은 프로그램 폴더 밖의 로컬 경로를 지정한다. 경로를 바꾸면 앱은 별도 데이터베이스로 인식하므로, 기존 자료가 사라진 것처럼 보일 때 새 계정이나 자료를 만들기 전에 이 값을 확인한다.
+proxy가 다른 호스트이면 방화벽에서 해당 proxy만 접근하도록 제한한 내부 주소에 bind하고 같은 HTTPS public origin을 지정한다. 앱은 Host와 변경 요청 Origin을 정확히 검사하고 HTTPS origin에는 Secure 세션 cookie를 사용한다. TLS proxy는 Host를 public origin과 동일하게 전달하고 `/api/`를 캐시하지 않아야 한다. 앱은 전달 IP 헤더를 신뢰해 인증을 우회하지 않는다. 개발 서버를 인터넷에 직접 공개하거나 TLS 없이 원격 접속하지 않는다.
 
-### 4. 설치와 첫 실행
+IT 담당자는 실제 파일 크기·동시3업로드·전처리·PDF 완료를 기준으로 proxy 요청 본문/timeout·저장 공간·인증서 신뢰·방화벽을 검증한다. 약1GB 원본 세 개를 작은 합성 영상으로 대체해 대용량 검수를 통과 처리하지 않는다. 저장 공간은 원본+변환본+전처리+출력+백업을 포함해 확보한다. 부분 수신물·실패 batch를 성공으로 보지 않으며 상태 확인 후 같은 수신물의 연결을 정정해 불필요한 재전송을 피한다.
 
-1. 압축을 푼 폴더의 `Install.cmd`를 실행한다. 파일 해시를 먼저 확인한 뒤 잠금 파일에 지정된 운영 의존성과 Python 3.14 환경을 `backend/.venv`에 설치한다.
-2. 새 설치에서는 운영 관리자(`admin`)와 개발자(`developer`) 계정 이름을 각각 입력하고 12~256자 비밀번호를 숨김 프롬프트에 두 번 입력한다. 기본 계정과 기본 비밀번호는 없다. 기존 데이터 경로에 해당 역할의 계정이 이미 있을 때만 계정 이름 질문에서 Enter로 건너뛴다.
-3. `Installation complete`가 표시되면 PowerShell에서 `.\Start.cmd --check`를 한 번 실행해 설치 파일·Python·FFmpeg 검사를 확인한다.
-4. `Start.cmd`를 두 번 클릭하거나 PowerShell에서 `.\Start.cmd`를 실행한다. `K-DOG 실행 중: http://127.0.0.1:8000`이 표시된 뒤 브라우저가 열린다. 자동으로 열리지 않으면 해당 주소를 직접 연다.
-5. 운영 관리자로 로그인해 직원용 `operator`/`reviewer` 계정을 발급한다. 이 판의 촬영 당일 절차(접수·설문·촬영·전처리)는 공급자 키 없이 동작한다. 개발자 계정의 「공급자 키 관리」는 다음 판의 AI 채점을 위해 키를 미리 등록·연결 시험하는 용도이며, 연결 시험은 실제 공급자 호출과 비용을 발생시킬 수 있다. 설치나 시작만으로 공급자 연결 시험을 실행하지 않는다.
-6. v0.1.0 자료 폴더를 지정하면 첫 실행 때 42항목 판 입력 형식(`intake-2.0`)으로 자동 이관된다. 옛 30문항 설문 중 새 설문지에 없는 문항은 버려지고 참가자 화면의 이관 메모에 남는다. 이관 전에 백업을 만든다.
+## 촬영부터 발급까지
 
-`Install.cmd`는 해당 PowerShell 프로세스에만 ExecutionPolicy Bypass를 적용하며 시스템 정책을 바꾸지 않는다. 조직 정책으로 차단되면 관리자가 검토한 스크립트 실행 경로를 사용한다. 반복 설치는 기존 계정을 변경하지 않는다. 업데이트는 앱을 종료·백업한 뒤 새 프로그램 폴더에 설치하여 동일 데이터 경로를 지정한다. `.venv`를 다른 폴더/PC로 복사하지 않는다.
+1. **접수/설문** — 수동 접수 또는 Forms CSV/XLSX의 실제 헤더를 명시 대응하여 미리보기 후 등록한다. 행사·참가자·회차와 동의 항목을 확인한다. 설문 Q01–Q28의 28문항 원응답을 보존하며 0과 빈칸을 구별한다. Q26–Q28 감정의 일관성 문항을 포함한 원척도·역채점·유효 n을 확인하고, 부분 결측의 미정 정책을 임의 평균으로 확정하지 않는다.
+2. **영상 수신/연결** — 각 촬영 계정이 파일을 수신함에 올리고 운영자가 정확한 참가자·회차·CAM1/2/3·원본 번호에 연결한다. 영상 먼저/접수 먼저 모두 가능하다. INSV는 보관할 수 있으나 대응 MP4의 변환 계보·hash·시각을 확인해야 분석한다.
+3. **촬영 기록** — 실제 수행한 구간·사건·절차 이탈·미수행 사유·기준 영상과 카메라 offset을 확인한다. 예정 시각으로 실제 사건을 채우지 않는다. 새 회차와 기존 회차를 구분하고 수정하면 입력 revision이 새로 생긴다.
+4. **전처리/채점** — 현재 입력을 확인해 전처리를 명시 실행한다. 사람은 본인 독립 시트에 원관찰·근거/검토메모를 구분하여 제출한다. 타인/AI 결과는 실제 공개 요청으로 노출 이력이 남는다. AI 분석은 입력·batch·설정·예산을 확인해 실행하며 중단/명시 재시도와 이전 실행 재사용을 구분한다.
+5. **계산/의견/최종** — 원자료를 고정하여 계산하고 유효 수기 판정·완료 의견의 우선순위를 적용한다. 관찰 부족과 규칙 미정을 구별한다. 의견의 평가자·C31·해당 영역을 확인하며 유형 없는 문장으로 유형을 추론하지 않는다.
+6. **리포트** — 최종결과 판본과 필요한 자체 비교 집단을 선택해 명시 발급한다. 상태·단계·차단 이유·재시도·이전을 조회한다. HTML/PDF/manifest는 발급 당시 고정 판본을 사용하며 입력 변경 뒤에는 이전 입력 기준임을 표시한다. 현재 삭제·동의 철회·권한 변경은 다운로드에도 적용한다. 인쇄·전달은 운영자 조작이며 고객에게 자동 발송하지 않는다.
+7. **검수/연구** — 검수 자료의 XLSX 원셀·수식·저장 계산값과 평가자·판본·독립/AI노출·잠정/재확인/중단을 기록한다. 참고 등록은 현재 점수에 반영하지 않는다. 연구 내보내기는 명시 선택한 시트/결과/참고/cohort 판본을 고정한다. 알려진 식별값은 치환하지만 자유메모의 제3자 식별정보까지 자동 보장하지 않으므로 추가 제외어와 실제 연구 사용 범위를 확인한다. 독립 사람·최초 AI의 유효 항목 쌍만 비교 분모에 들어간다.
 
-## 실행·종료·장애
+G01/G04 확인 전 실제 빈 Excel 채점양식 가져오기, D03/D04/D05의 미확정 세부 규칙, D06 확인 전 외부 평균/표준편차·국내 비교값은 보류한다. G02의 후보 문장을 교수님 확정 문장으로 표시하지 않는다. 나머지 검증된 프로그램 근거 설명과 정상 리포트 전체에 임의의 일괄 승인 의무를 추가하지 않는다.
 
-실행 창은 감독 프로세스이며 닫으면 API와 worker도 종료된다. 브라우저 탭만 닫으면 처리는 계속된다. 종료할 때 실행 창에서 Ctrl+C를 누른다. 처리 도중 종료한 요청은 다음 실행에서 점유 만료(기본 약 3분) 후 파일 검증·재개한다. 응답이 유실된 외부 요청은 이미 과금되었을 수 있다.
+## 백업·복원·삭제
 
-중복 실행, 기존 API/worker, 사용 중인 포트가 있으면 새 실행은 거절된다. 한 프로세스가 실패하면 다른 프로세스도 종료하고 실행 창에 오류를 표시한다. FFmpeg가 없거나 화면 빌드가 누락되어도 시작 전에 안내한다. 상세 실행 명령은 프로그램 `backend/`에서 다음과 같다.
+백업에는 참가자 자료가 있으므로 접근·보관을 관리한다. 키와 로그인 세션은 제외한다. 원본·미연결 수신물·batch·시트·의견·발급물·검수 참고·비교 집단·연구 export까지 고정 참조를 검사한다. 복원/정리 전에 API·worker·전처리를 모두 종료한다.
 
 ```powershell
-.venv/Scripts/python.exe -X utf8 -m app.launcher --check
-.venv/Scripts/python.exe -X utf8 -m app.launcher --data-dir "D:/K-DOG/data" --port 8001
+# 프로그램 backend/; 모든 대상은 새 폴더
+.venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" backup "E:/K-DOG/backup-s1" --actor manager
+.venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" restore "E:/K-DOG/backup-s1" "D:/K-DOG/restored-s1"
+.venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" clean --purge-deleted
+```
+
+복원에는 최신 삭제 이력이 있는 현재 DB를 반드시 지정한다. 빈 DB로 삭제 목록을 대체하지 않는다. 동일 참가자의 ID 수정 이력과 삭제한 참고파일의 source hash도 다시 적용하여 옛 백업에서 되살아나지 않게 한다. 정리는 미참조 파일과 명시 삭제 대상만 제거한다. 외부에 이미 전달한 파일이나 과거 백업을 자동 회수하지 않는다. 복원 후 계정 세션은 다시 로그인하고 키는 개발자가 새 Windows 계정에 등록한다.
+
+## 장애와 계량
+
+중복 실행·사용 중 포트·누락 FFmpeg/자산은 시작 전에 거절한다. `Start.cmd --check`와 다음 명령으로 상태를 확인한다. 로그인 실패는 사용자/자료 경로를 먼저 확인하고 앱 종료 후 관리자가 `reset-password USERNAME`을 사용한다. 키 문제가 생기면 키 등록 때와 같은 Windows 사용자로 실행했는지 확인한다.
+
+```powershell
 .venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" recovery-status
-```
-
-로컬 실행기는 loopback 전용이다. 내부망·클라우드 배포를 자동 개설하지 않는다. 프로그램 폴더를 삭제해도 별도 데이터 폴더는 보존된다. 자료/백업 삭제는 별도 보관 정책을 따른다.
-
-## 문제 해결
-
-| 표시 또는 증상 | 확인과 조치 |
-|---|---|
-| Windows S 모드 또는 조직 정책 차단 | 사용자가 S 모드를 해제하거나 보안 정책을 우회하지 않는다. 이 앱은 S 모드 미지원이며 CMD·PowerShell·uv·FFmpeg 실행 허용은 IT 관리자가 판단한다. |
-| `winget` 명령을 찾을 수 없음 | K-DOG 문제가 아니다. 설치 담당자가 uv 공식 Windows 설치 안내의 독립 설치 파일 또는 조직 표준 배포 방법을 사용한다. 일반 사용자가 임의 사이트에서 설치 파일을 받지 않는다. |
-| `Install uv and add it to PATH` | uv 설치 후 기존 창을 닫고 새 PowerShell에서 `uv --version`을 확인한 다음 `Install.cmd`를 다시 실행한다. |
-| `Install ffmpeg/ffprobe and add it to PATH` | 두 실행 파일이 같은 설치의 PATH에서 조회되는지 `ffmpeg -version`, `ffprobe -version`으로 확인한다. |
-| `Release file hash mismatch` | 설치를 중단하고 ZIP을 새로 받는다. 압축 해제 후 파일을 수정한 폴더에서 설치하지 않는다. |
-| `Python 3.14 환경이 필요합니다` 또는 `.venv` 누락 | 인터넷 연결과 uv 실행을 확인한 뒤 `Install.cmd`를 다시 실행한다. 회사 방화벽·프록시 환경이면 uv의 Python 배포 파일과 PyPI HTTPS 다운로드 허용을 IT 관리자에게 요청한다. 다른 PC나 폴더에서 복사한 `.venv`는 사용하지 않는다. |
-| 포트 사용 중 또는 중복 실행 거절 | 이미 열린 K-DOG 실행 창에서 계속 사용하거나 그 창에서 Ctrl+C로 종료한 뒤 다시 시작한다. 다른 포트가 필요하면 PowerShell에서 `.\Start.cmd --port 8001`을 실행하고 `http://127.0.0.1:8001`로 접속한다. |
-| 브라우저가 자동으로 열리지 않음 | 실행 창에 `K-DOG 실행 중`이 보이면 브라우저에서 `http://127.0.0.1:8000`을 직접 연다. 해당 문구가 없으면 먼저 `.\Start.cmd --check`의 오류를 확인한다. |
-| 로그인할 수 없음 | 계정 이름·역할을 확인한다. 비밀번호 재설정은 앱을 종료한 뒤 프로그램 `backend/`에서 `.venv/Scripts/python.exe -X utf8 -m app.manage reset-password USERNAME`으로 수행한다. 별도 자료 경로이면 `--data-dir "D:/K-DOG/data"`를 `reset-password` 앞에 둔다. |
-| 키 연결이 갑자기 해제됨 | 키를 등록한 Windows 사용자와 현재 `Start.cmd`를 실행한 Windows 사용자가 같은지 확인한다. 다른 사용자나 관리자 계정으로 실행했다면 종료하고 원래 계정에서 다시 시작한다. 키 파일이나 환경 변수를 다른 계정으로 복사하지 않는다. |
-| 기존 자료가 보이지 않음 | 새 자료를 만들지 말고 앱을 종료한다. 이전과 같은 Windows 사용자로 로그인했는지 확인하고, 새 PowerShell에서 `$env:KDOG_DATA_DIR`과 실제 기존 데이터 폴더의 `kdog.sqlite3` 존재 여부를 확인한 뒤 올바른 경로로 다시 시작한다. |
-| API 또는 worker 시작 실패 | 실행 창을 닫지 말고 첫 오류 문구를 기록한다. `.\Start.cmd --check`로 파일·Python·FFmpeg를 확인하고, 기존 K-DOG 프로세스와 포트 사용 여부를 확인한다. 해결되지 않으면 오류 문구와 `release.json`의 `commit` 값을 개발자에게 전달하되 키·비밀번호·참가자 자료는 보내지 않는다. |
-
-## 백업·복원
-
-관리자 화면의 자료 백업 또는 아래 명령을 사용한다. 백업에는 개인정보·영상이 있으므로 접근 권한과 보관 위치를 관리한다. 공급자 키와 로그인 세션은 백업하지 않는다.
-
-```powershell
-# 프로그램 backend/에서 실행한다. --data-dir는 하위 명령 앞에 둔다.
-.venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" backup "E:/K-DOG/backup-20260906" --actor manager
-```
-
-복원/정리 전에는 Start.cmd 실행 창과 별도로 시작한 API·worker를 모두 종료한다. 최신 삭제 이력이 있는 현재 DB를 `--data-dir`에 반드시 지정한다. 과거 백업만으로 빈 삭제 목록을 만들어 복원하지 않는다.
-
-```powershell
-.venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" restore "E:/K-DOG/backup-20260906" "D:/K-DOG/restored-20260906"
-.venv/Scripts/python.exe -X utf8 -m app.launcher --data-dir "D:/K-DOG/restored-20260906"
-```
-
-복원은 새 폴더만 허용하고 해시·DB·참조 파일·삭제 목록을 검증한다. 복원 후 키는 개발자가 다시 등록한다. 새 PC로 옮길 때도 최신 삭제 이력 DB를 안전하게 보존한다. 복원 경로 확인 후 `KDOG_DATA_DIR`를 바꿔 Start.cmd가 같은 폴더를 사용하게 한다. 삭제 요청은 제공 차단이며, 실제 정리는 종료 후 `clean --purge-deleted`로 수행한다. 기존 외부 내보내기·과거 백업을 회수하지 않는다.
-
-## 사용량·비용 측정
-
-이 판에는 새 AI 호출이 없으므로 아래 보고서는 v0.1.0에서 만든 옛 run 기록에만 값이 있다. 42항목 판 채점이 들어오는 판에서 계량 항목을 다시 정한다.
-
-신뢰하는 로컬 관리자가 실행하는 CLI다. 운영 DB의 삭제되지 않은 참가자에 대해 행사/참가자/run/단계/시도별 예약 호출·원래 token 계량값·상태·run 접수부터 최종 갱신까지 시간을 JSON으로 출력한다. 이름·영상·프롬프트·키·공급자 오류 원문은 포함하지 않지만 참가자 ID가 있으므로 출력은 자료 폴더처럼 관리한다. 개발자 합성 시험 이력은 별도이며 운영 합계에서 제외한다.
-
-```powershell
 .venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" usage-report --event-id EVENT-01
-.venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" usage-report --event-id EVENT-01 --prices "D:/K-DOG/prices.json"
 ```
 
-선택적 단가 파일의 구조는 다음과 같다. 아래 수치는 **계산 예시용 가상 단가**이며 실제 모델 가격이 아니다. `models`의 키는 사용량 보고서에 기록된 정확한 `provider/model` 문자열이다. 단가는 해당 계량 필드 **백만 단위당** 입력 통화 금액이다. 원화 환산을 원하면 운영자가 확인한 환율로 환산한 단가를 넣고 source에 단가 출처와 환율을 기록한다.
-
-```json
-{
-  "currency": "TEST",
-  "as_of": "2026-09-06",
-  "source": "가상 계산 예시; 운영 사용 전 공식 단가·환율 확인 필요",
-  "models": {
-    "example/model": {"input_tokens": "2", "output_tokens": "4"}
-  }
-}
-```
-
-`known_meter_cost_estimate`는 계산 가능한 호출의 부분 합계이고 `complete_meter_cost_estimate`는 모든 예약 호출의 지정 계량값이 있고 미계측 단계가 없을 때만 값이 있다. 단가/계량값 누락, 실행 중·중단·응답 유실 호출은 미확인으로 남는다. 재시도는 매번 포함하며 재사용 산출물은 `reused_ai_steps`로 구분하고 원본 usage를 다시 과금 합산하지 않는다. 예약 표시가 없는 M5 이전 단계 등은 `unreserved_ai_steps`에 포함하고 비용 집계에서 제외하며 전체 추정도 null로 둔다.
-
-이 값은 **사용자가 지정한 계량식의 추정**이며 실제 청구액·모든 과금 항목의 완전성·통화 예산 차단을 보장하지 않는다. total/input/output·캐시·추론 계량값은 서로 중첩될 수 있으므로 무조건 모두 더하지 않는다. 모델별 장문 구간·미디어·캐시 할인·추론·기타 과금의 계산식은 공식 가격표와 청구서로 대조해야 한다. 기존 앱의 한도는 호출 횟수/출력 토큰 한도다. 확인되지 않은 가격을 기본값으로 넣지 않는다.
-
-## 촬영 당일 절차와 리허설
-
-본촬영(2026-10-31~11-1)에서 현장이 하는 일은 다음 다섯 가지이며 모두 이 판에 들어 있다. AI 채점·검수·리포트는 촬영 뒤 다음 판에서 진행한다.
-
-1. **접수** — 「접수」 메뉴에서 참가자를 직접 등록하거나 「자료 가져오기」로 참가자 CSV/XLSX를 올린다. 순번(행사 안에서 유일)·동의 확인·보호자명·반려견 정보(견종·성별·나이·크기·함께 산 기간·입양 경로)를 받고 연락처는 받지 않는다. 빈칸은 「미기재」다.
-2. **설문** — 보호자가 종이 또는 태블릿 설문지에 답한 28문항을 사람이 CSV/Excel 양식에 옮겨 「설문」 메뉴에서 가져온다. 7~9번만 「해당 없음」(NA)을 허용한다. 화면은 영역별 응답 수와 분리 유형만 보이고 총점은 없다.
-3. **촬영 파일 등록** — 「촬영」 메뉴에서 그 쌍의 영상 파일을 여러 개 등록한다. 카메라 구분은 없다. 등록한 파일 하나를 기준 영상으로 고른다.
-4. **8구간 시각** — 기준 영상 위에서 입장·기준·혼자·낯선·재회·무시·걷기·퇴장의 시작·끝 시각(m:ss)을 입력해 초안으로 저장하고, 확인 뒤 「8구간 확정」을 누른다. 확정 뒤 「확정본 수정 시작」으로 편집하며, 초안을 저장하기 전까지 기존 확정본을 보존한다.
-5. **전처리** — 확정한 구간으로 기준 영상을 잘라 클립을 만든다. 「전처리」 메뉴에서 기준 파일·회차·규칙을 확인하고 「이 촬영 전처리 시작」을 누른다. 운영자·관리자가 실행하고 교수/검토자는 조회만 한다. 런처의 API·worker가 실행 중이어도 전처리 전용 잠금으로 실행하며, 다른 전처리 및 정리·복원과는 동시에 실행하지 않는다. 현재 규칙 preprocess-v2-excel-provisional은 촬영 화면에서 운영자가 기록한 **네 자극 사건 이후 최대 5초**를 8 fps, 나머지를 2 fps로 처리하며 오디오는 유지한다. Excel의 바닥 접촉·퇴실 이후 5초를 근거로 네 사건에 임시 적용한다. 각 창은 해당 구간 끝에서 자르며, 구간이 겹치거나 자극 시각이 미지정·구간 밖·구간 끝이면 보완을 요구한다. 사건 없음·판독 불가는 임의 시각을 채우지 말고 연구팀에 확인한다. 전처리 화면의 실행 전 처리 구간을 확인한 뒤 시작한다. 교수 회신 전 임시 기준이며 회신 후 규칙 버전과 결과를 갱신한다.
-
-```powershell
-# 프로그램 backend/에서 실행. --actor는 실제 활성 운영자·관리자 계정 이름, <case_id>는 전처리 화면의 「관리 정보 · 참가자 내부 ID」에서 복사한다. 참가자 ID와 다르다.
-.venv/Scripts/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" preprocess <case_id> --actor <운영자 계정>
-```
-
-메뉴 방문·영상 등록·구간 확정만으로 실행되지 않는다. 실행 중 다른 메뉴로 이동해도 서버 처리는 계속되며 재방문해 상태를 확인할 수 있다. 앱 종료로 중단되거나 실패하면 원인을 보완한 뒤 「이 촬영 전처리 다시 시작」을 누른다. 재시도는 새 batch를 만들며 미완 파일을 성공으로 표시하지 않는다. 입력·규칙이 바뀐 완료본에는 「이전 입력 기준 결과」가 표시된다.
-
-산출물은 자료 폴더 `clips/<참가자>/<세션>/<회차>/`의 mp4와 `clips.json`이며 백업에 포함된다. 구간이 영상 길이를 넘으면 422, 확정 전이면 409로 거절한다.
-
-촬영 전 리허설 순서: 해당 PC의 설치 확인 → 로그인·직원 권한 → 가상 참가자 1쌍으로 1~5를 끝까지 → 업무가 없는 시간에 백업 → 종료 → 새 폴더 복원 → 재조회. 저장 공간은 쌍마다 원본 영상 전체와 클립(원본보다 작음)을 더해 계산하고, 72쌍 × 파일 수 × 파일 크기로 미리 확인한다. 장비 사양(5.7K·360 원본 여부)이 확정되면 `resources/rules/preprocess-v2.json`의 해상도·크롭 값을 정한다.
-
-개발자는 저장소에서 합성 영상 72쌍으로 위 1~5를 자동으로 돌리는 `scripts/rehearsal.py`를 실행해 릴리즈마다 흐름을 검증한다([개발 실행 안내](DEVELOPMENT.md) 참고). 합성 영상은 320×240이므로 현장 원본의 처리 시간·용량을 대표하지 않으며, AI 채점은 포함하지 않는다. 운영 패키지에는 리허설 도구·가상 공급자·테스트 코드가 없다.
+중단 후 점유 만료·불변 파일 검증에 따라 복구하며 실패/검토필요를 성공으로 바꾸지 않는다. 응답 유실 외부 요청은 과금되었을 수 있다. 가격 미확인은 0원이 아니며 공급자 계량·재시도·재사용을 구분한다. 실측 시간/품질은 [S16 준비 도구](개발반영_20261003/K-DOG_PR-S16_원본압축본과360도실증_v1.0_20261003.md)로 실제 로그·동일조건·독립 정답을 고정해 기록한다. 로그 공유 시 이름·영상·키·비밀번호를 제거한다.

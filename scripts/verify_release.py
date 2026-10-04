@@ -15,7 +15,7 @@ from zipfile import ZipFile
 
 
 def verify(package):
-    with tempfile.TemporaryDirectory(prefix="kdog-m6-clean-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="kdog-s1-clean-") as temporary:
         root = Path(temporary)
         app = root / "새 설치 경로"
         with ZipFile(package) as archive:
@@ -75,7 +75,9 @@ def verify(package):
                     if process.poll() is not None:
                         raise RuntimeError("packaged launcher exited")
                     try:
-                        with opener.open(url + "/api/health", timeout=1):
+                        with opener.open(url + "/api/health", timeout=1) as response:
+                            if json.load(response).get("spec") != "20261002":
+                                raise RuntimeError("packaged server does not use the S1 specification")
                             break
                     except URLError:
                         if time.monotonic() > deadline:
@@ -93,7 +95,10 @@ def verify(package):
                         return json.load(response)
                 request("/api/auth/login", {"username": "pilot", "password": "Synthetic-install-only-42"})
                 if run == 0:
-                    case_id = request("/api/cases", {"event_id": "M6-INSTALL", "participant_id": "0001", "dog_name": "설치 시험견"})["case_id"]
+                    case = request("/api/cases", {"event_id": "S1-INSTALL", "participant_id": "0001", "dog_name": "설치 시험견"})
+                    if case["manifest"]["schema_version"] != "intake-4.0":
+                        raise RuntimeError("new package created an old input edition")
+                    case_id = case["case_id"]
                 else:
                     if request("/api/cases/" + case_id)["participant_id"] != "0001":
                         raise RuntimeError("packaged restart lost data")
@@ -116,6 +121,7 @@ def verify(package):
         print(json.dumps({"package": str(package.resolve()), "fresh_venv": True, "unicode_space_path": True,
             "corruption_rejected_before_install": True, "environment_override_isolated": True,
             "http_login_create_restart": "passed", "supervisor_shutdown": "passed", "external_ai_calls": 0,
+            "spec": "20261002", "s1_catalog_report_assets": "passed",
             "scope": "new folder and venv on current Windows host; not a clean OS/second PC"}, ensure_ascii=False))
 
 

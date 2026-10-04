@@ -1,3 +1,5 @@
+import type { RecordingV4 } from './recordingTypesV4';
+
 export type Role = 'operator' | 'reviewer' | 'admin' | 'developer';
 export type User = { username: string; role: Role; active: boolean };
 export type Run = (work: () => Promise<void>) => Promise<void>;
@@ -5,7 +7,9 @@ export const roleNames: Record<Role, string> = { operator: '운영자', reviewer
 export const formFields = (form: HTMLFormElement) => Object.fromEntries(new FormData(form));
 export type Video = {
   video_id: string; original_name: string;
-  size_bytes: number; sha256: string; media_status: 'pending_probe';
+  size_bytes: number; sha256: string; media_status: 'pending_probe' | 'storage_only';
+  upload_id?: string; camera_id?: string; source_original_number?: string | null;
+  source_kind?: 'original' | 'received_conversion' | 'app_derived';
 };
 export type SegmentId = 'entry' | 'baseline' | 'alone' | 'stranger' | 'reunion' | 'ignore' | 'walk' | 'exit';
 // Procedure order and Korean labels (01 §2); the backend contract fixes the same order.
@@ -21,15 +25,18 @@ export type Session = {
   segments: SegmentTimes | null;
   stimuli: StimulusTimes | null;
   recording: RecordingV3 | null;
-  protocol_version: 'protocol-20260929-v3' | 'protocol-20260913-v2' | 'unconfirmed';
+  recording_s1?: RecordingV4 | null;
+  protocol_version: 'protocol-20261002-s1.1' | 'protocol-20260929-v3' | 'protocol-20260913-v2' | 'unconfirmed';
+  scoring_catalog_version?: 'catalog-20261002-s1.1';
+  recording_review_required?: boolean;
   protocol_source: 'new_session' | 'confirmed_v2_recording' | 'unconfirmed';
   survey_blank_reasons: Record<string, string>;
 };
-export const protocolName = (session: Session) => session.protocol_version === 'protocol-20260929-v3' ? '9월 29일' : session.protocol_version === 'protocol-20260913-v2' ? '9월 13일' : '촬영 판본 미확인';
+export const protocolName = (session: Session) => session.protocol_version === 'protocol-20261002-s1.1' ? 'S1.1 · 10월 2일' : session.protocol_version === 'protocol-20260929-v3' ? '9월 29일' : session.protocol_version === 'protocol-20260913-v2' ? '9월 13일' : '촬영 판본 미확인';
 export type ConsentState = 'unknown' | 'declined' | 'confirmed';
 export type Consents = { analysis_feedback: ConsentState; stranger_contact: ConsentState };
 export const consentNames: Record<ConsentState, string> = { unknown: '미확인', declined: '거절', confirmed: '확인' };
-export const segmentState = (session: Session): 'none' | 'draft' | 'confirmed' => session.recording ? session.recording.confirmed ? 'confirmed' : 'draft' : !session.segments ? 'none' : session.segments.confirmed ? 'confirmed' : 'draft';
+export const segmentState = (session: Session): 'none' | 'draft' | 'confirmed' => session.scoring_catalog_version === 'catalog-20261002-s1.1' ? !session.recording_s1 ? 'none' : session.recording_s1.confirmed ? 'confirmed' : 'draft' : session.recording ? session.recording.confirmed ? 'confirmed' : 'draft' : !session.segments ? 'none' : session.segments.confirmed ? 'confirmed' : 'draft';
 export type DogProfile = {
   breed: string; sex: '암' | '수' | '중성화' | '미기재'; age_years: number | null;
   size: '소형' | '중형' | '대형' | '미기재'; years_together: string; adoption_route: '분양' | '입양' | '기타' | '미기재';
@@ -43,6 +50,7 @@ export type Case = {
   input_revision: number; selected_session_id: string;
   deletion_requested: boolean;
   consents: Consents;
+  scoring_status?: 'reanalysis_required';
   manifest: { schema_version: string; sessions: Session[]; migration_note?: string | null };
 };
 export const sessionOf = (item: Case) => item.manifest.sessions.find(s => s.session_id === item.selected_session_id)!;
@@ -77,6 +85,15 @@ export type SurveyResultV3 = {
   comparison_status: 'pending_policy' | 'insufficient_responses';
   domains: { domain: string; question_ids: string[]; answered_count: number; target_count: number; mean: number | null; denominator: number | null; status: 'calculated' | 'pending_partial' | 'insufficient_responses' | 'missing'; reason: string | null }[];
   standalone: { item_id: string; raw: number | null; blank_reason: string | null };
+};
+
+export type SurveyResultV4 = Omit<SurveyResultV3, 'comparison_status' | 'domains'> & {
+  policy_version: 'survey-policy-20261002-s1.1';
+  calculation_status: 'complete' | 'partial' | 'unavailable';
+  external_comparison_status: 'pending_approval'; external_comparison_reason: string;
+  domains: { domain: string; question_ids: string[]; answered_count: number; target_count: number; mean: number | null; denominator: number | null; aggregation: 'mean' | 'reverse_mean' | 'single_raw'; status: 'calculated' | 'policy_pending' | 'insufficient_responses' | 'missing'; reason: string | null }[];
+  items: { item_id: string; raw: number | null; converted: number | null; reverse_scored: boolean; blank_reason: string | null }[];
+  pending_policies: string[];
 };
 
 export const SEGMENTS_V3: [SegmentId, string][] = [['entry', '입장'], ['baseline', '기준'], ['alone', '혼자'], ['reunion', '재회'], ['ignore', '무시'], ['walk', '걷기'], ['stranger', '낯선 사람'], ['exit', '퇴장']];

@@ -2,15 +2,12 @@
 
 import hashlib
 import json
-from io import BytesIO
 from pathlib import Path
 import tempfile
 
-from openpyxl import Workbook
-
 from app import maintenance
 from app.api import create_app
-from app.input_models import Manifest
+from app.input_models import Manifest, Session
 from app.storage import Store
 from tests.support import AppCase
 
@@ -28,7 +25,7 @@ class IntakeV3Tests(AppCase):
         item = response.json()
         session = item["manifest"]["sessions"][0]
         self.assertEqual((session["protocol_version"], session["survey_version"], session["protocol_source"]),
-                         ("protocol-20260929-v3", "survey-20260929-v3", "new_session"))
+                         ("protocol-20261002-s1.1", "survey-20260929-v3", "new_session"))
         self.assertEqual(item["consents"], {"analysis_feedback": "unknown", "stranger_contact": "unknown"})
         self.assertEqual(session["comparison_eligibility"], "unconfirmed")
 
@@ -67,41 +64,24 @@ class IntakeV3Tests(AppCase):
             deleted = Store(root / "deleted")
             with deleted.connect() as db:
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM cases").fetchone()[0], 0)
-                self.assertEqual(maintenance.deletion_records(deleted), {("TEST", "0001")})
+                self.assertEqual(maintenance.deletion_records(deleted), {(item["case_id"], "TEST", "0001")})
         self.assertEqual(self.client.get(path).status_code, 404)
 
-    def test_csv_and_xlsx_consent_states_match_and_invalid_values_reject(self):
-        columns = ["event_id", "participant_id", "dog_name", "consent_confirmed", "consent_analysis_feedback", "consent_stranger_contact"]
-        rows = [["TEST", "import", "합성", "예", "확인", "거절"], ["TEST", "bad", "합성", "예", "maybe", ""]]
-        csv_data = (",".join(columns) + "\n" + "\n".join(",".join(row) for row in rows)).encode()
-        workbook = Workbook()
-        workbook.active.append(columns)
-        for row in rows:
-            workbook.active.append(row)
-        output = BytesIO()
-        workbook.save(output)
-        workbook.close()
-        previews = []
-        for format, data in (("csv", csv_data), ("xlsx", output.getvalue())):
-            result = self.client.post(f"/api/imports/preview?kind=participants&format={format}", content=data).json()
-            self.assertEqual((len(result["rows"]), len(result["errors"])), (1, 1))
-            previews.append(result["rows"])
-        self.assertEqual(previews[0], previews[1])
-        self.assertEqual(self.client.post("/api/imports/commit", json={"rows": previews[0]}).status_code, 200)
-        item = self.client.get("/api/cases").json()[0]
-        self.assertEqual(item["consents"], {"analysis_feedback": "confirmed", "stranger_contact": "declined"})
+    def v2_manifest(self, item):
+        raw = {key: value for key, value in item["manifest"].items() if key in Manifest.model_fields}
+        raw["schema_version"] = "intake-2.0"
+        raw["sessions"] = [{key: value for key, value in session.items() if key in Session.model_fields}
+                           for session in raw["sessions"]]
+        for session in raw["sessions"]:
+            session["survey_version"] = "catalog-20260913-v2"
+        return raw
 
     def test_v2_migration_preserves_values_and_only_recording_evidence_sets_protocol(self):
-        for confirmed in (False, True):
-            item = self.upload(self.make_case(participant_id=str(confirmed))).json()
-            raw = item["manifest"]
-            raw.update(schema_version="intake-2.0", consents=None)
-            for field in ("consents", "prior_inputs"):
-                del raw[field]
+        items = {confirmed: self.upload(self.make_case(participant_id=str(confirmed))).json()
+                 for confirmed in (False, True)}
+        for confirmed, item in items.items():
+            raw = self.v2_manifest(item)
             session = raw["sessions"][0]
-            for field in ("protocol_version", "protocol_source", "survey_blank_reasons", "comparison_eligibility", "recording"):
-                del session[field]
-            session["survey_version"] = "catalog-20260913-v2"
             session["survey"]["s10"] = 5
             if confirmed:
                 names = ["entry", "baseline", "alone", "stranger", "reunion", "ignore", "walk", "exit"]
@@ -114,27 +94,17 @@ class IntakeV3Tests(AppCase):
                 db.execute("UPDATE cases SET manifest_ref=?,manifest_hash=?,manifest_schema_version='intake-2.0',consent_confirmed=1 WHERE case_id=?",
                            (key, hashlib.sha256(data).hexdigest(), item["case_id"]))
             for _ in range(2):
-                Store(self.root)
-                migrated = self.get_case(item)
-                current = migrated["manifest"]["sessions"][0]
-                self.assertEqual(current["protocol_version"], "protocol-20260913-v2" if confirmed else "unconfirmed")
-                self.assertEqual(current["survey"]["s10"], 5)
-                self.assertEqual(current["segments"], session["segments"])
-                self.assertEqual(migrated["input_revision"], item["input_revision"] + 1)
-                self.assertEqual(migrated["consents"]["analysis_feedback"], "unknown")
+                restarted = Store(self.root)
+                with restarted.connect() as db:
+                    migrated = restarted.manifest(restarted.case(db, item["case_id"]))
+                current = migrated.sessions[0]
+                self.assertEqual(current.protocol_version, "protocol-20260913-v2" if confirmed else "unconfirmed")
+                self.assertEqual(current.survey["s10"], 5)
+                self.assertEqual(current.segments.model_dump() if current.segments else None, session["segments"])
+                self.assertEqual(migrated.input_revision, item["input_revision"] + 1)
+                self.assertEqual(migrated.consents.analysis_feedback, "unknown")
+                self.assertEqual(self.client.get(f"/api/cases/{item['case_id']}").status_code, 409)
                 self.assertEqual(self.store.path(key).read_bytes(), data)
-            header = "event_id,participant_id,survey_version," + ",".join(session["survey"])
-            values = ["5" if question == "s10" else "" for question in session["survey"]]
-            imported = self.client.post("/api/imports/preview?kind=survey&format=csv",
-                content=(header + "\nTEST," + str(confirmed) + ",catalog-20260913-v2," + ",".join(values)).encode()).json()
-            self.assertEqual(imported["errors"], [])
-            self.assertEqual(self.client.post("/api/imports/commit", json={"rows": imported["rows"]}).status_code, 200)
-            if confirmed:
-                draft = self.client.put(f"/api/cases/{item['case_id']}/sessions/{item['selected_session_id']}/segments", json={
-                    "expected_revision": migrated["input_revision"], "video_id": session["videos"][0]["video_id"],
-                    "windows": session["segments"]["windows"]})
-                self.assertEqual(draft.status_code, 200, draft.text)
-                self.assertEqual(draft.json()["manifest"]["sessions"][0]["protocol_version"], "protocol-20260913-v2")
 
     def test_corrupt_consent_metadata_isolated_as_conflict(self):
         item = self.make_case()
@@ -148,15 +118,13 @@ class IntakeV3Tests(AppCase):
 
     def test_unmigratable_v2_semantics_are_never_served_as_healthy(self):
         healthy = self.make_case("healthy")
-        for fault in ("version", "question", "duplicate", "timing_video"):
+        faults = ("version", "question", "duplicate", "timing_video")
+        items = {fault: self.upload(self.make_case(fault)).json() for fault in faults}
+        for fault in faults:
             with self.subTest(fault=fault):
-                item = self.upload(self.make_case(fault)).json()
-                session = item["manifest"]["sessions"][0]
-                legacy = {key: value for key, value in item["manifest"].items() if key not in ("consents", "prior_inputs")}
-                legacy["schema_version"] = "intake-2.0"
-                for field in ("protocol_version", "protocol_source", "survey_blank_reasons", "comparison_eligibility", "recording"):
-                    del session[field]
-                session["survey_version"] = "catalog-20260913-v2"
+                item = items[fault]
+                legacy = self.v2_manifest(item)
+                session = legacy["sessions"][0]
                 if fault == "version":
                     session["survey_version"] = "unsupported-survey"
                 elif fault == "question":
@@ -176,4 +144,5 @@ class IntakeV3Tests(AppCase):
                 self.assertEqual(self.client.get(f"/api/cases/{item['case_id']}").status_code, 409)
                 self.assertEqual(self.store.path(key).read_bytes(), data)
                 listed = self.client.get("/api/cases")
-                self.assertEqual([value["case_id"] for value in listed.json()], [healthy["case_id"]])
+                self.assertEqual(listed.status_code, 409)
+                self.assertEqual(self.client.get(f"/api/cases/{healthy['case_id']}").status_code, 409)

@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from app.storage import REPO_ROOT, Store, encode, now, uid
 
 
-MANAGED = {"inputs", "videos", "runs", "reviews", "exports", "settings", "clips", "sheets", "results"}
+MANAGED = {"inputs", "videos", "runs", "reviews", "exports", "settings", "clips", "sheets", "results", "opinions", "finals", "comparisons", "comparison-evidence", "validation-data"}
 REF_HASH = {"manifest_ref": "manifest_hash", "output_ref": "output_hash", "result_ref": "result_hash",
             "storage_ref": "sha256", "ref": "hash"}
 
@@ -76,7 +76,15 @@ def references(store, db):
             for item in value:
                 visit(item)
         elif isinstance(value, dict):
+            if (all(key in value for key in ("reference", "target", "entries"))
+                    and isinstance(value["reference"], dict) and "snapshot_id" in value["reference"]):
+                # ExternalPublicV4 embeds raw population metadata, never file links.
+                visit({"reference": value["reference"], "input": value["target"]["input"],
+                       "confirmations": [entry["gate"]["confirmation"] for entry in value["entries"]]})
+                return
             for key, candidate in value.items():
+                if key == "conversion" and "upload_id" in value and "video_id" in value:
+                    continue  # Tool settings are raw provenance, not file links.
                 if key in REF_HASH and candidate:
                     path = managed_path(store, candidate)
                     expected = value.get(REF_HASH[key])
@@ -89,7 +97,30 @@ def references(store, db):
                         raise HTTPException(409, "백업 대상 파일 해시가 일치하지 않습니다.")
                     found[candidate] = actual
                     if path.suffix == ".json":
-                        visit(json.loads(path.read_bytes()))
+                        document = json.loads(path.read_bytes())
+                        # Forms headers, labels and raw cells are user data, even when
+                        # a header happens to be named ref, storage_ref or *_json.
+                        schema = document.get("schema_version") if isinstance(document, dict) else None
+                        if schema == "forms-record-4.0":
+                            visit(document["source"])
+                        elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-cohort":
+                            visit([member["input"] for member in document["members"]])
+                        elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-research":
+                            visit(document["evidence"])
+                        elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-external":
+                            visit({"input": document["target"]["input"],
+                                   "confirmations": [entry["gate"]["confirmation"] for entry in document["entries"]]})
+                        elif isinstance(document, dict) and document.get("artifact_kind") == "validation-reference":
+                            visit(document["source"])
+                        elif isinstance(document, dict) and document.get("artifact_kind") == "research-export":
+                            visit({"parents": document["parent_files"], "output": document["output"]})
+                        elif schema == "4.0" and document.get("artifact_kind") == "preprocess-batch":
+                            visit({"input": document["input"], "source_files": document["source_files"],
+                                   "clips": [{"original": clip.get("original"), "ai": clip.get("ai")}
+                                             for clip in document["clips"]],
+                                   "reuse": document.get("reuse_manifest")})
+                        elif schema != "forms-source-row-4.0":
+                            visit(document)
                 elif key.endswith("_json") and isinstance(candidate, str):
                     visit(json.loads(candidate))
                 else:
@@ -98,6 +129,9 @@ def references(store, db):
     for table in ("cases", "runs", "steps", "changes", "score_sheets", "score_grants", "basic_results"):
         for row in db.execute(f"SELECT * FROM {table}"):
             visit(dict(row))
+    from app.uploads import references as upload_references
+    for ref, digest in upload_references(db).items():
+        visit({"ref": ref, "hash": digest})
     # Keep a completed, unadopted latest attempt for normal worker envelope validation.
     for row in db.execute("SELECT * FROM steps s WHERE status='running' AND attempt=(SELECT MAX(attempt) FROM steps WHERE run_id=s.run_id AND stage=s.stage AND branch_key=s.branch_key)"):
         ref = f"runs/{row['run_id']}/{row['step_id']}/output.json"
@@ -142,7 +176,9 @@ def backup(store, destination, actor):
             if file_hash(target) != expected:
                 raise HTTPException(409, "복사한 파일 해시가 일치하지 않습니다.")
         refs["kdog.sqlite3"] = file_hash(destination / "kdog.sqlite3")
-        manifest = {"schema": "kdog-backup-1", "created_at": now(), "files": refs, "secrets_included": False}
+        from app.reset_s1 import boundary
+        manifest = {"schema": "kdog-backup-1", "created_at": now(), "files": refs, "secrets_included": False,
+                    "s1_reset_id": boundary(db)}
         (destination / "backup.json").write_text(encode(manifest), encoding="utf-8")
         result = {"path": str(destination), "created_at": manifest["created_at"], "file_count": len(refs)}
         store.audit(db, actor, destination.name, "backup.create", result)
@@ -151,18 +187,59 @@ def backup(store, destination, actor):
 
 def deletion_records(store):
     with store.connect() as db:
-        records = {(r["event_id"], r["participant_id"]) for r in db.execute("SELECT * FROM cases WHERE deletion_requested=1")}
-        records.update((d["event_id"], d["participant_id"]) for r in db.execute("SELECT detail_json FROM changes WHERE action='deletion.record'") for d in [json.loads(r[0])])
+        records = {(r["case_id"], r["event_id"], r["participant_id"]) for r in db.execute("SELECT * FROM cases WHERE deletion_requested=1")}
+        records.update((r["target"], d["event_id"], d["participant_id"]) for r in db.execute("SELECT target,detail_json FROM changes WHERE action='deletion.record'") for d in [json.loads(r["detail_json"])])
     return records
+
+
+def deleted_uploads(store):
+    from app.uploads import collect_case_upload_ids
+    with store.connect() as db:
+        ids = {json.loads(row[0])["upload_id"] for row in db.execute(
+            "SELECT detail_json FROM changes WHERE action='deletion.upload'")}
+        for row in db.execute("SELECT case_id FROM cases WHERE deletion_requested=1"):
+            ids.update(collect_case_upload_ids(db, row[0]))
+    return ids
 
 
 def clean(store, *, purge_deleted=False):
     with offline(store), store.connect(write=True) as db:
+        from app.uploads import collect_case_upload_ids, purge_upload_ids, recover_interrupted
+        recover_interrupted(db)
+        from app.comparisons_v4 import purge_deleted as purge_comparisons
+        from app.report_runs_v4 import purge_comparisons as purge_reports
+        revoked_cohorts = purge_comparisons(db)
+        revoked_reports = purge_reports(db, revoked_cohorts)
+        from app.external_comparisons_v4 import purge_case as purge_external
+        from app.report_runs_v4 import purge_external as purge_external_reports
+        revoked_external = set()
+        deleted_cases = {row[0] for row in db.execute("SELECT case_id FROM cases WHERE deletion_requested=1")}
+        deleted_cases.update(row[0] for row in db.execute("SELECT target FROM changes WHERE action='deletion.record'"))
+        for case_id in deleted_cases:
+            revoked_external.update(purge_external(db, case_id))
+        revoked_reports.update(purge_external_reports(db, revoked_external))
+        from app.validation_data_v4 import purge_deleted as purge_validation
+        revoked_validation = purge_validation(db)
+        from app.exports_v4 import purge_deleted as purge_exports
+        purge_exports(db, cohort_ids=revoked_cohorts, report_run_ids=revoked_reports, validation_ids=revoked_validation, external_snapshot_ids=revoked_external)
         if purge_deleted:
             db.execute("PRAGMA secure_delete=ON")
+            removed_uploads = {json.loads(row[0])["upload_id"] for row in db.execute(
+                "SELECT detail_json FROM changes WHERE action='deletion.upload'")}
+            purge_upload_ids(db, removed_uploads)
+            from app.forms_v4 import purge_case_imports
+            # A restored backup can predate the case creation but still contain
+            # its Forms preview. Apply the current ledger even without a case row.
+            for deletion in db.execute("SELECT target,detail_json FROM changes WHERE action='deletion.record'").fetchall():
+                purge_case_imports(store, db, deletion["target"], identity=json.loads(deletion["detail_json"]))
             for case in db.execute("SELECT * FROM cases WHERE deletion_requested=1").fetchall():
+                purge_case_imports(store, db, case["case_id"])
                 actor = db.execute("SELECT username FROM users ORDER BY username LIMIT 1").fetchone()[0]
                 store.audit(db, actor, case["case_id"], "deletion.record", {"event_id": case["event_id"], "participant_id": case["participant_id"]})
+                ids = collect_case_upload_ids(db, case["case_id"])
+                for upload_id in ids:
+                    store.audit(db, actor, upload_id, "deletion.upload", {"upload_id": upload_id})
+                purge_upload_ids(db, ids)
                 runs = [r[0] for r in db.execute("SELECT run_id FROM runs WHERE case_id=?", (case["case_id"],))]
                 targets = {case["case_id"], *runs}
                 for change in db.execute("SELECT * FROM changes WHERE action='export.snapshot'").fetchall():
@@ -209,6 +286,10 @@ def restore(store, source, destination):
         manifest = json.loads((source / "backup.json").read_bytes())
         if manifest.get("schema") != "kdog-backup-1" or manifest.get("secrets_included") is not False or "kdog.sqlite3" not in manifest.get("files", {}):
             raise HTTPException(409, "지원하지 않는 백업입니다.")
+        from app.reset_s1 import boundary
+        with store.connect() as db:
+            if boundary(db) and manifest.get("s1_reset_id") != boundary(db):
+                raise HTTPException(409, "S1 초기화 이전 백업은 복원할 수 없습니다. 같은 초기화 이후 백업을 사용하세요.")
         for ref, expected in manifest["files"].items():
             path = (source / ref).resolve()
             if not path.is_relative_to(source) or path.relative_to(source).as_posix() != ref or (ref != "kdog.sqlite3" and ref.split("/")[0] not in MANAGED):
@@ -217,6 +298,10 @@ def restore(store, source, destination):
                 raise HTTPException(409, "백업 파일 해시가 일치하지 않습니다.")
         # Reapply the current deletion ledger, even when restoring a backup from before the deletion request.
         deleted = deletion_records(store)
+        deleted_files = deleted_uploads(store)
+        from app.validation_data_v4 import deletion_sources, remember_deleted_sources
+        with store.connect() as db:
+            deleted_sources = deletion_sources(db)
         destination.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix="kdog-restore-", dir=destination.parent) as staging:
             staged = Path(staging) / "data"
@@ -229,16 +314,22 @@ def restore(store, source, destination):
                     raise HTTPException(409, "복원 중 백업 내용이 변경되었습니다.")
             restored = Store(staged)
             with restored.connect(write=True) as db:
+                if boundary(db) != manifest.get("s1_reset_id"):
+                    raise HTTPException(409, "백업의 S1 초기화 기록이 데이터베이스와 일치하지 않습니다.")
                 if db.execute("PRAGMA integrity_check").fetchone()[0] != "ok" or db.execute("PRAGMA foreign_key_check").fetchone():
                     raise HTTPException(409, "복원 DB 무결성 검사에 실패했습니다.")
                 db.execute("UPDATE users SET session_hash=NULL,session_expires=NULL")
                 actor = db.execute("SELECT username FROM users ORDER BY username LIMIT 1").fetchone()
-                if deleted and not actor:
+                if (deleted or deleted_files or deleted_sources) and not actor:
                     raise HTTPException(409, "삭제 이력 기록용 계정이 없는 백업입니다.")
-                for event, participant in deleted:
-                    db.execute("UPDATE cases SET deletion_requested=1 WHERE event_id=? AND participant_id=?", (event, participant))
+                if deleted_sources:
+                    remember_deleted_sources(db, deleted_sources, actor[0])
+                for case_id, event, participant in deleted:
+                    db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=? OR (event_id=? AND participant_id=?)", (case_id, event, participant))
                     # Preserve tombstones absent from this backup for any subsequent restore.
-                    restored.audit(db, actor[0], uid(), "deletion.record", {"event_id": event, "participant_id": participant})
+                    restored.audit(db, actor[0], case_id, "deletion.record", {"event_id": event, "participant_id": participant})
+                for upload_id in deleted_files:
+                    restored.audit(db, actor[0], upload_id, "deletion.upload", {"upload_id": upload_id})
                 db.execute("UPDATE runs SET lease_expires_at=? WHERE status='running'", ("1970-01-01T00:00:00+00:00",))
                 references(restored, db)
             clean(restored, purge_deleted=True)

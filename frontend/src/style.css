@@ -61,6 +61,8 @@ details details { border-top: 1px solid #eaeaea; padding-top: 12px; }
 .detail-grid .panel { margin: 0; }
 .check { flex-direction: row; align-items: center; margin: 12px 0; font-weight: 400; }
 .check input { width: 18px; height: 18px; min-height: auto; accent-color: #46644a; }
+section[aria-label="S1 영상 수신 보관함"] p,
+section[aria-label="S1 영상 수신 보관함"] h3 { overflow-wrap: anywhere; }
 .section-title, .video-row { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
 .section-title .mono { font-size: 11px; color: #6c7167; }
 .video-row { padding: 16px 0; border-bottom: 1px solid #eaeaea; }

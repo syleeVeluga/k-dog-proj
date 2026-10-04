@@ -3,15 +3,13 @@
 import json
 from typing import Annotated, Literal, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, model_validator
 
 from app.domain.base import Hash, require_unique
 from app.domain.catalog import SURVEY_IDS
 from app.domain.catalog_v3 import PROTOCOL_VERSION, SURVEY_VERSION
 from app.domain.recording_v3 import RecordingV3
-from app.domain.preprocess_v3 import BatchV3, WindowV3
-from app.input_models import PreprocessPlannedClip, PreprocessResult, PreprocessStatus
-from app.input_models import CaseCreate, CaseEdit, CaseView, ImportMapping, ImportRow, Key, Manifest, Model, Revision, Session
+from app.input_models import CaseCreate, CaseEdit, CaseView, Key, Manifest, Model, Revision, Session
 
 ProtocolVersion = Literal["protocol-20260929-v3", "protocol-20260913-v2", "unconfirmed"]
 SurveyVersion = Literal["survey-20260929-v3", "catalog-20260913-v2"]
@@ -46,94 +44,6 @@ class SurveyEditV3(Revision):
                   survey=self.answers, survey_not_applicable=self.not_applicable,
                   survey_blank_reasons=self.blank_reasons)
         return self
-
-
-class ImportMappingV3(ImportMapping):
-    survey_version: SurveyVersion | None = None
-
-
-class RecordingEditV3(Revision):
-    recording: RecordingV3
-    confirm: bool = False
-
-    @field_validator("recording", mode="before")
-    @classmethod
-    def json_contract(cls, value):
-        # FastAPI decodes JSON arrays into lists before validating the strict domain model.
-        return RecordingV3.model_validate_json(json.dumps(value)) if isinstance(value, dict) else value
-
-
-class RunCreateV3(Revision):
-    request_id: Key
-    preprocess_ref: Annotated[str, Field(pattern=r"^clips/[^\\]+/clips\.json$")]
-    preprocess_hash: Hash
-    settings_version: str | None = None
-    reuse_run_id: Key | None = None
-
-
-class RunActionV3(Model):
-    expected_updated_at: str
-    reason: Annotated[str, Field(min_length=1, max_length=2000, pattern=r"\S")]
-
-
-class RunStepViewV3(Model):
-    stage: str
-    key: str
-    attempt: int
-    status: str
-    code: str | None
-    billing_uncertain: bool
-    call_reserved: bool
-
-
-class RunViewV3(Model):
-    run_id: Key
-    case_id: Key
-    session_id: Key
-    kind: str
-    input_revision: int
-    status: str
-    updated_at: str
-    outdated: bool
-    failure_code: str | None
-    result_available: bool
-    steps: list[RunStepViewV3]
-
-
-class PreprocessPlannedClipV3(Model):
-    name: Key
-    segment: str
-    start_sec: float
-    end_sec: float
-    fps: None
-    window_ids: list[str]
-    video_id: Key
-
-
-class PreprocessPointerV3(Model):
-    ref: str
-    hash: str
-
-
-class PreprocessStatusV3(PreprocessStatus):
-    result_pointer: PreprocessPointerV3 | None = None
-    planned_clips: list[PreprocessPlannedClipV3 | PreprocessPlannedClip]
-    dense_fps: int | None
-    sparse_fps: int | None
-    observation_windows: list[WindowV3]
-    provisional: bool
-    provisional_reason: str | None
-    result: BatchV3 | PreprocessResult | None
-
-    @field_validator("result", mode="before")
-    @classmethod
-    def batch_contract(cls, value):
-        return BatchV3.model_validate_json(json.dumps(value)) if isinstance(value, dict) and value.get("schema_version") == "3.0" else value
-
-    @field_validator("observation_windows", mode="before")
-    @classmethod
-    def window_contracts(cls, values):
-        return [WindowV3.model_validate_json(json.dumps(value)) if isinstance(value, dict) else value for value in values]
 
 
 class SessionV3(Session):
@@ -221,20 +131,6 @@ class ManifestV3(Model):
 class CaseViewV3(CaseView):
     consents: ConsentsV3
     manifest: ManifestV3
-
-
-class ImportRowV3(ImportRow):
-    participant: CaseCreateV3 | None = None
-    survey: SurveyEditV3 | None = None
-
-
-class ImportPreviewV3(Model):
-    rows: list[ImportRowV3]
-    errors: list[str]
-
-
-class ImportCommitV3(Model):
-    rows: Annotated[list[ImportRowV3], Field(min_length=1, max_length=10000)]
 
 
 def parse_manifest(data: bytes) -> Manifest | ManifestV3:

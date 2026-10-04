@@ -1,6 +1,6 @@
 # PR-S08 AI채점과실행
 
-버전: v1.0 · 2026-10-03 · 상태: 구현 전 · 선행: S05·S07 · 기준: main 3654596
+버전: v1.0 · 2026-10-03 · 상태: 구현·자동 검증 완료, 실측 별도 · 선행: S05·S07 · 기준: main 3654596
 
 상위: [전체 계획](K-DOG_개발반영계획_v1.0_20261003.md). 공통 검증·리뷰·버전 확인·저장 보호는 상위 §7을 적용한다.
 
@@ -50,8 +50,9 @@ S09에 기본 결과 snapshot, S12에 공통 실행·계량 패턴, S16에 설�
 
 ## 구현 및 검증 기록
 
-- [ ] 구현·변경 파일 및 commit/PR 기록
-- [ ] 명세 기대값과 실제 시험 결과·미실행 사유 기록
-- [ ] 라이브러리/API 최신·선택 버전·확인일·근거 기록
-- [ ] 리뷰 발견사항과 수용/보류/거절·수정·재검증 기록
-- [ ] 남은 D/G 확인, 활성/보류 기능, 다음 PR 인계 기록
+- [x] 구현: `domain/scoring_ai_v4.py`, `domain/runs_v4.py`, `scoring_ai_v4.py`, `gemini_v4.py`, `settings_v4.py`, `run_v4.py`, Worker/analysis/API/usage 연결과 S1 설정·실행·공개 UI. `veluga/s08-s1-ai-scoring`의 이 기록을 포함하는 commit. 외부 push/PR 없음.
+- [x] 2026-10-04 자동 검증: 정규화12·공급자4·실행15·설정6·실제 API2=39개 통과. 기존 Worker14·계량4개 회귀 통과. 실제 Worker가 가짜 공급자42호출 후 86직접행과 고정 기본결과를 게시하는 경로, 부분 실패·재사용·stop/retry·파일변조·삭제/동의/사용자 상태를 검증했다. 설정 schema 시험은 외부 호출0이다.
+- [x] 브라우저 S08 3개(16.8초), S06 독립시트 공개 회귀1개(14.6초), build 통과. 360px 넘침 없음과 설정·실행·공개 화면 3개를 직접 확인했다.
+- [x] 공식 API 확인 2026-10-04: [Gemini Interactions](https://ai.google.dev/gemini-api/docs/interactions), [영상](https://ai.google.dev/gemini-api/docs/video-understanding), [Files](https://ai.google.dev/gemini-api/docs/files), [구조화 출력](https://ai.google.dev/gemini-api/docs/structured-output). 기존 HTTPX 0.28.1 REST 경로를 사용하며 SDK를 추가하지 않았다. Interactions의 현재 계약과 store=false, 영상/음성/구조화 응답을 확인했다. 모델은 설정 판본으로 고정하고 실제 품질·가격을 추정 승인하지 않는다.
+- [x] cold review 수용·수정: 채택 직전 원본/clip hash 재검사와 writer 구간 stamp 확인, 중첩 provider usage의 계량 연결, 원격 정리 미완료 표시, 관찰창에 clip이 없을 때 `reasons` 목록을 유지하는 회귀시험을 추가했다. 설정 브라우저 시험의 readiness 계정을 reader로 바로잡아 재검증했다.
+- [x] 43항목군 중 개21은 D03 정책 보류로 공급자0회, 나머지 최대42회. D04 해석 승인은 보류하며 원자료와 계산 게시를 분리한다. 실제 공급자 정확도·3CAM 품질·시간·비용은 후속 대장 E02/E03/E05/E06/E07 및 S16으로 인계한다. 구판 실행 제거 최종 검증은 S15에 인계한다.

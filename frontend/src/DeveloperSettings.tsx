@@ -1,7 +1,7 @@
 import { Notification } from './Notification';
 import { useEffect, useState } from 'react';
 import { api } from './api';
-import { AiSettings } from './AiSettings';
+import { AiSettingsV4 } from './AiSettingsV4';
 
 type Keys = { keys: { provider: string; available: boolean; reference: string }[] };
 
@@ -35,7 +35,7 @@ export function DeveloperSettings() {
         })}>선택 공급자 키 폐기</button></div>
       </form>
     </fieldset>}
-  </section><AiSettings /></>;
+  </section><AiSettingsV4 /></>;
 }
 
 export function Recovery() {

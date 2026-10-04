@@ -2,6 +2,13 @@ import { test, expect } from '@playwright/test';
 
 const headers = { 'X-KDOG-Request': '1' };
 
+test.afterEach(async ({ page }) => {
+  await page.request.post('/api/auth/login', { headers, data: { username: 'admin', password: 'Browser-test-only-42' } });
+  for (const item of (await (await page.request.get('/api/cases')).json()).filter((c: { event_id: string }) => c.event_id.startsWith('NOTE-'))) {
+    expect((await page.request.post(`/api/cases/${item.case_id}/deletion`, { headers, data: { expected_revision: item.input_revision } })).status()).toBe(200);
+  }
+});
+
 for (const width of [1440, 360]) {
   test(`action notifications stay in view after scrolling at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 800 });
@@ -12,8 +19,12 @@ for (const width of [1440, 360]) {
     await expect(page.getByRole('button', { name: '로그아웃' })).toBeVisible();
     // A long participant list makes the page scroll; notifications must stay visible regardless of scroll position.
     for (let i = 0; i < 20; i++) {
-      await page.request.post('/api/cases', { headers, data: { event_id: `NOTE-${width}`, participant_id: `N${String(i).padStart(3, '0')}`, dog_name: `알림 검증견 ${i}` } });
+      const created = await page.request.post('/api/cases', { headers, data: { event_id: `NOTE-${width}`, participant_id: `N${String(i).padStart(3, '0')}`, dog_name: `알림 검증견 ${i}` } });
+      expect(created.status()).toBe(201);
+      expect((await created.json()).manifest.schema_version).toBe('intake-4.0');
     }
+    await page.reload();
+    await page.getByRole('combobox', { name: '행사 필터', exact: true }).selectOption(`NOTE-${width}`);
     await expect(page.getByRole('button', { name: `N019 상세 열기` })).toBeVisible();
     await page.getByRole('button', { name: '자료 관리', exact: true }).click();
     await page.getByText('자료 백업·복구', { exact: true }).click();

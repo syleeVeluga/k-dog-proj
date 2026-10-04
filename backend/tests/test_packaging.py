@@ -1,6 +1,7 @@
 """M6 real process supervision and attempt accounting regressions."""
 
 import os
+import importlib.util
 from pathlib import Path
 import socket
 import subprocess
@@ -29,6 +30,26 @@ def free_port():
 
 
 class LauncherTests(unittest.TestCase):
+    def test_release_excludes_unused_historical_assets_and_keeps_runtime_dependencies(self):
+        spec = importlib.util.spec_from_file_location("build_release_test", REPO_ROOT / "scripts/build_release.py")
+        release = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(release)
+        for name in release.RETIRED_FILES:
+            self.assertFalse(release.product_file(name), name)
+        for name in (*[path for path in REQUIRED if path.startswith("resources/")],
+                     "backend/app/worker.py", "backend/app/analysis.py", "backend/app/gemini_v4.py",
+                     "resources/catalogs/survey-v2.json", "resources/catalogs/survey-v1-to-v2.json",
+                     "resources/catalogs/survey-v3.json", "resources/rules/scoring-v3.json"):
+            self.assertTrue(release.product_file(name), name)
+            self.assertTrue((REPO_ROOT / name).is_file(), name)
+        self.assertFalse(release.product_file("resources/source/customer.xlsx"))
+        self.assertFalse(release.product_file("backend/tests/test_scoring.py"))
+        self.assertFalse(release.product_file("docs/요구사항_20261003/customer.docx"))
+        self.assertFalse(release.product_file("docs/개발반영_20261003/customer.xlsx"))
+        for name in (*release.OPERATING_DOCUMENTS,
+                     "docs/개발반영_20261003/K-DOG_실측및확인후속대장_v1.0_20261003.md"):
+            self.assertTrue(release.product_file(name), name)
+
     @unittest.skipUnless(os.name == "nt", "Windows job object")
     def test_process_group_terminates_media_descendants(self):
         import ctypes as c
@@ -66,11 +87,13 @@ class LauncherTests(unittest.TestCase):
                     kernel.CloseHandle(handle)
                 child.stdin.close()
 
-    def test_required_files_are_the_42_item_resources_and_exist(self):
-        self.assertIn("resources/catalogs/behavior-v2.json", REQUIRED)
-        self.assertIn("resources/rules/scoring-v2.json", REQUIRED)
-        self.assertIn("resources/rules/preprocess-v2.json", REQUIRED)
-        self.assertIn("resources/catalogs/survey-v1-to-v2.json", REQUIRED)
+    def test_required_files_include_s1_scoring_and_offline_report_assets(self):
+        self.assertIn("resources/catalogs/behavior-v4.json", REQUIRED)
+        self.assertIn("resources/rules/scoring-v4.json", REQUIRED)
+        self.assertIn("resources/rules/preprocess-v4.json", REQUIRED)
+        self.assertIn("resources/rules/survey-policy-v4.json", REQUIRED)
+        self.assertIn("resources/report/templates/s1.html", REQUIRED)
+        self.assertIn("resources/report/templates/s1.css", REQUIRED)
         self.assertFalse([name for name in REQUIRED if name.endswith(("behavior-v1.json", "survey-v1.json", "scoring-v1.json"))])
         self.assertEqual([name for name in REQUIRED if not (REPO_ROOT / name).is_file() and not name.startswith("frontend/")], [])
 

@@ -12,5 +12,15 @@ test('검증 실패 자료 안내와 정상 참가자 조회를 함께 유지한
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('입력 자료 검증에 실패한 참가자 1명');
   await expect(page.getByRole('heading', { name: '접수', exact: true })).toBeVisible();
+  const headers = { 'X-KDOG-Request': '1' };
+  const created = await page.request.post('/api/cases', { headers, data: { event_id: 'INTEGRITY', participant_id: 'VALID-01', dog_name: '정상 합성견' } });
+  expect(created.status()).toBe(201);
+  const item = await created.json();
+  expect(item.manifest.schema_version).toBe('intake-4.0');
+  await page.reload();
+  await expect(page.getByRole('alert')).toContainText('입력 자료 검증에 실패한 참가자 1명');
+  await page.getByRole('button', { name: 'VALID-01 상세 열기', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '정상 합성견', exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('integrity-warning.png'), fullPage: true });
+  expect((await page.request.post(`/api/cases/${item.case_id}/deletion`, { headers, data: { expected_revision: item.input_revision } })).status()).toBe(200);
 });

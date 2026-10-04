@@ -5,29 +5,24 @@ from io import BytesIO, StringIO
 
 from fastapi import HTTPException
 from openpyxl import Workbook, load_workbook
-from pydantic import ValidationError
 
 from app.domain.catalog import SURVEY_IDS, SurveyCatalog
 from app.domain.contracts import SurveyAnswers
 from app.domain.validation import validate_survey_answers
 from app.input_models import CaseCreate
 from app.storage import now, uid
-from app.domain.catalog_v3 import PROTOCOL_VERSION, SURVEY_VERSION, SurveyCatalogV3
-from app.input_models_v3 import CaseCreateV3, ConsentsV3, ImportPreviewV3, ImportRowV3, ManifestV3, SessionV3, SurveyEditV3
-
-# 04 설문지: 7~9번은 「해당 없음」 칸이 있다. 가져오기 파일에서는 이 문자열로 표시한다.
-NOT_APPLICABLE_TOKENS = ("NA", "na", "N/A", "해당없음", "해당 없음")
+from app.domain.catalog_v3 import SURVEY_VERSION
+from app.input_models_v3 import CaseCreateV3, ConsentsV3, SurveyEditV3
+from app.input_models_v4 import ManifestV4, SessionV4, new_session_v4
 
 
-def new_session(survey_version: str = SURVEY_VERSION, note="") -> SessionV3:
-    return SessionV3(session_id=uid(), note=note, survey_version=survey_version,
-                     protocol_version=PROTOCOL_VERSION if survey_version == SURVEY_VERSION else "protocol-20260913-v2",
-                     protocol_source="new_session", survey=dict.fromkeys(SURVEY_IDS), survey_not_applicable=[], videos=[])
+def new_session(survey_version: str = SURVEY_VERSION, note="") -> SessionV4:
+    return new_session_v4(uid(), note, survey_version)
 
 
 def create_case(store, db, value: CaseCreate, actor: str, version: str):
     session = new_session(version)
-    manifest = ManifestV3(case_id=uid(), event_id=value.event_id,
+    manifest = ManifestV4(case_id=uid(), event_id=value.event_id,
                         participant_id=value.participant_id, input_revision=1,
                         selected_session_id=session.session_id, sessions=[session],
                         consents=getattr(value, "consents", ConsentsV3()))
@@ -83,11 +78,6 @@ def headers(kind, version=None):
                 "consent_analysis_feedback", "consent_stranger_contact"]
     return ["event_id", "participant_id", "survey_version", *SURVEY_IDS,
             *([f"{question}_reason" for question in SURVEY_IDS] if version == SURVEY_VERSION else [])]
-
-
-def required_columns(kind):
-    """A participants file may omit the optional 접수 columns; a survey file must carry every item."""
-    return {"event_id", "participant_id", "dog_name"} if kind == "participants" else set(headers(kind))
 
 
 def participant_row(value):
@@ -172,122 +162,3 @@ def read_rows(data: bytes, format: str, sheet_name=None, layout=None):
             workbook.close()
     except Exception as exc:
         raise HTTPException(422, "표준 XLSX 파일을 확인하세요. 수식 대신 원응답을 입력하세요.") from exc
-
-
-def mapped_rows(rows, kind, version, mapping):
-    if not mapping.columns:
-        return rows
-    expected = headers(kind, SURVEY_VERSION)
-    if set(mapping.columns) - set(expected):
-        raise HTTPException(422, "알 수 없는 표준 열 연결입니다.")
-    source = list(mapping.columns.values())
-    if len(source) != len(set(source)) or any(rows[0].count(name) != 1 for name in source):
-        raise HTTPException(422, "각 원본 열을 중복 없이 연결하세요.")
-    if kind == "survey" and "survey_version" not in mapping.columns and not mapping.survey_version:
-        raise HTTPException(422, "원설문의 판본을 명시적으로 확인하세요.")
-    if not required_columns(kind) - {"survey_version"} <= set(mapping.columns):
-        raise HTTPException(422, "모든 필수 열과 28문항을 연결하세요.")
-    return [expected, *[[row[rows[0].index(mapping.columns[name])] if name in mapping.columns and rows[0].index(mapping.columns[name]) < len(row)
-                        else mapping.survey_version if name == "survey_version" else "" for name in expected] for row in rows[1:]]]
-
-
-def parse_answer(question, raw, catalog):
-    """Return (answer, not_applicable) for one survey cell; blanks stay missing, 해당 없음 only where the form offers it."""
-    if raw is None or raw == "":
-        return None, False
-    if isinstance(raw, str) and raw.strip() in NOT_APPLICABLE_TOKENS:
-        if not next(item for item in catalog.items if item.item_id == question).allows_not_applicable:
-            raise ValueError(f"{question}: 「해당 없음」은 7~9번 문항에만 허용됩니다.")
-        return None, True
-    item = next(item for item in catalog.items if item.item_id == question)
-    allowed = item.allowed_values if isinstance(catalog, SurveyCatalogV3) else tuple(range(1, 6))
-    if (type(raw) is int and raw in allowed) or (type(raw) is str and raw in tuple(str(value) for value in allowed)):
-        return int(raw), False
-    raise ValueError(f"{question}: {','.join(map(str, allowed))} 또는 빈칸을 사용하세요.")
-
-
-def preview(store, db, data, kind, format, catalog: SurveyCatalog, mapping=None, sheet_name=None, catalogs=None):
-    version = catalog.version
-    rows = read_rows(data, format, mapping.sheet if mapping else sheet_name)
-    if rows and mapping:
-        rows = mapped_rows(rows, kind, mapping.survey_version or version, mapping)
-    if not rows or len(rows) > 10001:
-        raise HTTPException(422, "헤더와 최대 10,000개 입력 행이 필요합니다.")
-    columns = rows[0]
-    if len(columns) != len(set(columns)) or not set(columns) <= set(headers(kind, SURVEY_VERSION)) or not required_columns(kind) <= set(columns):
-        raise HTTPException(422, "표준 양식의 열을 사용하세요. 열 순서 변경은 허용되며 참가자 양식의 접수 열은 생략할 수 있습니다.")
-    result = ImportPreviewV3(rows=[], errors=[])
-    seen = set()
-    for number, values in enumerate(rows[1:], 2):
-        location = f"{number}행"
-        if all(value is None or value == "" for value in values):
-            continue
-        try:
-            if len(values) != len(columns):
-                raise ValueError("열 수가 헤더와 다릅니다.")
-            value = dict(zip(columns, values))
-            for key in ("event_id", "participant_id"):
-                if not isinstance(value[key], str) or not value[key].strip():
-                    raise ValueError(f"{key}: 텍스트 ID가 필요합니다. Excel 숫자 ID는 자동 변환하지 않습니다.")
-            pair = value["event_id"], value["participant_id"]
-            if pair in seen:
-                raise ValueError("파일 안에 중복 참가자 ID가 있습니다.")
-            seen.add(pair)
-            existing = db.execute("SELECT * FROM cases WHERE event_id=? AND participant_id=?", pair).fetchone()
-            if kind == "participants":
-                if existing:
-                    raise ValueError("이미 등록된 참가자 ID입니다.")
-                participant = participant_row(value)
-                if participant.sequence_no is not None and db.execute(
-                    "SELECT 1 FROM cases WHERE event_id=? AND sequence_no=?", (pair[0], participant.sequence_no)
-                ).fetchone():
-                    raise ValueError("순번: 이 행사에 이미 등록된 순번입니다. 순번을 고친 뒤 다시 검증하세요.")
-                result.rows.append(ImportRowV3(row_number=number, source_location=location, event_id=pair[0], participant_id=pair[1],
-                                             participant=participant))
-            else:
-                if existing is None or existing["deletion_requested"]:
-                    raise ValueError("등록된 활성 참가자에 연결할 수 없습니다.")
-                version = value["survey_version"]
-                row_catalog = (catalogs or {catalog.version: catalog}).get(version)
-                if row_catalog is None:
-                    raise ValueError("survey_version: 지원하지 않는 설문 판본입니다.")
-                manifest = store.manifest(existing)
-                index = next(i for i, session in enumerate(manifest.sessions) if session.session_id == existing["selected_session_id"])
-                current = manifest.sessions[index]
-                if current.survey_version != version:
-                    raise ValueError("survey_version: 대상 회차의 설문 판본과 일치하지 않습니다.")
-                answers, not_applicable = {}, []
-                for question in SURVEY_IDS:
-                    answers[question], flagged = parse_answer(question, value[question], row_catalog)
-                    if flagged:
-                        not_applicable.append(question)
-                reasons = {question: value[f"{question}_reason"] for question in SURVEY_IDS
-                           if value.get(f"{question}_reason") not in (None, "")}
-                survey = SurveyEditV3(expected_revision=existing["input_revision"], session_id=existing["selected_session_id"],
-                                     survey_version=version, answers=answers, not_applicable=not_applicable, blank_reasons=reasons)
-                changed = [q for q in SURVEY_IDS if current.survey[q] != answers[q] or (q in current.survey_not_applicable) != (q in not_applicable)
-                           or current.survey_blank_reasons.get(q) != reasons.get(q)]
-                result.rows.append(ImportRowV3(row_number=number, source_location=location, event_id=pair[0], participant_id=pair[1],
-                    case_id=existing["case_id"], survey=survey, session_label=f"{index + 1}차 촬영", changed_questions=changed))
-        except (ValueError, ValidationError) as exc:
-            if isinstance(exc, ValidationError):
-                hints = {"sequence_no": "순번은 1~9999 정수 또는 빈칸", "age_years": "나이는 0~30 정수 또는 빈칸",
-                         "event_id": "행사 ID는 영문·숫자·밑줄·하이픈", "participant_id": "참가자 ID는 영문·숫자·밑줄·하이픈",
-                         "dog_name": "반려견 이름은 1~200자", "sex": "성별은 암/수/중성화/미기재",
-                         "size": "크기는 소형/중형/대형/미기재", "adoption_route": "입양 경로는 분양/입양/기타/미기재"}
-                explanation = "; ".join(".".join(map(str, e["loc"])) + ": " + hints.get(str(e["loc"][-1]), "입력 형식과 길이를 확인") + "로 고친 뒤 다시 검증하세요." for e in exc.errors())
-            else:
-                explanation = str(exc)
-            result.errors.append(f"{location}: {explanation}")
-    if kind == "participants":
-        by_sequence = {}
-        for row in result.rows:
-            if row.participant.sequence_no is not None:
-                key = (row.event_id, row.participant.sequence_no)
-                by_sequence.setdefault(key, []).append(row.row_number)
-        duplicates = {number for numbers in by_sequence.values() if len(numbers) > 1 for number in numbers}
-        for row in result.rows:
-            if row.row_number in duplicates:
-                result.errors.append(f"{row.row_number}행: 순번: 파일 안에서 같은 행사의 순번이 중복됩니다. 충돌한 행의 순번을 고친 뒤 다시 검증하세요.")
-        result.rows = [row for row in result.rows if row.row_number not in duplicates]
-    return result

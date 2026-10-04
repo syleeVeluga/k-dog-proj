@@ -1,0 +1,5723 @@
+{
+  "schema_version": "4.0",
+  "version": "catalog-20261002-s1.1",
+  "source_version": "v1.3/S1.1",
+  "sources": [
+    {
+      "schema_version": "4.0",
+      "source_id": "SRC02",
+      "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+      "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+      "location": "부록 A"
+    },
+    {
+      "schema_version": "4.0",
+      "source_id": "SRC03",
+      "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+      "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+      "location": "영상 90항목!A7:J96"
+    }
+  ],
+  "items": [
+    {
+      "schema_version": "4.0",
+      "code": "개5",
+      "text": "[입장] 방 문 통과 — 보호자보다 앞서는가",
+      "scale_text": "-2: 문턱 앞 버팀·두번 이상의 유도 및 안기, ·당김은 별도 기록-1: 1회 이상의 유도. 자발 통과했으나 보호자 뒤에서 문턱을 넘음+0: 보호자와 나란히 문턱을 넘음. 보호자와 약간 뒤나 앞에 있음+1: 보호자보다 앞서 걸어 문턱을 넘음+2: 앞서 뛰거나 줄이 당겨진 채 문턱을 넘음",
+      "segment": "entry",
+      "segment_label": "입장",
+      "axis_label": "양쪽·통과",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "문턱 앞 버팀·두번 이상의 유도 및 안기, ·당김은 별도 기록"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "1회 이상의 유도. 자발 통과했으나 보호자 뒤에서 문턱을 넘음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "보호자와 나란히 문턱을 넘음. 보호자와 약간 뒤나 앞에 있음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "보호자보다 앞서 걸어 문턱을 넘음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "앞서 뛰거나 줄이 당겨진 채 문턱을 넘음"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "entry_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "1_입장!D8",
+      "internal_address": "2_개행동!J5",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 2"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E7"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개45",
+      "text": "[입장] 리드줄 상태 — 줄당김 체크  ※참고 · 방 문부터 의자까지 대체로 어느 쪽이었는지(물건 앞 5초 멈춤은 빼고) — 보6 · 보9 는 이 값과 따로, 당긴 장면 · 버틴 장면이 있었는지로 매깁니다",
+      "scale_text": "-2: 뒤에서 버텨 줄이 뒤로 팽팽함-1: 뒤처져 따라옴 · 줄은 느슨함+0: 옆에서 잘 감 · 줄이 느슨함+1: 앞에서 팽팽했다 느슨했다를 반복+2: 앞에서 계속 당겨 줄이 팽팽함",
+      "segment": "entry",
+      "segment_label": "입장",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "뒤에서 버텨 줄이 뒤로 팽팽함"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "뒤처져 따라옴 · 줄은 느슨함"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "옆에서 잘 감 · 줄이 느슨함"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "앞에서 팽팽했다 느슨했다를 반복"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "앞에서 계속 당겨 줄이 팽팽함"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "entry_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "1_입장!D9",
+      "internal_address": "2_개행동!J45",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 37"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E8"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바6",
+      "text": "[입장] 발성량 ※0~3 시간 비중 · 입장 전체. 못 들으면 빈칸; 0은 들었으나 없음. 종류·시각·관찰 초는 메모. 꼬리로 소리 의미를 정하지 않음.",
+      "scale_text": "발성 공통 0~3",
+      "segment": "entry",
+      "segment_label": "입장",
+      "axis_label": "한쪽·발성량",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "발성 없음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "발성 누적 비중 0 초과~1/3 이하"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "1/3 초과~2/3 이하"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "2/3 초과"
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "entry_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "1_입장!D14",
+      "internal_address": "1_바디시그널!J6",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 2"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E9"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개6",
+      "text": "[입장] 비닐 바닥 통과 ※눈에 보인 움직임만 기록. 뛰어서 지난 이유·바닥을 인식했는지는 단정하지 않음.",
+      "scale_text": "-2: 바닥 앞 버팀, 두번 이상의 유도 및 안기-1: 멈춰 머뭇거린 뒤 천천히 밟음+0: 바닥을 살핀 뒤 멈춤 없이 스스로 걸어감+1: 바닥을 살피는 모습 없이 걸어감+2: 달리거나 뛰어 바닥을 통과",
+      "segment": "entry",
+      "segment_label": "입장",
+      "axis_label": "양쪽·살핌",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "바닥 앞 버팀, 두번 이상의 유도 및 안기"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "멈춰 머뭇거린 뒤 천천히 밟음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "바닥을 살핀 뒤 멈춤 없이 스스로 걸어감"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "바닥을 살피는 모습 없이 걸어감"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "달리거나 뛰어 바닥을 통과"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "entry_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "1_입장!D15",
+      "internal_address": "2_개행동!J6",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 3"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E10"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개7",
+      "text": "[입장] 냄새 — 코를 쓰는가",
+      "scale_text": "0: 0 — 냄새 맡는 모습 관찰1: 1 — 구간을 볼 수 있었으나 냄새 맡는 모습 없음",
+      "segment": "entry",
+      "segment_label": "입장",
+      "axis_label": "범주 0/1",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "냄새 맡는 모습 관찰"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "구간을 볼 수 있었으나 냄새 맡는 모습 없음"
+        }
+      ],
+      "display_order": [
+        0,
+        1
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "entry_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "1_입장!D18",
+      "internal_address": "2_개행동!J7",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 4"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E11"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개30",
+      "text": "[입장] 새 물건 회피 정도 · 물건 앞 5초 정지와 통과 장면. 3→2→1→0 순으로 선택. 줄로 끌거나 안아서 이동해 자발 반응을 알 수 없으면 빈칸. 물건·개가 함께 보이지 않으면 빈칸. 살핌·코 접촉·무반응 통과는 관찰 메모에 선택 기록.",
+      "scale_text": "0 뚜렷한 회피 없음. 살피기·코 접촉·반응 없이 지나가기를 모두 포함. 멈춤·냄새 맡기만으로 회피로 보지 않음.1 짧게 움찔하거나 몸을 뒤로 뺐지만, 스스로 원래 경로를 따라 통과함.2 뚜렷이 뒤로 물러나거나 큰 우회 후, 스스로 다가가거나 통과함.3 뚜렷이 뒤로 물러나거나 버티며, 관찰 구간 동안 스스로 물건 옆을 통과하지 못함.",
+      "segment": "entry",
+      "segment_label": "입장",
+      "axis_label": "한쪽 0~3 · 회피 정도",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "뚜렷한 회피 없음. 살피기·코 접촉·반응 없이 지나가기를 모두 포함. 멈춤·냄새 맡기만으로 회피로 보지 않음."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "짧게 움찔하거나 몸을 뒤로 뺐지만, 스스로 원래 경로를 따라 통과함."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "뚜렷이 뒤로 물러나거나 큰 우회 후, 스스로 다가가거나 통과함."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "뚜렷이 뒤로 물러나거나 버티며, 관찰 구간 동안 스스로 물건 옆을 통과하지 못함."
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [
+        3,
+        2,
+        1,
+        0
+      ],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "entry_object"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "1_입장!D19",
+      "internal_address": "2_개행동!J30",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 26"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E12"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바14",
+      "text": "[입장] 몸 털기 횟수  ※구간 전체 ~30초 · 참고",
+      "scale_text": "몸 털기 공통 · 0 이상의 횟수",
+      "segment": "entry",
+      "segment_label": "입장",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "entry_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "1_입장!D23",
+      "internal_address": "1_바디시그널!J14",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 3"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E13"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바46",
+      "text": "[입장] 몸 긁기 횟수 · 구간 전체",
+      "scale_text": "뒷발로 자신의 목·귀·몸을 연속해서 긁는 한 차례를 1회로 셈. 발이 왕복한 횟수는 세지 않음. 연속된 한 동작을 1회로 셈. 동작을 마친 뒤 다시 시작하면 새 1회. 구간 전체를 볼 수 있었고 없으면 0, 가림·미실시이면 빈칸과 사유. 시각은 필요할 때 메모. 불안 점수에 합산하지 않음.",
+      "segment": "entry",
+      "segment_label": "입장",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "entry_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "1_입장!D26",
+      "internal_address": "1_바디시그널!J46",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 11"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E14"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개8",
+      "text": "[기준] 환경 탐색 정도 · 목줄을 푼 뒤 20초. 코를 대거나 냄새 맡기, 물건·바닥을 가까이 살피는 환경 탐색만 셈. 단순 보행·보호자 따라가기·같은 경로 반복은 제외. 전체 구간이 보이지 않으면 빈칸과 사유.",
+      "scale_text": "0 탐색을 관찰하지 못함. 편안히 쉬는지 굳어 있는지는 별도 기록.1 잠깐 탐색함: 탐색 시간이 관찰 가능 시간의 0 초 초과~절반 미만.2 지속해서 탐색함: 탐색 시간이 관찰 가능 시간의 절반 이상.",
+      "segment": "baseline",
+      "segment_label": "기준",
+      "axis_label": "한쪽 0~2 · 탐색 정도",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "탐색을 관찰하지 못함. 편안히 쉬는지 굳어 있는지는 별도 기록."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "잠깐 탐색함: 탐색 시간이 관찰 가능 시간의 0 초 초과~절반 미만."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "지속해서 탐색함: 탐색 시간이 관찰 가능 시간의 절반 이상."
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "baseline_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "2_기준!D10",
+      "internal_address": "2_개행동!J8",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 5"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E15"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바17",
+      "text": "[기준] 몸 털기 횟수  ※구간 전체 20초 · 참고",
+      "scale_text": "몸 털기 공통 · 0 이상의 횟수",
+      "segment": "baseline",
+      "segment_label": "기준",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "baseline_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "2_기준!D11",
+      "internal_address": "1_바디시그널!J17",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 4"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E16"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "환경1",
+      "text": "[기준] 탐색 외 모습 · 같은 20초. 탐색하지 않더라도 자연스럽게 쉬는 경우와 굳어 있는 경우를 구별. 1에 해당하면 먼저 선택하고, 그 외에는 우세한 모습으로 선택. 숫자는 범주이며 좋고 나쁨의 점수가 아님.",
+      "scale_text": "0 자연스러운 자세로 머묾·쉬기 위주. 굳음·회피가 두드러지지 않음.1 뻣뻣하게 굳음·몸을 움츠림·피하려는 행동이 관찰 시간의 절반 초과.2 탐색·자발적 이동 위주. 굳음·회피가 두드러지지 않음.3 서로 다른 모습이 섞이거나 우세한 모습이 뚜렷하지 않음. 메모에 구체적으로 기록.",
+      "segment": "baseline",
+      "segment_label": "기준",
+      "axis_label": "범주 0~3",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "자연스러운 자세로 머묾·쉬기 위주. 굳음·회피가 두드러지지 않음."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "뻣뻣하게 굳음·몸을 움츠림·피하려는 행동이 관찰 시간의 절반 초과."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "탐색·자발적 이동 위주. 굳음·회피가 두드러지지 않음."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "서로 다른 모습이 섞이거나 우세한 모습이 뚜렷하지 않음. 메모에 구체적으로 기록."
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [
+        1
+      ],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "baseline_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "2_기준!D14",
+      "internal_address": "2_개행동!J94",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 52"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E17"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바47",
+      "text": "[기준] 몸 긁기 횟수 · 구간 전체",
+      "scale_text": "뒷발로 자신의 목·귀·몸을 연속해서 긁는 한 차례를 1회로 셈. 발이 왕복한 횟수는 세지 않음. 연속된 한 동작을 1회로 셈. 동작을 마친 뒤 다시 시작하면 새 1회. 구간 전체를 볼 수 있었고 없으면 0, 가림·미실시이면 빈칸과 사유. 시각은 필요할 때 메모. 불안 점수에 합산하지 않음.",
+      "segment": "baseline",
+      "segment_label": "기준",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "baseline_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "2_기준!D15",
+      "internal_address": "1_바디시그널!J47",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 12"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E18"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보10",
+      "text": "[분리] 출입문으로 나가기 전 상호작용 · +2→−2 순으로 먼저 해당하는 범주 선택. 말·접촉 동시 또는 연속 상호작용은 1회, 멈췄다가 다시 시작하면 새 1회. 횟수·시각은 개59 메모. 숫자는 행동 종류 코드임.",
+      "scale_text": "-2: -2 (범주): 개를 바라보거나 말·접촉을 하지 않고 나감-1: -1 (범주): 개를 바라보지만 말·접촉 없이 나감+0: 0 (범주): 말 또는 접촉을 1회 하고 나감+1: +1 (범주): 말 또는 접촉을 2회 하고 나감+2: +2 (범주): 말 또는 접촉을 3회 이상 하거나, 이동 중 멈추거나 되돌아와 다시 상호작용함",
+      "segment": "alone",
+      "segment_label": "혼자",
+      "axis_label": "범주 · 유형 근거",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "(범주): 개를 바라보거나 말·접촉을 하지 않고 나감"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "(범주): 개를 바라보지만 말·접촉 없이 나감"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "(범주): 말 또는 접촉을 1회 하고 나감"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "(범주): 말 또는 접촉을 2회 하고 나감"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "(범주): 말 또는 접촉을 3회 이상 하거나, 이동 중 멈추거나 되돌아와 다시 상호작용함"
+        }
+      ],
+      "display_order": [
+        2,
+        1,
+        0,
+        -1,
+        -2
+      ],
+      "category_priority": [
+        2,
+        1,
+        0,
+        -1,
+        -2
+      ],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "separation_departure"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "3_혼자!D8",
+      "internal_address": "3_보호자행동!J10",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 5"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E19"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개9",
+      "text": "[혼자 초기] 나간 문 쪽 반응 · 보호자의 몸이 완전히 문밖으로 나간 순간부터 처음 10초. −2→+2 순으로 먼저 해당하는 범주를 선택. 문 지향 반응이며 불안의 단독 증거가 아님.",
+      "scale_text": "-2: 문·안전문을 향해 뛰거나 앞발을 걸어 올림-1: 위 행동 없이 문을 코·앞발로 건드림+0: 접촉 없이 문 앞 몸길이 1개 이내에서 처음 10초 중 합계 5초 초과 머묾+1: 문 쪽을 향하거나 다가갔으나 위 행동은 없음+2: 문 쪽 방향 전환·접근이 관찰되지 않음",
+      "segment": "alone",
+      "segment_label": "혼자",
+      "axis_label": "양쪽·거리",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "문·안전문을 향해 뛰거나 앞발을 걸어 올림"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "위 행동 없이 문을 코·앞발로 건드림"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "접촉 없이 문 앞 몸길이 1개 이내에서 처음 10초 중 합계 5초 초과 머묾"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "문 쪽을 향하거나 다가갔으나 위 행동은 없음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "문 쪽 방향 전환·접근이 관찰되지 않음"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "alone_initial"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "3_혼자!D9",
+      "internal_address": "2_개행동!J9",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 6"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E20"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개10",
+      "text": "[혼자 이후] 머무는 모습 · 처음 10초 이후~60초까지 50초. −2→+2 순으로 먼저 맞는 범주. 문 앞은 개 몸 한 개 길이 이내로 봄. 조용히 머묾은 긴장 유무를 뜻하지 않음(개58 함께 확인). 우세 범주 없음·구간 단축·가림은 빈칸과 실제 모습을 메모. 범주 간 뺄셈 금지.",
+      "scale_text": "−2 문을 반복해서 긁거나 문·안전문을 넘으려 시도함.−1 위 행동 없이 문을 코·앞발로 건드리거나, 문을 떠났다가 확인하러 2회 이상 돌아옴.0 위 행동 없이 관찰 시간의 절반 초과를 문 앞에서 조용히 서거나 앉거나 엎드려 머묾.+1 위 행동 없이 관찰 시간의 절반 초과를 문에서 떨어진 곳에서 조용히 서거나 앉거나 엎드려 머묾.+2 위 행동 없이 관찰 시간의 절반 초과를 환경 탐색·자기 활동으로 보냄.",
+      "segment": "alone",
+      "segment_label": "혼자",
+      "axis_label": "범주 · 이후 50초",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "문을 반복해서 긁거나 문·안전문을 넘으려 시도함."
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "위 행동 없이 문을 코·앞발로 건드리거나, 문을 떠났다가 확인하러 2회 이상 돌아옴."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "위 행동 없이 관찰 시간의 절반 초과를 문 앞에서 조용히 서거나 앉거나 엎드려 머묾."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "위 행동 없이 관찰 시간의 절반 초과를 문에서 떨어진 곳에서 조용히 서거나 앉거나 엎드려 머묾."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "위 행동 없이 관찰 시간의 절반 초과를 환경 탐색·자기 활동으로 보냄."
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "alone_later"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "3_혼자!D10",
+      "internal_address": "2_개행동!J10",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 7"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E21"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개58",
+      "text": "[혼자] 몸 상태 ※실제 분리 구간 전체의 주된 상태. 개14·18·23과 같은 몸 상태 눈금. 개8은 환경 탐색 항목이므로 이 눈금에서 제외. 복지 중단·구간 길이는 메모. 가만히 앉거나 엎드려 있는 모습만으로 낮은 점수를 주지 않음.",
+      "scale_text": "−2 관찰 가능 시간의 절반 초과 동안 몸에 힘이 들어가 뻣뻣하게 굳음. 단지 움직이지 않는 것은 제외.−1 절반 초과 동안 몸을 움츠리고 낮춘 경직 자세 또는 조심스러운 움직임. 자연스럽게 앉거나 엎드림은 제외.0 주로 자연스럽게 서기·앉기·엎드리기·쉬기·이동. 어느 극단도 절반을 넘지 않음. 반대 반응이 섞인 경우 메모.+1 절반 초과 동안 같은 경로를 반복 이동하거나 자세를 자주 바꿈. 지속 뛰기 수준은 아님.+2 절반 초과 동안 뛰기·몸 부딪치기·급한 반복 이동이 이어짐.",
+      "segment": "alone",
+      "segment_label": "혼자",
+      "axis_label": "양쪽 · 몸 상태",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "관찰 가능 시간의 절반 초과 동안 몸에 힘이 들어가 뻣뻣하게 굳음. 단지 움직이지 않는 것은 제외."
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "절반 초과 동안 몸을 움츠리고 낮춘 경직 자세 또는 조심스러운 움직임. 자연스럽게 앉거나 엎드림은 제외."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "주로 자연스럽게 서기·앉기·엎드리기·쉬기·이동. 어느 극단도 절반을 넘지 않음. 반대 반응이 섞인 경우 메모."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "절반 초과 동안 같은 경로를 반복 이동하거나 자세를 자주 바꿈. 지속 뛰기 수준은 아님."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "절반 초과 동안 뛰기·몸 부딪치기·급한 반복 이동이 이어짐."
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "alone_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "3_혼자!D11",
+      "internal_address": "2_개행동!J58",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 50"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E22"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개11",
+      "text": "[혼자] 발성량 ※0~3 시간 비중 · 혼자 실제 구간. 못 들으면 빈칸; 0은 들었으나 없음. 종류·시각·관찰 초는 메모. 꼬리로 소리 의미를 정하지 않음.",
+      "scale_text": "0: 0 — 발성 없음1: 1 — 발성 누적 비중 0 초과~1/3 이하2: 2 — 1/3 초과~2/3 이하3: 3 — 2/3 초과",
+      "segment": "alone",
+      "segment_label": "혼자",
+      "axis_label": "한쪽·발성량",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "발성 없음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "발성 누적 비중 0 초과~1/3 이하"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "1/3 초과~2/3 이하"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "2/3 초과"
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "alone_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "3_혼자!D12",
+      "internal_address": "2_개행동!J11",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 8"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E23"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개12",
+      "text": "[혼자] 환경 탐색 정도 · 분리 60초 전체. 코를 대거나 냄새 맡기, 물건·바닥을 가까이 살피는 환경 탐색만 셈. 단순 보행·보호자 따라가기·같은 경로 반복은 제외. 전체 구간이 보이지 않으면 빈칸과 사유. 기준 개8과 같은 기준으로 나란히 보며, 점수 차이를 불안·안전기지 효과로 계산하지 않음.",
+      "scale_text": "0 탐색을 관찰하지 못함. 편안히 쉬는지 굳어 있는지는 별도 기록.1 잠깐 탐색함: 탐색 시간이 관찰 가능 시간의 0 초 초과~절반 미만.2 지속해서 탐색함: 탐색 시간이 관찰 가능 시간의 절반 이상.",
+      "segment": "alone",
+      "segment_label": "혼자",
+      "axis_label": "한쪽 0~2 · 탐색 정도",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "탐색을 관찰하지 못함. 편안히 쉬는지 굳어 있는지는 별도 기록."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "잠깐 탐색함: 탐색 시간이 관찰 가능 시간의 0 초 초과~절반 미만."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "지속해서 탐색함: 탐색 시간이 관찰 가능 시간의 절반 이상."
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "alone_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "3_혼자!D13",
+      "internal_address": "2_개행동!J12",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 9"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E24"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바20",
+      "text": "[혼자] 몸 털기 횟수  ※구간 전체 1분 · 참고",
+      "scale_text": "몸 털기 공통 · 0 이상의 횟수",
+      "segment": "alone",
+      "segment_label": "혼자",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "alone_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "3_혼자!D16",
+      "internal_address": "1_바디시그널!J20",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 5"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E25"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개60",
+      "text": "개9 → 개10 조합 + 개58 · 개11 · 자동 · 자동 표시",
+      "scale_text": "S1 조합 원문 SEP01~25. 개58·개11과 결합하여 자동 표시.",
+      "segment": "alone",
+      "segment_label": "분리 변화",
+      "axis_label": "메모",
+      "usage": "automatic",
+      "value_type": "automatic",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "alone_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "3_혼자!E19",
+      "internal_address": "2_개행동!J60",
+      "automatic_formula": "=IF(COUNT(J9,J10)=0,\"미채점\",IF(COUNT(J9,J10)<2,\"자료 부족\",IF(OR(J9<-2,J9>2,J10<-2,J10>2,MOD(J9,1)<>0,MOD(J10,1)<>0),\"입력 확인\",INDEX(성향문장!$C$65:$C$89,(J9+2)*5+J10+3)&\" / 분리 전체 몸 상태: \"&IF(COUNT(J58)=0,\"미확인\",IF(OR(J58<-2,J58>2,MOD(J58,1)<>0),\"입력 확인\",INDEX($C$58:$G$58,1,J58+3)))&\" / 분리 전체 발성: \"&IF(COUNT(J11)=0,\"미확인\",IF(OR(J11<0,J11>3,MOD(J11,1)<>0),\"입력 확인\",INDEX($C$11:$F$11,1,J11+1))))))",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 51"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E26"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바48",
+      "text": "[혼자] 몸 긁기 횟수 · 구간 전체",
+      "scale_text": "뒷발로 자신의 목·귀·몸을 연속해서 긁는 한 차례를 1회로 셈. 발이 왕복한 횟수는 세지 않음. 연속된 한 동작을 1회로 셈. 동작을 마친 뒤 다시 시작하면 새 1회. 구간 전체를 볼 수 있었고 없으면 0, 가림·미실시이면 빈칸과 사유. 시각은 필요할 때 메모. 불안 점수에 합산하지 않음.",
+      "segment": "alone",
+      "segment_label": "혼자",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "alone_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "3_혼자!D20",
+      "internal_address": "1_바디시그널!J48",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 13"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E27"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개17",
+      "text": "[재회] 접근·거리 ※문 열림 0~15초, 보호자 이동·착석·대기 중 먼저 부르거나 만지지 않음. 앉는 시점과 관계없이 15초로 고정.",
+      "scale_text": "-2: 걸어가는 내내 매달려 떨어지지 않음-1: 바로 다가와 몸을 붙임+0: 다가와 같이 의자로 걸어감+1: 한 번 쳐다보고 만다+2: 본체만체 · 오지 않음",
+      "segment": "reunion",
+      "segment_label": "재회",
+      "axis_label": "양쪽·거리",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "걸어가는 내내 매달려 떨어지지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "바로 다가와 몸을 붙임"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "다가와 같이 의자로 걸어감"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "한 번 쳐다보고 만다"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "본체만체 · 오지 않음"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "reunion_approach"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "4_재회!D8",
+      "internal_address": "2_개행동!J17",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 14"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E28"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개18",
+      "text": "[재회] 후반 몸 상태 ※문 열림 15~30초, 접촉 지시 구간 전체. 실제 접촉 여부를 별도 기록. 개58과 같은 눈금의 기술적 변화만 계산. 가만히 앉거나 엎드려 있는 모습만으로 낮은 점수를 주지 않음.",
+      "scale_text": "−2 관찰 가능 시간의 절반 초과 동안 몸에 힘이 들어가 뻣뻣하게 굳음. 단지 움직이지 않는 것은 제외.−1 절반 초과 동안 몸을 움츠리고 낮춘 경직 자세 또는 조심스러운 움직임. 자연스럽게 앉거나 엎드림은 제외.0 주로 자연스럽게 서기·앉기·엎드리기·쉬기·이동. 어느 극단도 절반을 넘지 않음. 반대 반응이 섞인 경우 메모.+1 절반 초과 동안 같은 경로를 반복 이동하거나 자세를 자주 바꿈. 지속 뛰기 수준은 아님.+2 절반 초과 동안 뛰기·몸 부딪치기·급한 반복 이동이 이어짐.",
+      "segment": "reunion",
+      "segment_label": "재회",
+      "axis_label": "양쪽 · 몸 상태",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "관찰 가능 시간의 절반 초과 동안 몸에 힘이 들어가 뻣뻣하게 굳음. 단지 움직이지 않는 것은 제외."
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "절반 초과 동안 몸을 움츠리고 낮춘 경직 자세 또는 조심스러운 움직임. 자연스럽게 앉거나 엎드림은 제외."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "주로 자연스럽게 서기·앉기·엎드리기·쉬기·이동. 어느 극단도 절반을 넘지 않음. 반대 반응이 섞인 경우 메모."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "절반 초과 동안 같은 경로를 반복 이동하거나 자세를 자주 바꿈. 지속 뛰기 수준은 아님."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "절반 초과 동안 뛰기·몸 부딪치기·급한 반복 이동이 이어짐."
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "reunion_later"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "4_재회!D9",
+      "internal_address": "2_개행동!J18",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 15"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E29"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개19",
+      "text": "[재회 접촉] 몸의 중심 ※15~30초 실제 접촉이 이루어진 시간만. 미접촉이면 빈칸. 낯선 접촉과 부호 방향은 반대이며 시간·자세도 달라 직접 점수 차이를 애착으로 해석하지 않음.",
+      "scale_text": "-2: 몸을 얹거나 무릎에 올라감 · 기대어 떨어지지 않음-1: 몸이 닿을 만큼 앞으로 붙임+0: 앞으로 살짝 기울여 손을 받음+1: 선 자리를 지킴 · 몸을 앞으로 옮기지 않음+2: 뒤로 물러남 · 옆으로 피함 · 등을 돌림",
+      "segment": "reunion",
+      "segment_label": "재회",
+      "axis_label": "양쪽·거리",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "몸을 얹거나 무릎에 올라감 · 기대어 떨어지지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "몸이 닿을 만큼 앞으로 붙임"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "앞으로 살짝 기울여 손을 받음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "선 자리를 지킴 · 몸을 앞으로 옮기지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "뒤로 물러남 · 옆으로 피함 · 등을 돌림"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "reunion_contact"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "4_재회!D10",
+      "internal_address": "2_개행동!J19",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 16"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E30"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개44",
+      "text": "[재회 접촉] 몸의 움직임 · 실제 접촉 시간 ※몸통 자세·자발적 움직임을 함께 봄. 엉덩이 흔들림이나 C자 자세가 없다는 이유만으로 긴장 판정하지 않음. 미접촉은 빈칸.",
+      "scale_text": "-2: 몸통·다리가 굳고 자세 변화 없이 버티는 모습-1: 몸을 낮추거나 긴장된 자세로 움직임이 제한됨+0: 뻣뻣한 버팀 없이 자연스러운 자세를 유지·변경함; 엉덩이 흔들림은 필수 아님+1: 몸을 크게 흔들거나 발 구르기·회전 움직임이 주됨+2: 반복 뛰어오름·몸 부딪치기 때문에 접촉 유지가 어려움",
+      "segment": "reunion",
+      "segment_label": "재회",
+      "axis_label": "양쪽·몸상태",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "몸통·다리가 굳고 자세 변화 없이 버티는 모습"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "몸을 낮추거나 긴장된 자세로 움직임이 제한됨"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "뻣뻣한 버팀 없이 자연스러운 자세를 유지·변경함; 엉덩이 흔들림은 필수 아님"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "몸을 크게 흔들거나 발 구르기·회전 움직임이 주됨"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "반복 뛰어오름·몸 부딪치기 때문에 접촉 유지가 어려움"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "reunion_contact"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "4_재회!D11",
+      "internal_address": "2_개행동!J44",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 36"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E31"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보11",
+      "text": "[재회] 신체접촉 방식 · 후반 15초. +2→−2 순으로 먼저 해당하는 범주 선택. 칭찬 톤·횟수, 밀어 내려보냄, 접촉이 없었던 이유는 개59 메모. 보22 회피 후 대응과 함께 유형 판단에 사용. 숫자는 행동 종류 코드임.",
+      "scale_text": "-2: -2 (범주): 손으로 만지거나 몸을 밀착하는 인사 접촉이 관찰되지 않음-1: -1 (범주): 상체를 크게 기울이지 않고 손으로 만짐+0: 0 (범주): 개 쪽으로 상체를 기울여 가까이에서 만짐+1: +1 (범주): 개가 먼저 몸을 기대거나 앞발을 올리는 등 밀착을 시도하면 받아주거나 받쳐 줌+2: +2 (범주): 개의 밀착 시도 전에 보호자가 먼저 안아 올리거나 끌어안아 몸·얼굴을 밀착함",
+      "segment": "reunion",
+      "segment_label": "재회",
+      "axis_label": "범주 · 유형 근거",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "(범주): 손으로 만지거나 몸을 밀착하는 인사 접촉이 관찰되지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "(범주): 상체를 크게 기울이지 않고 손으로 만짐"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "(범주): 개 쪽으로 상체를 기울여 가까이에서 만짐"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "(범주): 개가 먼저 몸을 기대거나 앞발을 올리는 등 밀착을 시도하면 받아주거나 받쳐 줌"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "(범주): 개의 밀착 시도 전에 보호자가 먼저 안아 올리거나 끌어안아 몸·얼굴을 밀착함"
+        }
+      ],
+      "display_order": [
+        2,
+        1,
+        0,
+        -1,
+        -2
+      ],
+      "category_priority": [
+        2,
+        1,
+        0,
+        -1,
+        -2
+      ],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "reunion_later"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "4_재회!D12",
+      "internal_address": "3_보호자행동!J11",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 6"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E32"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보38",
+      "text": "보22 관찰 기회 ※0~3. 개가 보인 사건, 보호자의 좋고 나쁨 아님.",
+      "scale_text": "0: 0 — 접근·회피 모두 없음1: 1 — 접근만 있었음2: 2 — 회피만 있었음3: 3 — 접근·회피 모두 있었음",
+      "segment": "reunion",
+      "segment_label": "재회",
+      "axis_label": "기회",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "접근·회피 모두 없음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "접근만 있었음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "회피만 있었음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "접근·회피 모두 있었음"
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "reunion_later"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "4_재회!D13",
+      "internal_address": "3_보호자행동!J38",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 19"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E33"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보22",
+      "text": "[재회] 회피 뒤 접촉 변화 ※후반 15초 중 개가 고개·몸을 돌리거나 물러난 첫 명확한 사건 뒤 대응. 보38=2/3일 때만. 접근만 있었다면 채점하지 않음.",
+      "scale_text": "-2: 손을 완전히 거두고 상체도 뒤로 옮겨 거리를 넓힘-1: 손 움직임·접촉을 멈추거나 손을 떼되 상체 위치 유지+0: 손을 기존 위치에 둔 채 접촉 방식을 바꾸지 않음+1: 물러나는 개를 따라 손을 뻗어 접촉을 이어감+2: 개 몸을 붙잡거나 안아 움직임을 제한하며 접촉 지속",
+      "segment": "reunion",
+      "segment_label": "재회",
+      "axis_label": "양쪽 · 개입 정도",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "손을 완전히 거두고 상체도 뒤로 옮겨 거리를 넓힘"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "손 움직임·접촉을 멈추거나 손을 떼되 상체 위치 유지"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "손을 기존 위치에 둔 채 접촉 방식을 바꾸지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "물러나는 개를 따라 손을 뻗어 접촉을 이어감"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "개 몸을 붙잡거나 안아 움직임을 제한하며 접촉 지속"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "reunion_later"
+      ],
+      "opportunity_codes": [
+        "보38"
+      ],
+      "policy_pending": [],
+      "input_address": "4_재회!D14",
+      "internal_address": "3_보호자행동!J22",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 13"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E34"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보25",
+      "text": "보22 사유・시각",
+      "scale_text": "재회 회피·접근 사건 시각 / 개 신호 → 보호자 대응. 보39=1·2를 가른 근거와 보22와 같은 사건인지 기록. 접근 기회·판독 불가 사유.",
+      "segment": "reunion",
+      "segment_label": "기록",
+      "axis_label": "메모",
+      "usage": "memo",
+      "value_type": "memo",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "reunion_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "4_재회!F15",
+      "internal_address": "3_보호자행동!J25",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 16"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E35"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보39",
+      "text": "[재회] 자발적 접근 뒤 접촉 대응 v0.2. 보38=1/3일 때. 개가 먼저 시작한 접촉에 맞춤과 이후 신호에 따른 대응 변화를 구분. 보22와 같은 사건이면 같은 재회 장면 안에서 평균.",
+      "scale_text": "0: 0 — 접근을 막거나 피함1: 1 — 개가 기대거나 올라오는 접촉을 받아 주고, 개 움직임에 몸·손 위치를 맞춤. 보호자가 다른 접촉 형태·방향을 요구하지 않음2: 2 — 개의 추가 접근·회피·멈춤 신호를 확인한 뒤 접촉을 시작·멈추거나 방법을 바꿈. 신호와 대응 변화 기록3: 3 — 붙잡거나 안아 올림",
+      "segment": "reunion",
+      "segment_label": "재회",
+      "axis_label": "범주",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "접근을 막거나 피함"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "개가 기대거나 올라오는 접촉을 받아 주고, 개 움직임에 몸·손 위치를 맞춤. 보호자가 다른 접촉 형태·방향을 요구하지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "개의 추가 접근·회피·멈춤 신호를 확인한 뒤 접촉을 시작·멈추거나 방법을 바꿈. 신호와 대응 변화 기록"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "붙잡거나 안아 올림"
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "reunion_later"
+      ],
+      "opportunity_codes": [
+        "보38"
+      ],
+      "policy_pending": [],
+      "input_address": "4_재회!D16",
+      "internal_address": "3_보호자행동!J39",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 20"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E36"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개47",
+      "text": "[재회] 발성량 ※0~3 시간 비중 · 문 열림부터 30초 전체. 못 들으면 빈칸; 0은 들었으나 없음. 종류·시각·관찰 초는 메모. 꼬리로 소리 의미를 정하지 않음.",
+      "scale_text": "0: 0 — 발성 없음1: 1 — 발성 누적 비중 0 초과~1/3 이하2: 2 — 1/3 초과~2/3 이하3: 3 — 2/3 초과",
+      "segment": "reunion",
+      "segment_label": "재회",
+      "axis_label": "한쪽·발성량",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "발성 없음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "발성 누적 비중 0 초과~1/3 이하"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "1/3 초과~2/3 이하"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "2/3 초과"
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "reunion_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "4_재회!D19",
+      "internal_address": "2_개행동!J47",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 39"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E37"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개21",
+      "text": "[재회] 접근 변화 사건 횟수 ※멈춤·고개 돌림·지나침·되돌아섬·굳음을 사건으로 기록. 연속 동작은 1건, 다시 접근을 시작한 뒤 별도 발생하면 추가. 유형·시각은 메모. 관찰 시간은 확인 필요: 기존 전반 0~15초 배치를 유지하되, 전체 30초 사건 기록안은 추가 제안(D03). 1건으로 전체 분류를 무효화하지 않음.",
+      "scale_text": "0은 관찰 가능했으나 해당 사건 없음. 빈칸은 판독 불가. 횟수는 개별 검토 근거이며 애착 혼란의 진단 기준이 아님.",
+      "segment": "reunion",
+      "segment_label": "재회",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "reunion_approach"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [
+        "D03"
+      ],
+      "input_address": "4_재회!D20",
+      "internal_address": "2_개행동!J21",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 17"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E38"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바26",
+      "text": "[재회] 몸 털기 횟수  ※구간 전체 30초 · 참고",
+      "scale_text": "몸 털기 공통 · 0 이상의 횟수",
+      "segment": "reunion",
+      "segment_label": "재회",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "reunion_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "4_재회!D21",
+      "internal_address": "1_바디시그널!J26",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 7"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E39"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바49",
+      "text": "[재회] 몸 긁기 횟수 · 구간 전체",
+      "scale_text": "뒷발로 자신의 목·귀·몸을 연속해서 긁는 한 차례를 1회로 셈. 발이 왕복한 횟수는 세지 않음. 연속된 한 동작을 1회로 셈. 동작을 마친 뒤 다시 시작하면 새 1회. 구간 전체를 볼 수 있었고 없으면 0, 가림·미실시이면 빈칸과 사유. 시각은 필요할 때 메모. 불안 점수에 합산하지 않음.",
+      "segment": "reunion",
+      "segment_label": "재회",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "reunion_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "4_재회!D24",
+      "internal_address": "1_바디시그널!J49",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 14"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E40"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바54",
+      "text": "[재회] 사람을 향한 첫 머리 돌림 전후 꼬리 변화 · 선택 기록. 보호자 쪽으로 머리를 분명히 돌린 첫 순간 앞 2초·뒤 3초를 비교. 자세·걷기 상태가 달라 비교가 어려우면 빈칸. 꼬리 모양 자체나 높이를 감정 점수로 해석하지 않음.",
+      "scale_text": "0 비교 가능한 장면에서 뚜렷한 변화 없음.1 꼬리 높이 변화 또는 흔들기 시작·멈춤이 보임. 어떤 변화인지·시각을 F열에 기록.비교 불가·가림·시작부터 보고 있었음은 빈칸과 사유. 2초·3초는 이번 시험용 관찰창.",
+      "segment": "reunion",
+      "segment_label": "재회",
+      "axis_label": "범주 0/1 · 선택 관찰",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "비교 가능한 장면에서 뚜렷한 변화 없음."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "꼬리 높이 변화 또는 흔들기 시작·멈춤이 보임. 어떤 변화인지·시각을 F열에 기록."
+        }
+      ],
+      "display_order": [
+        0,
+        1
+      ],
+      "category_priority": [],
+      "optional": true,
+      "whole_interval_required": false,
+      "windows": [
+        "reunion_tail_event"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "4_재회!D25",
+      "internal_address": "1_바디시그널!J54",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 15"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E41"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보12",
+      "text": "[무시] 무시 지시 준수  ※참고 · 조건 준수 확인 · 이 칸만 1~3 입니다",
+      "scale_text": "1: 20초 동안 말·시선·접촉 없음 — 유효2: 한 번 보거나 말함 — 유효(주의)3: 두 번 이상 · 만짐 — 이 시행의 무시 항목 무효",
+      "segment": "ignore",
+      "segment_label": "무시",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "20초 동안 말·시선·접촉 없음 — 유효"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "한 번 보거나 말함 — 유효(주의)"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "두 번 이상 · 만짐 — 이 시행의 무시 항목 무효"
+        }
+      ],
+      "display_order": [
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "ignore_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "5_무시!D8",
+      "internal_address": "3_보호자행동!J12",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 7"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E42"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개22",
+      "text": "[무시] 보호자와의 거리·확인 ※접촉 종료 뒤 20초. 보12 조건을 함께 확인. 거리 유지와 시선이 함께 든 기존 범주이며 단일 친밀감·애착 강도는 아님.",
+      "scale_text": "-2: 무릎에 올라감 · 몸을 얹고 떨어지지 않음-1: 몸이 닿는 거리로 붙어 있음+0: 주변 1 m 안에 있으며 가끔 확인+1: 떨어져 있고 가끔만 쳐다봄+2: 한 번도 쳐다보지 않음 · 혼자 다님",
+      "segment": "ignore",
+      "segment_label": "무시",
+      "axis_label": "양쪽·거리",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "무릎에 올라감 · 몸을 얹고 떨어지지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "몸이 닿는 거리로 붙어 있음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "주변 1 m 안에 있으며 가끔 확인"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "떨어져 있고 가끔만 쳐다봄"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "한 번도 쳐다보지 않음 · 혼자 다님"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "ignore_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "5_무시!D9",
+      "internal_address": "2_개행동!J22",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 18"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E43"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개23",
+      "text": "[무시] 몸 상태 ※접촉 종료 뒤 20초. 개14·18·58과 같은 몸 상태 눈금. 개8은 환경 탐색 항목이므로 이 눈금에서 제외. 실험 이력·무시 지시의 영향이 함께 포함됨. 가만히 앉거나 엎드려 있는 모습만으로 낮은 점수를 주지 않음.",
+      "scale_text": "−2 관찰 가능 시간의 절반 초과 동안 몸에 힘이 들어가 뻣뻣하게 굳음. 단지 움직이지 않는 것은 제외.−1 절반 초과 동안 몸을 움츠리고 낮춘 경직 자세 또는 조심스러운 움직임. 자연스럽게 앉거나 엎드림은 제외.0 주로 자연스럽게 서기·앉기·엎드리기·쉬기·이동. 어느 극단도 절반을 넘지 않음. 반대 반응이 섞인 경우 메모.+1 절반 초과 동안 같은 경로를 반복 이동하거나 자세를 자주 바꿈. 지속 뛰기 수준은 아님.+2 절반 초과 동안 뛰기·몸 부딪치기·급한 반복 이동이 이어짐.",
+      "segment": "ignore",
+      "segment_label": "무시",
+      "axis_label": "양쪽 · 몸 상태",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "관찰 가능 시간의 절반 초과 동안 몸에 힘이 들어가 뻣뻣하게 굳음. 단지 움직이지 않는 것은 제외."
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "절반 초과 동안 몸을 움츠리고 낮춘 경직 자세 또는 조심스러운 움직임. 자연스럽게 앉거나 엎드림은 제외."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "주로 자연스럽게 서기·앉기·엎드리기·쉬기·이동. 어느 극단도 절반을 넘지 않음. 반대 반응이 섞인 경우 메모."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "절반 초과 동안 같은 경로를 반복 이동하거나 자세를 자주 바꿈. 지속 뛰기 수준은 아님."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "절반 초과 동안 뛰기·몸 부딪치기·급한 반복 이동이 이어짐."
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "ignore_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "5_무시!D10",
+      "internal_address": "2_개행동!J23",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 19"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E44"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개48",
+      "text": "[무시] 발성량 ※0~3 시간 비중 · 접촉 종료 뒤 20초. 못 들으면 빈칸; 0은 들었으나 없음. 종류·시각·관찰 초는 메모. 꼬리로 소리 의미를 정하지 않음.",
+      "scale_text": "0: 0 — 발성 없음1: 1 — 발성 누적 비중 0 초과~1/3 이하2: 2 — 1/3 초과~2/3 이하3: 3 — 2/3 초과",
+      "segment": "ignore",
+      "segment_label": "무시",
+      "axis_label": "한쪽·발성량",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "발성 없음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "발성 누적 비중 0 초과~1/3 이하"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "1/3 초과~2/3 이하"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "2/3 초과"
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "ignore_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "5_무시!D11",
+      "internal_address": "2_개행동!J48",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 40"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E45"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바29",
+      "text": "[무시] 몸 털기 횟수  ※구간 전체 20초 · 참고",
+      "scale_text": "몸 털기 공통 · 0 이상의 횟수",
+      "segment": "ignore",
+      "segment_label": "무시",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "ignore_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "5_무시!D13",
+      "internal_address": "1_바디시그널!J29",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 8"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E46"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바50",
+      "text": "[무시] 몸 긁기 횟수 · 구간 전체",
+      "scale_text": "뒷발로 자신의 목·귀·몸을 연속해서 긁는 한 차례를 1회로 셈. 발이 왕복한 횟수는 세지 않음. 연속된 한 동작을 1회로 셈. 동작을 마친 뒤 다시 시작하면 새 1회. 구간 전체를 볼 수 있었고 없으면 0, 가림·미실시이면 빈칸과 사유. 시각은 필요할 때 메모. 불안 점수에 합산하지 않음.",
+      "segment": "ignore",
+      "segment_label": "무시",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "ignore_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "5_무시!D16",
+      "internal_address": "1_바디시그널!J50",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 16"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E47"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보13",
+      "text": "[걷기] 시행 유효성  ※참고 · 조건 준수 확인 · 이 칸만 1~3 입니다",
+      "scale_text": "1: 걷기 구간(약 30초) 동안 말·손짓 없음 — 유효2: 한 번 부르거나 손짓함 — 유효(주의)3: 두 번 이상 — 이 시행의 걷기 항목과 동조율 무효",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "걷기 구간(약 30초) 동안 말·손짓 없음 — 유효"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "한 번 부르거나 손짓함 — 유효(주의)"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "두 번 이상 — 이 시행의 걷기 항목과 동조율 무효"
+        }
+      ],
+      "display_order": [
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D8",
+      "internal_address": "3_보호자행동!J13",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 8"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E48"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개37",
+      "text": "[걷기] 0 시작 — 첫 걸음 직전  ※거리 등급 0~3",
+      "scale_text": "0 실제 신체 접촉 / 1 비접촉~개 몸길이 2개 이내 / 2 몸길이 2개 초과~5개 이내 / 3 몸길이 5개 초과. 사람 양발 중점과 개 몸통 중심을 기준으로 원근 보정. 이동·정지는 주된 시간의 범주, 시작은 첫걸음 직전. 가려 못 보면 빈칸.",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "0 실제 신체 접촉"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "1 비접촉~개 몸길이 2개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "2 몸길이 2개 초과~5개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "3 몸길이 5개 초과. 사람 양발 중점과 개 몸통 중심을 기준으로 원근 보정. 이동·정지는 주된 시간의 범주, 시작은 첫걸음 직전. 가려 못 보면 빈칸."
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D9",
+      "internal_address": "2_개행동!J37",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 29"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E49"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개38",
+      "text": "[걷기] 1 이동 S→A (오른쪽 4걸음)  ※거리 등급 0~3",
+      "scale_text": "0 실제 신체 접촉 / 1 비접촉~개 몸길이 2개 이내 / 2 몸길이 2개 초과~5개 이내 / 3 몸길이 5개 초과. 사람 양발 중점과 개 몸통 중심을 기준으로 원근 보정. 이동·정지는 주된 시간의 범주, 시작은 첫걸음 직전. 가려 못 보면 빈칸.",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "0 실제 신체 접촉"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "1 비접촉~개 몸길이 2개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "2 몸길이 2개 초과~5개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "3 몸길이 5개 초과. 사람 양발 중점과 개 몸통 중심을 기준으로 원근 보정. 이동·정지는 주된 시간의 범주, 시작은 첫걸음 직전. 가려 못 보면 빈칸."
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D10",
+      "internal_address": "2_개행동!J38",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 30"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E50"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개39",
+      "text": "[걷기] 2 정지 A — 다시 걷기 전까지  ※거리 등급 0~3",
+      "scale_text": "0 실제 신체 접촉 / 1 비접촉~개 몸길이 2개 이내 / 2 몸길이 2개 초과~5개 이내 / 3 몸길이 5개 초과. 사람 양발 중점과 개 몸통 중심을 기준으로 원근 보정. 이동·정지는 주된 시간의 범주, 시작은 첫걸음 직전. 가려 못 보면 빈칸.",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "0 실제 신체 접촉"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "1 비접촉~개 몸길이 2개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "2 몸길이 2개 초과~5개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "3 몸길이 5개 초과. 사람 양발 중점과 개 몸통 중심을 기준으로 원근 보정. 이동·정지는 주된 시간의 범주, 시작은 첫걸음 직전. 가려 못 보면 빈칸."
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D11",
+      "internal_address": "2_개행동!J39",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 31"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E51"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개40",
+      "text": "[걷기] 3 이동 A→C (왼쪽 8걸음 · S 지나감)  ※거리 등급 0~3",
+      "scale_text": "0 실제 신체 접촉 / 1 비접촉~개 몸길이 2개 이내 / 2 몸길이 2개 초과~5개 이내 / 3 몸길이 5개 초과. 사람 양발 중점과 개 몸통 중심을 기준으로 원근 보정. 이동·정지는 주된 시간의 범주, 시작은 첫걸음 직전. 가려 못 보면 빈칸.",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "0 실제 신체 접촉"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "1 비접촉~개 몸길이 2개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "2 몸길이 2개 초과~5개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "3 몸길이 5개 초과. 사람 양발 중점과 개 몸통 중심을 기준으로 원근 보정. 이동·정지는 주된 시간의 범주, 시작은 첫걸음 직전. 가려 못 보면 빈칸."
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D12",
+      "internal_address": "2_개행동!J40",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 32"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E52"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개41",
+      "text": "[걷기] 4 정지 C — 다시 걷기 전까지  ※거리 등급 0~3",
+      "scale_text": "0 실제 신체 접촉 / 1 비접촉~개 몸길이 2개 이내 / 2 몸길이 2개 초과~5개 이내 / 3 몸길이 5개 초과. 사람 양발 중점과 개 몸통 중심을 기준으로 원근 보정. 이동·정지는 주된 시간의 범주, 시작은 첫걸음 직전. 가려 못 보면 빈칸.",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "0 실제 신체 접촉"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "1 비접촉~개 몸길이 2개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "2 몸길이 2개 초과~5개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "3 몸길이 5개 초과. 사람 양발 중점과 개 몸통 중심을 기준으로 원근 보정. 이동·정지는 주된 시간의 범주, 시작은 첫걸음 직전. 가려 못 보면 빈칸."
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D13",
+      "internal_address": "2_개행동!J41",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 33"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E53"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개42",
+      "text": "[걷기] 5 이동 C→S (4걸음)  ※거리 등급 0~3",
+      "scale_text": "0 실제 신체 접촉 / 1 비접촉~개 몸길이 2개 이내 / 2 몸길이 2개 초과~5개 이내 / 3 몸길이 5개 초과. 사람 양발 중점과 개 몸통 중심을 기준으로 원근 보정. 이동·정지는 주된 시간의 범주, 시작은 첫걸음 직전. 가려 못 보면 빈칸.",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "0 실제 신체 접촉"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "1 비접촉~개 몸길이 2개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "2 몸길이 2개 초과~5개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "3 몸길이 5개 초과. 사람 양발 중점과 개 몸통 중심을 기준으로 원근 보정. 이동·정지는 주된 시간의 범주, 시작은 첫걸음 직전. 가려 못 보면 빈칸."
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D14",
+      "internal_address": "2_개행동!J42",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 34"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E54"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개43",
+      "text": "[걷기] 6 정지 S — 구간이 끝날 때까지  ※거리 등급 0~3",
+      "scale_text": "0 실제 신체 접촉 / 1 비접촉~개 몸길이 2개 이내 / 2 몸길이 2개 초과~5개 이내 / 3 몸길이 5개 초과. 사람 양발 중점과 개 몸통 중심을 기준으로 원근 보정. 이동·정지는 주된 시간의 범주, 시작은 첫걸음 직전. 가려 못 보면 빈칸.",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "0 실제 신체 접촉"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "1 비접촉~개 몸길이 2개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "2 몸길이 2개 초과~5개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "3 몸길이 5개 초과. 사람 양발 중점과 개 몸통 중심을 기준으로 원근 보정. 이동·정지는 주된 시간의 범주, 시작은 첫걸음 직전. 가려 못 보면 빈칸."
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D15",
+      "internal_address": "2_개행동!J43",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 35"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E55"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개24",
+      "text": "[걷기] 주된 거리 ※구간 시간 절반 초과를 차지한 범주. 한 번 멀어진 것만으로 전체 +1로 정하지 않음. 동률이면 시작 범주·혼재 사유 기록.",
+      "scale_text": "-2: 접촉하며 다리에 매달리거나 몸을 얹은 상태가 주됨-1: 비접촉이나 몸길이 1개 미만으로 붙어 이동+0: 몸길이 1개 이상~2개 이내+1: 몸길이 2개 초과~5개 이내+2: 몸길이 5개 초과",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "양쪽·거리",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "접촉하며 다리에 매달리거나 몸을 얹은 상태가 주됨"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "비접촉이나 몸길이 1개 미만으로 붙어 이동"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "몸길이 1개 이상~2개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "몸길이 2개 초과~5개 이내"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "몸길이 5개 초과"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D16",
+      "internal_address": "2_개행동!J24",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 20"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E56"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개25",
+      "text": "[걷기] 보호자 확인 ※시선 관찰만. 개24·근접 비율에 합산하지 않음. 친밀감·의존의 직접 판정으로 사용하지 않음.",
+      "scale_text": "-2: 계속 올려다봄 · 앞을 보지 않음-1: 자주 올려다보며 걸음+0: 이동 중 여러 번 확인하고 다시 앞을 봄+1: 한두 번 힐끗+2: 한 번도 쳐다보지 않음",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "양쪽·살핌",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "계속 올려다봄 · 앞을 보지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "자주 올려다보며 걸음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "이동 중 여러 번 확인하고 다시 앞을 봄"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "한두 번 힐끗"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "한 번도 쳐다보지 않음"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D17",
+      "internal_address": "2_개행동!J25",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 21"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E57"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바32",
+      "text": "[걷기] 몸 털기 횟수  ※구간 전체 약 30초 · 참고",
+      "scale_text": "몸 털기 공통 · 0 이상의 횟수",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D19",
+      "internal_address": "1_바디시그널!J32",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 9"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E58"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개26",
+      "text": "[걷기] 이동 거리동조 구간 수",
+      "scale_text": "이동 세 구간 중 거리 0/1이며 근접 예외가 해당 없음인 수. 보호자 접근만의 근접은 0으로 셉니다.",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "참고",
+      "usage": "automatic",
+      "value_type": "automatic",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D22",
+      "internal_address": "2_개행동!J26",
+      "automatic_formula": "=IF(COUNT('6_걷기'!I10,'6_걷기'!I12,'6_걷기'!I14)<3,\"\",SUM('6_걷기'!I10,'6_걷기'!I12,'6_걷기'!I14))",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 22"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E59"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개36",
+      "text": "[걷기] 정지 거리동조 구간 수",
+      "scale_text": "정지 세 구간 중 거리 0/1이며 근접 예외가 해당 없음인 수. 보호자가 개에게 다가와 멈춘 근접은 0으로 셉니다.",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "참고",
+      "usage": "automatic",
+      "value_type": "automatic",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D23",
+      "internal_address": "2_개행동!J36",
+      "automatic_formula": "=IF(COUNT('6_걷기'!I11,'6_걷기'!I13,'6_걷기'!I15)<3,\"\",SUM('6_걷기'!I11,'6_걷기'!I13,'6_걷기'!I15))",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 28"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E60"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개27",
+      "text": "[걷기] 거리동조율 · 보호자 접근 예외 반영",
+      "scale_text": "여섯 구간의 인정된 근접 수 ÷ 6. 거리 6칸과 필요한 근접 예외가 확인되고 보13=1/2일 때 계산. 예외 장면도 분모 6에 포함. 보13=3 무효, 미확인 시 보류.",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "참고",
+      "usage": "automatic",
+      "value_type": "automatic",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D24",
+      "internal_address": "2_개행동!J27",
+      "automatic_formula": "=IF(COUNT('3_보호자행동'!J13)=0,\"시행 조건 필요\",IF('3_보호자행동'!J13=3,\"무효\",IF(OR('3_보호자행동'!J13=1,'3_보호자행동'!J13=2),IF(COUNT('6_걷기'!I10:I15)<6,\"거리·예외 확인 필요\",SUM('6_걷기'!I10:I15)/6),\"시행 조건 확인\")))",
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 23"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E61"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바51",
+      "text": "[걷기] 몸 긁기 횟수 · 구간 전체",
+      "scale_text": "뒷발로 자신의 목·귀·몸을 연속해서 긁는 한 차례를 1회로 셈. 발이 왕복한 횟수는 세지 않음. 연속된 한 동작을 1회로 셈. 동작을 마친 뒤 다시 시작하면 새 1회. 구간 전체를 볼 수 있었고 없으면 0, 가림·미실시이면 빈칸과 사유. 시각은 필요할 때 메모. 불안 점수에 합산하지 않음.",
+      "segment": "walk",
+      "segment_label": "걷기",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "walk_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "6_걷기!D25",
+      "internal_address": "1_바디시그널!J51",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 17"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E62"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보18",
+      "text": "[낯선] 보호자 — 일어서거나 자리를 옮겼다 (개 앞으로 몸을 옮긴 것 포함)  ※0 또는 1 · 발생 기록 · 해당하면 1",
+      "scale_text": "0: 0 — 하지 않았다1: 1 — 했다",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "조건 기록",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "하지 않았다"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "했다"
+        }
+      ],
+      "display_order": [
+        0,
+        1
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D8",
+      "internal_address": "3_보호자행동!J18",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 12"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E63"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개13",
+      "text": "[낯선] 안전문 밖 요원 반응 ※첫 10초. 사람 직접 접촉을 채점하지 않음. +2→+1→−2→0→−1 순으로 해당 여부 확인; 반대 반응 혼재는 사건 시각 기록. 이 우선순위는 운영안. 안전문이 불투명하거나 시야가 가리면 미관찰로 기록.",
+      "scale_text": "-2: 요원 쪽에서 멀어지거나 뒤로 피하는 반응이 나타남-1: 접근하지 않고 시작 위치 부근에서 지켜봄+0: 안전문 쪽으로 접근·머묾, 앞발을 걸거나 뛰지 않음+1: 안전문에 앞발을 걸거나 1~2회 뛰어오름+2: 안전문을 향해 3회 이상 뛰어오름",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "양쪽·인사",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "요원 쪽에서 멀어지거나 뒤로 피하는 반응이 나타남"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "접근하지 않고 시작 위치 부근에서 지켜봄"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "안전문 쪽으로 접근·머묾, 앞발을 걸거나 뛰지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "안전문에 앞발을 걸거나 1~2회 뛰어오름"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "안전문을 향해 3회 이상 뛰어오름"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_gate"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D9",
+      "internal_address": "2_개행동!J13",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 10"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E64"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개56",
+      "text": "[낯선] 보호자 확인 ※관찰된 시선 방향. 사회적 참조 기능을 시선만으로 확정하지 않음. 보호자 반응 시각과 연결해 검토.",
+      "scale_text": "-2: 요원을 거의 보지 않고 보호자만 쳐다봄-1: 자주 보호자를 쳐다봄+0: 요원을 보다가 몇 번 보호자를 확인하고 다시 요원을 봄+1: 한두 번 힐끗 봄+2: 한 번도 쳐다보지 않음",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "요원을 거의 보지 않고 보호자만 쳐다봄"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "자주 보호자를 쳐다봄"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "요원을 보다가 몇 번 보호자를 확인하고 다시 요원을 봄"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "한두 번 힐끗 봄"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "한 번도 쳐다보지 않음"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D10",
+      "internal_address": "2_개행동!J56",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 48"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E65"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보16",
+      "text": "[낯선] 보호자 — 개에게 말을 걸거나 이름을 불렀다  ※0 또는 1 · 발생 기록 · 해당하면 1",
+      "scale_text": "0: 0 — 하지 않았다1: 1 — 했다",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "하지 않았다"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "했다"
+        }
+      ],
+      "display_order": [
+        0,
+        1
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D11",
+      "internal_address": "3_보호자행동!J16",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 10"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E66"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보23",
+      "text": "[낯선] 앉은 상태의 지시 방식. 말·손짓으로 행동을 요청한 정도. +2→−2 순으로 선택. 반복은 같은 행동을 다시 요청한 횟수. 전 구간 관찰 시만 무지시 선택. 직원 지시·안전 조치는 별도 메모.",
+      "scale_text": "-2: −2: 개에게 행동을 요청하는 말·손짓 없이 개의 행동을 지켜봄-1: −1: 말·손짓으로 한 번 요청한 뒤 같은 요청을 반복하지 않음+0: 0: 같은 행동을 두 번 요청함. 목소리·손짓의 강도를 높이지 않음+1: +1: 같은 행동을 세 번 이상 요청함. 목소리·손짓의 강도를 높이지 않음+2: +2: 요청을 반복하면서 목소리를 높이거나 손짓을 더 크게·급하게 함",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "양쪽 · 지시 정도",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "개에게 행동을 요청하는 말·손짓 없이 개의 행동을 지켜봄"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "말·손짓으로 한 번 요청한 뒤 같은 요청을 반복하지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "같은 행동을 두 번 요청함. 목소리·손짓의 강도를 높이지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "같은 행동을 세 번 이상 요청함. 목소리·손짓의 강도를 높이지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "요청을 반복하면서 목소리를 높이거나 손짓을 더 크게·급하게 함"
+        }
+      ],
+      "display_order": [
+        2,
+        1,
+        0,
+        -1,
+        -2
+      ],
+      "category_priority": [
+        2,
+        1,
+        0,
+        -1,
+        -2
+      ],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D12",
+      "internal_address": "3_보호자행동!J23",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 14"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E67"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보26",
+      "text": "보23 사유・시각",
+      "scale_text": "실제 말·손짓, 요청 횟수·시각, 직전 개 행동과 반응 후 지시를 멈추거나 바꿨는지 기록. 지시가 필요할 상황이 없었는지도 구분. 관찰 불가면 보23 빈칸.",
+      "segment": "stranger",
+      "segment_label": "기록",
+      "axis_label": "메모",
+      "usage": "memo",
+      "value_type": "memo",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!F13",
+      "internal_address": "3_보호자행동!J26",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 17"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E68"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개55",
+      "text": "[낯선] 정지선 접근 반응 ※이름 부르기 전, 안전문 안으로 들어와 정지선까지 이동하는 동안. 정지선은 상한이며 회피·굳음·으르렁이면 그 전에 중단.",
+      "scale_text": "-2: 뒤로 물러나거나 달아남 · 몸이 굳어 움직이지 못함-1: 자리에서 몸을 낮추거나 고개를 돌림+0: 선 자리에서 맞이하거나 한두 걸음 다가감+1: 곧장 마주 나아감+2: 뛰어오르거나 앞발을 올림",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "양쪽·인사",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "뒤로 물러나거나 달아남 · 몸이 굳어 움직이지 못함"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "자리에서 몸을 낮추거나 고개를 돌림"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "선 자리에서 맞이하거나 한두 걸음 다가감"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "곧장 마주 나아감"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "뛰어오르거나 앞발을 올림"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_approach"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D14",
+      "internal_address": "2_개행동!J55",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 47"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E69"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개15",
+      "text": "[낯선] 부름 뒤 반응 ※정지선에서 이름 1회 후 4초. 요원은 움직이지 않음. 접근했다면 +1/+2, 접근하지 않았다면 반응 잠재기로 −2/−1/0. 부르기 전 이미 곁에 있으면 접근 변화는 메모.",
+      "scale_text": "-2: 4초 안에 고개·몸 방향 전환이나 접근이 없음-1: 접근 없이, 부름 후 3초 초과~4초 이내에 처음 고개·몸을 돌림+0: 접근 없이, 3초 이내 고개·몸을 돌림+1: 요원 쪽으로 다가오되 뛰어오르거나 매달리지 않음+2: 다가와 뛰어오르거나 몸·앞발을 올림",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "양쪽·인사",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "4초 안에 고개·몸 방향 전환이나 접근이 없음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "접근 없이, 부름 후 3초 초과~4초 이내에 처음 고개·몸을 돌림"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "접근 없이, 3초 이내 고개·몸을 돌림"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "요원 쪽으로 다가오되 뛰어오르거나 매달리지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "다가와 뛰어오르거나 몸·앞발을 올림"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_call"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D15",
+      "internal_address": "2_개행동!J15",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 12"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E70"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개53",
+      "text": "[낯선] 접촉 경로 ※0~3 범주. 최초 접근 경로와 실제 접촉 성립을 기록. 요원은 20초 전에는 만지지 않음. 미접촉은 0이 아님.",
+      "scale_text": "0: 0 — 부름 전 스스로 접근했고 정해진 접촉 시간에 접촉 성립1: 1 — 부름 후 접근하여 정해진 접촉 시간에 접촉 성립2: 2 — 접촉 시간까지 손 닿는 곳에 오지 않아 미접촉3: 3 — 회피·굳음·으르렁 등으로 접촉 전/중 복지 중단",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "부름 전 스스로 접근했고 정해진 접촉 시간에 접촉 성립"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "부름 후 접근하여 정해진 접촉 시간에 접촉 성립"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "접촉 시간까지 손 닿는 곳에 오지 않아 미접촉"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "회피·굳음·으르렁 등으로 접촉 전/중 복지 중단"
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D16",
+      "internal_address": "2_개행동!J53",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 45"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E71"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개51",
+      "text": "[낯선 접촉] 몸의 중심 ※정지선에서 자발적으로 손 닿는 곳에 있고 회피하지 않을 때 최대 3초. 안 왔거나 접촉 전 중단이면 빈칸·개53 경로 기록. 보호자 접촉과 반대 부호·다른 조건임.",
+      "scale_text": "-2: 뒤로 물러남 · 옆으로 피함 · 등을 돌림-1: 선 자리를 지킴 · 몸을 앞으로 옮기지 않음+0: 앞으로 살짝 기울여 손을 받음+1: 몸이 닿을 만큼 앞으로 붙임+2: 몸을 얹거나 올라탐 · 뛰어오름 · 떨어지지 않음",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "양쪽·인사",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "뒤로 물러남 · 옆으로 피함 · 등을 돌림"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "선 자리를 지킴 · 몸을 앞으로 옮기지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "앞으로 살짝 기울여 손을 받음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "몸이 닿을 만큼 앞으로 붙임"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "몸을 얹거나 올라탐 · 뛰어오름 · 떨어지지 않음"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_contact"
+      ],
+      "opportunity_codes": [
+        "개53"
+      ],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D17",
+      "internal_address": "2_개행동!J51",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 43"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E72"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개52",
+      "text": "[낯선 접촉] 몸의 움직임 · 최대 3초 ※몸통 자세·자발적 움직임을 함께 봄. 엉덩이 흔들림이나 C자 자세가 없다는 이유만으로 긴장 판정하지 않음. 미접촉은 빈칸.",
+      "scale_text": "-2: 몸통·다리가 굳고 자세 변화 없이 버티는 모습-1: 몸을 낮추거나 긴장된 자세로 움직임이 제한됨+0: 뻣뻣한 버팀 없이 자연스러운 자세를 유지·변경함; 엉덩이 흔들림은 필수 아님+1: 몸을 크게 흔들거나 발 구르기·회전 움직임이 주됨+2: 반복 뛰어오름·몸 부딪치기 때문에 접촉 유지가 어려움",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "양쪽·몸상태",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "몸통·다리가 굳고 자세 변화 없이 버티는 모습"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "몸을 낮추거나 긴장된 자세로 움직임이 제한됨"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "뻣뻣한 버팀 없이 자연스러운 자세를 유지·변경함; 엉덩이 흔들림은 필수 아님"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "몸을 크게 흔들거나 발 구르기·회전 움직임이 주됨"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "반복 뛰어오름·몸 부딪치기 때문에 접촉 유지가 어려움"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_contact"
+      ],
+      "opportunity_codes": [
+        "개53"
+      ],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D18",
+      "internal_address": "2_개행동!J52",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 44"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E73"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개54",
+      "text": "[낯선] 퇴장 시 따라가기 ※요원이 정지선에서 돌아 첫걸음을 뗀 순간~안전문 통과. 추가 부름·손짓 없음. 회피 후 조기 중단이면 정상 시행과 구분해 비우고 메모.",
+      "scale_text": "-2: 요원 퇴장 시작 뒤 반대쪽으로 이동하거나 뒤로 피함-1: 요원 방향으로 움직이지 않음+0: 요원 방향으로 1~2걸음 움직인 뒤 멈추거나 다른 행동+1: 3걸음 이상 요원 방향으로 이동, 아래 +2 행동 없음+2: 따라가며 앞을 가로막거나 뛰어오름·앞발 올림",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "양쪽·인사",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "요원 퇴장 시작 뒤 반대쪽으로 이동하거나 뒤로 피함"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "요원 방향으로 움직이지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "요원 방향으로 1~2걸음 움직인 뒤 멈추거나 다른 행동"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "3걸음 이상 요원 방향으로 이동, 아래 +2 행동 없음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "따라가며 앞을 가로막거나 뛰어오름·앞발 올림"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_exit"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D20",
+      "internal_address": "2_개행동!J54",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 46"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E74"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개57",
+      "text": "[낯선] 보호자 왕복 경로 ※0~3 범주. 갔다가 다시 나온 사실만 기록. 안전기지 효과의 직접 검증·애착 유형 판정에 단독 사용하지 않음.",
+      "scale_text": "0: 0 — 보호자에게 가지 않았다1: 1 — 보호자에게 갔고 그대로 머물렀다2: 2 — 보호자에게 갔다가 다시 나와 요원 쪽을 살폈다3: 3 — 갔다 나오기를 두 번 이상 되풀이했다",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "보호자에게 가지 않았다"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "보호자에게 갔고 그대로 머물렀다"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "보호자에게 갔다가 다시 나와 요원 쪽을 살폈다"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "갔다 나오기를 두 번 이상 되풀이했다"
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D21",
+      "internal_address": "2_개행동!J57",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 49"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E75"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보17",
+      "text": "[낯선] 보호자 — 개를 붙잡거나 안아 올렸다  ※0 또는 1 · 발생 기록 · 해당하면 1",
+      "scale_text": "0: 0 — 하지 않았다1: 1 — 했다",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "하지 않았다"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "했다"
+        }
+      ],
+      "display_order": [
+        0,
+        1
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D22",
+      "internal_address": "3_보호자행동!J17",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 11"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E76"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보40",
+      "text": "보24 관찰 기회 ※0~3. 찾아온 뒤 개의 반응을 먼저 기록.",
+      "scale_text": "0: 0 — 보호자에게 찾아오지 않음1: 1 — 찾아와 머물며 접촉 회피 없음2: 2 — 찾아온 뒤 접촉 중 회피가 있었음3: 3 — 개의 반응 판독 불가",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "기회",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "보호자에게 찾아오지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "찾아와 머물며 접촉 회피 없음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "찾아온 뒤 접촉 중 회피가 있었음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "개의 반응 판독 불가"
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D23",
+      "internal_address": "3_보호자행동!J40",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 21"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E77"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보24",
+      "text": "[낯선] 찾아온 개에 대한 접촉 대응 v0.2. 보40=1/2일 때. 개가 먼저 시작한 접촉·움직임을 따르는지, 이후 접근·회피 신호에 따라 대응을 바꾸는지 구분. 해당 근거가 없으면 빈칸+사유.",
+      "scale_text": "-2: -2 (범주): 다가온 개를 밀어내거나 몸을 옮겨 접촉을 피함-1: −1: 개가 먼저 기대거나 앞발을 올리는 접촉을 받아 주고, 개가 움직이는 대로 몸·손 위치를 맞춤. 보호자가 새 접촉 형태·방향을 요구하지 않음.+0: 0: 개의 추가 접근·회피·멈춤을 확인한 뒤 접촉을 시작·멈추거나 방법을 바꿈. 변화 전후의 개 신호와 대응을 보27에 기록.+1: +1 (범주): 개가 머무는 동안 보호자가 반복해서 쓰다듬거나 접촉 유지+2: +2 (범주): 개를 붙잡거나 안아 올려 보호자 곁에 머물게 함",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "범주 · 유형 근거",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "(범주): 다가온 개를 밀어내거나 몸을 옮겨 접촉을 피함"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "개가 먼저 기대거나 앞발을 올리는 접촉을 받아 주고, 개가 움직이는 대로 몸·손 위치를 맞춤. 보호자가 새 접촉 형태·방향을 요구하지 않음."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "개의 추가 접근·회피·멈춤을 확인한 뒤 접촉을 시작·멈추거나 방법을 바꿈. 변화 전후의 개 신호와 대응을 보27에 기록."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "(범주): 개가 머무는 동안 보호자가 반복해서 쓰다듬거나 접촉 유지"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "(범주): 개를 붙잡거나 안아 올려 보호자 곁에 머물게 함"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [
+        "보40"
+      ],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D24",
+      "internal_address": "3_보호자행동!J24",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 15"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E78"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보27",
+      "text": "보24 사유・시각",
+      "scale_text": "첫 접근 시각 / 개가 요구한 접촉 / 보호자가 그대로 맞춘 행동 / 이후 신호에 따라 바꾼 행동. 단순 접촉 수용을 조율로 간주하지 않음. −1과 0이 함께 있으면 신호와 대응 변화가 확인된 0을 우선.",
+      "segment": "stranger",
+      "segment_label": "기록",
+      "axis_label": "메모",
+      "usage": "memo",
+      "value_type": "memo",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!F25",
+      "internal_address": "3_보호자행동!J27",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 18"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E79"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개14",
+      "text": "[낯선] 몸 상태 ※요원 등장~퇴장 전체의 주된 모습. 접근·접촉·퇴장 단계에서 반대 반응이 있었으면 메모. 가만히 앉거나 엎드려 있는 모습만으로 낮은 점수를 주지 않음.",
+      "scale_text": "−2 관찰 가능 시간의 절반 초과 동안 몸에 힘이 들어가 뻣뻣하게 굳음. 단지 움직이지 않는 것은 제외.−1 절반 초과 동안 몸을 움츠리고 낮춘 경직 자세 또는 조심스러운 움직임. 자연스럽게 앉거나 엎드림은 제외.0 주로 자연스럽게 서기·앉기·엎드리기·쉬기·이동. 어느 극단도 절반을 넘지 않음. 반대 반응이 섞인 경우 메모.+1 절반 초과 동안 같은 경로를 반복 이동하거나 자세를 자주 바꿈. 지속 뛰기 수준은 아님.+2 절반 초과 동안 뛰기·몸 부딪치기·급한 반복 이동이 이어짐.",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "양쪽 · 몸 상태",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "관찰 가능 시간의 절반 초과 동안 몸에 힘이 들어가 뻣뻣하게 굳음. 단지 움직이지 않는 것은 제외."
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "절반 초과 동안 몸을 움츠리고 낮춘 경직 자세 또는 조심스러운 움직임. 자연스럽게 앉거나 엎드림은 제외."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "주로 자연스럽게 서기·앉기·엎드리기·쉬기·이동. 어느 극단도 절반을 넘지 않음. 반대 반응이 섞인 경우 메모."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "절반 초과 동안 같은 경로를 반복 이동하거나 자세를 자주 바꿈. 지속 뛰기 수준은 아님."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "절반 초과 동안 뛰기·몸 부딪치기·급한 반복 이동이 이어짐."
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D26",
+      "internal_address": "2_개행동!J14",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 11"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E80"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개16",
+      "text": "[낯선] 거리 확보·위협 관련 신호 ※0~4 범주. 여러 신호는 가장 큰 코드와 나머지 시각을 기록. 강도의 등간 척도·합산값으로 사용하지 않음. 단독 고개 돌림을 두려움으로 확정하지 않음.",
+      "scale_text": "0: 0 — 아래 신호가 관찰되지 않음; 편안함의 확정은 아님1: 1 — 고개를 돌림2: 2 — 몸을 빼거나 뒤로 물러남3: 3 — 돌아서서 벗어남 · 보호자 뒤나 구석으로 감4: 4 — 으르렁거림 또는 굳은 채 노려봄",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "범주 · 신호",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "아래 신호가 관찰되지 않음; 편안함의 확정은 아님"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "고개를 돌림"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "몸을 빼거나 뒤로 물러남"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "돌아서서 벗어남 · 보호자 뒤나 구석으로 감"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 4,
+          "text": "으르렁거림 또는 굳은 채 노려봄"
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D27",
+      "internal_address": "2_개행동!J16",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 13"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E81"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개49",
+      "text": "[낯선] 발성량 ※0~3 시간 비중 · 요원 등장~퇴장. 못 들으면 빈칸; 0은 들었으나 없음. 종류·시각·관찰 초는 메모. 꼬리로 소리 의미를 정하지 않음.",
+      "scale_text": "0: 0 — 발성 없음1: 1 — 발성 누적 비중 0 초과~1/3 이하2: 2 — 1/3 초과~2/3 이하3: 3 — 2/3 초과",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "한쪽·발성량",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "발성 없음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "발성 누적 비중 0 초과~1/3 이하"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "1/3 초과~2/3 이하"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "2/3 초과"
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D30",
+      "internal_address": "2_개행동!J49",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 41"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E82"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바23",
+      "text": "[낯선 사람] 몸 털기 횟수  ※구간 전체 30초 · 참고",
+      "scale_text": "몸 털기 공통 · 0 이상의 횟수",
+      "segment": "stranger",
+      "segment_label": "낯선",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D31",
+      "internal_address": "1_바디시그널!J23",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 6"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E83"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바52",
+      "text": "[낯선사람] 몸 긁기 횟수 · 구간 전체",
+      "scale_text": "뒷발로 자신의 목·귀·몸을 연속해서 긁는 한 차례를 1회로 셈. 발이 왕복한 횟수는 세지 않음. 연속된 한 동작을 1회로 셈. 동작을 마친 뒤 다시 시작하면 새 1회. 구간 전체를 볼 수 있었고 없으면 0, 가림·미실시이면 빈칸과 사유. 시각은 필요할 때 메모. 불안 점수에 합산하지 않음.",
+      "segment": "stranger",
+      "segment_label": "낯선사람",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "stranger_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D34",
+      "internal_address": "1_바디시그널!J52",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 18"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E84"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바55",
+      "text": "[낯선사람] 사람을 향한 첫 머리 돌림 전후 꼬리 변화 · 선택 기록. 낯선 사람 쪽으로 머리를 분명히 돌린 첫 순간 앞 2초·뒤 3초를 비교. 자세·걷기 상태가 달라 비교가 어려우면 빈칸. 꼬리 모양 자체나 높이를 감정 점수로 해석하지 않음.",
+      "scale_text": "0 비교 가능한 장면에서 뚜렷한 변화 없음.1 꼬리 높이 변화 또는 흔들기 시작·멈춤이 보임. 어떤 변화인지·시각을 F열에 기록.비교 불가·가림·시작부터 보고 있었음은 빈칸과 사유. 2초·3초는 이번 시험용 관찰창.",
+      "segment": "stranger",
+      "segment_label": "낯선사람",
+      "axis_label": "범주 0/1 · 선택 관찰",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "비교 가능한 장면에서 뚜렷한 변화 없음."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "꼬리 높이 변화 또는 흔들기 시작·멈춤이 보임. 어떤 변화인지·시각을 F열에 기록."
+        }
+      ],
+      "display_order": [
+        0,
+        1
+      ],
+      "category_priority": [],
+      "optional": true,
+      "whole_interval_required": false,
+      "windows": [
+        "stranger_tail_event"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "7_낯선사람!D35",
+      "internal_address": "1_바디시그널!J55",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 19"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E85"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개34",
+      "text": "[퇴장] 새 물건 회피 정도 · 물건 앞 5초 정지와 통과 장면. 3→2→1→0 순으로 선택. 줄로 끌거나 안아서 이동해 자발 반응을 알 수 없으면 빈칸. 물건·개가 함께 보이지 않으면 빈칸. 살핌·코 접촉·무반응 통과는 관찰 메모에 선택 기록.",
+      "scale_text": "0 뚜렷한 회피 없음. 살피기·코 접촉·반응 없이 지나가기를 모두 포함. 멈춤·냄새 맡기만으로 회피로 보지 않음.1 짧게 움찔하거나 몸을 뒤로 뺐지만, 스스로 원래 경로를 따라 통과함.2 뚜렷이 뒤로 물러나거나 큰 우회 후, 스스로 다가가거나 통과함.3 뚜렷이 뒤로 물러나거나 버티며, 관찰 구간 동안 스스로 물건 옆을 통과하지 못함.",
+      "segment": "exit",
+      "segment_label": "퇴장",
+      "axis_label": "한쪽 0~3 · 회피 정도",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "뚜렷한 회피 없음. 살피기·코 접촉·반응 없이 지나가기를 모두 포함. 멈춤·냄새 맡기만으로 회피로 보지 않음."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "짧게 움찔하거나 몸을 뒤로 뺐지만, 스스로 원래 경로를 따라 통과함."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "뚜렷이 뒤로 물러나거나 큰 우회 후, 스스로 다가가거나 통과함."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "뚜렷이 뒤로 물러나거나 버티며, 관찰 구간 동안 스스로 물건 옆을 통과하지 못함."
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [
+        3,
+        2,
+        1,
+        0
+      ],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "exit_object"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "8_퇴장!D8",
+      "internal_address": "2_개행동!J34",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 27"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E86"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보14",
+      "text": "[물건] 조건 준수 ※입장·퇴장 각 5초. 복지 중단과 단순 지시 이탈은 메모로 구분. 코드3이면 물건 비교 보류. 제외된 개 모양 물체 항목은 채점하지 않음.",
+      "scale_text": "1  입장·퇴장 모두 물건 앞에서 5초 · 말·손짓·끌기 없이 멈춤 — 유효2  한 번 말하거나 짧게 멈춤 — 유효(주의)3  멈춤 미실시·유도/끌기 등 조건 이탈 — 개30·34 비교 보류",
+      "segment": "exit",
+      "segment_label": "입장",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "입장·퇴장 모두 물건 앞에서 5초 · 말·손짓·끌기 없이 멈춤 — 유효"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "한 번 말하거나 짧게 멈춤 — 유효(주의)"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "멈춤 미실시·유도/끌기 등 조건 이탈 — 개30·34 비교 보류"
+        }
+      ],
+      "display_order": [
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "entry_object",
+        "exit_object"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "8_퇴장!D9",
+      "internal_address": "3_보호자행동!J14",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 9"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E87"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개28",
+      "text": "[퇴장] 문 통과 ※입장 개5와 같은 관찰 기준. 앞서 나감의 이유나 환경 적응을 이 한 항목으로 정하지 않음.",
+      "scale_text": "-2: 문턱 앞 버팀·우회로 자발 통과하지 못함; 유도·안기·당김은 별도 기록-1: 자발 통과했으나 보호자 뒤에서 문턱을 넘음+0: 보호자와 나란히 문턱을 넘음+1: 보호자보다 앞서 걸어 문턱을 넘음+2: 앞서 뛰거나 줄이 당겨진 채 문턱을 넘음",
+      "segment": "exit",
+      "segment_label": "퇴장",
+      "axis_label": "양쪽·통과",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "문턱 앞 버팀·우회로 자발 통과하지 못함; 유도·안기·당김은 별도 기록"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "자발 통과했으나 보호자 뒤에서 문턱을 넘음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "보호자와 나란히 문턱을 넘음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "보호자보다 앞서 걸어 문턱을 넘음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "앞서 뛰거나 줄이 당겨진 채 문턱을 넘음"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "exit_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "8_퇴장!D10",
+      "internal_address": "2_개행동!J28",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 24"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E88"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개29",
+      "text": "[퇴장] 냄새 — 나가면서 코를 쓰는가",
+      "scale_text": "0: 0 — 냄새 맡는 모습 관찰1: 1 — 구간을 볼 수 있었으나 냄새 맡는 모습 없음",
+      "segment": "exit",
+      "segment_label": "퇴장",
+      "axis_label": "범주 0/1",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "냄새 맡는 모습 관찰"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "구간을 볼 수 있었으나 냄새 맡는 모습 없음"
+        }
+      ],
+      "display_order": [
+        0,
+        1
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "exit_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "8_퇴장!D11",
+      "internal_address": "2_개행동!J29",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 25"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E89"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개46",
+      "text": "[퇴장] 리드줄 상태 — 줄당김 체크  ※참고 · 목줄을 채운 뒤 문을 나갈 때까지 대체로 어느 쪽이었는지(물건 앞 5초 멈춤은 빼고) — 보6 · 보9 는 이 값과 따로, 당긴 장면 · 버틴 장면이 있었는지로 매깁니다",
+      "scale_text": "-2: 뒤에서 버텨 줄이 뒤로 팽팽함-1: 뒤처져 따라옴 · 줄은 느슨함+0: 옆에서 잘 감 · 줄이 느슨함+1: 앞에서 팽팽했다 느슨했다를 반복+2: 앞에서 계속 당겨 줄이 팽팽함",
+      "segment": "exit",
+      "segment_label": "퇴장",
+      "axis_label": "참고",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "뒤에서 버텨 줄이 뒤로 팽팽함"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "뒤처져 따라옴 · 줄은 느슨함"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "옆에서 잘 감 · 줄이 느슨함"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "앞에서 팽팽했다 느슨했다를 반복"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "앞에서 계속 당겨 줄이 팽팽함"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "exit_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "8_퇴장!D12",
+      "internal_address": "2_개행동!J46",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 38"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E90"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보5",
+      "text": "앞에서 줄을 당길 때의 요청 표현. 실제 발화로 −1/0/+1 분류. 음량·어조·반복은 별도 메모. 발화 없음·요청 없음·판독 불가·기회 없음은 빈칸+사유. 여러 사건의 건수·시각은 개59에 기록.",
+      "scale_text": "-2: −2 미사용-1: −1 부탁·제안: 질문·청유·부탁으로 행동 요청. 예: “와 줄래?”, “같이 가자”. 같은 사건에서 직접 지시 없음.+0: 0 혼합: 같은 당김 사건에서 부탁·제안과 직접 지시가 모두 확인됨. 순서 기록. 미발화·모호함을 0으로 넣지 않음.+1: +1 직접 지시: 할 행동·멈출 행동을 직접 말함. 예: “기다려”, “이리 와”, “당기지 마”. 같은 사건에서 부탁·제안 없음.+2: +2 미사용",
+      "segment": "exit",
+      "segment_label": "앞 당김",
+      "axis_label": "범주 · 요청 표현",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -1,
+        0,
+        1
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "부탁·제안: 질문·청유·부탁으로 행동 요청. 예: “와 줄래?”, “같이 가자”. 같은 사건에서 직접 지시 없음."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "혼합: 같은 당김 사건에서 부탁·제안과 직접 지시가 모두 확인됨. 순서 기록. 미발화·모호함을 0으로 넣지 않음."
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "직접 지시: 할 행동·멈출 행동을 직접 말함. 예: “기다려”, “이리 와”, “당기지 마”. 같은 사건에서 부탁·제안 없음."
+        }
+      ],
+      "display_order": [
+        -1,
+        0,
+        1
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "entry_free",
+        "exit_free"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [
+        "D03"
+      ],
+      "input_address": "8_퇴장!D13",
+      "internal_address": "3_보호자행동!J5",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 2"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E91"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보6",
+      "text": "앞에서 당기는 개에 대한 줄 대처 ※당김이 발생한 사건. 줄 팽팽함의 원인을 보호자 힘으로 추정하지 않음. 복수 사건은 개59 또는 보25~27에 시각·상반 반응 기록.",
+      "scale_text": "-2: 개가 가는 쪽으로 보호자가 이동해 줄 길이·거리를 맞춤-1: 현 위치에서 멈추어 기다림; 보호자가 줄을 당겨 이동시키지 않음+0: 멈추어 부르거나 유도한 뒤 개가 돌아오면 이동+1: 줄을 짧게 당긴 뒤 즉시 풀어 줌+2: 당긴 줄을 유지하거나 반복 당겨 개 몸을 이동시킴",
+      "segment": "exit",
+      "segment_label": "전 구간",
+      "axis_label": "양쪽 · 개입 정도",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "개가 가는 쪽으로 보호자가 이동해 줄 길이·거리를 맞춤"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "현 위치에서 멈추어 기다림; 보호자가 줄을 당겨 이동시키지 않음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "멈추어 부르거나 유도한 뒤 개가 돌아오면 이동"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "줄을 짧게 당긴 뒤 즉시 풀어 줌"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "당긴 줄을 유지하거나 반복 당겨 개 몸을 이동시킴"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "entry_free",
+        "exit_free"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "8_퇴장!D14",
+      "internal_address": "3_보호자행동!J6",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 3"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E92"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "보9",
+      "text": "뒤처지거나 버티는 개에 대한 줄 대처 ※버팀 사건이 있을 때. 안아 옮김은 이 축과 별도 메모. 복수 반응은 사건별 시각을 남기고 주된 반응을 선택.",
+      "scale_text": "-2: 개 쪽으로 되돌아가 줄을 느슨하게 함-1: 현 위치에서 줄을 느슨하게 두고 기다림+0: 줄이 느슨한 상태에서 말·허용된 유도 수단으로 이동을 요청+1: 줄을 짧게 당겼다 풀어 이동을 요청+2: 줄을 당긴 상태로 유지해 개 몸을 이동시킴",
+      "segment": "exit",
+      "segment_label": "전 구간",
+      "axis_label": "양쪽 · 개입 정도",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": -2,
+          "text": "개 쪽으로 되돌아가 줄을 느슨하게 함"
+        },
+        {
+          "schema_version": "4.0",
+          "value": -1,
+          "text": "현 위치에서 줄을 느슨하게 두고 기다림"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "줄이 느슨한 상태에서 말·허용된 유도 수단으로 이동을 요청"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "줄을 짧게 당겼다 풀어 이동을 요청"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "줄을 당긴 상태로 유지해 개 몸을 이동시킴"
+        }
+      ],
+      "display_order": [
+        -2,
+        -1,
+        0,
+        1,
+        2
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "entry_free",
+        "exit_free"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "8_퇴장!D15",
+      "internal_address": "3_보호자행동!J9",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 28 / 행 4"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E93"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "개50",
+      "text": "[퇴장] 발성량 ※0~3 시간 비중 · 퇴장 전체. 못 들으면 빈칸; 0은 들었으나 없음. 종류·시각·관찰 초는 메모. 꼬리로 소리 의미를 정하지 않음.",
+      "scale_text": "0: 0 — 발성 없음1: 1 — 발성 누적 비중 0 초과~1/3 이하2: 2 — 1/3 초과~2/3 이하3: 3 — 2/3 초과",
+      "segment": "exit",
+      "segment_label": "퇴장",
+      "axis_label": "한쪽·발성량",
+      "usage": "numeric",
+      "value_type": "category",
+      "allowed_values": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "labels": [
+        {
+          "schema_version": "4.0",
+          "value": 0,
+          "text": "발성 없음"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 1,
+          "text": "발성 누적 비중 0 초과~1/3 이하"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 2,
+          "text": "1/3 초과~2/3 이하"
+        },
+        {
+          "schema_version": "4.0",
+          "value": 3,
+          "text": "2/3 초과"
+        }
+      ],
+      "display_order": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": false,
+      "windows": [
+        "exit_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "8_퇴장!D16",
+      "internal_address": "2_개행동!J50",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 27 / 행 42"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E94"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바35",
+      "text": "[퇴장] 몸 털기 횟수  ※구간 전체 ~30초 · 참고",
+      "scale_text": "몸 털기 공통 · 0 이상의 횟수",
+      "segment": "exit",
+      "segment_label": "퇴장",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "exit_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "8_퇴장!D18",
+      "internal_address": "1_바디시그널!J35",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 10"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E95"
+      }
+    },
+    {
+      "schema_version": "4.0",
+      "code": "바53",
+      "text": "[퇴장] 몸 긁기 횟수 · 구간 전체",
+      "scale_text": "뒷발로 자신의 목·귀·몸을 연속해서 긁는 한 차례를 1회로 셈. 발이 왕복한 횟수는 세지 않음. 연속된 한 동작을 1회로 셈. 동작을 마친 뒤 다시 시작하면 새 1회. 구간 전체를 볼 수 있었고 없으면 0, 가림·미실시이면 빈칸과 사유. 시각은 필요할 때 메모. 불안 점수에 합산하지 않음.",
+      "segment": "exit",
+      "segment_label": "퇴장",
+      "axis_label": "횟수 · 합산 제외",
+      "usage": "numeric",
+      "value_type": "count",
+      "allowed_values": [],
+      "labels": [],
+      "display_order": [],
+      "category_priority": [],
+      "optional": false,
+      "whole_interval_required": true,
+      "windows": [
+        "exit_whole"
+      ],
+      "opportunity_codes": [],
+      "policy_pending": [],
+      "input_address": "8_퇴장!D21",
+      "internal_address": "1_바디시그널!J53",
+      "automatic_formula": null,
+      "source": {
+        "schema_version": "4.0",
+        "source_id": "SRC02",
+        "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+        "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+        "location": "부록 A / 표 26 / 행 20"
+      },
+      "scale_source": {
+        "schema_version": "4.0",
+        "source_id": "SRC03",
+        "filename": "리포트_산출근거_간소화S1_20261002.xlsx",
+        "sha256": "11b9fd6c1241679d175998d04e0f29fd4420228dc2abb0d0d84e72f055b22941",
+        "location": "영상 90항목!E96"
+      }
+    }
+  ]
+}
