@@ -67,6 +67,7 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
   await panel.getByRole('combobox', { name: '기준 영상', exact: true }).selectOption(videos[0].video_id);
   await panel.getByRole('combobox', { name: '실제 촬영 절차', exact: true }).selectOption('s1_confirmed');
   await panel.getByLabel('절차 확인 근거', { exact: true }).fill('합성 S1 순서 확인, 실제 시각 직접 기록');
+  await panel.getByText('실제 8구간', { exact: true }).click();
   const names = ['입장', '기준', '혼자', '재회', '무시', '걷기', '낯선 사람', '퇴장'];
   const spans = [[0, 3], [3, 6], [6, 12], [12, 18], [18, 21], [22, 28], [30, 38], [40, 44]];
   for (const [i, name] of names.entries()) {
@@ -74,15 +75,18 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
     await panel.getByLabel(`${name} 시작`, { exact: true }).fill(String(spans[i][0]));
     await panel.getByLabel(`${name} 끝`, { exact: true }).fill(String(spans[i][1]));
   }
+  await panel.getByText('걷기 실제 6국면', { exact: true }).click();
   for (const [i, name] of ['이동1', '정지1', '이동2', '정지2', '이동3', '정지3'].entries()) {
     await panel.getByLabel(`${name} 시작`, { exact: true }).fill(String(22 + i));
     await panel.getByLabel(`${name} 끝`, { exact: true }).fill(String(23 + i));
     await panel.getByRole('combobox', { name: `${name} 거리 예외`, exact: true }).selectOption(i === 2 ? 'recheck' : 'none');
     if (i === 2) await panel.getByLabel(`${name} 예외 근거`, { exact: true }).fill('합성 안전상 거리 재확인');
   }
+  await panel.getByText('다른 영상 수동 오프셋', { exact: true }).click();
   await panel.getByLabel('synthetic-cam2.mp4 오프셋 초', { exact: true }).fill('1');
   await panel.getByLabel('synthetic-cam2.mp4 동기화 근거', { exact: true }).fill('합성 같은 프레임 확인');
   await panel.getByLabel('synthetic-cam2.mp4 수동 동기화 확인', { exact: true }).check();
+  await panel.getByText('실제 사건·전환·기회', { exact: true }).click();
   await panel.getByRole('combobox', { name: '추가할 사건', exact: true }).selectOption('stranger_contact_start');
   const contact = panel.getByRole('article', { name: '요원 실제 접촉 시작 사건', exact: true });
   await contact.getByRole('combobox', { name: '사건 상태', exact: true }).selectOption('not_occurred');
@@ -94,10 +98,12 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
   await turn.getByRole('combobox', { name: '사건 상태', exact: true }).selectOption('observed');
   await turn.getByLabel('실제 사건 초', { exact: true }).fill('14');
   await turn.getByLabel('실제 맥락·사유', { exact: true }).fill('같은 자세에서 첫 명확한 고개 전환');
+  await panel.getByText('선택 관찰 · 꼬리 변화', { exact: true }).click();
   await panel.getByRole('button', { name: '바54 선택 관찰 기록', exact: true }).click();
   await panel.getByLabel('바54 첫 명확한 전환 확인', { exact: true }).check();
   for (const label of ['같은 자세', '같은 움직임', '전 2초 꼬리 관찰', '후 3초 꼬리 관찰']) await panel.getByRole('combobox', { name: `바54 ${label}`, exact: true }).selectOption('yes');
   await panel.getByLabel('바54 선택 근거', { exact: true }).fill('합성 전후 5초 비교 가능');
+  await panel.getByText('창별 실제 관찰 근거', { exact: true }).click();
   await panel.getByRole('button', { name: '관찰 근거 추가', exact: true }).click();
   const coverage = panel.getByRole('article', { name: '관찰 근거', exact: true });
   await coverage.getByLabel('관찰 근거 시작', { exact: true }).fill('0');
@@ -105,6 +111,7 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
   await coverage.getByRole('combobox', { name: '관찰 범위', exact: true }).selectOption('whole');
   await expect(coverage.getByLabel('실제 관찰 초', { exact: true })).toHaveValue('3');
   await coverage.getByLabel('관찰 근거 설명', { exact: true }).fill('입장 전체를 실제로 확인함');
+  await panel.getByText('개59 연결 메모', { exact: true }).click();
   await panel.getByRole('button', { name: '연결 메모 추가', exact: true }).click();
   await panel.getByLabel('개59 메모', { exact: true }).fill('실제 접촉은 없었으며 기존 몸 반응을 지우지 않음');
   await panel.getByLabel('메모 연결 항목', { exact: true }).fill('개12');
@@ -158,12 +165,14 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
   await expect(page.getByLabel('선택 세션', { exact: true })).toHaveValue(firstSession, { timeout: 15000 });
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('46');
   await panel.getByRole('button', { name: '확정본 수정 시작', exact: true }).click();
+  await panel.getByText('실제 8구간', { exact: true }).click();
   await panel.getByLabel('퇴장 끝', { exact: true }).fill('47');
   page.once('dialog', dialog => dialog.dismiss());
   persisted = await (await page.request.post(`/api/cases/${item.case_id}/sessions`, { headers, data: { session_id: secondSession, expected_revision: persisted.input_revision } })).json();
   await expect(panel.getByText(/다른 변경이 저장되었습니다/)).toBeVisible({ timeout: 15000 });
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('47');
   page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: '회차 안내·바로가기', exact: true }).click();
   await page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true }).click();
   await page.getByRole('button', { name: 's1rec 촬영 열기', exact: true }).click();
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('');
