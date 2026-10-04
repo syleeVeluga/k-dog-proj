@@ -58,4 +58,4 @@
 
 ## PR·병합
 
-구현 commit `2114c9f`. PR URL은 생성 후 기록한다. 승인된 병합의 최종 SHA와 로컬·원격 main 일치 확인은 PR 병합 이벤트 및 작업 완료 응답을 따른다.
+구현 commit `2114c9f`. [PR #43](https://github.com/syleeVeluga/k-dog-proj/pull/43): `veluga/uiux-layout-fixes` → `main`. 승인된 병합의 최종 SHA와 로컬·원격 main 일치 확인은 PR 병합 이벤트 및 작업 완료 응답을 따른다.
