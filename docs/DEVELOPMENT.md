@@ -29,7 +29,6 @@ uv run --locked python -X utf8 -m app.launcher
 uv sync --locked
 uv run --locked python -X utf8 -m unittest discover -s tests -v
 uv run --locked python -X utf8 -m app.import_catalogs --spec 20261002 --check
-uv run --locked python -X utf8 -m app.import_catalogs --spec 20260929 --check
 # frontend/에서 실행
 npm ci
 npm run build
@@ -47,7 +46,7 @@ S1 고객 원본은 로컬 전용 `docs/요구사항_20261003/`이다. [원본 �
 
 `domain/*_v4.py`가 S1 계약이며 `intake-4.0`, `catalog-20261002-s1.1`을 사용한다. 행동 카탈로그 90행은 직접 수치 83·자동 4·메모 3으로 구분하고 `개59` 추가 메모를 수치 분모에 넣지 않는다. 설문 원문 Q01–Q28의 28문항을 보존하며 Q26–Q28 감정의 일관성 문항의 역채점도 반영한다. 원척도·역채점·결측 정책은 S1 설문 정책 자산을 따른다. strict 모델 검사와 출처·카탈로그·관찰창·권한의 문맥 검증을 함께 수행한다.
 
-`app.import_catalogs --spec 20260929 --check`와 `*-v3.json`은 역사적 9월29일 원본 대조다. v1/v2/v3 코드/자산 중 공통 worker/저장/시험에서 참조하는 것만 남아 있으며 새 제품 쓰기 경로는 S1이다. 이 값들을 S1 기대값으로 사용하지 않는다. G01 빈 채점양식과 G04 정정 원본 확인 전 실제 S1 Excel 점수 가져오기는 비활성이다. 검수 참고파일 등록은 점수 가져오기와 별개다.
+`docs/큐브전달_20260929/`의 역사 원본15개는 2026-10-04 저장소에서 삭제하고 로컬 전용으로 제외했다. 이전 근거는 commit `8b9c960`에 남는다. 역사 원본 대조가 필요하면 담당자가 제공한 해시 검증 전달 묶음을 별도 확보하고 `app.import_catalogs --spec 20260929 --customer-dir <로컬_원본_폴더> --check`를 실행한다. `*-v3.json`은 역사 카탈로그와 현재도 쓰는28문항 설문 근거다. 역사 원본이 없으면 원본 의존 시험2개만 명시 skip하며 원본 대조 통과로 표시하지 않는다. v1/v2/v3 코드/자산 중 공통 worker/저장/시험에서 참조하는 것만 남아 있으며 새 제품 쓰기 경로는 S1이다. 이 값들을 S1 기대값으로 사용하지 않는다. G01 빈 채점양식과 G04 정정 원본 확인 전 실제 S1 Excel 점수 가져오기는 비활성이다. 검수 참고파일 등록은 점수 가져오기와 별개다.
 
 ## 전처리와 실행
 

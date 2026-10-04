@@ -8,7 +8,7 @@ K-DOG is an operator-facing dog/guardian assessment application. The final devel
 - `개발반영_20261003/`: active S00–S17 plans, R01–R25/T01–T32 traceability, D01–D06/G01–G05, source access and review record.
 - The prior 2026-09-29 C00–C15 plans and Q01–Q12 ledger (`개발반영_20260929/`) were removed from the working tree on 2026-10-03; read them at commit `056ed7a` for completed infrastructure evidence, not superseded scoring/report assumptions.
 
-- `큐브전달_20260929/`: historical v3 source, still checked by `app.import_catalogs --spec 20260929 --check`. It does not override the final S1 specification.
+- `큐브전달_20260929/`: historical originals removed from the committed tree on 2026-10-04 and ignored for local-only recovery. Commit `8b9c960` retains the historical source evidence. To re-verify, obtain the hash-verified bundle from the owner and use `app.import_catalogs --spec 20260929 --customer-dir <local-source-directory> --check`. Source-dependent historical tests explicitly skip when the bundle is absent; committed catalog/contract tests still run. It does not override the final S1 specification.
 - `DEVELOPMENT.md`, `PILOT_OPERATIONS.md`: environment, commands, installation and operations.
 - `K-DOG_Gemini영상API_적용계획_v1.0_20260907.md`: Gemini video request contract (infrastructure).
 
@@ -18,7 +18,7 @@ Earlier 55-item documents (PRD v0.4, implementation guide, M1–M6 records) were
 
 ## Build, Test, and Development Commands
 
-From `backend/`, run `uv sync --locked` to install pinned dependencies, `uv run --locked python -X utf8 -m unittest discover -s tests -v` for tests, and `uv run --locked python -X utf8 -m app.import_catalogs --spec 20261002 --check` for S1 source verification (`--spec 20260929 --check` separately verifies historical v3). `import_catalogs_v4` provides extraction functions, not a CLI. From `frontend/`, use `npm ci`, `npm run build`, and `npm run test:e2e`. Start the built app from `backend/` with `uv run --locked python -X utf8 -m app.manage serve`. See `docs/DEVELOPMENT.md` for initial account provisioning and browser installation. Repository-root checks:
+From `backend/`, run `uv sync --locked` to install pinned dependencies, `uv run --locked python -X utf8 -m unittest discover -s tests -v` for tests, and `uv run --locked python -X utf8 -m app.import_catalogs --spec 20261002 --check` for S1 source verification (`--spec 20260929 --customer-dir <local-source-directory> --check` separately verifies historical v3 when the owner-provided originals are available). `import_catalogs_v4` provides extraction functions, not a CLI. From `frontend/`, use `npm ci`, `npm run build`, and `npm run test:e2e`. Start the built app from `backend/` with `uv run --locked python -X utf8 -m app.manage serve`. See `docs/DEVELOPMENT.md` for initial account provisioning and browser installation. Repository-root checks:
 
 - `git status --short`: inspect pending changes.
 - `git diff --check`: detect whitespace errors in tracked changes.
