@@ -40,6 +40,10 @@ def basis_key(basis):
     return encode(basis.model_dump(mode="json"))
 
 
+def source_basis_key(basis):
+    return encode(basis.model_dump(mode="json", exclude={"note"}))
+
+
 def domain_for(code):
     if code.startswith("보"):
         return "education_attitude"
@@ -83,7 +87,8 @@ def select(final, common_events=()):
     observations = {item.code: item for item in sheet.observations if usable(item)}
     capture = source.source.session.recording_s1
     allowed = {code: {basis_key(basis): basis for basis in item.evidence if not placeholder(basis.note)} for code, item in observations.items()}
-    nominated = {basis_key(basis) for item in final.opinion_document.domains for basis in item.scene_refs} if final.opinion_document and final.opinion_document.state == "complete" else set()
+    allowed_sources = {code: {source_basis_key(basis) for basis in values.values()} for code, values in allowed.items()}
+    nominated = {source_basis_key(basis) for item in final.opinion_document.domains for basis in item.scene_refs} if final.opinion_document and final.opinion_document.state == "complete" else set()
     metrics = {metric.key: metric for metric in basic.calculations.metrics}
     changed_codes = set()
     if metrics.get("W") and metrics["W"].status == "calculated":
@@ -101,7 +106,7 @@ def select(final, common_events=()):
         if explicit and max(starts) >= min(ends):
             raise ValueError("common event views have no shared actual time")
         return Candidate(event_id, tuple(codes), tuple(evidence), domain_for(codes[0]), min(starts), max(ends), explicit,
-                         any(basis_key(basis) in nominated for basis in evidence), bool(set(codes) & changed_codes))
+                         any(source_basis_key(basis) in nominated for basis in evidence), bool(set(codes) & changed_codes))
 
     seen_events = set()
     for event in common_events:
@@ -109,7 +114,7 @@ def select(final, common_events=()):
             raise ValueError("duplicate common scene event")
         seen_events.add(event.event_id)
         if not event.item_codes or not set(event.item_codes) <= observations.keys() or any(
-                not any(basis_key(basis) in allowed[code] for basis in event.evidence) for code in event.item_codes):
+                not any(source_basis_key(basis) in allowed_sources[code] for basis in event.evidence) for code in event.item_codes):
             raise ValueError("scene event references another source or an unobserved item")
         # The adopted raw response proves common-event membership. Each item
         # needs an exact original observation link; extra synchronized views
@@ -124,12 +129,12 @@ def select(final, common_events=()):
             raise ValueError("zero occurrences cannot provide a positive event scene")
         value = candidate(event.event_id, event.item_codes, event.evidence, True)
         candidates.append(value)
-        covered.update((code, basis_key(basis)) for code in event.item_codes for basis in event.evidence)
+        covered.update((code, source_basis_key(basis)) for code in event.item_codes for basis in event.evidence)
     for code, item in observations.items():
         if code in COUNT_CODES and item.value == 0:
             continue
         for key, basis in allowed[code].items():
-            if (code, key) in covered:
+            if (code, source_basis_key(basis)) in covered:
                 continue
             event_id = "observation-"+analysis.digest({"code": code, "evidence": key})[:20]
             candidates.append(candidate(event_id, (code,), (basis,), False))

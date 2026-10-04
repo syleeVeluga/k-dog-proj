@@ -197,6 +197,39 @@ class RunV4Tests(unittest.TestCase):
         self.assertEqual(view["reserved_calls"], 1)
         self.assertEqual(view["steps"][-1]["code"], "call_budget_exhausted")
 
+    def test_actual_handler_passes_saved_contract_error_to_one_repair(self):
+        run = self.enqueue()
+        calls = []
+        class RepairProvider:
+            def request_v4(self, files, config, context, schema, guard):
+                guard(); calls.append(context)
+                raw = {**context["identity"], "observations": [{"code": item["code"], "value": None,
+                    "status": "unobserved", "reason": "synthetic missing"} for item in context["items"]]}
+                if len(calls) == 1:
+                    raw["schema_version"] = "synthetic-private-input"
+                if len(calls) == 2:
+                    raise ProviderError("v4_incomplete", retryable=True, uncertain=True)
+                return raw, {"total_input_tokens": 123, "timing": {"inference_seconds": .01}}
+        worker = Worker(self.store, observer=RepairProvider())
+        worker.once()
+        with self.store.connect() as db:
+            failed = json.loads(db.execute("SELECT usage_json FROM steps WHERE run_id=? AND attempt=1", (run["run_id"],)).fetchone()[0])
+        self.assertEqual(failed["code"], "v4_schema_invalid")
+        self.assertEqual(failed["total_input_tokens"], 123)
+        self.assertEqual(failed["contract_errors"][0]["location"], ["schema_version"])
+        self.assertNotIn("synthetic-private-input", encode(failed))
+        self.due(run["run_id"]); worker.once()
+        self.assertEqual(len(calls), 2)
+        self.assertNotIn("repair", calls[0])
+        self.assertIn("schema_version", calls[1]["repair"])
+        self.assertIn("4.0", calls[1]["repair"])
+        self.assertNotIn("synthetic-private-input", calls[1]["repair"])
+        self.due(run["run_id"]); worker.once()
+        self.assertEqual(len(calls), 3)
+        self.assertIn("schema_version", calls[2]["repair"])
+        self.assertNotIn("synthetic-private-input", calls[2]["repair"])
+        self.assertEqual(run_v4.view(self.store, run["run_id"], self.user)["status"], "succeeded")
+
     def test_stop_during_reserved_work_preserves_unknown_cost_and_no_output(self):
         run = self.enqueue()
         def handler(snapshot, stage, row):

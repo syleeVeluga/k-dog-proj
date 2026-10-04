@@ -3,6 +3,7 @@ import copy
 from types import SimpleNamespace
 import unittest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from app import scoring_ai_v4 as ai
 from app.domain.catalog_v4 import MEMO_CODES, NUMERIC_CODES, load_catalog_v4
@@ -72,6 +73,51 @@ def basis(clip="c1",window="entry_whole",start=0,end=30):
 
 
 class AiNormalizationV4Tests(unittest.TestCase):
+    def test_provider_schema_requires_evidence_state_and_literal_contract_version(self):
+        schema = ai.response_schema(["개5"])
+        row = schema["$defs"]["AiRowV4"]
+        self.assertTrue({"evidence", "opportunity", "validity", "whole_interval_observed", "event_ids", "vocalization"} <= set(row["required"]))
+        for definition in [schema, *schema["$defs"].values()]:
+            self.assertEqual(definition["properties"]["schema_version"]["enum"], ["4.0"])
+            self.assertNotIn("const", definition["properties"]["schema_version"])
+        observed, missing = row["anyOf"]
+        self.assertEqual(observed["properties"]["evidence"]["minItems"], 1)
+        self.assertEqual(observed["properties"]["value"]["type"], "integer")
+        self.assertEqual(missing["properties"]["value"]["type"], "null")
+        self.assertNotIn("observed", missing["properties"]["status"]["enum"])
+        self.assertEqual(ai.response_schema(["보25"])["$defs"]["AiRowV4"]["anyOf"][0]["properties"]["value"]["type"], "string")
+        self.assertIn("$ref", ai.response_schema(["바6"])["$defs"]["AiRowV4"]["anyOf"][0]["properties"]["vocalization"])
+
+    def test_repair_errors_omit_provider_input_and_preserve_actionable_location(self):
+        raw = response(group("개5"))
+        raw["schema_version"] = "synthetic-private-input"
+        try:
+            ai.AiResponseV4.model_validate_json(encode(raw))
+        except ValidationError as exc:
+            errors = ai.contract_errors(exc)
+        self.assertEqual(errors[0]["location"], ["schema_version"])
+        instruction = ai.repair_instruction(errors)
+        self.assertIn("4.0", instruction)
+        self.assertIn("schema_version", instruction)
+        self.assertNotIn("synthetic-private-input", instruction)
+        self.assertNotIn("input_value", instruction)
+        self.assertIn("null", instruction)
+
+    def test_repair_errors_redact_dynamic_extra_field_names(self):
+        raw = response(group("개5"))
+        private_key = "https://synthetic.invalid/private-key-" + "x" * 2000
+        raw[private_key] = "synthetic-private-value"
+        raw["observations"][0][private_key] = "synthetic-private-value"
+        with self.assertRaises(ValidationError) as caught:
+            ai.AiResponseV4.model_validate_json(encode(raw))
+        errors = ai.contract_errors(caught.exception)
+        instruction = ai.repair_instruction(errors)
+        self.assertNotIn(private_key, encode(errors))
+        self.assertNotIn(private_key, instruction)
+        self.assertNotIn("synthetic-private-value", instruction)
+        self.assertEqual({tuple(error["location"]) for error in errors},
+                         {("<unexpected_field>",), ("observations", 0, "<unexpected_field>")})
+
     def test_exact_86_direct_paths_83_numeric_3_memo_and_dynamic_groups(self):
         values=ai.groups();codes=[code for value in values.values() for code in value["codes"]]
         self.assertEqual(set(codes),set(NUMERIC_CODES+MEMO_CODES));self.assertEqual(len(codes),86)
@@ -120,6 +166,24 @@ class AiNormalizationV4Tests(unittest.TestCase):
         raw=response(stage,"바14",2,[basis()],whole_interval_observed=True,event_ids=["one","two"])
         raw["events"]=[{"event_id":name,"item_codes":["바14"],"views":[basis(clip,start=5+offset,end=6+offset)],"note":"same moment"} for name,clip,offset in (("one","c1",0),("two","c2",1))]
         with self.assertRaises(ValueError):ai.normalize(source,stage,raw)
+
+    def test_shared_event_identity_preserves_different_notes_but_requires_same_times_and_amount(self):
+        source=snapshot();stage=group("바14")
+        view=basis(start=5,end=6)
+        event_basis={**view,"note":"one shared body shake"}
+        row_basis={**view,"note":"body shake counted once"}
+        raw=response(stage,"바14",1,[basis(),row_basis],whole_interval_observed=True,event_ids=["one"])
+        raw["events"]=[{"event_id":"one","item_codes":["바14"],"views":[event_basis],"note":"shared event"}]
+        normalized=ai.normalize(source,stage,raw)
+        observation=next(item for item in normalized["observations"] if item["code"]=="바14")
+        self.assertEqual(observation["value"],1)
+        self.assertEqual(observation["evidence"][1]["note"],row_basis["note"])
+        self.assertEqual(normalized["events"][0]["views"][0]["note"],event_basis["note"])
+        for changes in ({"start_seconds":5.1,"observed_seconds":.9},{"observed_seconds":.5}):
+            altered=copy.deepcopy(raw)
+            altered["observations"][0]["evidence"][1].update(changes)
+            with self.subTest(changes=changes),self.assertRaisesRegex(ValueError,"actual shared-event evidence"):
+                ai.normalize(source,stage,altered)
 
     def test_count_zero_requires_whole_interval_and_d03_is_not_inferred(self):
         source=snapshot();stage=group("바14")
