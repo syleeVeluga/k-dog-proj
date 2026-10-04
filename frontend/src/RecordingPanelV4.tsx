@@ -91,6 +91,8 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
   return <section className="panel" aria-label="S1 촬영 기록">
     <div className="section-title"><h2>{item.dog_name} · {item.participant_id}</h2><button onClick={close}>닫기</button></div>
     <p>S1.1 촬영 · 입력 버전 {item.input_revision} · {session.recording_s1?.confirmed ? '확정' : '초안 / 미기록'}</p>
+    {writable && <div className="toolbar recording-actions">{editing ? <><button disabled={!record.video_id} onClick={() => save(false)}>촬영 기록 초안 저장</button><button disabled={!record.video_id} onClick={() => save(true)}>촬영 기록 확정</button></> : <button onClick={() => setEditing(true)}>확정본 수정 시작</button>}
+      {edit.dirty && <><span role="status">촬영 기록 · 저장 전</span><button onClick={() => { if (edit.discard()) { setRecord(initial(item)); setEditing(!session.recording_s1?.confirmed); } }}>촬영 입력 버리고 최신 값 보기</button></>}</div>}
     <p>입장 → 기준 → 혼자 → 재회 → 무시 → 걷기 → 낯선 사람 → 퇴장</p>
     <details><summary>S1 진행 안내</summary>
       <p>예정 길이는 30·20·60·30·20·30·30·30초이며 전환은 별도입니다. 실제 시작과 끝을 기록합니다. 분리 중 복지 중단 시 보호자가 즉시 돌아오고, 혼자 구간 끝과 재회 시작을 같은 실제 시각으로 기록합니다.</p>
@@ -115,7 +117,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
           segments: record.segments.map(value => ({ ...value, video_id: id, start_sec: null, end_sec: null })), walk_phases: record.walk_phases.map(value => ({ ...value, video_id: id, start_sec: null, end_sec: null })),
           video_offsets: record.video_offsets.filter(value => value.video_id !== id).map(value => ({ ...value, confirmed: false })) }); }}><option value="">영상 선택</option>{videoOptions}</select></label></div>
       <p className="fine">시각은 선택 영상의 실제 초입니다. 기준 영상 변경 시 구간·국면 시각을 다시 기록하고 다른 영상의 동기화를 확인합니다. 원영상에 연결된 사건과 관찰 근거는 보존됩니다.</p>
-      <h3>실제 8구간</h3><div className="table-wrap"><table><thead><tr><th>구간·상태</th><th>실제 시작·끝</th><th>사유</th></tr></thead><tbody>{SEGMENTS_V3.map(([id, label]) => {
+      <details className="recording-section"><summary>실제 8구간</summary><div className="table-wrap"><table><thead><tr><th>구간·상태</th><th>실제 시작·끝</th><th>사유</th></tr></thead><tbody>{SEGMENTS_V3.map(([id, label]) => {
         const segment = record.segments.find(value => value.segment === id)!;
         const update = (patch: Partial<typeof segment>) => change({ ...record, segments: record.segments.map(value => value.segment === id ? { ...value, ...patch } : value),
           walk_phases: id === 'walk' && patch.state ? patch.state === 'not_performed' ? [] : record.walk_phases.length ? record.walk_phases : phases(record.video_id) : record.walk_phases });
@@ -123,7 +125,8 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
           <td><Seconds label={`${label} 시작`} value={segment.start_sec} disabled={segment.state === 'not_performed'} change={start_sec => update({ start_sec })} /><Seconds label={`${label} 끝`} value={segment.end_sec} disabled={segment.state === 'not_performed'} change={end_sec => update({ end_sec })} /></td>
           <td><input aria-label={`${label} 사유`} value={segment.reason ?? ''} onChange={event => update({ reason: event.target.value || null })} /></td></tr>;
       })}</tbody></table></div>
-      <h3>걷기 실제 6국면</h3><p>출발 첫걸음부터 마지막 정지 끝까지 실제 경계를 입력합니다. 보호자 접근·안전상 예외를 거리값과 구분하여 기록합니다.</p>
+      </details>
+      <details className="recording-section"><summary>걷기 실제 6국면</summary><p>출발 첫걸음부터 마지막 정지 끝까지 실제 경계를 입력합니다. 보호자 접근·안전상 예외를 거리값과 구분하여 기록합니다.</p>
       {record.walk_phases.map((phase, index) => { const update = (patch: Partial<typeof phase>) => change({ ...record, walk_phases: record.walk_phases.map(value => value.phase === phase.phase ? { ...value, ...patch } : value) });
         return <div className="form-grid" key={phase.phase}><label>{phaseNames[index]} 상태<select value={phase.state} onChange={event => { const state = event.target.value as CaptureState; update({ state, ...(state === 'not_performed' ? { start_sec: null, end_sec: null } : {}) }); }}>{Object.entries(states).map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
           <Seconds label={`${phaseNames[index]} 시작`} value={phase.start_sec} disabled={phase.state === 'not_performed'} change={start_sec => update({ start_sec })} /><Seconds label={`${phaseNames[index]} 끝`} value={phase.end_sec} disabled={phase.state === 'not_performed'} change={end_sec => update({ end_sec })} />
@@ -131,7 +134,8 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
           <label>{phaseNames[index]} 거리 예외<select value={phase.proximity_exception} onChange={event => update({ proximity_exception: event.target.value as typeof phase.proximity_exception })}><option value="unknown">미확인</option><option value="none">예외 없음</option><option value="guardian_approach">보호자가 접근</option><option value="recheck">안전상 재확인 필요</option></select></label>
           <label>{phaseNames[index]} 예외 근거<input value={phase.proximity_note ?? ''} onChange={event => update({ proximity_note: event.target.value || null })} /></label></div>;
       })}
-      <h3>실제 사건·전환·기회</h3><label>추가할 사건<select value="" onChange={event => { if (event.target.value) addEvent(event.target.value); }}><option value="">사건 선택</option>{EVENT_CHOICES.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+      </details>
+      <details className="recording-section"><summary>실제 사건·전환·기회</summary><label>추가할 사건<select value="" onChange={event => { if (event.target.value) addEvent(event.target.value); }}><option value="">사건 선택</option>{EVENT_CHOICES.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
       {record.events.map(event => <article className="panel" key={event.event_id} aria-label={`${EVENT_CHOICES.find(([id]) => id === event.kind)?.[1]} 사건`}><h4>{EVENT_CHOICES.find(([id]) => id === event.kind)?.[1]}</h4><div className="form-grid">
         <label>사건 영상<select value={event.video_id} onChange={value => eventChange(event.event_id, { video_id: value.target.value })}>{videoOptions}</select></label>
         <label>사건 상태<select value={event.status} onChange={value => { const status = value.target.value as ActualEvent['status']; eventChange(event.event_id, { status, ...(status !== 'observed' ? { seconds: null, end_seconds: null } : {}) }); }}><option value="unobserved">미관찰·판독 불가</option><option value="observed">관찰됨</option><option value="not_occurred">미발생·미접촉</option></select></label>
@@ -143,13 +147,15 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
           [record.safe_base_sequence?.approach_event_id, record.safe_base_sequence?.contact_event_id, record.safe_base_sequence?.exploration_event_id].includes(event.event_id)}
           onClick={() => change({ ...record, events: record.events.filter(value => value.event_id !== event.event_id) })}>사건 기록 삭제</button>
         <p className="fine">메모·꼬리·안전기지에 연결된 사건은 연결을 해제한 뒤 삭제할 수 있습니다.</p></article>)}
-      <h3>다른 영상 수동 오프셋</h3><p>다른 영상 초 = 기준 영상 초 + 오프셋입니다. 확인 전에는 다른 영상의 사건을 공통 시각으로 사용하지 않습니다.</p>
+      </details>
+      <details className="recording-section"><summary>다른 영상 수동 오프셋</summary><p>다른 영상 초 = 기준 영상 초 + 오프셋입니다. 확인 전에는 다른 영상의 사건을 공통 시각으로 사용하지 않습니다.</p>
       {videos.filter(video => video.video_id !== record.video_id).map(video => { const offset = record.video_offsets.find(value => value.video_id === video.video_id);
         const update = (patch: Partial<RecordingV4['video_offsets'][number]>) => change({ ...record, video_offsets: [...record.video_offsets.filter(value => value.video_id !== video.video_id), { video_id: video.video_id, offset_seconds: null, confirmed: false, note: '', ...offset, ...patch }] });
         return <div className="form-grid" key={video.video_id}><label>{video.original_name} 오프셋 초<input type="number" step="any" value={offset?.offset_seconds ?? ''} onChange={event => update({ offset_seconds: event.target.value === '' ? null : Number(event.target.value), confirmed: false })} /></label>
           <label>{video.original_name} 동기화 근거<input value={offset?.note ?? ''} onChange={event => update({ note: event.target.value, confirmed: false })} /></label><label className="check"><input type="checkbox" checked={offset?.confirmed ?? false} onChange={event => update({ confirmed: event.target.checked })} />{video.original_name} 수동 동기화 확인</label></div>;
       })}
-      <h3>창별 실제 관찰 근거</h3><p>실제로 보거나 들은 범위와 초수를 기록합니다. 파일 길이나 다른 카메라의 겹친 시간을 관찰 초수로 더하지 않습니다.</p>
+      </details>
+      <details className="recording-section"><summary>창별 실제 관찰 근거</summary><p>실제로 보거나 들은 범위와 초수를 기록합니다. 파일 길이나 다른 카메라의 겹친 시간을 관찰 초수로 더하지 않습니다.</p>
       <button onClick={() => change({ ...record, coverage: [...record.coverage, { evidence_id: crypto.randomUUID(), window_id: 'entry_whole', video_id: record.video_id, start_seconds: null, end_seconds: null, observed_seconds: null, coverage: 'partial', modality: 'visual', note: '' }] })}>관찰 근거 추가</button>
       {record.coverage.map(value => <article className="panel" key={value.evidence_id} aria-label="관찰 근거"><div className="form-grid">
         <label>관찰 창<select value={value.window_id} onChange={event => updateCoverage(value.evidence_id, { window_id: event.target.value })}>{Object.entries(WINDOW_NAMES).map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
@@ -159,7 +165,8 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
         <label>관찰 범위<select value={value.coverage} onChange={event => updateCoverage(value.evidence_id, { coverage: event.target.value as CoverageV4['coverage'] })}><option value="partial">일부 관찰</option><option value="whole">위 범위 전체 관찰</option><option value="none">미관찰</option></select></label>
         <Seconds label="실제 관찰 초" value={value.observed_seconds} disabled={value.coverage !== 'partial'} change={observed_seconds => updateCoverage(value.evidence_id, { observed_seconds })} /><label>관찰 근거 설명<textarea value={value.note} onChange={event => updateCoverage(value.evidence_id, { note: event.target.value })} /></label></div>
         <button onClick={() => change({ ...record, coverage: record.coverage.filter(item => item.evidence_id !== value.evidence_id) })}>관찰 근거 삭제</button></article>)}
-      <h3>선택 관찰 · 꼬리 변화</h3><p>첫 명확한 고개 전환 전 2초·후 3초와 같은 자세·움직임, 앞뒤 꼬리 가시성을 확인합니다. 가림·걷기 전환에서는 값을 만들지 않습니다.</p>
+      </details>
+      <details className="recording-section"><summary>선택 관찰 · 꼬리 변화</summary><p>첫 명확한 고개 전환 전 2초·후 3초와 같은 자세·움직임, 앞뒤 꼬리 가시성을 확인합니다. 가림·걷기 전환에서는 값을 만들지 않습니다.</p>
       {(['바54', '바55'] as const).map(code => { const selected = record.tail_selections.find(value => value.code === code), kind = code === '바54' ? 'reunion_head_turn' : 'stranger_head_turn';
         const matching = record.events.filter(event => event.kind === kind);
         return <article className="panel" key={code}><h4>{code} · {code === '바54' ? '재회' : '낯선 사람'} 꼬리 변화</h4>{!selected ? <button disabled={!matching.length} onClick={() => change({ ...record, tail_selections: [...record.tail_selections, { code, event_id: matching[0].event_id, first_clear_confirmed: false, same_posture: null, same_movement: null, tail_visible_before: null, tail_visible_after: null, note: '' }] })}>{code} 선택 관찰 기록</button> : <><div className="form-grid">
@@ -168,19 +175,20 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
           {([['same_posture', '같은 자세'], ['same_movement', '같은 움직임'], ['tail_visible_before', '전 2초 꼬리 관찰'], ['tail_visible_after', '후 3초 꼬리 관찰']] as const).map(([key, label]) => <BooleanFact key={key} label={`${code} ${label}`} value={selected[key]} change={value => tailChange(code, { [key]: value })} />)}
           <label>{code} 선택 근거<textarea value={selected.note} onChange={event => tailChange(code, { note: event.target.value })} /></label></div><button onClick={() => change({ ...record, tail_selections: record.tail_selections.filter(value => value.code !== code) })}>{code} 선택 관찰 해제</button></>}</article>;
       })}
-      <h3>개59 연결 메모</h3><button onClick={() => change({ ...record, linked_memos: [...record.linked_memos, { code: '개59', memo_id: crypto.randomUUID(), text: '', item_codes: [], event_ids: [] }] })}>연결 메모 추가</button>
+      </details>
+      <details className="recording-section"><summary>개59 연결 메모</summary><button onClick={() => change({ ...record, linked_memos: [...record.linked_memos, { code: '개59', memo_id: crypto.randomUUID(), text: '', item_codes: [], event_ids: [] }] })}>연결 메모 추가</button>
       {record.linked_memos.map(memo => { const update = (patch: Partial<typeof memo>) => change({ ...record, linked_memos: record.linked_memos.map(value => value.memo_id === memo.memo_id ? { ...value, ...patch } : value) });
         return <article className="panel" key={memo.memo_id}><label>개59 메모<textarea value={memo.text} onChange={event => update({ text: event.target.value })} /></label><CodeList key={`${memo.memo_id}-${edit.key}`} label="메모 연결 항목" value={memo.item_codes} change={item_codes => update({ item_codes })} />
           <label>메모 연결 사건<select multiple value={memo.event_ids} onChange={event => update({ event_ids: Array.from(event.target.selectedOptions, value => value.value) })}>{record.events.map(event => <option key={event.event_id} value={event.event_id}>{EVENT_CHOICES.find(([id]) => id === event.kind)?.[1]} · {event.note}</option>)}</select></label>
           <button onClick={() => change({ ...record, linked_memos: record.linked_memos.filter(value => value.memo_id !== memo.memo_id) })}>연결 메모 삭제</button></article>;
       })}
-      <h3>안전기지 실제 순서</h3><p>보호자 접근 → 접촉 → 탐색 재개의 실제 사건을 연결합니다. 탐색 분류만으로 순서를 만들지 않습니다.</p>
+      </details>
+      <details className="recording-section"><summary>안전기지 실제 순서</summary><p>보호자 접근 → 접촉 → 탐색 재개의 실제 사건을 연결합니다. 탐색 분류만으로 순서를 만들지 않습니다.</p>
       {!record.safe_base_sequence ? <button onClick={() => change({ ...record, safe_base_sequence: { approach_event_id: null, contact_event_id: null, exploration_event_id: null, note: '' } })}>안전기지 사건 연결</button> : <><div className="form-grid">
         {([['approach_event_id', 'guardian_approach', '보호자 접근'], ['contact_event_id', 'guardian_contact', '보호자 접촉'], ['exploration_event_id', 'exploration_resumed', '탐색 재개']] as const).map(([key, kind, label]) => <label key={key}>안전기지 {label}<select value={record.safe_base_sequence![key] ?? ''} onChange={event => change({ ...record, safe_base_sequence: { ...record.safe_base_sequence!, [key]: event.target.value || null } })}><option value="">미확인</option>{record.events.filter(event => event.kind === kind).map(event => <option key={event.event_id} value={event.event_id}>{event.seconds ?? '미관찰'}초 · {event.note}</option>)}</select></label>)}
         <label>안전기지 순서 근거<textarea value={record.safe_base_sequence.note} onChange={event => change({ ...record, safe_base_sequence: { ...record.safe_base_sequence!, note: event.target.value } })} /></label></div><button onClick={() => change({ ...record, safe_base_sequence: null })}>안전기지 연결 해제</button></>}
+      </details>
     </fieldset>
-    {writable && <div className="toolbar">{editing ? <><button disabled={!record.video_id} onClick={() => save(false)}>촬영 기록 초안 저장</button><button disabled={!record.video_id} onClick={() => save(true)}>촬영 기록 확정</button></> : <button onClick={() => setEditing(true)}>확정본 수정 시작</button>}
-      {edit.dirty && <><span role="status">촬영 기록 · 저장 전</span><button onClick={() => { if (edit.discard()) { setRecord(initial(item)); setEditing(!session.recording_s1?.confirmed); } }}>촬영 입력 버리고 최신 값 보기</button></>}</div>}
     {viewError && <p role="alert">{viewError}</p>}
     {view && <details><summary>저장된 실제 관찰창 확인</summary>{edit.dirty && <p>아래는 마지막 저장본의 창입니다. 현재 편집 내용을 저장하면 다시 계산합니다.</p>}<div className="table-wrap"><table><thead><tr><th>관찰창</th><th>기준 영상 초</th><th>상태</th><th>전체 관찰 근거</th></tr></thead><tbody>{view.windows.map(window => <tr key={window.window_id}><td>{WINDOW_NAMES[window.window_id]}</td><td>{window.start_seconds ?? '미확인'}~{window.end_seconds ?? '미확인'}</td><td>{statusNames[window.status] ?? '확인 필요'}</td><td>영상 {window.whole_visual_observed ? '확인' : '미확인'} · 오디오 {window.whole_audio_observed ? '확인' : '미확인'}</td></tr>)}</tbody></table></div></details>}
   </section>;
