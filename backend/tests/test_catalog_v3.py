@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import tempfile
 import unittest
 from collections import Counter
 
@@ -14,6 +15,7 @@ class CatalogV3Tests(unittest.TestCase):
         cls.survey = SurveyCatalogV3.model_validate_json((ROOT / "resources/catalogs/survey-v3.json").read_text(encoding="utf-8"))
         cls.items = {item.code: item for item in cls.catalog.items}
 
+    @unittest.skipUnless((CUSTOMER_DIR_V3 / "첨부목록.json").is_file(), "역사 원본은 로컬 별도 확보가 필요합니다.")
     def test_all_attachments_and_extractions_match_read_only_sources(self):
         manifest = verify_attachments(CUSTOMER_DIR_V3)
         self.assertEqual(len(manifest["files"]), 14)
@@ -80,11 +82,22 @@ class CatalogV3Tests(unittest.TestCase):
         self.assertEqual((rules.separation_combinations[-1].initial, rules.separation_combinations[-1].later), (2, 2))
         self.assertIn("이후 50초", rules.separation_combinations[0].text)
 
+    @unittest.skipUnless((CUSTOMER_DIR_V3 / "첨부목록.json").is_file(), "역사 원본은 로컬 별도 확보가 필요합니다.")
     def test_cli_checks_historical_edition_with_an_explicit_spec(self):
         for options in (("--check",), ("--customer-dir", str(CUSTOMER_DIR_V3), "--check")):
             run = subprocess.run([sys.executable, "-X", "utf8", "-m", "app.import_catalogs", "--spec", "20260929", *options],
                                  cwd=ROOT / "backend", capture_output=True, text=True, encoding="utf-8")
             self.assertEqual(run.returncode, 0, run.stderr)
+
+    def test_missing_historical_source_reports_required_local_bundle(self):
+        with tempfile.TemporaryDirectory(prefix="kdog-historical-source-") as directory:
+            run = subprocess.run([sys.executable, "-X", "utf8", "-m", "app.import_catalogs", "--spec", "20260929",
+                                  "--customer-dir", directory, "--check"], cwd=ROOT / "backend",
+                                 capture_output=True, text=True, encoding="utf-8", timeout=30)
+        self.assertEqual(run.returncode, 2)
+        self.assertIn("--customer-dir", run.stderr)
+        self.assertIn("역사 원본은 저장소에 포함하지 않습니다", run.stderr)
+        self.assertNotIn("Traceback", run.stderr)
 
 
 if __name__ == "__main__":

@@ -42,7 +42,7 @@
 
 `api.create_app`의 기본 접수 판본은 이미 `20260929`이다. AGENTS.md의 “활성 앱은 9월 13일판” 설명은 현재 코드보다 오래되었다. 기존 전체 계획의 “C08 진행”도 현재 `main`의 구현 완료를 뜻하지 않는다. `worker.py`는 `report_v3` 실행을 `v3_report_inactive`로 종료하며, 현재 메뉴에도 새 보호자 리포트가 없다. 구형 `reporting.py`·`exports.py`의 존재를 S1.1 리포트 구현으로 계산하지 않았다.
 
-근거 코드: [API](../backend/app/api.py), [worker](../backend/app/worker.py), [메뉴](../frontend/src/App.tsx), [기본 판정](../backend/app/judgements.py).
+근거 코드: [API](../backend/app/api.py), [worker](../backend/app/worker.py), [메뉴](../frontend/src/App.tsx), [기본 판정](https://github.com/syleeVeluga/k-dog-proj/blob/360b722bde002350a7db414ad9840f66c9373f78/backend/app/judgements.py).
 
 ## 3 항목 계약과 입력의 변경
 
@@ -104,7 +104,7 @@
 - 거리 `[0,0,2,3,2,0]`은 현 계산에서 `3/6=50%`이다. 마지막 국면이 ‘보호자 접근’이면 S1.1은 `2/6=33.3%`여야 한다. 현재 입력 계약에는 이 예외가 없어 차이를 표현할 수 없다.
 - 현 `owner_threshold([2,0,0], items=2, scenes=1)`의 순수 계산 부분은 비율 `[1,0,0]`, 유형 null을 반환한다. 최종 명세 8절의 동일한 근거 부족 조건은 **비율 미산출·판정보류**다. 현재 기본 결과 화면도 이 비율을 표시할 수 있다.
 
-근거: 통합명세 7~9절, 산출근거 ‘산출 규칙’, [현재 계산](../backend/app/scoring_v3.py), [규칙 JSON](../resources/rules/scoring-v3.json), [기본 결과 화면](../frontend/src/BasicResults.tsx). 위 확인은 정적 분석과 순수 함수 추출 재현이며 실제 참가자 채점 실행 결과가 아니다.
+근거: 통합명세 7~9절, 산출근거 ‘산출 규칙’, [현재 계산](https://github.com/syleeVeluga/k-dog-proj/blob/360b722bde002350a7db414ad9840f66c9373f78/backend/app/scoring_v3.py), [규칙 JSON](../resources/rules/scoring-v3.json), [기본 결과 화면](https://github.com/syleeVeluga/k-dog-proj/blob/360b722bde002350a7db414ad9840f66c9373f78/frontend/src/BasicResults.tsx). 위 확인은 정적 분석과 순수 함수 추출 재현이며 실제 참가자 채점 실행 결과가 아니다.
 
 ## 5 설문과 외부 비교
 
@@ -119,7 +119,7 @@
 | 미국 참고값 | 명세에 낯선 사람 두려움 0.66±0.91, n=42,926 / 비사회적 두려움 1.03±0.78, n=42,764가 기록돼 있다. 전체 표본 43,517과 구별. **논문 수치·문항 동등성·사용 조건 확인 전 출력 보류**를 유지. 논문 PDF 수령만으로 비교가 승인된 것은 아니다. |
 | 국내·자체 집단 | 같은 설문 버전의 실제 응답에서 중복 제거 후 평균과 n을 산출. 견본의 4쌍은 예시 소표본이며 전체 규준·정규분포·백분위가 아니다. 국내 수정 문항 참고값을 미국 두려움 그래프나 S1 영상 코드에 섞지 않는다. |
 
-근거: 통합명세 10절·부록 D·D05/D06, [설문 집계](../backend/app/survey_v3.py), [설문 카탈로그](../resources/catalogs/survey-v3.json). C11·C14는 외부 비교 활성화 조건을 유지하되 이번 자료 수령 상태로 확인대장을 갱신해야 한다.
+근거: 통합명세 10절·부록 D·D05/D06, [설문 집계](https://github.com/syleeVeluga/k-dog-proj/blob/360b722bde002350a7db414ad9840f66c9373f78/backend/app/survey_v3.py), [설문 카탈로그](../resources/catalogs/survey-v3.json). C11·C14는 외부 비교 활성화 조건을 유지하되 이번 자료 수령 상태로 확인대장을 갱신해야 한다.
 
 ## 6 관찰 의견과 리포트
 
@@ -180,7 +180,7 @@ PDF 6쪽을 모두 렌더링해 구성과 출력 형태를 확인했다. 다음 
 | 현재 카탈로그에서 개21은 `reunion` 전체 창에 연결 | 최종 명세는 기존 전반 배치를 보존하면서 시간 정의를 D03으로 유보. 현재 전체 재회 결과를 승인된 S1 30초 정답으로 계속 취급하면 안 됨. 원관찰 범위·사건 시각 보존 필요. |
 | 새 촬영 순서를 강제하는 단조 증가 구간 검증 | 제공 예비 사례는 낯선 사람 이후 보호자 재회 등 구판 동선과 재회 길이를 포함. 현 절차에 맞추려고 실제 시각을 바꾸지 말고 **실제 촬영 절차 판본과 적용 채점 판본을 구별**하여 가능한 항목만 검증. |
 
-근거: [영상 저장 모델](../backend/app/input_models.py), [촬영 계약](../backend/app/domain/recording_v3.py), [전처리](../backend/app/preprocess_v3.py), [AI 클립 연결](../backend/app/scoring_ai.py). 새 정상 촬영의 250초+전환 시간과 실제 예비 영상의 타임라인을 혼용하면 안 된다.
+근거: [영상 저장 모델](../backend/app/input_models.py), [촬영 계약](../backend/app/domain/recording_v3.py), [전처리](https://github.com/syleeVeluga/k-dog-proj/blob/360b722bde002350a7db414ad9840f66c9373f78/backend/app/preprocess_v3.py), [AI 클립 연결](https://github.com/syleeVeluga/k-dog-proj/blob/360b722bde002350a7db414ad9840f66c9373f78/backend/app/scoring_ai.py). 새 정상 촬영의 250초+전환 시간과 실제 예비 영상의 타임라인을 혼용하면 안 된다.
 
 ### 7.3 INSV와 360도 MP4
 
@@ -202,7 +202,7 @@ PDF 6쪽을 모두 렌더링해 구성과 출력 형태를 확인했다. 다음 
 
 제공 설문 Excel은 참가자별 열과 기본정보/문항 시트로 구성된 예비 정리표다. 현재 한 행 한 참가자·첫 행 헤더의 import에 그대로 맞지 않으며, 실제 Google Forms CSV와도 별개 형식이다. 표준화·미리보기는 필요하지만 Google Forms API 실시간 연동은 이번 요청 범위가 아니다.
 
-근거: [import](../backend/app/intake.py), [영상 API](../backend/app/api.py), [업로드 화면](../frontend/src/VideoUpload.tsx), [서버 실행](../backend/app/manage.py). 현재도 외부 접속용 HTTPS public origin 설정을 갖추고 있으므로 ‘LAN 접속 자체가 불가능’하다고 판단한 것은 아니다. 3PC 실제 운영 검증이 남아 있다.
+근거: [import](../backend/app/intake.py), [영상 API](../backend/app/api.py), [업로드 화면](https://github.com/syleeVeluga/k-dog-proj/blob/360b722bde002350a7db414ad9840f66c9373f78/frontend/src/VideoUpload.tsx), [서버 실행](../backend/app/manage.py). 현재도 외부 접속용 HTTPS public origin 설정을 갖추고 있으므로 ‘LAN 접속 자체가 불가능’하다고 판단한 것은 아니다. 3PC 실제 운영 검증이 남아 있다.
 
 ## 9 검수 자료의 사용 범위
 
@@ -230,7 +230,7 @@ PDF 6쪽을 모두 렌더링해 구성과 출력 형태를 확인했다. 다음 
 
 현재 v3 AI 설정은 관찰창 조합별 **36개 항목군과 판정 1회, 계획상 37회 공급자 호출**을 사용한다. 이는 전체 입력이 가용한 경우의 기본 계획이며, 관찰 불가로 건너뛰는 군·재사용·재시도에 따라 실제 호출 수는 달라진다. ‘영상 하나를 한 번 요청하는 시간’을 전체 시간으로 볼 수 없다. 각 요청에서 클립을 올리는 구조여서 겹치는 클립의 반복 전송도 시간에 영향을 준다. S1 항목·창 변경과 다중 카메라 적용 후 호출 수는 다시 산정해야 한다.
 
-근거: [AI 설정](../backend/app/settings_v3.py), [AI 실행 구성](../backend/app/scoring_ai.py), [순차 실행](../backend/app/run_v3.py), [공급자 파일 처리](../backend/app/gemini.py). 구형 worker의 병렬 실행 코드를 새 v3 3카메라 병렬 기능으로 해석하지 않았다.
+근거: [AI 설정](https://github.com/syleeVeluga/k-dog-proj/blob/360b722bde002350a7db414ad9840f66c9373f78/backend/app/settings_v3.py), [AI 실행 구성](https://github.com/syleeVeluga/k-dog-proj/blob/360b722bde002350a7db414ad9840f66c9373f78/backend/app/scoring_ai.py), [순차 실행](https://github.com/syleeVeluga/k-dog-proj/blob/360b722bde002350a7db414ad9840f66c9373f78/backend/app/run_v3.py), [공급자 파일 처리](../backend/app/gemini.py). 구형 worker의 병렬 실행 코드를 새 v3 3카메라 병렬 기능으로 해석하지 않았다.
 
 후속 벤치마크는 다음 조건으로 설계하는 것이 적절하다. 이는 시험 제안이며 실시 결과가 아니다.
 

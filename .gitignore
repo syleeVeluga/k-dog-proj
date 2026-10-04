@@ -1,6 +1,7 @@
 # Customer source bundle contains participant responses and case reports.
 # Keep originals local; tracked source inventory records access and hashes.
 /docs/요구사항_20261003/
+/docs/큐브전달_20260929/
 
 # OS files
 .DS_Store

@@ -14,7 +14,10 @@ def main() -> None:
     parser.add_argument("--check", action="store_true", help="compare existing JSON without writing")
     args = parser.parse_args()
     extractor, default_dir = (extract_v4, CUSTOMER_DIR_V4) if args.spec == "20261002" else (extract_v3, CUSTOMER_DIR_V3)
-    for name, content in extractor(args.customer_dir or default_dir).items():
+    source_dir = args.customer_dir or default_dir
+    if args.spec == "20260929" and not (source_dir / "첨부목록.json").is_file():
+        parser.error("역사 원본은 저장소에 포함하지 않습니다. 해시 검증된 전달 묶음의 경로를 --customer-dir로 지정하세요.")
+    for name, content in extractor(source_dir).items():
         destination = ROOT / "resources" / name
         if args.check:
             if not destination.exists() or destination.read_text(encoding="utf-8") != content:
