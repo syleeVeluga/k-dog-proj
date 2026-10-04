@@ -93,3 +93,14 @@ S00 원본 추출·계약 담당, S01 초기화·복구 담당, 통합 접수/AP
 - 위 **최종 ZIP 자체**로 `scripts/verify_release.py`를 다시 실행해 exit0을 확인했다. 새 한글·공백 경로와 venv, 실제 설치, 손상 거절, 환경 격리, 로그인/접수/재시작, supervisor 종료 및 S1 필수 자산 모두 통과했다. 외부 AI 호출0이다. 이전 `4cc42b6` ZIP의 검증 결과로 대체하지 않았다.
 - 최종 문서 상대링크308개 누락0, `git diff main...HEAD --check` 통과, graft wiring graph3494노드 동기화 확인. 이 절은 ZIP 검증 후 저장소에 남기는 확정 기록이며 ZIP 안 문서는 위 source commit 시점의 스냅샷이다. 이후 변경은 이 확정 기록뿐이며 runtime은 최종 전체 시험 대상과 동일하다.
 - 최종 ZIP 독립 재감사도 통과했다. payload176개 hash/sidecar/source commit/CRC/중복/미기재 항목을 확인했고, 이전 ZIP 대비 변경11개는 문서뿐이며 코드·빌드·필수 자산 bytes는 동일하다. DEVELOPMENT 포함/제외 설명 수정도 실제 전달본에 반영됐고 잔여 actionable finding은 없다.
+
+
+## 2026-10-04 최종 통합 cold review와 퇴역 실행 제거
+
+[통합 Cold Review](K-DOG_통합ColdReview_v1.0_20261004.md)에 CR01~CR08의 수용/거절·보류 사유와 검증을 기록했다. 수용 건만 적용한 제품 코드 commit은 `940cf738c805bce18483cd4276ce91a405691066`이다. 구판 API/Worker/provider/partial import/설정·채점·전처리·리포트/화면을 제거하고 S1 권한 helper의 구판 의존을 끊었다. 원입력 읽기·초기화·동의/삭제·공통 인프라와 현재28문항 설문·역사 추출 fixture는 유지한다. S1 산식/판정 정책 변경은 없다.
+
+- 전체 backend574개/586.821초/OK/exit0/skip0, 전체 브라우저41개/3.6분/exit0/skip0, build52 modules 통과. 제거 전685개의 구판 실행 시험과 이번 수를 구별한다. 중간 fixture·구판URL 기대 수정 및 build와 E2E의 dist 경합 후 최종 전체를 다시 실행했고 실패를 통과로 합산하지 않았다.
+- 원본12개 크기/hash 일치, S1추출8개 대조 통과. 사용자의 기존 역사 원본15개 삭제는 commit에 포함하거나 복구하지 않았다. 기존 Git 원본이 있는 별도 작업 트리에서 역사 source/CLI 검증을 포함한 전체 시험을 실행했다.
+- 깨끗한 트리의 ZIP `releases/k-dog-v0.3.0-s1-windows-x64-940cf73.zip`,146 payload파일, SHA-256 `b835290bf104a13a0f7e4d9b85165e58d3331104cccecfad9620d8c2c9379e8b`. file hash/CRC·보호 원본/퇴역 실행 미포함과 현재 Windows의 실제 새 경로/venv 설치·손상 거절·환경변수 격리·접수/재시작·supervisor 종료 통과. 이후 이 리뷰 문서 갱신은 ZIP source와 구별한다.
+- 2026-10-04 공식 최신 안정판·기존 잠금/호환성 재확인, 새 의존성0·잠금 변경0. 세부 표는 통합 리뷰를 따른다. graft wiring 동기화와 변경 공백·활성 문서 상대 링크 검사 통과.
+- 실제 공급자 호출/현장 배포/고객 발송0. 실측·미수령G01/G04·D/G 확인은 후속 대장 경계를 유지한다. 병합 대상은 [PR #40](https://github.com/syleeVeluga/k-dog-proj/pull/40)이며 이번 사용자의 명시 병합 지시를 따른다.

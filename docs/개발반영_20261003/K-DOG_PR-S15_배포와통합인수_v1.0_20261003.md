@@ -125,6 +125,13 @@ S1 기능을 중앙 서버와 촬영용 3PC에서 설치·사용·복구하고, 
 
 - 최종 완료 기록의 독립 cold는 전체 시험 로그와 현재 Windows 설치 범위, 미실측/미승인 경계를 다시 대조했다. P1/P2는 없었고, 파일표의 operations-v4 시험 설명 P3를 실제 계정·백업 검증 범위로 정정했다.
 
-### 전달본 확정
+### 이전 전달본 확정
 
 최종 전달본은 `releases/k-dog-v0.3.0-s1-windows-x64-aedab57.zip`, source `aedab57c8be12cd524d366c9b07cacc82682ed37` (clean), 2,034,330 bytes/176 payload파일이다. SHA-256은 `ae3d786ddde7df4db6ce1f9ab14631854da8e1bf37fc0893dfc7336c24ec7083`이며 동봉 sidecar와 일치한다. 문서 보완 뒤 이 ZIP 자체의 `verify_release.py` 재실행도 exit0으로 통과했다. 최종 검증 이후 이 기록만 추가했으며 runtime 변경은 없다. 통합 제출은 [PR #40](https://github.com/syleeVeluga/k-dog-proj/pull/40)이다.
+
+
+### 2026-10-04 통합 cold review 반영
+
+[통합 Cold Review](K-DOG_통합ColdReview_v1.0_20261004.md)의 수용 건만 반영하여 구판 제품 API/Worker/설정·채점·전처리·리포트/화면을 제거했다. 원입력·설문 source-only·초기화·동의/삭제·공용 인프라 계약은 유지한다. 현재 전체 backend574개(586.821초)가 통과했으며 제거 전685개와 구별한다. 최신 브라우저 전체41개/3.6분/skip0와 build52 modules도 통과했다.
+
+이번 검증 ZIP은 `releases/k-dog-v0.3.0-s1-windows-x64-940cf73.zip`, source `940cf738c805bce18483cd4276ce91a405691066`(clean),146 payload파일이다. SHA-256 `b835290bf104a13a0f7e4d9b85165e58d3331104cccecfad9620d8c2c9379e8b`, manifest/file hash·CRC 및 실제 새 경로/venv 설치·손상 거절·환경변수 격리·접수/재시작·supervisor 종료가 통과했다. 실제 AI 호출0, 기존 운영 자료 변경0. 이후의 리뷰 문서 갱신은 이 ZIP source commit과 구별한다. 이전 `aedab57` 전달본은 이번 실행 제거를 반영하지 않는다.
