@@ -33,4 +33,4 @@
 
 2026-10-05 [공식 PyPI](https://pypi.org/project/pydantic/)의 최신 안정판과 선택한 잠금은 Pydantic2.13.5이다. [공식 BaseModel API](https://docs.pydantic.dev/latest/api/base_model/)의 `model_dump(exclude=...)`와 [Gemini 구조화 출력](https://ai.google.dev/gemini-api/docs/structured-output)의 `required`·`enum`·`anyOf` 지원을 확인했다. 패키지·잠금·SDK 추가나 업그레이드는 없다.
 
-이번 제품 변경과 시험·S08/리뷰 기록만 commit한다. 원격 기본 브랜치는 `main`이며 시작 시 로컬/원격 기준 commit이 같았다. 최종 commit·PR 및 원격 상태 확인은 병합 준비 후 기록한다. UI·배포 ZIP·운영 앱 활성 설정과 점수는 변경하지 않는다.
+제품 변경·회귀 시험 commit은 `76ab07dcac2f681dfdcd866e3f93ef1073bc1e62`이며 [PR #42](https://github.com/syleeVeluga/k-dog-proj/pull/42)에서 검토한다. 이번 제품 변경과 시험·S08/리뷰 기록만 commit했다. 원격 기본 브랜치는 `main`이며 시작 시 로컬/원격 기준 commit이 같았다. 사용자 요청에 따라 최종 PR head의 원격 검사·리뷰와 병합 가능 상태를 확인한 뒤 병합하고 로컬 `main`을 동기화한다. 병합 확정 상태는 PR과 저장소 밖 작업 기록으로 확인한다. UI·배포 ZIP·운영 앱 활성 설정과 점수는 변경하지 않는다.
