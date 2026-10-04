@@ -47,6 +47,28 @@ class SceneSelectionV4Tests(unittest.TestCase):
         self.assertEqual(len(profile.scenes),1)
         self.assertEqual(len(profile.scenes[0].evidence),3)
 
+    def test_common_event_note_difference_preserves_nomination_and_one_scene(self):
+        evidence=views()
+        final,pointer,batch=fixture({'개5':1},cameras=3,evidence={'개5':evidence},scene_codes=('개5',))
+        event=scenes.CommonEventV4.model_validate_json(analysis.encode({'event_id':'common-one','item_codes':['개5'],
+            'evidence':[{**basis,'note':'shared recorded event'} for basis in evidence],
+            'source_ref':'runs/source.json','source_hash':'e'*64}))
+        profile=reports.build(final,pointer,batch=batch,common_events=(event,))
+        self.assertEqual(len(profile.scenes),1)
+        self.assertEqual(profile.scene_review,())
+        self.assertEqual(profile.scenes[0].priority,'completed_opinion')
+        self.assertEqual(len(profile.scenes[0].evidence),3)
+        self.assertEqual(profile.scenes[0].evidence[0].note,'shared recorded event')
+        row=next(item for item in final.basic_document.input_document.sheet.observations if item.code=='개5')
+        self.assertEqual(row.evidence[0].note,evidence[0]['note'])
+
+    def test_observation_scene_id_preserves_original_full_evidence_key(self):
+        final,_,_=fixture({'개5':1})
+        selected,_=scenes.select(final)
+        basis=next(item for item in final.basic_document.input_document.sheet.observations if item.code=='개5').evidence[0]
+        expected='observation-'+analysis.digest({'code':'개5','evidence':analysis.encode(basis.model_dump(mode='json'))})[:20]
+        self.assertEqual(selected[0].event_id,expected)
+
     def test_before_after_change_is_selected_before_unrelated_earlier_scene(self):
         final,pointer,batch=fixture({'개5':1,'개58':2,'개18':0})
         profile=reports.build(final,pointer,batch=batch)
@@ -75,7 +97,8 @@ class SceneSelectionV4Tests(unittest.TestCase):
     def test_common_event_foreign_hash_video_and_time_are_rejected(self):
         evidence=views(cameras=1)
         final,pointer,batch=fixture({'개5':1},evidence={'개5':evidence})
-        for change in ({'video_sha256':'0'*64},{'video_id':'foreign'},{'start_seconds':1.0,'observed_seconds':29.0}):
+        for change in ({'video_sha256':'0'*64},{'video_id':'foreign'},{'camera_id':'CAM2'},{'window_id':'baseline_whole'},
+                       {'start_seconds':1.0,'observed_seconds':29.0},{'end_seconds':29.0,'observed_seconds':29.0},{'observed_seconds':29.0}):
             with self.subTest(change=change):
                 altered=EvidenceV4.model_validate_json(analysis.encode(evidence[0])).model_copy(update=change)
                 event=scenes.CommonEventV4(event_id='foreign',item_codes=('개5',),evidence=(altered,),source_ref='runs/source.json',source_hash='e'*64)

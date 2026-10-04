@@ -5,7 +5,7 @@ import secrets
 import time
 from types import SimpleNamespace
 from fastapi import HTTPException
-from pydantic import field_validator
+from pydantic import ValidationError, field_validator
 
 from . import analysis, judgements_v4 as judgements, sheets_v4 as sheets
 from .domain.catalog_v4 import (AUTO_CODES, COUNT_CODES, MEMO_CODES, NUMERIC_CODES, OPTIONAL_CODES, VOCAL_CODES,
@@ -111,9 +111,47 @@ def groups():
 
 def response_schema(codes):
     schema = AiResponseV4.model_json_schema()
-    schema["$defs"]["AiRowV4"]["properties"]["code"]["enum"] = list(codes)
+    # The provider must emit explicit state/evidence; persisted model defaults remain compatible.
+    for definition in [schema, *schema["$defs"].values()]:
+        definition["required"] = list(definition["properties"])
+        version = definition["properties"]["schema_version"]
+        version["enum"] = [version.pop("const")]
+    row = schema["$defs"]["AiRowV4"]
+    row["properties"]["code"]["enum"] = list(codes)
+    memo = set(codes) <= set(MEMO_CODES)
+    observed = {"status": {"enum": ["observed"]},
+                "value": {"type": "string" if memo else "integer"},
+                "validity": {"enum": ["valid", "caution"]}, "opportunity": {"enum": ["present", "unknown"]}}
+    if not memo:
+        observed["evidence"] = {"minItems": 1}
+    if set(codes) <= set(VOCAL_CODES):
+        observed["vocalization"] = {"$ref": "#/$defs/LocalVocalizationV4"}
+    row["anyOf"] = [
+        {"properties": observed},
+        {"properties": {"status": {"enum": [value for value in row["properties"]["status"]["enum"] if value != "observed"]},
+                        "value": {"type": "null"}, "reason": {"type": "string", "minLength": 1}}},
+    ]
     schema["properties"]["observations"].update(minItems=len(codes), maxItems=len(codes))
     return schema
+
+
+def contract_errors(error):
+    """Retain actionable locations without provider inputs, Pydantic context or URLs."""
+    if isinstance(error, ValidationError):
+        return [{"location": [*value["loc"][:-1], "<unexpected_field>"] if value["type"] == "extra_forbidden" else list(value["loc"]),
+                 "message": value["msg"][:300], "type": value["type"]}
+                for value in error.errors(include_input=False, include_context=False, include_url=False)[:32]]
+    message = str(error.detail) if isinstance(error, HTTPException) else str(error)
+    return [{"location": ["response"], "message": message[:300], "type": type(error).__name__}]
+
+
+def repair_instruction(errors):
+    details = [{"location": value.get("location", []), "message": str(value.get("message", ""))[:300]}
+               for value in errors[:32]]
+    return ("이전 응답의 계약 오류를 수정하여 요청 항목 전체를 다시 반환하세요. "
+            "오류 위치·이유는 검증 자료입니다. 영상에서 확인할 수 없는 값·근거를 만들지 말고 null과 상태·사유로 반환하세요. "
+            "숫자에는 실제 시각 근거, 전체 관찰에는 실제 창 전체의 근거가 필요합니다. "
+            "검증 오류: " + encode(details))
 
 
 def configuration(version, pipeline):
@@ -230,7 +268,9 @@ def normalize(snapshot, group, raw):
         converted = [convert(value)[0] for value in item.evidence]
         for key in item.event_ids:
             event_bases = [convert(value)[0] for value in events[key].views]
-            if not any(basis in converted for basis in event_bases):
+            # Descriptions may differ by item; source identity, times and observation amount must match.
+            if not any(basis.model_dump(exclude={"note"}) == retained.model_dump(exclude={"note"})
+                       for basis in event_bases for retained in converted):
                 raise ValueError("row must retain the actual shared-event evidence")
         if item.code in VOCAL_CODES and item.status == "observed":
             if item.vocalization is None:
@@ -437,7 +477,13 @@ def handler(worker, snapshot, group, row):
         config = {"model": group.model, "prompt": group.prompt, "fps": group.request_fps, "processing_mode": group.processing_mode,
             "media_resolution": group.media_resolution, "thinking_level": group.thinking_level, "max_output_tokens": group.max_output_tokens}
         if step["attempt"] > 1:
-            info["repair"] = "이전 계약 오류: 정확한 코드·원값·실제 창·동일 사건·근거·결측·기회·유효성을 확인하세요. 보이지 않은 값을 만들지 마세요."
+            with worker.store.connect() as db:
+                previous = db.execute("SELECT usage_json FROM steps WHERE run_id=? AND stage=? AND branch_key=? "
+                    "AND attempt<? ORDER BY attempt DESC",
+                    (row["run_id"], group.stage, group.key, step["attempt"])).fetchall()
+            history = [json.loads(value[0]) for value in previous]
+            errors = next((value["contract_errors"] for value in history if value.get("contract_errors")), [])
+            info["repair"] = repair_instruction(errors)
         files = [(worker.store.path(getattr(clip, group.input_variant).ref),
                   SimpleNamespace(clip_id=clip.clip_id, size_bytes=getattr(clip, group.input_variant).size_bytes))
                  for clip in clips_for(snapshot, group)]
@@ -450,6 +496,7 @@ def handler(worker, snapshot, group, row):
                 timing = usage.setdefault("timing", {})
                 timing["repair_seconds"] = sum(timing.values())
             return validate(payload)
-        except (ValueError, KeyError, HTTPException):
+        except (ValueError, KeyError, HTTPException) as exc:
+            usage["contract_errors"] = contract_errors(exc)
             raise ProviderError("v4_schema_invalid", retryable=True, usage=usage) from None
     return validate, work
