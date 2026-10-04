@@ -35,7 +35,7 @@ class SheetsV4Tests(unittest.TestCase):
             for user in self.people.values():
                 db.execute("INSERT INTO users(username,role,password_hash,active) VALUES(?,?,?,1)", (user.username, user.role, "synthetic-password"))
             case = create_case(self.store, db, model(CaseCreateV3, participant_id="SYNTHETIC", event_id="TEST", dog_name="합성견"),
-                               "operator", SURVEY_VERSION, s1=True)
+                               "operator", SURVEY_VERSION)
             self.case_id = case
         self.payload = b"synthetic source bytes, never participant video"
         self.video_hash = hashlib.sha256(self.payload).hexdigest()

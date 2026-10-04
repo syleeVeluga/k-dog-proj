@@ -37,10 +37,11 @@ class LauncherTests(unittest.TestCase):
         for name in release.RETIRED_FILES:
             self.assertFalse(release.product_file(name), name)
         for name in (*[path for path in REQUIRED if path.startswith("resources/")],
-                     "backend/app/worker.py", "backend/app/analysis.py", "backend/app/legacy/scoring_v1.py",
-                     "resources/rules/scoring-v1.json", "resources/rules/preprocess-v2.json",
-                     "resources/catalogs/survey-v2.json", "resources/report-presentation-v1.json"):
+                     "backend/app/worker.py", "backend/app/analysis.py", "backend/app/gemini_v4.py",
+                     "resources/catalogs/survey-v2.json", "resources/catalogs/survey-v1-to-v2.json",
+                     "resources/catalogs/survey-v3.json", "resources/rules/scoring-v3.json"):
             self.assertTrue(release.product_file(name), name)
+            self.assertTrue((REPO_ROOT / name).is_file(), name)
         self.assertFalse(release.product_file("resources/source/customer.xlsx"))
         self.assertFalse(release.product_file("backend/tests/test_scoring.py"))
         self.assertFalse(release.product_file("docs/요구사항_20261003/customer.docx"))

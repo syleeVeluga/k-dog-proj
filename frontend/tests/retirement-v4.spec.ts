@@ -20,13 +20,13 @@ test('S1 imports use the pinned Forms workflow and old endpoints cannot save', a
   await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toBeVisible();
   await expect(page.getByText('설문 파일 가져오기 (CSV·Excel)', { exact: true })).toHaveCount(0);
   const blocked = await page.request.post('/api/imports/commit', { headers: { 'X-KDOG-Request': '1' }, data: { rows: [] } });
-  expect(blocked.status()).toBe(409);
+  expect(blocked.status()).toBe(404);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await page.getByLabel('계정', { exact: true }).fill('developer');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(page.getByRole('heading', { name: '공급자 키 관리', exact: true })).toBeVisible();
   expect(Object.keys(await (await page.request.get('/api/developer/settings')).json())).toEqual(['keys']);
-  expect((await page.request.post('/api/developer/settings/drafts', { headers: { 'X-KDOG-Request': '1' }, data: {} })).status()).toBe(409);
+  expect((await page.request.post('/api/developer/settings/drafts', { headers: { 'X-KDOG-Request': '1' }, data: {} })).status()).toBe(404);
   expect(errors).toEqual([]);
 });

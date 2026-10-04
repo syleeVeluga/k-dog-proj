@@ -18,10 +18,28 @@ from .domain.validation_v4 import validate_sheet_v4
 from .intake import selected_session
 from .input_models import Model
 from .recording_v4 import build_windows_v4, observation_clear_v4, validate_recording_media_v4
-from .sheets import manager, owner, reference
 from .storage import encode, now, uid
 
 Reason = Annotated[str, Field(min_length=1, max_length=2000, pattern=r"\S")]
+
+
+def manager(user, db=None):
+    if user.role not in ("operator", "admin"):
+        raise HTTPException(403, "배정·공개·재개방은 운영자 권한입니다.")
+    if db is not None:
+        account = db.execute("SELECT role,active FROM users WHERE username=?", (user.username,)).fetchone()
+        if not account or not account["active"] or account["role"] not in ("operator", "admin"):
+            raise HTTPException(403, "운영 계정 권한이 변경되었습니다.")
+
+
+def owner(db, row, user):
+    account = db.execute("SELECT role,active FROM users WHERE username=?", (user.username,)).fetchone()
+    if not account or not account["active"] or account["role"] not in ("operator", "reviewer", "admin") or row["assigned_username"] != user.username or not row["active"]:
+        raise HTTPException(403, "활성 상태로 본인에게 배정된 시트만 조회·입력할 수 있습니다.")
+
+
+def reference(row):
+    return {"sheet_id": row["sheet_id"], "revision": row["revision"], "ref": row["manifest_ref"], "hash": row["manifest_hash"]}
 
 
 class SheetRevisionV4(ContractV4):

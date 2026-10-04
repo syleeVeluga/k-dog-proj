@@ -34,7 +34,7 @@ class RunV4Tests(unittest.TestCase):
         with self.store.connect(write=True) as db:
             for name, role in (("operator", "operator"), ("reviewer", "reviewer"), ("developer", "developer")):
                 db.execute("INSERT INTO users(username,role,password_hash) VALUES(?,?,?)", (name, role, "synthetic-no-login"))
-            self.case_id = create_case(self.store, db, CaseCreateV3(event_id="SYNTHETIC", participant_id="S1-RUN", dog_name="합성견"), "operator", SURVEY_VERSION, s1=True)
+            self.case_id = create_case(self.store, db, CaseCreateV3(event_id="SYNTHETIC", participant_id="S1-RUN", dog_name="합성견"), "operator", SURVEY_VERSION)
         sample = sample_snapshot()
         raw = b"synthetic source, not a participant video"
         self.store.path("videos/v1.mp4").write_bytes(raw)

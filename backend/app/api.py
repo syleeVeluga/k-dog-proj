@@ -23,18 +23,13 @@ from pydantic import Field, SecretStr
 
 from app.auth import authenticate, check_password, create_user, password_hash, token_hash, user_view
 from app.domain.catalog import SurveyCatalog
-from app.domain.catalog_v3 import BehaviorCatalogV3, SurveyCatalogV3
-from app.domain.sheets_v3 import SheetDocumentV3
-from app.domain.contracts import SessionSegments, SurveyAnswers, SurveyResult
-from app.scoring import survey_scores
-from app.survey_v3 import SurveyResultV3, survey_scores_v3
+from app.domain.catalog_v3 import SurveyCatalogV3
 from app.survey_v4 import SurveyResultV4, survey_scores_v4
 from app.input_models import (
-    CaseView, ImportColumns, Key, Login, Message,
-    Revision, SegmentTimes, SegmentsEdit, SessionEdit, SessionMetadata, StoredVideo, UserCreate, UserEdit, UserView,
-    StimulusEdit, StimulusTimes,
+    ImportColumns, Key, Login, Message,
+    Revision, SessionEdit, SessionMetadata, StoredVideo, UserCreate, UserEdit, UserView,
 )
-from app.intake import create_case, new_session, preview, read_rows, save_survey, selected_session, template
+from app.intake import create_case, new_session, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, now, uid
 from app import settings
 from app import forms_v4, uploads, capture_v4, preprocess_v4, sheets_v4
@@ -49,11 +44,9 @@ from app import validation_data_v4, exports_v4
 from app.domain.runs_v4 import ActionV4, RunViewV4, StartV4
 from app.domain.preprocess_v4 import BatchV4, PreprocessRequestV4, PreprocessStatusV4
 from app.domain.media_v4 import PreservedMediaRegistrationV4, StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
-from app import sheets, judgements, run_v3, scoring_ai, settings_v3
-from app.input_models_v3 import RunCreateV3, RunActionV3, RunViewV3
 from app import secrets as vault
 from app.input_models import Model
-from app.input_models_v3 import CaseCreateV3, CaseEditV3, CaseViewV3, ImportCommitV3, ImportPreviewV3, ImportMappingV3, SurveyEditV3, RecordingEditV3, PreprocessStatusV3
+from app.input_models_v3 import CaseCreateV3, CaseEditV3, SurveyEditV3
 from app.input_models_v4 import CaseViewV4, SessionV4
 
 
@@ -82,8 +75,7 @@ COOKIE = "kdog_session"
 DEFAULT_DATA = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "K-DOG" / "data"
 
 
-def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127.0.0.1:8000",
-               intake_spec: Literal["20260913", "20260929", "20261002"] = "20261002") -> FastAPI:
+def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127.0.0.1:8000") -> FastAPI:
     origin = urlsplit(public_origin)
     if not origin.hostname or origin.scheme not in ("http", "https") or origin.path or origin.query or origin.fragment or origin.username:
         raise ValueError("K-DOG origin에는 스킴·호스트·포트만 지정하세요.")
@@ -92,8 +84,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     store = Store(data_dir or DEFAULT_DATA)
     old_catalog = SurveyCatalog.model_validate_json((REPO_ROOT / "resources/catalogs/survey-v2.json").read_bytes())
     current_catalog = SurveyCatalogV3.model_validate_json((REPO_ROOT / "resources/catalogs/survey-v3.json").read_bytes())
-    s1 = intake_spec == "20261002"
-    catalog = current_catalog if intake_spec != "20260913" else old_catalog
+    catalog = current_catalog
     dummy_password = password_hash(secrets.token_urlsafe(32))
     @asynccontextmanager
     async def lifespan(app):
@@ -108,7 +99,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
 
     @app.get("/api/health")
     def health():
-        return {"service": "K-DOG", "instance": os.environ.get("KDOG_INSTANCE", ""), "spec": intake_spec}
+        return {"service": "K-DOG", "instance": os.environ.get("KDOG_INSTANCE", ""), "spec": "20261002"}
 
     @app.middleware("http")
     async def boundary(request: Request, call_next):
@@ -147,16 +138,11 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         def check(request: Request, user: Annotated[UserView, Depends(current)]):
             if user.role not in allowed:
                 raise HTTPException(403, "이 작업에 필요한 권한이 없습니다.")
-            if s1:
-                path = request.url.path
-                retired = {"runs-v3", "sheets", "score-sheets", "basic-results", "behavior-v3", "preprocess", "recording", "stimuli", "segments", "settings-v3", "scoring-ai", "imports"}
-                if retired.intersection(path.split("/")) or path.endswith("/trial") or path.startswith("/api/developer/settings/"):
-                    raise HTTPException(409, "이전 판본 실행 경로는 종료되었습니다. S1 화면을 사용하세요.")
-                if path.startswith(("/api/cases", "/api/import", "/api/forms")):
-                    with store.connect() as db:
-                        old = db.execute("SELECT 1 FROM cases WHERE manifest_schema_version!='intake-4.0' LIMIT 1").fetchone()
-                    if old:
-                        raise HTTPException(409, "S1 초기화가 필요합니다. 관리 명령으로 원입력을 보존하여 전환하세요.")
+            if request.url.path.startswith(("/api/cases", "/api/forms")):
+                with store.connect() as db:
+                    old = db.execute("SELECT 1 FROM cases WHERE manifest_schema_version!='intake-4.0' LIMIT 1").fetchone()
+                if old:
+                    raise HTTPException(409, "S1 초기화가 필요합니다. 관리 명령으로 원입력을 보존하여 전환하세요.")
             return user
         return check
 
@@ -165,40 +151,11 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     administrator = roles("admin")
     developer = roles("developer")
 
-    @app.get("/api/scoring-ai/status", response_model=scoring_ai.AiReadinessV3)
-    def scoring_ai_status(user=Depends(reader)):
-        return scoring_ai.readiness(store)
 
-    @app.post("/api/cases/{case_id}/sessions/{session_id}/runs-v3", response_model=RunViewV3, status_code=201)
-    def new_run_v3(case_id: Key, session_id: Key, value: RunCreateV3, user=Depends(writer)):
-        return scoring_ai.start(store, case_id, session_id, value, user)
-
-    @app.get("/api/cases/{case_id}/sessions/{session_id}/runs-v3", response_model=list[RunViewV3])
-    def runs_v3(case_id: Key, session_id: Key, user=Depends(reader)):
-        with store.connect() as db:
-            case = store.case(db, case_id)
-            selected_session(store.manifest(case), session_id)
-            ids = [row[0] for row in db.execute("SELECT run_id FROM runs WHERE case_id=? AND session_id=? AND kind='scoring_v3' ORDER BY created_at DESC", (case_id, session_id))]
-        return [run_v3.view(store, run_id, user) for run_id in ids]
-
-    @app.get("/api/runs-v3/{run_id}", response_model=RunViewV3)
-    def run_status_v3(run_id: Key, user=Depends(reader)):
-        return run_v3.view(store, run_id, user)
-
-    @app.post("/api/runs-v3/{run_id}/stop", response_model=RunViewV3)
-    def stop_run_v3(run_id: Key, value: RunActionV3, user=Depends(writer)):
-        return run_v3.action(store, run_id, value, user)
-
-    @app.post("/api/runs-v3/{run_id}/retry", response_model=RunViewV3)
-    def retry_run_v3(run_id: Key, value: RunActionV3, user=Depends(writer)):
-        return run_v3.action(store, run_id, value, user, retry=True)
-
-    @app.get("/api/developer/settings", response_model=DeveloperKeys | settings.SettingsView)
+    @app.get("/api/developer/settings", response_model=DeveloperKeys)
     def developer_settings(user=Depends(developer)):
-        if s1:
-            return {"keys": [{"provider": provider, "available": vault.available(store, provider),
-                "reference": (vault.state(store, provider) or {}).get("reference", "environment")} for provider in vault.PROVIDERS]}
-        return settings.view(store)
+        return {"keys": [{"provider": provider, "available": vault.available(store, provider),
+            "reference": (vault.state(store, provider) or {}).get("reference", "environment")} for provider in vault.PROVIDERS]}
 
     @app.get("/api/settings-s1", response_model=settings_v4.AiSettingsViewV4)
     def ai_settings_s1(user=Depends(developer)):
@@ -252,41 +209,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def ai_reveal_s1(sheet_id: Key, value: sheets_v4.SheetRevealV4, user=Depends(reader)):
         return scoring_ai_v4.reveal(store, sheet_id, value, user)
 
-    @app.get("/api/developer/settings-v3", response_model=settings_v3.AiSettingsViewV3)
-    def ai_settings_v3(user=Depends(developer)):
-        return settings_v3.view(store)
-
-    @app.post("/api/developer/settings-v3/drafts", response_model=settings.Version, status_code=201)
-    def ai_draft_v3(value: settings_v3.AiDraftV3, user=Depends(developer)):
-        return settings_v3.save(store, value, user.username)
-
-    @app.get("/api/developer/settings-v3/{version}", response_model=settings_v3.AiDifferenceV3)
-    def ai_difference_v3(version: Key, user=Depends(developer)):
-        return settings_v3.difference(store, version)
-
-    @app.post("/api/developer/settings-v3/{version}/activate", response_model=settings.ActiveVersion)
-    def ai_activate_v3(version: Key, value: settings_v3.AiActivateV3, user=Depends(developer)):
-        return settings_v3.activate(store, version, value, user.username)
-
-    @app.post("/api/developer/settings-v3/{version}/trial", response_model=settings_v3.AiTrialResultV3)
-    def ai_trial_v3(version: Key, value: settings_v3.AiTrialV3, user=Depends(developer)):
-        return settings_v3.trial(store, version, value, user.username)
-
-    @app.post("/api/developer/settings/drafts", status_code=201, response_model=settings.Version)
-    def draft_settings(value: settings.DraftEdit, user=Depends(developer)):
-        return settings.save(store, value, user.username)
-
-    @app.get("/api/developer/settings/{version}", response_model=settings.Difference)
-    def settings_difference(version: Key, user=Depends(developer)):
-        return settings.difference(store, version)
-
-    @app.post("/api/developer/settings/{version}/activate", response_model=settings.ActiveVersion)
-    def activate_settings(version: Key, value: settings.Activate, user=Depends(developer)):
-        return settings.activate(store, version, value, user.username)
-
-    @app.post("/api/developer/settings/{version}/trial", response_model=settings.TrialResult)
-    def trial_settings(version: Key, value: settings.TrialRequest, user=Depends(developer)):
-        return settings.trial(store, version, value, user.username)
 
     @app.put("/api/developer/keys/{provider}", response_model=settings.KeyState)
     def register_key(provider: Literal["gemini", "openai", "anthropic"], value: SecretEdit, user=Depends(developer)):
@@ -371,9 +293,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.audit(db, user.username, username, "user.update", value.model_dump())
         return UserView(username=username, role=value.role, active=value.active)
 
-    @app.get("/api/developer/status", response_model=Message)
-    def developer_status(user=Depends(developer)):
-        return Message(message="개발자 인증 완료. Gemini 모델·키는 서버 실행 환경에서 설정하세요. 설정 편집 UI는 M5 예정입니다.")
 
     @app.get("/api/catalog/survey", response_model=SurveyCatalog | SurveyCatalogV3)
     def survey_catalog(version: str | None = None, user=Depends(reader)):
@@ -385,7 +304,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             return current_catalog
         raise HTTPException(422, "지원하지 않는 설문 판본입니다.")
 
-    @app.get("/api/cases", response_model=list[CaseView | CaseViewV3 | CaseViewV4])
+    @app.get("/api/cases", response_model=list[CaseViewV4])
     def cases(response: Response, user=Depends(reader)):
         values, unavailable = [], 0
         with store.connect() as db:
@@ -399,18 +318,18 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         response.headers["X-KDOG-Unavailable-Cases"] = str(unavailable)
         return values
 
-    @app.post("/api/cases", response_model=CaseView | CaseViewV3 | CaseViewV4, status_code=201)
+    @app.post("/api/cases", response_model=CaseViewV4, status_code=201)
     def add_case(value: CaseCreateV3, user=Depends(writer)):
         with store.connect(write=True) as db:
-            case_id = create_case(store, db, value, user.username, catalog.version, s1=s1)
+            case_id = create_case(store, db, value, user.username, catalog.version)
             return store.view(store.case(db, case_id))
 
-    @app.get("/api/cases/{case_id}", response_model=CaseView | CaseViewV3 | CaseViewV4)
+    @app.get("/api/cases/{case_id}", response_model=CaseViewV4)
     def get_case(case_id: Key, user=Depends(reader)):
         with store.connect() as db:
             return store.view(store.case(db, case_id))
 
-    @app.put("/api/cases/{case_id}", response_model=CaseView | CaseViewV3 | CaseViewV4)
+    @app.put("/api/cases/{case_id}", response_model=CaseViewV4)
     def edit_case(case_id: Key, value: CaseEditV3, user=Depends(writer)):
         with store.connect(write=True) as db:
             row = store.case(db, case_id, expected=value.expected_revision)
@@ -429,13 +348,13 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 "after": value.model_dump(exclude={"expected_revision"})})
             return store.view(store.case(db, case_id))
 
-    @app.put("/api/cases/{case_id}/survey", response_model=CaseView | CaseViewV3 | CaseViewV4)
+    @app.put("/api/cases/{case_id}/survey", response_model=CaseViewV4)
     def survey(case_id: Key, value: SurveyEditV3, user=Depends(writer)):
         with store.connect(write=True) as db:
             save_survey(store, db, case_id, value, user.username, current_catalog if value.survey_version == current_catalog.version else old_catalog)
             return store.view(store.case(db, case_id))
 
-    @app.get("/api/cases/{case_id}/survey/result", response_model=SurveyResult | SurveyResultV3 | SurveyResultV4)
+    @app.get("/api/cases/{case_id}/survey/result", response_model=SurveyResultV4)
     def survey_result(case_id: Key, session_id: Key | None = None, user=Depends(reader)):
         """Deterministic, so it is computed on read: domain answer counts and the separation type, never a total (01 §6)."""
         with store.connect() as db:
@@ -443,13 +362,9 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         session = next((item for item in manifest.sessions if item.session_id == (session_id or manifest.selected_session_id)), None)
         if session is None:
             raise HTTPException(422, "이 참가자의 촬영 회차가 아닙니다.")
-        if s1:
-            if session.survey_version != current_catalog.version:
-                raise HTTPException(409, "이 회차는 과거 설문 원자료 참고 상태입니다. S1 설문 산출에 포함하지 않습니다.")
-            return survey_scores_v4(SessionV4.model_validate(session), current_catalog)
-        if session.survey_version == current_catalog.version:
-            return survey_scores_v3(session, current_catalog)
-        return survey_scores(SurveyAnswers(answers=session.survey, not_applicable=tuple(session.survey_not_applicable)), old_catalog)
+        if session.survey_version != current_catalog.version:
+            raise HTTPException(409, "이 회차는 과거 설문 원자료 참고 상태입니다. S1 설문 산출에 포함하지 않습니다.")
+        return survey_scores_v4(SessionV4.model_validate(session), current_catalog)
 
     @app.post("/api/cases/{case_id}/deletion", response_model=Message)
     def request_deletion(case_id: Key, value: Revision, user=Depends(writer)):
@@ -461,13 +376,13 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.audit(db, user.username, case_id, "deletion.request", {})
         return Message(message="삭제 요청을 접수했습니다.")
 
-    @app.post("/api/cases/{case_id}/sessions", response_model=CaseView | CaseViewV3 | CaseViewV4)
+    @app.post("/api/cases/{case_id}/sessions", response_model=CaseViewV4)
     def sessions(case_id: Key, value: SessionEdit, user=Depends(writer)):
         with store.connect(write=True) as db:
             row = store.case(db, case_id, expected=value.expected_revision)
             manifest = store.manifest(row)
             if value.session_id is None:
-                session = new_session(catalog.version, value.note, s1=s1)
+                session = new_session(catalog.version, value.note)
                 manifest.sessions.append(session)
                 manifest.selected_session_id = session.session_id
             else:
@@ -477,7 +392,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             store.save(db, row, manifest, user.username, "session.select")
             return store.view(store.case(db, case_id))
 
-    @app.post("/api/cases/{case_id}/videos", response_model=CaseView | CaseViewV3 | CaseViewV4, status_code=201)
+    @app.post("/api/cases/{case_id}/videos", response_model=CaseViewV4, status_code=201)
     async def upload_video(case_id: Key, request: Request,
                            session_id: Key,
                            filename: Annotated[str, Query(min_length=1, max_length=200)],
@@ -554,7 +469,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 raise HTTPException(403, "분석·피드백 동의가 거절된 자료입니다.")
             return FileResponse(path, filename=f"{video_id}{path.suffix}", content_disposition_type="inline")
 
-    @app.put("/api/cases/{case_id}/sessions/{session_id}", response_model=CaseView | CaseViewV3 | CaseViewV4)
+    @app.put("/api/cases/{case_id}/sessions/{session_id}", response_model=CaseViewV4)
     def session_metadata(case_id: Key, session_id: Key, value: SessionMetadata, user=Depends(writer)):
         with store.connect(write=True) as db:
             row = store.case(db, case_id, expected=value.expected_revision)
@@ -912,160 +827,12 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         data, mime, filename = exports_v4.download(store, export_id, user)
         return Response(data, media_type=mime, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
-    @app.put("/api/cases/{case_id}/sessions/{session_id}/segments", response_model=CaseView | CaseViewV3 | CaseViewV4)
-    def session_segments(case_id: Key, session_id: Key, value: SegmentsEdit, user=Depends(writer)):
-        """Store the eight segment windows against one registered file; confirming locks them for scoring (변경검토 §5)."""
-        with store.connect(write=True) as db:
-            row = store.case(db, case_id, expected=value.expected_revision)
-            manifest = store.manifest(row)
-            session = selected_session(manifest, session_id)
-            if session.protocol_version != "protocol-20260913-v2":
-                raise HTTPException(409, "촬영 판본에 맞는 기록 화면을 사용하세요. 미확인 판본은 새 촬영 세션을 사용하세요.")
-            if value.video_id not in {video.video_id for video in session.videos}:
-                raise HTTPException(422, "이 촬영 세션에 등록된 영상이 아닙니다.")
-            try:
-                SessionSegments(session_id=session_id, video_id=value.video_id, windows=tuple(
-                    {"segment": window.segment, "start_sec": window.start_sec, "end_sec": window.end_sec,
-                     "source": "operator_confirmed" if value.confirm else "operator_draft"} for window in value.windows))
-            except ValueError as exc:
-                raise HTTPException(422, "8구간은 절차 순서대로, 끝이 시작보다 늦고 서로 겹치지 않아야 합니다.") from exc
-            session.segments = SegmentTimes(video_id=value.video_id, confirmed=value.confirm, windows=value.windows)
-            store.save(db, row, manifest, user.username, "segments.confirm" if value.confirm else "segments.update")
-            return store.view(store.case(db, case_id))
-
-    @app.put("/api/cases/{case_id}/sessions/{session_id}/recording", response_model=CaseViewV3)
-    def session_recording(case_id: Key, session_id: Key, value: RecordingEditV3, user=Depends(writer)):
-        from app.domain.catalog_v3 import PROTOCOL_VERSION
-        from app.domain.recording_v3 import RecordingV3
-        from app.recording_v3 import validate_recording_media
-        candidate = value.recording.model_dump(mode="json")
-        candidate["confirmed"] = value.confirm
-        try:
-            recording = RecordingV3.model_validate_json(json.dumps(candidate))
-        except ValueError as exc:
-            raise HTTPException(422, str(exc)) from exc
-        with store.connect() as db:
-            row = store.case(db, case_id, expected=value.expected_revision)
-            session = selected_session(store.manifest(row), session_id)
-            if session.protocol_version != PROTOCOL_VERSION:
-                raise HTTPException(409, "신판 촬영 기록은 신판 세션에만 저장할 수 있습니다.")
-        validate_recording_media(store, session, recording)
-        with store.connect(write=True) as db:
-            row = store.case(db, case_id, expected=value.expected_revision)
-            manifest = store.manifest(row)
-            session = selected_session(manifest, session_id)
-            # Recheck after media probing: deletion/session/revision changes must not publish a stale recording.
-            session.recording = recording
-            store.save(db, row, manifest, user.username, "recording.confirm" if value.confirm else "recording.update")
-            return store.view(store.case(db, case_id))
-
-    @app.put("/api/cases/{case_id}/sessions/{session_id}/stimuli", response_model=CaseView | CaseViewV3 | CaseViewV4)
-    def session_stimuli(case_id: Key, session_id: Key, value: StimulusEdit, user=Depends(writer)):
-        from app.domain.validation import validate_stimulus_moments
-        from app.media import MediaError, probe
-        with store.connect() as db:
-            row = store.case(db, case_id, expected=value.expected_revision)
-            session = selected_session(store.manifest(row), session_id)
-            if session.protocol_version != "protocol-20260913-v2":
-                raise HTTPException(409, "이 촬영 판본의 실제 사건은 촬영 기록 화면에서 저장하세요.")
-            video = next((v for v in session.videos if v.video_id == value.video_id), None)
-            if video is None:
-                raise HTTPException(422, "이 촬영 세션에 등록된 영상이 아닙니다.")
-        try:
-            source = store.path(video.storage_ref)
-            with source.open("rb") as handle:
-                if hashlib.file_digest(handle, "sha256").hexdigest() != video.sha256:
-                    raise HTTPException(409, "기준 영상 해시가 등록 당시와 다릅니다.")
-            validate_stimulus_moments(value.moments, probe(source)["duration_sec"])
-        except (MediaError, OSError, ValueError) as exc:
-            raise HTTPException(422, "자극 시각과 기준 영상 길이·형식·파일 접근 상태를 확인하세요.") from exc
-        with store.connect(write=True) as db:
-            row = store.case(db, case_id, expected=value.expected_revision)
-            manifest = store.manifest(row)
-            session = selected_session(manifest, session_id)
-            session.stimuli = StimulusTimes(video_id=value.video_id, input_revision=value.expected_revision + 1, moments=value.moments)
-            store.save(db, row, manifest, user.username, "stimuli.update")
-            return store.view(store.case(db, case_id))
-
-    @app.get("/api/cases/{case_id}/sessions/{session_id}/preprocess", response_model=PreprocessStatusV3)
-    def preprocessing_status(case_id: Key, session_id: Key, user=Depends(reader)):
-        from app import preprocess
-        return preprocess.status(store, case_id, session_id)
-
-    @app.get("/api/catalog/behavior-v3", response_model=BehaviorCatalogV3)
-    def behavior_catalog(user=Depends(reader)):
-        return sheets.CATALOG
 
     @app.get("/api/scoring/accounts", response_model=list[UserView])
     def scoring_accounts(user=Depends(writer)):
         with store.connect() as db:
             return [user_view(row) for row in db.execute("SELECT * FROM users WHERE active=1 AND role IN ('operator','reviewer','admin') ORDER BY username")]
 
-    @app.get("/api/cases/{case_id}/sessions/{session_id}/sheets", response_model=list[sheets.SheetSummaryV3])
-    def scoring_sheets(case_id: Key, session_id: Key, user=Depends(reader)):
-        return sheets.list_sheets(store, case_id, session_id, user)
-
-    @app.post("/api/cases/{case_id}/sessions/{session_id}/sheets", response_model=sheets.SheetSummaryV3, status_code=201)
-    def scoring_assign(case_id: Key, session_id: Key, value: sheets.SheetAssignmentV3, user=Depends(writer)):
-        return sheets.assign(store, case_id, session_id, value, user)
-
-    @app.get("/api/sheets/{sheet_id}", response_model=sheets.SheetViewV3)
-    def scoring_sheet(sheet_id: Key, user=Depends(reader)):
-        return sheets.view(store, sheet_id, user)
-
-    @app.get("/api/sheets/{sheet_id}/revisions/{revision}", response_model=SheetDocumentV3)
-    def scoring_revision(sheet_id: Key, revision: Annotated[int, Field(ge=1)], user=Depends(reader)):
-        return sheets.revision(store, sheet_id, revision, user)
-
-    @app.put("/api/sheets/{sheet_id}", response_model=sheets.SheetSummaryV3)
-    def scoring_save(sheet_id: Key, value: sheets.SheetEditV3, user=Depends(reader)):
-        return sheets.revise(store, sheet_id, value, user, "save")
-
-    @app.post("/api/sheets/{sheet_id}/submit", response_model=sheets.SheetSummaryV3)
-    def scoring_submit(sheet_id: Key, value: sheets.SheetReasonV3, user=Depends(reader)):
-        return sheets.revise(store, sheet_id, value, user, "submit")
-
-    @app.post("/api/sheets/{sheet_id}/reopen", response_model=sheets.SheetSummaryV3)
-    def scoring_reopen(sheet_id: Key, value: sheets.SheetReasonV3, user=Depends(writer)):
-        return sheets.revise(store, sheet_id, value, user, "reopen")
-
-    @app.patch("/api/sheets/{sheet_id}/assignment", response_model=sheets.SheetSummaryV3)
-    def scoring_active(sheet_id: Key, value: sheets.SheetActiveV3, user=Depends(writer)):
-        return sheets.revise(store, sheet_id, value, user, "assignment")
-
-    @app.post("/api/sheets/{sheet_id}/grants", response_model=sheets.SheetSummaryV3)
-    def scoring_grant(sheet_id: Key, value: sheets.SheetGrantV3, user=Depends(writer)):
-        return sheets.grant(store, sheet_id, value, user)
-
-    @app.post("/api/sheets/{sheet_id}/reveal", response_model=scoring_ai.AiRevealResultV3)
-    def scoring_reveal(sheet_id: Key, value: sheets.SheetRevealV3, user=Depends(reader)):
-        return scoring_ai.reveal(store, sheet_id, value, user)
-
-    @app.get("/api/sheets/{sheet_id}/basic-results", response_model=list[judgements.ResultSummaryV3])
-    def basic_results(sheet_id: Key, user=Depends(reader)):
-        return judgements.list_results(store, sheet_id, user)
-
-    @app.post("/api/sheets/{sheet_id}/basic-results", response_model=judgements.ResultViewV3, status_code=201)
-    def basic_calculate(sheet_id: Key, value: judgements.CalculateV3, user=Depends(reader)):
-        return judgements.create(store, sheet_id, value, user)
-
-    @app.get("/api/basic-results/{result_id}", response_model=judgements.ResultViewV3)
-    def basic_result(result_id: Key, user=Depends(reader)):
-        return judgements.view(store, result_id, user)
-
-    @app.get("/api/basic-results/{result_id}/revisions/{revision}", response_model=judgements.ResultViewV3)
-    def basic_result_revision(result_id: Key, revision: Annotated[int, ApiPath(ge=1)], user=Depends(reader)):
-        return judgements.view(store, result_id, user, revision)
-
-    @app.put("/api/basic-results/{result_id}/decisions", response_model=judgements.ResultViewV3)
-    def basic_judgements(result_id: Key, value: judgements.JudgementEditV3, user=Depends(reader)):
-        return judgements.revise(store, result_id, value, user)
-
-    @app.post("/api/cases/{case_id}/sessions/{session_id}/preprocess", response_model=PreprocessStatusV3)
-    def preprocessing_start(case_id: Key, session_id: Key, value: Revision, user=Depends(writer)):
-        from app import preprocess
-        preprocess.execute(store, case_id, session_id, user.username, expected_revision=value.expected_revision)
-        return preprocess.status(store, case_id, session_id)
 
     @app.get("/api/templates/{kind}")
     def input_template(kind: Literal["participants", "survey"], format: Literal["csv", "xlsx"] = "csv", user=Depends(writer)):
@@ -1101,50 +868,10 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def forms_commit(value: forms_v4.FormsCommitRequestV4, user=Depends(writer)):
         return forms_v4.commit(store, value, user.username)
 
-    @app.post("/api/imports/preview", response_model=ImportPreviewV3)
-    async def import_preview(request: Request, kind: Literal["participants", "survey"],
-                             format: Literal["csv", "xlsx"], mapping: Annotated[str | None, Query(max_length=20000)] = None,
-                             sheet: str | None = None, user=Depends(writer)):
-        data = bytearray()
-        async for chunk in request.stream():
-            data.extend(chunk)
-            if len(data) > 8 * 1024 * 1024:
-                raise HTTPException(413, "표준 입력 파일은 8 MiB 이하로 나누어 등록하세요.")
-        with store.connect() as db:
-            from pydantic import ValidationError
-            try:
-                layout = ImportMappingV3.model_validate_json(mapping) if mapping else None
-            except ValidationError:
-                raise HTTPException(422, "열 연결 형식을 확인하세요.") from None
-            return preview(store, db, bytes(data), kind, format, catalog, layout, sheet_name=sheet, catalogs={old_catalog.version: old_catalog, current_catalog.version: current_catalog})
 
-    @app.post("/api/imports/columns", response_model=ImportColumns)
-    async def import_columns(request: Request, format: Literal["csv", "xlsx"], sheet: str | None = None, user=Depends(writer)):
-        data = bytearray()
-        async for chunk in request.stream():
-            data.extend(chunk)
-            if len(data) > 8 * 1024 * 1024:
-                raise HTTPException(413, "입력 파일은 8 MiB 이하로 나누어 등록하세요.")
-        layout = {}
-        rows = read_rows(bytes(data), format, sheet, layout)
-        return {**layout, "columns": [{"key": str(value), "label": str(value)} for value in (rows[0] if rows else []) if value is not None]}
-
-    @app.post("/api/imports/commit", response_model=Message)
-    def commit_import(value: ImportCommitV3, user=Depends(writer)):
-        with store.connect(write=True) as db:
-            for row in value.rows:
-                if row.participant is not None and row.survey is None and row.case_id is None:
-                    if (row.event_id, row.participant_id) != (row.participant.event_id, row.participant.participant_id):
-                        raise HTTPException(422, "미리보기 참가자 연결이 일치하지 않습니다.")
-                    create_case(store, db, row.participant, user.username, catalog.version, s1=s1)
-                elif row.participant is None and row.survey is not None and row.case_id is not None:
-                    current_case = store.case(db, row.case_id)
-                    if (row.event_id, row.participant_id) != (current_case["event_id"], current_case["participant_id"]):
-                        raise HTTPException(422, "미리보기 참가자 연결이 일치하지 않습니다.")
-                    save_survey(store, db, row.case_id, row.survey, user.username, current_catalog if row.survey.survey_version == current_catalog.version else old_catalog)
-                else:
-                    raise HTTPException(422, "참가자 또는 설문 행을 올바르게 지정하세요.")
-        return Message(message=f"{len(value.rows)}개 정상 행을 저장했습니다.")
+    @app.api_route("/api/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], include_in_schema=False)
+    def missing_api(path: str):
+        raise HTTPException(404, "API 경로가 없습니다.")
 
     build = REPO_ROOT / "frontend/dist"
     if build.is_dir():

@@ -14,7 +14,7 @@ from app import exports_v4 as exports, sheets_v4 as sheets, maintenance
 from app.domain.exports_v4 import ExportSnapshotV4
 from app.domain.sheets_v4 import SheetReferenceV4, SheetDocumentV4
 from app.storage import Store, encode, uid
-from app.sheets import AI_ACCOUNT
+from app.domain.sheets_v4 import AI_ACCOUNT
 from tests.test_opinions_v4 import model
 from tests import test_report_runs_v4 as report_fixture
 

@@ -14,7 +14,8 @@ from fastapi import HTTPException
 
 from app import analysis, maintenance, reset_s1
 from app.domain.catalog import SURVEY_IDS
-from app.gemini import GeminiObserver, ProviderError
+from app.gemini import ProviderError
+from app.gemini_v4 import GeminiScorerV4
 from app.input_models_v3 import ManifestV3, SessionV3
 from app.storage import Store, encode, now
 
@@ -210,6 +211,22 @@ class ResetS1Tests(unittest.TestCase):
             analysis.write_output(self.store, self.old_run, self.old_step, {"score": 99})
         self.assertFalse(self.store.path("runs/old-run/old-step/output.json").exists())
 
+    def test_python_worker_never_dispatches_a_legacy_queue(self):
+        from unittest.mock import Mock
+        from app.worker import Worker
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE runs SET status='queued',claim_token=NULL,lease_expires_at=NULL")
+        provider = Mock()
+        worker = Worker(self.store, observer=provider)
+        self.assertFalse(worker.once())
+        self.assertEqual(provider.mock_calls, [])
+        with self.store.connect() as db:
+            row = db.execute("SELECT status,claim_token FROM runs WHERE run_id='old-run'").fetchone()
+            self.assertEqual(row["status"], "stopped")
+            self.assertIsNone(row["claim_token"])
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM steps").fetchone()[0], 1)
+        self.assertFalse(self.store.path("runs/old-run/old-step/output.json").exists())
+
     def test_cli_worker_refuses_old_queue_before_claim_and_starts_after_reset(self):
         with self.store.connect(write=True) as db:
             db.execute("UPDATE runs SET status='queued',claim_token=NULL,lease_expires_at=NULL")
@@ -298,7 +315,7 @@ class ResetS1Tests(unittest.TestCase):
     def test_provider_upload_name_is_durable_before_inference_and_delete_failure(self):
         config = {"model": "synthetic", "prompt": "synthetic", "processing_mode": "static", "fps": 1,
                   "media_resolution": "low", "max_output_tokens": 256}
-        clip = SimpleNamespace(size_bytes=1, name="synthetic")
+        clip = SimpleNamespace(size_bytes=1, clip_id="synthetic")
         def transport(method, url, key, **kwargs):
             if url.endswith("/upload/v1beta/files"):
                 self.assertEqual(reset_s1.pending_remote_cleanup(self.store)[0]["status"], "upload_response_unconfirmed")
@@ -307,9 +324,9 @@ class ResetS1Tests(unittest.TestCase):
                 return {"file": {"name": "files/synthetic", "state": "ACTIVE", "uri": "synthetic"}}, {}
             self.assertEqual(reset_s1.pending_remote_cleanup(self.store)[0]["remote_file_name"], "files/synthetic")
             raise ProviderError("synthetic_failure", uncertain=True)
-        with patch("app.secrets.credential", return_value=("synthetic-key", "credential")), patch("app.gemini.request", side_effect=transport):
+        with patch("app.gemini_v4.credential", return_value=("synthetic-key", "credential")):
             with self.assertRaises(ProviderError):
-                GeminiObserver(self.store).request_v3([(self.store.path(self.video[0]), clip)], config,
+                GeminiScorerV4(self.store, transport=transport).request_v4([(self.store.path(self.video[0]), clip)], config,
                     {"run_id": "old-run", "audit_actor": "admin"}, {}, lambda: None)
         self.assertEqual(len(reset_s1.pending_remote_cleanup(self.store)), 1)
         reset_s1.execute(self.store, "admin")

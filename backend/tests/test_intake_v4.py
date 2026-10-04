@@ -52,30 +52,23 @@ class IntakeV4Tests(AppCase):
         path = f"/api/cases/{item['case_id']}/sessions/{item['selected_session_id']}"
         for url in (path + "/sheets", path + "/runs-v3", path + "/preprocess", "/api/catalog/behavior-v3"):
             response = self.client.get(url)
-            self.assertEqual(response.status_code, 409, response.text)
-            self.assertIn("S1", response.text)
+            self.assertEqual(response.status_code, 404, response.text)
         with self.store.connect() as db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM score_sheets").fetchone()[0], 0)
             self.assertEqual(db.execute("SELECT COUNT(*) FROM runs").fetchone()[0], 0)
 
     def test_previous_manifest_requires_explicit_reset_before_default_operations(self):
-        old_app = create_app(self.root, intake_spec="20260929")
-        self.app = old_app
-        old_client = self.client_for("operator")
-        response = old_client.post("/api/cases", json={"participant_id": "OLD", "event_id": "TEST", "dog_name": "합성견"})
-        self.assertEqual(response.status_code, 201, response.text)
+        item = self.make_old_case()
         self.app = create_app(self.root)
         current = self.client_for("operator")
         self.assertEqual(current.get("/api/cases").status_code, 409)
-        self.assertEqual(current.get(f"/api/cases/{response.json()['case_id']}").status_code, 409)
+        self.assertEqual(current.get(f"/api/cases/{item['case_id']}").status_code, 409)
 
     def test_s1_readiness_follows_authentication_and_role_checks(self):
-        self.app = create_app(self.root, intake_spec="20260929")
-        self.client = self.client_for("operator")
-        self.make_case()
+        self.make_old_case()
         self.app = create_app(self.root)
         anonymous = self.client_for()
-        for path in ("/api/cases", "/api/sheets/missing", "/api/scoring-ai/status"):
+        for path in ("/api/cases", "/api/score-sheets-s1/missing", "/api/scoring-ai-s1/readiness"):
             result = anonymous.get(path)
             self.assertEqual(result.status_code, 401, result.text)
             self.assertEqual(result.headers["Cache-Control"], "no-store")

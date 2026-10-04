@@ -21,7 +21,7 @@ class AppCase(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="kdog-test-")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.app = create_app(self.root, intake_spec="20260913")
+        self.app = create_app(self.root)
         self.store = self.app.state.store
         with self.store.connect(write=True) as db:
             for role in ROLES:
@@ -61,3 +61,17 @@ class AppCase(unittest.TestCase):
         return {"expected_revision": item["input_revision"], "session_id": item["selected_session_id"],
                 "survey_version": self.version, "not_applicable": list(not_applicable),
                 "answers": {item_id: (None if item_id in not_applicable else value) for item_id in SURVEY_IDS}}
+
+    def make_old_case(self, participant_id="OLD"):
+        """Build a pre-reset input fixture without a retired product factory."""
+        from app.input_models_v3 import ManifestV3, SessionV3
+        item = self.make_case(participant_id)
+        manifest = ManifestV3(case_id=item["case_id"], event_id=item["event_id"], participant_id=participant_id,
+            input_revision=item["input_revision"], selected_session_id=item["selected_session_id"],
+            sessions=[SessionV3(session_id=item["selected_session_id"], note="", protocol_source="new_session", survey_version="survey-20260929-v3",
+                protocol_version="protocol-20260929-v3", survey=dict.fromkeys(SURVEY_IDS), survey_not_applicable=[], videos=[])])
+        ref, digest = self.store.write_manifest(manifest)
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE cases SET manifest_ref=?,manifest_hash=?,manifest_schema_version='intake-3.0' WHERE case_id=?",
+                (ref, digest, item["case_id"]))
+        return item

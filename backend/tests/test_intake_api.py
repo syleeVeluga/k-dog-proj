@@ -1,4 +1,4 @@
-"""Intake API (intake-2.0): 28-item survey, several video files, session notes, migration from intake-1.0 and the frozen pipeline."""
+"""Intake API (S1): input preservation, media, authorization, sessions and explicit reset."""
 
 from io import BytesIO
 import hashlib
@@ -15,10 +15,8 @@ from unittest.mock import patch
 import httpx
 from openpyxl import Workbook
 
-from app.analysis import session_snapshot
 from app.api import create_app
 from app.domain.catalog import SURVEY_IDS
-from app.intake import headers
 from app.storage import REPO_ROOT, Store
 from tests.support import AppCase, PASSWORD
 
@@ -30,56 +28,29 @@ class IntakeTests(AppCase):
             response = self.upload(item, f"synthetic file {index}".encode(), f"file{index}.mp4")
             self.assertEqual(response.status_code, 201, response.text)
             item = response.json()
-        payload = self.answers(item, not_applicable=("s07", "s09"))
-        payload["answers"]["s23"] = 5
+        payload = self.answers(item)
+        payload["answers"]["s23"] = 4
         payload["answers"]["s02"] = None
+        payload["blank_reasons"] = {"s02": "합성 미응답"}
         response = self.client.put(f"/api/cases/{item['case_id']}/survey", json=payload)
         self.assertEqual(response.status_code, 200, response.text)
         saved = response.json()
         self.client.close()
-        self.app = create_app(self.root, intake_spec="20260913")
+        self.app = create_app(self.root)
         self.client = self.client_for("operator")
         restored = self.get_case(item)
         self.assertEqual(restored, saved)
         session = restored["manifest"]["sessions"][0]
-        self.assertEqual(restored["manifest"]["schema_version"], "intake-3.0")
-        self.assertEqual((session["survey"]["s23"], session["survey"]["s02"], session["survey"]["s07"]), (5, None, None))
-        self.assertEqual(session["survey_not_applicable"], ["s07", "s09"])
-        self.assertEqual(session["survey_version"], "catalog-20260913-v2")
+        self.assertEqual(restored["manifest"]["schema_version"], "intake-4.0")
+        self.assertEqual((session["survey"]["s23"], session["survey"]["s02"], session["survey"]["s07"]), (4, None, 3))
+        self.assertEqual(session["survey_not_applicable"], [])
+        self.assertEqual(session["survey_version"], "survey-20260929-v3")
         self.assertEqual(len(session["videos"]), 3)
         for video in session["videos"]:
             response = self.client.get(f"/api/cases/{item['case_id']}/videos/{video['video_id']}")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(hashlib.sha256(response.content).hexdigest(), video["sha256"])
 
-    def test_survey_strict_validation_not_applicable_and_idempotent_save(self):
-        item = self.make_case()
-        path = f"/api/cases/{item['case_id']}/survey"
-        for invalid in (0, 6, True, "3", 3.5):
-            payload = self.answers(item)
-            payload["answers"]["s23"] = invalid
-            self.assertEqual(self.client.put(path, json=payload).status_code, 422, invalid)
-        payload = self.answers(item)
-        payload["answers"].pop("s28")
-        self.assertEqual(self.client.put(path, json=payload).status_code, 422)
-        payload = self.answers(item)
-        payload["answers"]["q01"] = 4
-        self.assertEqual(self.client.put(path, json=payload).status_code, 422)
-        payload = self.answers(item)
-        payload["survey_version"] = "catalog-20260904-v1"
-        self.assertEqual(self.client.put(path, json=payload).status_code, 422)
-        # 해당 없음 is a missing value: only items 7-9 offer it, and the answer must stay blank.
-        self.assertEqual(self.client.put(path, json=self.answers(item, not_applicable=("s10",))).status_code, 422)
-        answered = self.answers(item, not_applicable=("s08",))
-        answered["answers"]["s08"] = 3
-        self.assertEqual(self.client.put(path, json=answered).status_code, 422)
-        duplicate = self.answers(item, not_applicable=("s08",))
-        duplicate["not_applicable"] = ["s08", "s08"]
-        self.assertEqual(self.client.put(path, json=duplicate).status_code, 422)
-        saved = self.client.put(path, json=self.answers(item, not_applicable=("s08",))).json()
-        again = self.client.put(path, json=self.answers(saved, not_applicable=("s08",))).json()
-        self.assertEqual(saved, again)
-        self.assertEqual(saved["manifest"]["sessions"][0]["survey_not_applicable"], ["s08"])
 
     def test_intake_fields_sequence_uniqueness_and_edit(self):
         profile = {"breed": "보더콜리", "sex": "암", "age_years": 4, "size": "중형", "years_together": "3년", "adoption_route": "입양"}
@@ -104,62 +75,8 @@ class IntakeTests(AppCase):
         with self.store.connect() as db:
             detail = json.loads(db.execute("SELECT detail_json FROM changes WHERE action='case.identity'").fetchone()[0])
         self.assertEqual((detail["before"]["sequence_no"], detail["after"]["sequence_no"], detail["after"]["dog"]["sex"]), (None, 2, "암"))
-        self.assertNotIn("contact", json.dumps(self.client.app.openapi()["components"]["schemas"]["CaseView"]["properties"]))
+        self.assertNotIn("contact", json.dumps(self.client.app.openapi()["components"]["schemas"]["CaseViewV4"]["properties"]))
 
-    def test_survey_result_counts_and_separation_type_without_totals(self):
-        item = self.make_case()
-        path = f"/api/cases/{item['case_id']}/survey/result"
-        empty = self.client.get(path).json()
-        self.assertEqual((empty["status"], empty["separation"]["status"], [d["answered_count"] for d in empty["domains"]]), ("unregistered", "missing", [0, 0, 0, 0]))
-        payload = self.answers(item, 4, not_applicable=("s08",))
-        payload["answers"].update(s22=5, s23=3, s24=5, s26=1)
-        item = self.client.put(f"/api/cases/{item['case_id']}/survey", json=payload).json()
-        result = self.client.get(path).json()
-        self.assertEqual(result["status"], "partial")
-        domains = {d["domain"]: (d["answered_count"], d["target_count"], d["status"]) for d in result["domains"]}
-        self.assertEqual(domains, {"A": (8, 9, "partial"), "B": (5, 5, "calculated"), "C": (7, 7, "calculated"), "E": (3, 3, "calculated")})
-        self.assertEqual((result["separation"]["label"], result["separation"]["resistance"], result["separation"]["recovery"]), ("안정", 4.0, 5))
-        self.assertTrue(next(i for i in result["items"] if i["item_id"] == "s08")["not_applicable"])
-        self.assertEqual(next(i for i in result["items"] if i["item_id"] == "s26")["converted"], 5)
-        self.assertFalse({"total", "overall_reference"} & set(result))
-        self.assertEqual(self.client_for("reviewer").get(path).status_code, 200)
-        self.assertEqual(self.client_for("developer").get(path).status_code, 403)
-
-    def test_segments_are_saved_as_draft_then_confirmed_against_a_registered_file(self):
-        item = self.upload(self.make_case()).json()
-        session = item["manifest"]["sessions"][0]
-        video_id = session["videos"][0]["video_id"]
-        url = f"/api/cases/{item['case_id']}/sessions/{session['session_id']}/segments"
-        order = ["entry", "baseline", "alone", "stranger", "reunion", "ignore", "walk", "exit"]
-        windows = [{"segment": name, "start_sec": float(i * 20), "end_sec": float(i * 20 + 15)} for i, name in enumerate(order)]
-        self.assertIsNone(session["segments"])
-        draft = self.client.put(url, json={"expected_revision": item["input_revision"], "video_id": video_id, "windows": windows})
-        self.assertEqual(draft.status_code, 200, draft.text)
-        saved = draft.json()["manifest"]["sessions"][0]["segments"]
-        self.assertEqual((saved["video_id"], saved["confirmed"], saved["windows"][7]["segment"], saved["windows"][7]["end_sec"]), (video_id, False, "exit", 155.0))
-        revision = draft.json()["input_revision"]
-        for bad in ({"windows": windows[:7]}, {"windows": windows[::-1]}, {"windows": [{**windows[0], "end_sec": 25.0}] + windows[1:]},
-                    {"windows": [{**windows[0], "start_sec": -1.0}] + windows[1:]}, {"video_id": "missing"}, {"windows": [{**w, "segment": "entry"} for w in windows]}):
-            response = self.client.put(url, json={"expected_revision": revision, "video_id": video_id, "windows": windows, **bad})
-            self.assertEqual(response.status_code, 422, (bad, response.text))
-        confirmed = self.client.put(url, json={"expected_revision": revision, "video_id": video_id, "windows": windows, "confirm": True})
-        self.assertEqual(confirmed.status_code, 200, confirmed.text)
-        self.assertTrue(confirmed.json()["manifest"]["sessions"][0]["segments"]["confirmed"])
-        self.assertEqual(confirmed.json()["input_revision"], revision + 1)
-        for invalid in ([{**w, "start_sec": 0.0, "end_sec": 0.0} for w in windows],
-                        [windows[0], {**windows[1], "end_sec": windows[1]["start_sec"]}, *windows[2:]]):
-            rejected = self.client.put(url, json={"expected_revision": revision + 1, "video_id": video_id, "windows": invalid, "confirm": True})
-            self.assertEqual(rejected.status_code, 422)
-            self.assertEqual(self.get_case(item), confirmed.json())
-        self.assertEqual(self.client.put(url, json={"expected_revision": revision, "video_id": video_id, "windows": windows}).status_code, 409)
-        self.assertEqual(self.client_for("reviewer").put(url, json={"expected_revision": revision + 1, "video_id": video_id, "windows": windows}).status_code, 403)
-        # Editing after confirmation is a new revision that reopens the draft; the confirmed revision stays on disk.
-        reopened = self.client.put(url, json={"expected_revision": revision + 1, "video_id": video_id, "windows": [{**windows[0], "end_sec": 14.0}] + windows[1:]})
-        self.assertEqual(reopened.status_code, 200, reopened.text)
-        self.assertEqual((reopened.json()["input_revision"], reopened.json()["manifest"]["sessions"][0]["segments"]["confirmed"]), (revision + 2, False))
-        with self.store.connect() as db:
-            actions = [r[0] for r in db.execute("SELECT action FROM changes WHERE action LIKE 'segments.%' ORDER BY rowid")]
-        self.assertEqual(actions, ["segments.update", "segments.confirm", "segments.update"])
 
     def test_reviewer_reads_older_survey_without_changing_selected_session(self):
         item = self.make_case()
@@ -222,8 +139,8 @@ class IntakeTests(AppCase):
         reviewer = self.client_for("reviewer")
         developer = self.client_for("developer")
         for client in (self.client, reviewer, admin):
-            self.assertEqual(client.get("/api/developer/status").status_code, 403)
-        self.assertEqual(developer.get("/api/developer/status").status_code, 200)
+            self.assertEqual(client.get("/api/developer/settings").status_code, 403)
+        self.assertEqual(developer.get("/api/developer/settings").status_code, 200)
         self.assertEqual(developer.get("/api/cases").status_code, 403)
         self.assertEqual(reviewer.post("/api/cases", json={}).status_code, 403)
         self.assertEqual(admin.post("/api/admin/users", json={"username": "escalation", "password": PASSWORD, "role": "developer"}).status_code, 403)
@@ -258,7 +175,7 @@ class IntakeTests(AppCase):
         path = f"/api/cases/{item['case_id']}/videos/{video['video_id']}"
         self.assertEqual(self.client.get(path).status_code, 200)
         self.delete_case(item)
-        self.app = create_app(self.root, intake_spec="20260913")
+        self.app = create_app(self.root)
         self.client = self.client_for("operator")
         self.assertEqual(self.client.get(path).status_code, 403)
         self.assertEqual(self.upload(item).status_code, 403)
@@ -301,116 +218,6 @@ class IntakeTests(AppCase):
         self.store.path(video["storage_ref"]).write_bytes(b"X" * video["size_bytes"])
         self.assertEqual(self.client.get(f"/api/cases/{item['case_id']}/videos/{video['video_id']}").status_code, 409)
 
-    def test_import_preview_errors_normal_rows_and_stale_commit(self):
-        data = b"event_id,participant_id,dog_name,reservation_at\nTEST,0001,Synthetic,\nTEST,0001,Duplicate,\nTEST,0002,Other,\n"
-        result = self.client.post("/api/imports/preview?kind=participants&format=csv", content=data).json()
-        self.assertEqual(len(result["rows"]), 2)
-        self.assertIn("3행", result["errors"][0])
-        self.assertEqual((result["rows"][0]["participant"]["sequence_no"], result["rows"][0]["participant"]["dog"]["sex"]), (None, "미기재"))
-        response = self.client.post("/api/imports/commit", json={"rows": result["rows"]})
-        self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(len(self.client.get("/api/cases").json()), 2)
-        self.assertEqual(self.client.post("/api/imports/commit", json={"rows": result["rows"]}).status_code, 409)
-        columns = headers("survey")
-        self.assertEqual(columns[3:], list(SURVEY_IDS))
-        values = ["TEST", "0001", self.version, *(["5"] * 6), "NA", "", "해당 없음", *(["4"] * 19)]
-        data = (",".join(reversed(columns)) + "\n" + ",".join(reversed(values)) + "\n").encode()
-        result = self.client.post("/api/imports/preview?kind=survey&format=csv", content=data).json()
-        self.assertEqual(result["errors"], [])
-        row = result["rows"][0]
-        self.assertEqual(row["survey"]["not_applicable"], ["s07", "s09"])
-        self.assertEqual((row["survey"]["answers"]["s07"], row["survey"]["answers"]["s08"], row["survey"]["answers"]["s28"]), (None, None, 4))
-        self.assertEqual(len(row["changed_questions"]), 27)
-        self.assertEqual(self.client.post("/api/imports/commit", json={"rows": result["rows"]}).status_code, 200)
-        saved = self.client.get(f"/api/cases/{row['case_id']}").json()["manifest"]["sessions"][0]
-        self.assertEqual((saved["survey"]["s01"], saved["survey_not_applicable"]), (5, ["s07", "s09"]))
-        item = self.client.get(f"/api/cases/{row['case_id']}").json()
-        self.client.put(f"/api/cases/{row['case_id']}/survey", json=self.answers(item))
-        self.assertEqual(self.client.post("/api/imports/commit", json={"rows": result["rows"]}).status_code, 409)
-
-    def test_import_consent_typos_and_explicit_xlsx_sheet(self):
-        for consent, valid in (("예", True), ("1", True), ("", True), ("오타", False)):
-            result = self.client.post("/api/imports/preview?kind=participants&format=csv",
-                content=f"event_id,participant_id,dog_name,consent_confirmed\nTEST,new,합성,{consent}\n".encode()).json()
-            self.assertEqual(len(result["rows"]), int(valid))
-            if not valid:
-                self.assertIn("동의 확인", result["errors"][0])
-        workbook = Workbook()
-        workbook.active.title = "설명"
-        workbook.active.append(["설명 시트"])
-        sheet = workbook.create_sheet("입력")
-        sheet.append(["event_id", "participant_id", "dog_name"])
-        sheet.append(["TEST", "0007", "합성"])
-        output = BytesIO()
-        workbook.save(output)
-        workbook.close()
-        columns = self.client.post("/api/imports/columns?format=xlsx", content=output.getvalue()).json()
-        self.assertEqual((columns["sheets"], columns["selected_sheet"]), (["설명", "입력"], "설명"))
-        result = self.client.post("/api/imports/preview?kind=participants&format=xlsx&sheet=입력", content=output.getvalue()).json()
-        self.assertEqual((result["errors"], result["rows"][0]["participant_id"]), ([], "0007"))
-
-    def test_import_sequence_conflicts_preview_and_commit_race(self):
-        self.client.post("/api/cases", json={"event_id": "TEST", "participant_id": "existing", "dog_name": "합성", "sequence_no": 1})
-        data = "event_id,participant_id,dog_name,sequence_no\nTEST,a,A,1\nTEST,b,B,2\nTEST,c,C,2\nTEST,d,D,\nTEST,e,E,\nOTHER,f,F,1\n"
-        result = self.client.post("/api/imports/preview?kind=participants&format=csv", content=data.encode()).json()
-        self.assertEqual([row["participant_id"] for row in result["rows"]], ["d", "e", "f"])
-        self.assertEqual(len(result["errors"]), 3)
-        self.assertTrue(all(any(f"{number}행" in error for error in result["errors"]) for number in (2, 3, 4)))
-        self.assertEqual(self.client.post("/api/imports/commit", json={"rows": result["rows"]}).status_code, 200)
-        data = "event_id,participant_id,dog_name,sequence_no\nTEST,first,First,3\nTEST,last,Last,4\n"
-        result = self.client.post("/api/imports/preview?kind=participants&format=csv", content=data.encode()).json()
-        self.assertEqual(result["errors"], [])
-        self.client.post("/api/cases", json={"event_id": "TEST", "participant_id": "racer", "dog_name": "합성", "sequence_no": 4})
-        self.assertEqual(self.client.post("/api/imports/commit", json={"rows": result["rows"]}).status_code, 409)
-        ids = [item["participant_id"] for item in self.client.get("/api/cases").json()]
-        self.assertNotIn("first", ids)
-        self.assertNotIn("last", ids)
-
-    def test_xlsx_numeric_ids_formulas_bad_headers_and_misplaced_na(self):
-        workbook = Workbook()
-        sheet = workbook.active
-        sheet.append(headers("participants"))
-        sheet.append(["TEST", 1, "숫자 ID", None])
-        sheet.append(["TEST", "0002", "텍스트 ID", None])
-        output = BytesIO()
-        workbook.save(output)
-        workbook.close()
-        result = self.client.post("/api/imports/preview?kind=participants&format=xlsx", content=output.getvalue()).json()
-        self.assertEqual(len(result["rows"]), 1)
-        self.assertEqual(result["rows"][0]["participant"]["participant_id"], "0002")
-        self.assertIn("participant_id", result["errors"][0])
-        full = ",".join(headers("participants")[:-2]) + "\nTEST,0005,접수견,,7,예,보호자,푸들,수,3,소형,2년,분양\nTEST,0006,오류견,,x,,,,,,,,\nTEST,0007,오류견2,,,,,,중성화,abc,,,\n"
-        result = self.client.post("/api/imports/preview?kind=participants&format=csv", content=full.encode("utf-8")).json()
-        self.assertEqual(len(result["rows"]), 1)
-        row = result["rows"][0]["participant"]
-        self.assertEqual((row["sequence_no"], row["consent_confirmed"], row["guardian_name"], row["dog"]), (7, True, "보호자",
-                         {"breed": "푸들", "sex": "수", "age_years": 3, "size": "소형", "years_together": "2년", "adoption_route": "분양"}))
-        self.assertTrue(any("sequence_no" in error for error in result["errors"]))
-        self.assertTrue(any("dog_age_years" in error for error in result["errors"]))
-        self.assertEqual(self.client.post("/api/imports/preview?kind=participants&format=csv", content=b"event_id,participant_id,dog_name,contact\nT,1,x,010").status_code, 422)
-        self.make_case()
-        for raw in ("=1+1", "6", "True", "NA"):
-            data = (",".join(headers("survey")) + "\n" + ",".join(["TEST", "0001", self.version, raw, *([""] * 27)])).encode()
-            result = self.client.post("/api/imports/preview?kind=survey&format=csv", content=data).json()
-            self.assertIn("s01", result["errors"][0], raw)
-        self.assertEqual(self.client.post("/api/imports/preview?kind=survey&format=csv", content=b"q01\n1").status_code, 422)
-        mapped = json.dumps({"columns": {"event_id": "행사", "participant_id": "번호", "dog_name": "이름"}})
-        response = self.client.post("/api/imports/preview", params={"kind": "participants", "format": "csv", "mapping": mapped},
-                                    content="행사,번호,이름\nMAPPING,0007,가상견\n".encode("utf-8"))
-        self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.json()["rows"][0]["participant_id"], "0007")
-        self.assertEqual(self.client.post("/api/imports/preview", params={"kind": "survey", "format": "csv", "mapping": json.dumps({"horizontal": {"F": "x"}})},
-                                          content=b"a").status_code, 422)
-        # A mapped survey file has no survey_version column; the original source version is explicitly confirmed.
-        survey_mapping = json.dumps({"survey_version": self.version, "columns": {"event_id": "행사", "participant_id": "번호", **{item_id: f"문항{i}" for i, item_id in enumerate(SURVEY_IDS, 1)}}})
-        header = "행사,번호," + ",".join(f"문항{i}" for i in range(1, 29))
-        mapped_survey = self.client.post("/api/imports/preview", params={"kind": "survey", "format": "csv", "mapping": survey_mapping},
-                                         content=(header + "\nTEST,0001," + ",".join(["4"] * 6 + ["NA"] + ["4"] * 21) + "\n").encode("utf-8"))
-        self.assertEqual(mapped_survey.status_code, 200, mapped_survey.text)
-        self.assertEqual(mapped_survey.json()["errors"], [])
-        self.assertEqual(mapped_survey.json()["rows"][0]["survey"]["not_applicable"], ["s07"])
-        for format in ("csv", "xlsx"):
-            self.assertEqual(self.client.get(f"/api/templates/survey?format={format}").status_code, 200)
 
     def test_tables_foreign_keys_immutable_runs_and_storage_integrity(self):
         item = self.make_case()
@@ -443,7 +250,7 @@ class IntakeTests(AppCase):
                               "videos": [{**v, "camera_id": "CAM-1"} for v in item["manifest"]["sessions"][0]["videos"]],
                               "checklist": {"entry": "performed", "training": "skipped"}}]}
 
-    def test_intake_1_0_manifests_migrate_once_and_old_run_snapshots_stay_readable(self):
+    def test_intake_1_0_raw_inputs_survive_until_explicit_reset(self):
         item = self.upload(self.make_case()).json()
         answers = {f"q{i:02}": None for i in range(1, 31)}
         answers.update(q01=5, q07=2, q09=4, q13=1, q14=3, q22=2, q25=5, q26=1, q30=4)
@@ -479,21 +286,27 @@ class IntakeTests(AppCase):
             self.assertIn("q30", manifest.migration_note)
             self.assertNotIn("q13", manifest.migration_note)
             self.assertEqual(json.loads(run["input_snapshot_json"]), legacy)
-            _, old_session = session_snapshot(run)
-            self.assertEqual(old_session.survey["q25"], 5)
-            self.assertEqual(old_session.checklist["entry"], "performed")
+            self.assertEqual(json.loads(self.store.path(key).read_bytes())["sessions"][0]["survey"]["q25"], 5)
         self.assertTrue(self.store.path(key).exists())
-        self.app = create_app(self.root, intake_spec="20260913")
+        self.app = create_app(self.root)
         self.client = self.client_for("operator")
-        view = self.get_case(item)
-        self.assertEqual(view["manifest"]["schema_version"], "intake-3.0")
-        self.assertEqual(self.client.put(f"/api/cases/{item['case_id']}/survey", json=self.answers(view)).status_code, 200)
+        self.assertEqual(self.client.get(f"/api/cases/{item['case_id']}").status_code, 409)
+        from app.reset_s1 import execute
+        execute(self.store, "admin")
+        view = self.client.get(f"/api/cases/{item['case_id']}").json()
+        self.assertEqual(view["manifest"]["schema_version"], "intake-4.0")
+        self.assertEqual(self.store.path(key).read_bytes(), raw)
+        with self.store.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM runs").fetchone()[0], 0)
 
     def test_damaged_legacy_inputs_stay_unmigrated_and_retry_after_repair(self):
         healthy = self.make_case(participant_id="healthy")
-        for field in ("hash", "case_id", "event_id", "participant_id", "selected_session_id", "input_revision", "sessions", "shape"):
+        fields = ("hash", "case_id", "event_id", "participant_id", "selected_session_id", "input_revision", "sessions", "shape")
+        items = {field: self.make_case(participant_id=field) for field in fields}
+        originals = {}
+        for field in fields:
             with self.subTest(field=field):
-                item = self.make_case(participant_id=field)
+                item = items[field]
                 legacy = self.legacy_manifest(item, {f"q{i:02}": 1 for i in range(1, 31)})
                 original = json.dumps(legacy, ensure_ascii=False).encode("utf-8")
                 if field == "hash":
@@ -519,19 +332,23 @@ class IntakeTests(AppCase):
                                          (key, digest, item["input_revision"]))
                     self.assertEqual(self.store.path(key).read_bytes(), damaged)
                     self.assertEqual(self.client.get(f"/api/cases/{item['case_id']}").status_code, 409)
-                    self.assertEqual(self.client.get(f"/api/cases/{healthy['case_id']}").status_code, 200)
-                    listing = self.client.get("/api/cases")
-                    self.assertEqual(listing.status_code, 200)
-                    self.assertEqual(listing.headers["X-KDOG-Unavailable-Cases"], "1")
-                    self.assertIn(healthy["case_id"], [value["case_id"] for value in listing.json()])
+                    self.assertEqual(self.client.get(f"/api/cases/{healthy['case_id']}").status_code, 409)
+                    self.assertEqual(self.client.get("/api/cases").status_code, 409)
                 # Simulate an administrator restoring the verified backup, without changing schema version.
                 self.store.path(key).write_bytes(original)
                 with self.store.connect(write=True) as db:
                     db.execute("UPDATE cases SET manifest_hash=? WHERE case_id=?", (hashlib.sha256(original).hexdigest(), item["case_id"]))
-                Store(self.root)
-                migrated = self.get_case(item)
-                self.assertEqual(migrated["input_revision"], item["input_revision"] + 2)
-                self.assertEqual(migrated["manifest"]["sessions"][0]["survey"]["s01"], 1)
+                restarted = Store(self.root)
+                with restarted.connect() as db:
+                    migrated = restarted.manifest(restarted.case(db, item["case_id"]))
+                self.assertEqual(migrated.input_revision, item["input_revision"] + 2)
+                self.assertEqual(migrated.sessions[0].survey["s01"], 1)
+                originals[key] = original
+        from app.reset_s1 import execute
+        execute(restarted, "admin")
+        self.assertEqual(self.client.get(f"/api/cases/{healthy['case_id']}").status_code, 200)
+        for key, original in originals.items():
+            self.assertEqual(self.store.path(key).read_bytes(), original)
 
     def test_legacy_analysis_report_and_export_routes_are_gone(self):
         item = self.upload(self.make_case()).json()
@@ -540,8 +357,7 @@ class IntakeTests(AppCase):
                              ("get", f"{base}/reports/x"), ("post", f"{base}/reports/x/generate"), ("post", "/api/exports"),
                              ("post", "/api/exports/preview"), ("get", "/api/exports"), ("get", "/api/developer/evaluation"), ("get", "/api/developer/report")):
             response = getattr(self.client, method)(path, **({"json": {}} if method == "post" else {}))
-            # The SPA static mount answers unknown paths: GET → 404, other methods → 405. Either way no API route handles them.
-            self.assertIn(response.status_code, (404, 405), (method, path, response.status_code))
+            self.assertEqual(response.status_code, 404, (method, path, response.status_code))
         routes = {getattr(route, "path", "") for route in self.client.app.routes}
         self.assertFalse({route for route in routes if "/analysis" in route or "/reports/" in route or route == "/api/exports" or route.startswith("/api/exports/") or route.endswith(("/evaluation", "/report"))})
 

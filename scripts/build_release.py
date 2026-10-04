@@ -13,12 +13,14 @@ from zipfile import ZipFile, ZIP_DEFLATED
 ROOT = Path(__file__).resolve().parents[1]
 
 # Historical fixtures stay in the repository, outside the S1 product package.
-# The remaining old assets are still read by shared imports and raw-input reset.
+# Retain only historical assets still needed by raw-input reset or source extraction.
 RETIRED_FILES = frozenset({
-    "backend/app/exports.py", "backend/app/developer_sample.py",
     "resources/catalogs/behavior-v1.json", "resources/catalogs/behavior-v2.json",
     "resources/catalogs/survey-v1.json", "resources/rules/pending-v1.json",
-    "resources/rules/preprocess-v1.json", "resources/mappings/results-v3.json",
+    "resources/rules/preprocess-v1.json", "resources/rules/preprocess-v2.json",
+    "resources/rules/preprocess-v3.json", "resources/rules/scoring-v1.json",
+    "resources/rules/scoring-v2.json", "resources/report-presentation-v1.json",
+    "resources/mappings/results-v3.json",
     "resources/mappings/survey-behavior-v3.json",
 })
 OPERATING_DOCUMENTS = frozenset({

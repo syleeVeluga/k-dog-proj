@@ -37,6 +37,6 @@ test('S1 접수는 빈 채점 상태로 시작하고 구판 채점으로 연결�
   const oldRun = await page.request.post(`/api/cases/${item.case_id}/sessions/${item.selected_session_id}/runs-v3`, {
     headers: { 'X-KDOG-Request': '1' }, data: { expected_revision: item.input_revision, request_id: 'old-denied' },
   });
-  expect(oldRun.status()).toBe(409);
+  expect(oldRun.status()).toBe(404);
   await page.screenshot({ path: 'test-results/intake-s1-empty.png', fullPage: true });
 });

@@ -12,7 +12,7 @@ from .domain.sheets_v4 import BatchPointerV4, InputPointerV4
 from .input_models_v4 import ManifestV4
 from .intake import selected_session
 from . import preprocess_v4
-from .sheets import manager
+from .sheets_v4 import manager
 from .storage import encode, now, uid
 from .usage import token_meters
 
