@@ -27,13 +27,21 @@
 ![구역별 촬영 입력과 저장 도구](images/uiux-recording-mobile-20261005.png)
 
 [데스크톱 촬영 화면](images/uiux-recording-desktop-20261005.png)
-- `git diff --check` 및 `graft build` → `graft check` 통과. 문서 상대 링크는 병합 전 최종 확인한다.
+- `git diff --check` 및 `graft build` → `graft check` 통과. 새 문서 상대 링크·스크린샷 참조 누락0. 리뷰 이후 `git diff main...HEAD --check`를 확인한다.
 
 이번 변경은 frontend에 한정되어 backend 전체 시험과 원본 재추출을 반복하지 않는다. 실측·실제 외부 AI 정확도·물리3PC·D/G 승인 상태는 기존 [후속 대장](K-DOG_실측및확인후속대장_v1.0_20261003.md)의 경계를 유지한다.
 
 ## 독립 Cold Review 및 수용 판단
 
-검증 후 별도 `codex review --base main` 프로세스로 구현자의 대화 이력 없이 변경을 리뷰한다. 결과와 수용/거절/보류 판단은 실행 후 기록한다.
+검증한 구현 commit은 `2114c9f`다. 별도 `npx --yes @openai/codex@0.160.0 review --base main` 프로세스로 구현자의 대화 이력 없이 변경을 리뷰했다. 리뷰의 결론은 **“No actionable regressions were identified.”**로, 신규 수정 요구0건이다.
+
+| 검토 대상 | 결과 | 수용 판단·조치 |
+| --- | --- | --- |
+| UI·입력·권한 회귀 | 독립 검토에서 actionable regression 없음. 빌드와 관련 브라우저7개 통과. | 조사에서 승인한3개 개선을 유지한다. 신규 수용 수정은 없다. |
+| 독립 리뷰의 촬영2개 실행 | FFmpeg 실행이 Windows 리뷰 sandbox에서 제한되어 준비 단계 실패. | 제품 버그로 수용하지 않는다. 구현 담당의 관련9개 및 전체45개 통과와 구별하여 기록한다. |
+| 초기 CLI 실행 | 설치된0.145.0에서 설정 모델 미지원으로 리뷰 시작 실패. | 리뷰 통과 근거에서 제외한다. 공식 최신0.160.0을 npx로 별도 실행했으며 전역 CLI/앱/프로젝트 잠금은 변경하지 않았다. |
+
+리뷰 로그의 추가 변경 없이 동일 구현을 비교했다. 별도의 미해결 actionable finding이나 정책 승인 변경은 없다. 독립 리뷰 sandbox 제한을 전체45개 통과로 숨기거나 독립9개 통과로 표시하지 않는다.
 
 ## 라이브러리·프레임워크 확인
 
@@ -45,8 +53,9 @@
 | @types/react / react-dom | 19.3.0 | 19.2.18 / 19.2.7 | [React 타입 registry](https://registry.npmjs.org/@types/react/latest), [DOM 타입 registry](https://registry.npmjs.org/@types/react-dom/latest). DOM 타입19.2.7의 peer `^19.2.0` 충족. |
 | Vite | 8.3.2 | 8.2.2 | [registry](https://registry.npmjs.org/vite/latest), [공식 안내](https://vite.dev/guide/). Node24.13.0은 `^20.19.0 || >=22.12.0` 충족. |
 | TypeScript | 7.0.2 | 7.0.2 | [registry](https://registry.npmjs.org/typescript/latest), [공식 문서](https://www.typescriptlang.org/docs/). Node `>=16.20.0` 충족. |
+| Codex CLI (독립 리뷰 도구) | 0.160.0 | npx 0.160.0 | [registry](https://registry.npmjs.org/@openai/codex/latest), [공식 review 옵션](https://learn.chatgpt.com/docs/developer-commands?surface=cli#cli-codex-review). Node `>=16` 충족. 전역 설치0.145.0은 유지. |
 | Playwright | 1.63.0 | 1.63.0 | [registry](https://registry.npmjs.org/@playwright/test/latest), [공식 릴리스](https://playwright.dev/docs/release-notes), [locator API](https://playwright.dev/docs/locators). Node `>=20` 충족. |
 
 ## PR·병합
 
-구현 commit, PR URL과 원격·로컬 main의 최종 일치는 실행 후 기록한다.
+구현 commit `2114c9f`. PR URL은 생성 후 기록한다. 승인된 병합의 최종 SHA와 로컬·원격 main 일치 확인은 PR 병합 이벤트 및 작업 완료 응답을 따른다.
