@@ -54,9 +54,9 @@ Gemini 모델을 `gemini-3.8-flash`로 지정하고, 영상 입력의 처리 방
 - [backend/app/gemini.py](../backend/app/gemini.py): `interaction_request`(80), `configuration`(113), 소켓 타임아웃(144), 영상 파트(242)
 - [backend/app/settings.py](../backend/app/settings.py): `StageConfig`(19), `Pipeline`(26), `fps`(33), `apply_snapshot`(195)
 - [backend/app/worker.py](../backend/app/worker.py): 관찰 컨텍스트(184), 품질 플래그(195), 영상별 컨텍스트(331), 품질 플래그(351)
-- [backend/app/video_evaluation.py](../backend/app/video_evaluation.py): `PROMPT`의 샘플링 문구(18~19), `context`(42~49)
+- [backend/app/video_evaluation.py](https://github.com/syleeVeluga/k-dog-proj/blob/360b722bde002350a7db414ad9840f66c9373f78/backend/app/video_evaluation.py): `PROMPT`의 샘플링 문구(18~19), `context`(42~49)
 - [backend/app/usage.py](../backend/app/usage.py): 단가 판정과 불확실 처리
-- [backend/app/developer_sample.py](../backend/app/developer_sample.py): 합성 샘플의 처리 방식 전달(41~44)
+- [backend/app/developer_sample.py](https://github.com/syleeVeluga/k-dog-proj/blob/360b722bde002350a7db414ad9840f66c9373f78/backend/app/developer_sample.py): 합성 샘플의 처리 방식 전달(41~44)
 - [frontend/src/DeveloperSettings.tsx](../frontend/src/DeveloperSettings.tsx): `Pipeline` 타입(7), 한도 입력(66)
 - 시험: `test_observation.py`(428~430), `test_settings.py`(131), `test_video_evaluation.py`(72, 179), `pilot_scenario.py`
 - 문서: M2·M3 구현기록, 영상별평가 구현검증 (2026-09-15 정리로 제거, 커밋 `7124809` 이력 참조)
