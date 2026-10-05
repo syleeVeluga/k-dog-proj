@@ -5,11 +5,12 @@ from getpass import getpass
 import os
 from pathlib import Path
 import sqlite3
+import sys
 
 import uvicorn
 
 from app.api import DEFAULT_DATA, create_app
-from app.auth import create_user, password_hash
+from app.auth import create_user, password_hash, provision_accounts
 from app.input_models import UserCreate
 from app.storage import Store
 
@@ -40,6 +41,7 @@ def main():
     clean = sub.add_parser("clean", help="API·worker 종료 후 미참조 파일 정리")
     clean.add_argument("--purge-deleted", action="store_true", help="삭제 요청된 참가자 DB·파일도 영구 삭제")
     sub.add_parser("recovery-status")
+    sub.add_parser("provision-accounts", help="발행 패키지의 관리자·개발자 계정을 표준입력 JSON으로 생성 (설치 프로그램용)")
     reset_s1 = sub.add_parser("reset-s1", help="원입력을 보존하고 구판 평가 결과를 S1으로 초기화 (API·worker 종료 필요)")
     reset_s1.add_argument("--actor", required=True, help="활성 운영 관리자 계정")
     reset_s1.add_argument("--apply", action="store_true", help="생략하면 제거 범위만 점검")
@@ -146,6 +148,15 @@ def main():
                 worker.once() if args.once else worker.run()
         except KeyboardInterrupt:
             pass
+        return
+    if args.command == "provision-accounts":
+        store = Store(args.data_dir)
+        try:
+            with store.connect(write=True) as db:
+                messages = provision_accounts(db, store, sys.stdin.buffer.read())
+        except ValueError as exc:
+            parser.exit(1, f"계정 생성 실패: {exc}\n")
+        print("\n".join(messages))
         return
     if args.command == "serve":
         if args.host not in ("127.0.0.1", "localhost", "::1") and not args.public_origin:
