@@ -160,6 +160,7 @@ K-DOG는 중앙 웹 서비스가 아니라 사용자 PC에서 로컬로 실행�
 | D01 | CPython 3.14.8 embeddable + 잠금 의존성 + D00 FFmpeg 내장 포터블 ZIP, `--check` 전체 해시 검사 | [PR #48](https://github.com/syleeVeluga/k-dog-proj/pull/48), [D01 실행 기록](K-DOG_PR-D01_내장런타임패키지_v1.0_20261005.md#구현-및-검증-기록) |
 | D02 | 실행 창 안내, 중복 실행 시 브라우저만 열기, 다른 설치·버전·프로그램의 포트 사용 안내 | [PR #49](https://github.com/syleeVeluga/k-dog-proj/pull/49), [D02 실행 기록](K-DOG_PR-D02_실행창과중복실행_v1.0_20261005.md#구현-및-검증-기록) |
 | D03 | 고객별 AES-256-GCM 발행, 키 한 번 입력 설치, 발행 계정·바탕화면 아이콘 | [PR #50](https://github.com/syleeVeluga/k-dog-proj/pull/50), [D03 실행 기록](K-DOG_PR-D03_암호화발행과설치_v1.0_20261005.md#구현-및-검증-기록) |
+| D04 | 포터블과 별도로 uv·FFmpeg 직접 설치형 평문 ZIP (`--variant online`), 사용자 설치형 `verify_release` | [PR #51](https://github.com/syleeVeluga/k-dog-proj/pull/51), [D04 실행 기록](K-DOG_PR-D04_사용자설치형패키지_v1.0_20261005.md#구현-및-검증-기록) |
 
 목표 흐름(§2·§4)은 현재 Windows에서 실제로 확인했다: 발행 → 사용자 ZIP SHA-256 확인 → 압축 풀기 → `Install.cmd` → 키 입력 → 실제 바탕화면 아이콘 → 로그인. 사전 설치·인터넷·명령 입력은 필요 없다.
 

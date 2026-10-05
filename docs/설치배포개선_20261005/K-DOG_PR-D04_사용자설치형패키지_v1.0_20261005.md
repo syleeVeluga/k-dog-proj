@@ -52,7 +52,7 @@ D01에서 Python·FFmpeg 내장 포터블 ZIP으로 바꾸면서 S15의 사용�
 
 ### 구현 (2026-10-05)
 
-브랜치 `veluga/d04-user-install`. 위 파일별 변경을 모두 반영했다. 계획과 다르거나 추가된 점:
+브랜치 `veluga/d04-user-install`, [PR #51](https://github.com/syleeVeluga/k-dog-proj/pull/51). 위 파일별 변경을 모두 반영했다. 계획과 다르거나 추가된 점:
 
 - 첫 검증에서 `verify_release`가 결함을 찾았다: npm 라이선스가 `runtime/licenses/npm`에 들어가 사용자 설치형에도 `runtime/` 폴더가 생겼고, 앱은 `runtime/`이 있으면 내장 FFmpeg만 찾으므로 PATH FFmpeg를 쓰지 못한다. 사용자 설치형은 `licenses/npm`에 두도록 고쳤다 (포터블은 그대로 `runtime/licenses/npm`).
 - 사용자 설치형 빌드는 `uv lock --check`로 잠금 파일이 최신인지 먼저 확인한다 (cold review).
