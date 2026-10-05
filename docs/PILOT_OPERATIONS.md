@@ -1,10 +1,10 @@
 # K-DOG Windows 설치·S1 운영 안내
 
-버전: v1.6 · 2026-10-05 · 통합명세 v1.3 / S1.1
+버전: v1.7 · 2026-10-05 · 통합명세 v1.3 / S1.1
 
 ## 일반 사용자 실행
 
-설치 담당자가 준비한 앱 폴더의 `Start.cmd`를 실행한다. 실행 창(제목 K-DOG)이 뜨고 준비되면 브라우저가 자동으로 열린다. 열리지 않으면 창에 표시된 주소로 접속한다. 이미 실행 중일 때 다시 실행하면 새로 시작하지 않고 브라우저만 연다 (먼저 누른 실행이 준비 중이면 최대 30초 기다린다). 다른 폴더나 이전 버전의 K-DOG가 같은 포트에서 실행 중이면 안내 후 멈추므로, 그 실행 창을 닫고 다시 실행한다. 중앙 서버 운영에서는 촬영 PC마다 앱을 설치하거나 DB를 만들지 않고 담당자가 전달한 동일 HTTPS 주소를 브라우저에서 연다. 앱 계정은 Windows 계정과 별개이며 기본 비밀번호는 없다. 업무 중 중앙 서버와 실행 창을 유지하고(작업 중에는 최소화), 종료할 때 실행 창을 닫거나 Ctrl+C를 눌러 API·worker를 함께 종료한다. 브라우저 탭만 닫아도 서버 작업은 계속된다.
+바탕화면의 K-DOG 아이콘(또는 설치 폴더의 `Start.cmd`)을 실행한다. 실행 창(제목 K-DOG)이 뜨고 준비되면 브라우저가 자동으로 열린다. 열리지 않으면 창에 표시된 주소로 접속한다. 이미 실행 중일 때 다시 실행하면 새로 시작하지 않고 브라우저만 연다 (먼저 누른 실행이 준비 중이면 최대 30초 기다린다). 다른 폴더나 이전 버전의 K-DOG가 같은 포트에서 실행 중이면 안내 후 멈추므로, 그 실행 창을 닫고 다시 실행한다. 중앙 서버 운영에서는 촬영 PC마다 앱을 설치하거나 DB를 만들지 않고 담당자가 전달한 동일 HTTPS 주소를 브라우저에서 연다. 앱 계정은 Windows 계정과 별개이며 기본 비밀번호는 없다. 업무 중 중앙 서버와 실행 창을 유지하고(작업 중에는 최소화), 종료할 때 실행 창을 닫거나 Ctrl+C를 눌러 API·worker를 함께 종료한다. 브라우저 탭만 닫아도 서버 작업은 계속된다.
 
 실제 영상·장비 품질과 시간, 실제 중앙 서버/3PC·깨끗한 OS 검수는 [후속 대장](개발반영_20261003/K-DOG_실측및확인후속대장_v1.0_20261003.md) E01–E10에 있다. 합성 시험이나 현재 Windows의 새 폴더 설치를 현장 검수 완료로 해석하지 않는다.
 
@@ -14,9 +14,42 @@
 
 대상은 Windows 11 x64와 Chromium 계열 브라우저다. Windows ARM/32비트/S모드·다른 OS는 검증 대상이 아니다. 프로그램·자료는 로컬 디스크에 두며 네트워크 공유·동기화 폴더·이동식 드라이브는 운영 검수 대상이 아니다. 공급자 키는 Windows DPAPI로 보호하므로 설치·키 등록·API·worker는 같은 Windows 사용자로 실행한다.
 
-1. 개발자가 전달한 **S1 ZIP과 동일 이름의 SHA-256 파일**을 받는다. GitHub의 구판 v0.2.0 또는 자동 생성 Source code ZIP은 S1 설치물로 사용하지 않는다.
-2. ZIP에는 Python 3.14와 잠금 의존성(`runtime/python`), FFmpeg/ffprobe(`runtime/ffmpeg`)가 들어 있다. uv·Python·FFmpeg를 따로 설치하거나 PATH에 등록하지 않으며 설치·실행에 인터넷이 필요 없다. FFmpeg는 GPL 2 이상이며 대응 소스는 `runtime/ffmpeg/source`에 있다. 동봉 오픈소스와 라이선스 위치는 `오픈소스고지.txt`를 본다.
-3. 다음과 같이 ZIP hash를 검사하고 빈 새 폴더(예: `C:/K-DOG/app-s1`)에 푼다. ZIP 내부에서 직접 실행하지 않는다.
+사용자에게 전달하는 설치물은 **고객별 발행 패키지**(`K-DOG-<고객ID>-v<버전>-<commit>.zip`)뿐이다. 평문 포터블 ZIP(`build_release.py` 결과)은 내부 검증과 담당자 설치에만 쓴다. GitHub의 구판 v0.2.0 또는 자동 생성 Source code ZIP은 S1 설치물로 사용하지 않는다.
+
+ZIP에는 Python 3.14와 잠금 의존성(`runtime/python`), FFmpeg/ffprobe(`runtime/ffmpeg`)가 들어 있다. uv·Python·FFmpeg를 따로 설치하거나 PATH에 등록하지 않으며 설치·실행에 인터넷이 필요 없다. FFmpeg는 GPL 2 이상이며 대응 소스는 `runtime/ffmpeg/source`에 있다. 동봉 오픈소스와 라이선스 위치는 `오픈소스고지.txt`를 본다. 자료 기본 경로는 `%LOCALAPPDATA%/K-DOG/data`다. 별도 자료 경로는 설치·실행 전에 `KDOG_DATA_DIR`을 프로그램 밖 로컬 폴더로 지정한다. 기존 데이터 경로를 바꾸면 다른 DB가 열리므로 경로를 먼저 확인한다.
+
+### 발행 (개발자)
+
+저장소 루트에서 평문 ZIP을 만든 뒤 고객별로 발행한다. 관리자 계정은 필수, AI 키 등록용 개발자 계정은 선택이다. 비밀번호(12~256자)는 숨김 프롬프트로 두 번 입력하며 패키지에는 scrypt 해시만 암호화되어 들어간다.
+
+```powershell
+backend/.venv/Scripts/python.exe -X utf8 scripts/issue_release.py "releases/kdog-s1-windows-x64.zip" --customer SCHOOL-1 --admin manager --developer keyman
+```
+
+- 결과: `releases/issued/<고객ID>/`에 발행 ZIP, `.sha256`, 발행 기록(JSON, 키·비밀번호 없음). `releases/`는 git 무시 대상이며 커밋하지 않는다.
+- 발행 키(`KDOG-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX`)는 콘솔에 **한 번만** 표시되고 어디에도 저장되지 않는다. 발행할 때마다 새 키가 만들어진다.
+- **키와 SHA-256은 ZIP과 다른 경로**(문자·전화 등)로 전달한다. 같은 메일로 보내면 암호화 의미가 없다. 비밀번호도 ZIP과 다른 경로로 전달한다.
+- 이미 설치된 PC에 같은 아이디가 있으면 그 계정과 기존 비밀번호가 유지된다 (새 비밀번호는 적용되지 않음).
+
+### 사용자 설치 (발행 패키지)
+
+ZIP 안의 `설치안내.txt`와 같다.
+
+1. 받은 ZIP의 SHA-256을 키와 함께 받은 값과 비교한다 (`Get-FileHash .\<파일>.zip`). 다르면 설치하지 않는다.
+2. ZIP을 "모두 압축 풀기"로 푼다. ZIP 안에서 바로 실행하면 안내 후 멈춘다. 인터넷에서 받은 ZIP의 보안 경고는 ZIP 속성의 "차단 해제" 또는 실행 화면의 "추가 정보 → 실행"으로 넘긴다.
+3. `Install.cmd`를 더블클릭하고 발행 키를 한 번 입력한다. 대소문자·하이픈·공백은 상관없고 O/0, I·L/1 혼동은 자동으로 바로잡는다. 키가 틀리면 다시 묻고, Enter만 누르면 아무것도 바꾸지 않고 취소한다.
+4. 설치 프로그램은 키 확인 전에는 디스크에 아무것도 쓰지 않는다. 확인되면 `%LOCALAPPDATA%\Programs\K-DOG\<버전>-<commit7>\`에 설치하고 `Start.cmd --check`(전체 파일 SHA-256·Python·FFmpeg)를 통과한 뒤 발행 계정을 만들고 바탕화면에 `K-DOG` 아이콘을 만든다. 바로가기를 만들지 못하면 실행할 `Start.cmd` 경로를 보여 준다.
+5. 바탕화면 K-DOG 아이콘으로 실행하고 전달받은 아이디·비밀번호로 로그인한다. 설치가 끝나면 압축을 푼 폴더와 ZIP은 지워도 된다.
+
+같은 패키지를 다시 설치하면 파일 확인만 다시 하고 자료와 계정은 그대로 둔다. 역할이 다르거나 비활성인 같은 아이디가 있으면 계정은 바꾸지 않고 실패로 안내한다. 기존 S15 방식(uv)으로 설치한 PC도 같은 자료 경로를 그대로 쓰며, 발행 관리자 아이디가 다르면 관리자 계정이 하나 추가된다.
+
+### 업데이트와 이전 버전 정리
+
+새 발행 패키지를 같은 방법으로 설치하면 새 버전 폴더가 생기고 바탕화면 아이콘이 새 버전으로 바뀐다. 이전 버전이 실행 중이면 그 실행 창을 닫고 아이콘으로 다시 실행한다 (이전 버전 창이 떠 있으면 런처가 "다른 위치나 버전의 K-DOG"로 안내한다). 이전 버전 폴더는 자동으로 지우지 않는다. 새 버전으로 로그인·자료 확인을 마친 뒤 `%LOCALAPPDATA%\Programs\K-DOG\`에서 이전 `<버전>-<commit7>` 폴더를 지운다. 자료 폴더(`%LOCALAPPDATA%\K-DOG\data`)는 지우지 않는다.
+
+### 담당자 설치 (평문 ZIP, 내부용)
+
+1. 평문 ZIP과 같은 이름의 `.sha256`을 받아 hash를 검사하고 빈 새 폴더(예: `C:/K-DOG/app-s1`)에 푼다. ZIP 내부에서 직접 실행하지 않는다.
 
 ```powershell
 $releaseZip = (Resolve-Path './kdog-s1-windows-x64.zip').Path
@@ -25,17 +58,33 @@ $actualHash = (Get-FileHash -LiteralPath $releaseZip -Algorithm SHA256).Hash.ToL
 if ($actualHash -ne $expectedHash) { throw 'ZIP SHA-256 불일치' }
 ```
 
-4. 자료 기본 경로는 `%LOCALAPPDATA%/K-DOG/data`다. 별도 자료 경로는 실행 전에 `KDOG_DATA_DIR`을 프로그램 밖 로컬 폴더로 지정한다. 기존 데이터 경로를 바꾸면 다른 DB가 열리므로 경로를 먼저 확인한다.
-5. 계정은 프로그램 폴더에서 아래 명령으로 만든다. 비밀번호는 숨김 프롬프트로 입력한다. 최초 로그인 전에 관리자(`admin`) 계정이 반드시 있어야 하고, 공급자 키를 관리하려면 개발자(`developer`) 계정도 필요하다. 관리자가 직원용 operator/reviewer 계정을 발급한다. Node.js/npm/Git도 필요 없다.
+2. 계정은 프로그램 폴더에서 아래 명령으로 만든다. 비밀번호는 숨김 프롬프트로 입력한다. 최초 로그인 전에 관리자(`admin`) 계정이 반드시 있어야 하고, 공급자 키를 관리하려면 개발자(`developer`) 계정도 필요하다. 관리자가 직원용 operator/reviewer 계정을 발급한다. Node.js/npm/Git도 필요 없다.
 
    ```powershell
    runtime/python/python.exe -X utf8 -m app.manage create-user manager --role admin
    runtime/python/python.exe -X utf8 -m app.manage create-user key-manager --role developer
    ```
 
-6. `Start.cmd --check`로 전체 파일 SHA-256(`release.json`)·Python·FFmpeg를 확인하고 `Start.cmd`를 실행한다. 기본 로컬 주소는 `http://127.0.0.1:8000`이다. 첫 실행으로 AI 호출이나 공급자 연결 시험을 자동 수행하지 않는다. 공급자 키 등록·연결 시험·실제 AI 분석은 명시 조작이며 비용이 발생할 수 있다.
+3. `Start.cmd --check`로 전체 파일 SHA-256(`release.json`)·Python·FFmpeg를 확인하고 `Start.cmd`를 실행한다. 기본 로컬 주소는 `http://127.0.0.1:8000`이다.
 
-조직 정책으로 차단되면 IT 담당자가 검토한다. `--check`가 손상을 알리면 ZIP을 새 빈 폴더에 다시 푼다. 업데이트는 앱 종료·백업 후 새 프로그램 폴더에 설치하고 같은 자료 경로를 지정한다.
+첫 실행으로 AI 호출이나 공급자 연결 시험을 자동 수행하지 않는다. 공급자 키 등록·연결 시험·실제 AI 분석은 명시 조작이며 비용이 발생할 수 있다. 조직 정책으로 차단되면 IT 담당자가 검토한다. `--check`가 손상을 알리면 ZIP을 새 빈 폴더에 다시 풀거나 다시 설치한다.
+
+### AI 키 등록과 비밀번호 분실
+
+- AI 공급자 키는 미리 넣지 않는다. 설치한 PC에서 **같은 Windows 사용자**로 K-DOG를 실행하고 발행 개발자 계정으로 로그인해 화면에서 등록한다 (Windows DPAPI 보호).
+- 비밀번호를 잊으면 담당자가 K-DOG 실행 창을 닫은 뒤 설치 폴더(`%LOCALAPPDATA%\Programs\K-DOG\<버전>-<commit7>`)에서 재설정한다. 사용자가 비밀번호를 바꾸는 기능은 없다.
+
+  ```powershell
+  runtime/python/python.exe -X utf8 -m app.manage reset-password manager
+  ```
+
+### 보안 경계
+
+- 키가 없는 사람은 발행 ZIP에서 제품 파일(앱 코드·카탈로그·리포트 자산·계정 정보)을 보거나 설치할 수 없다. `payload.kdog`는 AES-256-GCM 인증 암호화이므로 변조되면 설치 전에 거절된다.
+- 비밀번호 원문은 패키지·저장소·발행 기록 어디에도 남지 않는다.
+- 설치가 끝난 PC 안의 프로그램 파일은 평문이다. 같은 ZIP과 키를 가진 사람은 여러 PC에 설치할 수 있다.
+- `runtime/`(공개 Python·라이브러리·FFmpeg와 소스), `오픈소스고지.txt`, `Install.cmd`·설치 프로그램은 암호화하지 않는다. 이 평문 영역은 암호화 검사보다 먼저 실행되므로 변조를 막지 못한다. 그래서 설치 전에 키와 같은 경로로 받은 SHA-256과 ZIP을 비교한다.
+- 문의처: 벨루가 veluga.app@veluga.io
 
 ## 구판에서 S1으로 전환
 

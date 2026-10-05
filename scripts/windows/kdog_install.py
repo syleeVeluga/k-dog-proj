@@ -173,6 +173,8 @@ def shortcut(target: Path, directory: Path | None) -> Path | None:
     env = {**os.environ, "KDOG_START": str(target / "Start.cmd"), "KDOG_HOME": str(target),
            "KDOG_SHORTCUT_DIR": str(directory) if directory else ""}
     try:
+        if directory:
+            directory.mkdir(parents=True, exist_ok=True)
         result = subprocess.run([str(powershell), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
                                  "-Command", script], env=env, capture_output=True, timeout=60)
     except (OSError, subprocess.SubprocessError):

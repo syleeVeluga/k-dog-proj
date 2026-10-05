@@ -216,8 +216,8 @@ def verify_issued(package, root):
     finally:
         payload.write_bytes(original)
     code, output = install(issued["key"])
-    if code:
-        raise RuntimeError("issued install failed: " + output)
+    if code or "바탕화면의 K-DOG 아이콘" not in output:
+        raise RuntimeError("issued install failed or made no shortcut: " + output)
     target = install_root / f"{issued['version']}-{issued['commit'][:7]}"
     if not (target / "Start.cmd").is_file() or list(target.rglob("provision.json")) or list(install_root.glob(".tmp-*")):
         raise RuntimeError("installed folder is incomplete or kept provisioning data")
@@ -226,8 +226,9 @@ def verify_issued(package, root):
                            "[Console]::OutputEncoding = [Text.Encoding]::UTF8; "
                            "(New-Object -ComObject WScript.Shell).CreateShortcut($env:KDOG_LINK).TargetPath"],
                           env={**env, "KDOG_LINK": str(desktop / "K-DOG.lnk")}, capture_output=True, timeout=60)
-    if Path(link.stdout.decode("utf-8").strip()) != target / "Start.cmd":
-        raise RuntimeError("desktop shortcut does not start the installed version")
+    shown = link.stdout.decode("utf-8").strip()
+    if not shown or Path(shown).resolve() != (target / "Start.cmd").resolve():
+        raise RuntimeError(f"desktop shortcut does not start the installed version: {shown!r} {link.stderr!r}")
     with served([str(target / "Start.cmd")], target, env, kill_tree=True) as client:
         admin, developer = client(), client()
         admin("/api/auth/login", {"username": "verify-admin", "password": passwords["verify-admin"]})
