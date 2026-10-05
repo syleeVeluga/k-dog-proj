@@ -1,10 +1,11 @@
-"""Install a release in a new path/venv and smoke-test real HTTP, restart and locks."""
+"""Extract a portable release to a new path without uv/Python/FFmpeg on PATH; smoke-test HTTP, restart and locks."""
 
 import argparse
 from http.cookiejar import CookieJar
 import json
 import os
 from pathlib import Path
+import shutil
 import socket
 import subprocess
 import tempfile
@@ -12,6 +13,16 @@ import time
 from urllib.error import URLError
 from urllib.request import build_opener, HTTPCookieProcessor, ProxyHandler, Request
 from zipfile import ZipFile
+
+
+def windows_only_path():
+    system = Path(os.environ.get("SYSTEMROOT", r"C:\Windows"))
+    path = os.pathsep.join(str(item) for item in (system / "System32", system, system / "System32/Wbem",
+                                                   system / "System32/WindowsPowerShell/v1.0"))
+    for tool in ("uv", "python", "ffmpeg", "ffprobe"):
+        if shutil.which(tool, path=path):
+            raise RuntimeError(f"{tool} is on the Windows system PATH; cannot prove the package is self-contained")
+    return path
 
 
 def verify(package):
@@ -25,36 +36,41 @@ def verify(package):
                 if any(part in {"tests", ".venv", ".git", "node_modules", "__pycache__", ".env"} for part in Path(name).parts):
                     raise ValueError("development/runtime file leaked into package")
             archive.extractall(app)
-        env = {**os.environ, "KDOG_DATA_DIR": str(root / "data"), "GEMINI_API_KEY": "",
+        for name in ("Start.cmd", "release.json", "오픈소스고지.txt", "runtime/python/python.exe",
+                     "runtime/python/python314._pth", "runtime/python/LICENSE.txt", "runtime/ffmpeg/bin/ffmpeg.exe",
+                     "runtime/ffmpeg/bin/ffprobe.exe", "runtime/ffmpeg/build.json", "runtime/ffmpeg/licenses/COPYING.GPLv2",
+                     "runtime/ffmpeg/source/build-ffmpeg.sh", "runtime/ffmpeg/source/configure-commands.txt"):
+            if not (app / name).is_file():
+                raise RuntimeError(f"package is missing {name}")
+        if not any((app / "runtime/ffmpeg/source").glob("ffmpeg-*.tar.xz")) or not any(
+                (app / "runtime/python/Lib/site-packages").glob("*.dist-info/licenses/*")):
+            raise RuntimeError("package is missing FFmpeg corresponding source or Python package licenses")
+        env = {**os.environ, "PATH": windows_only_path(), "KDOG_DATA_DIR": str(root / "data"), "GEMINI_API_KEY": "",
                "OPENAI_API_KEY": "", "ANTHROPIC_API_KEY": "", "PYTHONUTF8": "1",
-               "UV_PROJECT_ENVIRONMENT": str(root / "wrong-env")}
-        install_command = ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
-                           str(app / "install.ps1"), "-SkipAccounts"]
-        def install_package():
-            return subprocess.run(install_command, env=env, capture_output=True, timeout=180,
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+               "PYTHONPATH": str(root / "wrong-path"), "PYTHONHOME": str(root / "wrong-home")}
+        def check_package():
+            return subprocess.run([str(app / "Start.cmd"), "--check"], cwd=app, env=env, stdin=subprocess.DEVNULL,
+                                  capture_output=True, timeout=120)
         asset = app / "frontend/dist/index.html"
         original = asset.read_bytes()
         asset.write_bytes(b"corrupted release")
         try:
-            damaged = install_package()
-            if damaged.returncode == 0 or (app / "backend/.venv").exists():
-                raise RuntimeError("damaged release was not rejected before installation")
+            damaged = check_package()
+            if damaged.returncode == 0 or "손상".encode() not in damaged.stdout + damaged.stderr:
+                raise RuntimeError("damaged release was not rejected by Start.cmd --check")
         finally:
             asset.write_bytes(original)
-        install = install_package()
-        if install.returncode:
-            raise RuntimeError(install.stdout.decode("utf-8", errors="replace") + install.stderr.decode("utf-8", errors="replace"))
-        if (root / "wrong-env").exists():
-            raise RuntimeError("installer used an unrelated UV_PROJECT_ENVIRONMENT")
-        wrapper = subprocess.run([str(app / "Start.cmd"), "--check"], cwd=app, env=env,
-                                 capture_output=True, timeout=30)
-        if wrapper.returncode:
-            raise RuntimeError("Start.cmd installation check failed")
-        python = app / "backend/.venv/Scripts/python.exe"
+        checked = check_package()
+        if checked.returncode:
+            raise RuntimeError("Start.cmd --check failed: " + (checked.stdout + checked.stderr).decode("utf-8", errors="replace"))
+        python = app / "runtime/python/python.exe"
         def command(*arguments):
-            return subprocess.run([str(python), "-X", "utf8", *arguments], cwd=app / "backend", env=env,
+            return subprocess.run([str(python), "-X", "utf8", *arguments], cwd=app, env=env,
                                   check=True, capture_output=True, timeout=30)
+        bundled = command("-c", "import sys; from app import media; print(media.tool('ffmpeg')); print(sys.prefix)")
+        ffmpeg, prefix = (Path(line).resolve() for line in bundled.stdout.decode().splitlines())
+        if ffmpeg != (app / "runtime/ffmpeg/bin/ffmpeg.exe").resolve() or prefix != (app / "runtime/python").resolve():
+            raise RuntimeError("packaged app does not use its bundled Python and FFmpeg")
         command("-c", "from pathlib import Path; import os; from app.storage import Store; from app.auth import create_user\n"
             "from app.input_models import UserCreate\n"
             "with Store(Path(os.environ['KDOG_DATA_DIR'])).connect(write=True) as db:\n"
@@ -66,7 +82,7 @@ def verify(package):
         case_id = None
         for run in range(2):
             process = subprocess.Popen([str(python), "-X", "utf8", "-m", "app.launcher", "--port", str(port), "--no-browser"],
-                cwd=app / "backend", env=env, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                cwd=app, env=env, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             try:
                 opener = build_opener(ProxyHandler({}), HTTPCookieProcessor(CookieJar()))
@@ -118,11 +134,11 @@ def verify(package):
                         if time.monotonic() > deadline:
                             raise
                         time.sleep(0.1)
-        print(json.dumps({"package": str(package.resolve()), "fresh_venv": True, "unicode_space_path": True,
-            "corruption_rejected_before_install": True, "environment_override_isolated": True,
+        print(json.dumps({"package": str(package.resolve()), "bundled_runtime_only": True, "unicode_space_path": True,
+            "corruption_rejected_by_check": True, "environment_override_isolated": True,
             "http_login_create_restart": "passed", "supervisor_shutdown": "passed", "external_ai_calls": 0,
             "spec": "20261002", "s1_catalog_report_assets": "passed",
-            "scope": "new folder and venv on current Windows host; not a clean OS/second PC"}, ensure_ascii=False))
+            "scope": "new folder on current Windows host, PATH without uv/Python/FFmpeg; not a clean OS/second PC"}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

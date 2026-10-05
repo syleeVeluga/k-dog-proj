@@ -61,7 +61,7 @@ uv run --locked python -X utf8 -m app.manage --data-dir "D:/K-DOG/data" preproce
 
 ## 패키지와 종단 리허설
 
-ZIP은 커밋된 깨끗한 작업 트리에서 만든다. S1 카탈로그·계산/문장/비교 규칙·HTML/CSS 템플릿·로컬 폰트와 잠금 운영 의존성, 운영 안내·계획·후속 문서를 포함한다. 고객 원본·영상·키·런타임 자료와 개발용 시험·빌드·실측 스크립트는 제외한다. 개발 명령과 시험 근거는 `release.json`의 commit에 해당하는 소스 저장소에서 확인한다. `app.launcher.REQUIRED`가 S1 필수 자산을 검사한다.
+ZIP은 커밋된 깨끗한 작업 트리에서 만든다. S1 카탈로그·계산/문장/비교 규칙·HTML/CSS 템플릿·로컬 폰트, 운영 안내·계획·후속 문서와 실행 런타임을 포함한다. 런타임은 python.org 공식 CPython embeddable(고정 SHA-256, `releases/.cache/`에 보관)에 `uv export --locked --no-dev` 결과를 hash 필수·wheel 전용으로 설치한 `runtime/python`, 그리고 [FFmpeg 최소 빌드](../scripts/ffmpeg/README.md) 결과를 `build.json` 해시로 확인한 `runtime/ffmpeg`다. FFmpeg 빌드 결과가 없거나 해시가 다르면 ZIP을 만들지 않는다. `오픈소스고지.txt`에는 고정 고지문과 동봉한 Python·npm 패키지 목록을 넣는다. 고객 원본·영상·키·런타임 자료와 개발용 시험·빌드·실측 스크립트는 제외한다. 개발 명령과 시험 근거는 `release.json`의 commit에 해당하는 소스 저장소에서 확인한다. `app.launcher.REQUIRED`가 S1 필수 자산을 검사한다.
 
 ```powershell
 # 저장소 루트; 프로젝트 Python 사용
@@ -71,7 +71,7 @@ backend/.venv/Scripts/python.exe -X utf8 scripts/verify_release.py "releases/kdo
 uv run --locked python -X utf8 ../scripts/rehearsal.py --pairs 2 --seconds 10 --report "D:/tmp/s1-rehearsal.json"
 ```
 
-`verify_release`는 현재 Windows의 새 한글/공백 경로에서 실제 ZIP의 손상 거절, 새 가상환경 설치, S1 health·접수·재시작 조회·감독 종료를 검사한다. 깨끗한 OS와 물리 PC3대는 별도 실측이다.
+`verify_release`는 PATH를 Windows 기본 경로로 제한해 uv·Python·FFmpeg가 없는 상태로 현재 Windows의 새 한글/공백 경로에 ZIP을 풀고, `Start.cmd --check`의 손상 거절, 내장 Python·FFmpeg 사용, S1 health·접수·재시작 조회·감독 종료를 검사한다. 패키지 안의 FFmpeg로 전처리 시험을 다시 돌리려면 풀린 `runtime/ffmpeg/bin`을 PATH 맨 앞에 두고 backend 시험을 실행한다. 깨끗한 OS와 물리 PC3대는 별도 실측이다.
 
 리허설은 Forms 접수/설문→3개 독립 촬영 계정 동시 수신→CAM1/2/3 연결→실제 구간/offset 확정→FFmpeg 전처리→독립 사람 원자료→계산/최종결과→실제 HTML/PDF 발급과 hash 고정을 검증한다. 모든 항목의 미관찰 사유가 명시된 합성 시트를 사용하며 실제 행동 점수를 발명하지 않는다. 총 벽시계와 단계별 시간을 분리한다. 기본은 72쌍/45초이며 빈 임시 폴더만 쓴다. 외부 AI 호출은 0건, 논리 클라이언트3개이며 실제 3PC나 1GB 영상 시간의 대체 증거가 아니다.
 

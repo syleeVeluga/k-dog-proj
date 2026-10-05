@@ -2,6 +2,7 @@
 
 import argparse
 from contextlib import contextmanager
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -17,6 +18,7 @@ from urllib.request import build_opener, ProxyHandler
 import uuid
 import webbrowser
 
+from app import media
 from app.storage import REPO_ROOT, Store
 from app.maintenance import offline, runtime_lock
 
@@ -96,16 +98,32 @@ REQUIRED = ("frontend/dist/index.html", "resources/catalogs/behavior-v4.json", "
             "resources/fonts/NanumGothic-Regular.ttf", "resources/fonts/NotoSansSymbols.ttf")
 
 
+def verify_release(root=REPO_ROOT):
+    """A packaged release rejects damaged or altered files, including its bundled runtime."""
+    manifest = root / "release.json"
+    if not manifest.is_file():
+        return
+    base = root.resolve()
+    for name, digest in json.loads(manifest.read_text(encoding="utf-8"))["files"].items():
+        path = (root / name).resolve()
+        if path.is_relative_to(base) and path.is_file():
+            with path.open("rb") as file:
+                if hashlib.file_digest(file, "sha256").hexdigest() == digest:
+                    continue
+        raise ValueError(f"설치 파일이 손상되었습니다: {name}. 프로그램을 다시 설치하세요.")
+
+
 def preflight():
     if sys.version_info[:2] != (3, 14):
-        raise ValueError("Python 3.14 환경이 필요합니다. Install.cmd를 실행하세요.")
+        raise ValueError("Python 3.14 환경이 필요합니다. 프로그램을 다시 설치하세요.")
     for name in REQUIRED:
         if not (REPO_ROOT / name).is_file():
-            raise ValueError(f"설치 파일이 없습니다: {name}")
+            raise ValueError(f"설치 파일이 없습니다: {name}. 프로그램을 다시 설치하세요.")
     for name in ("ffmpeg", "ffprobe"):
-        if not shutil.which(name):
-            raise ValueError(f"{name}을 설치하고 PATH에 등록하세요.")
-        subprocess.run([name, "-version"], check=True, capture_output=True, timeout=10,
+        executable = shutil.which(media.tool(name))
+        if not executable:
+            raise ValueError(f"{name}이 없습니다. 프로그램을 다시 설치하세요.")
+        subprocess.run([executable, "-version"], check=True, capture_output=True, timeout=10,
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
 
 
@@ -186,10 +204,11 @@ def main():
     parser.add_argument("--data-dir", type=Path, default=Path(os.environ.get("KDOG_DATA_DIR", DEFAULT_DATA)))
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--no-browser", action="store_true")
-    parser.add_argument("--check", action="store_true", help="설치 파일·Python·FFmpeg 확인만 수행")
+    parser.add_argument("--check", action="store_true", help="설치 파일 해시·Python·FFmpeg 확인만 수행")
     args = parser.parse_args()
     try:
         if args.check:
+            verify_release()
             preflight()
             print("K-DOG 설치 파일·Python·FFmpeg 확인 완료")
         else:
