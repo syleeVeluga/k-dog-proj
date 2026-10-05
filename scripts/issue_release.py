@@ -44,6 +44,8 @@ def issue(plain_zip: Path, customer: str, accounts: list[tuple[str, str, str]], 
             raise ValueError(f"{username}: 아이디(영문·숫자·_-)와 비밀번호 길이(12~256자)를 확인하세요.")
     with ZipFile(plain_zip) as plain:
         manifest = json.loads(plain.read("release.json"))
+        if manifest.get("variant", "portable") != "portable":
+            raise ValueError("사용자 설치형(online) ZIP은 발행할 수 없습니다. 포터블 ZIP(기본 build_release.py)으로 발행하세요.")
         names = plain.namelist()
         if set(names) != set(manifest["files"]) | {"release.json"} or any(
                 hashlib.sha256(plain.read(name)).hexdigest() != digest for name, digest in manifest["files"].items()):

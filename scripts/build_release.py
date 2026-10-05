@@ -1,4 +1,8 @@
-"""Build an allowlisted Windows portable ZIP with bundled Python and FFmpeg; never package local runtime data."""
+"""Build an allowlisted Windows ZIP; never package local runtime data.
+
+portable (default): bundled Python and FFmpeg, nothing to install. online: the user installs uv and FFmpeg, and
+Install.cmd downloads Python 3.14 and the locked dependencies into backend/.venv (the S15 installation).
+"""
 
 import argparse
 import hashlib
@@ -110,16 +114,18 @@ def ffmpeg_runtime():
     return {"runtime/ffmpeg/" + name: path for name, path in {**actual, "build.json": manifest_path}.items()}
 
 
-def notice(staging, files):
+def notice(staging, files, fixed):
     """Korean open-source notice: fixed text plus the exact bundled Python and npm package lists."""
-    lines = [(ROOT / "scripts/windows/오픈소스고지.txt").read_text(encoding="utf-8").rstrip("\n"), "",
-             "■ 동봉한 Python 패키지 (라이선스 파일: runtime\\python\\Lib\\site-packages\\<이름>-<버전>.dist-info)"]
+    lines, python = [fixed.read_text(encoding="utf-8").rstrip("\n")], []
     for name in sorted(files):
         if re.fullmatch(r"runtime/python/Lib/site-packages/[^/]+\.dist-info/METADATA", name):
             metadata = files[name].read_text(encoding="utf-8").split("\n\n", 1)[0].splitlines()
             field = lambda key: next((line.split(": ", 1)[1] for line in metadata if line.startswith(key + ": ")), "")
-            lines.append(f"- {field('Name')} {field('Version')}: "
-                         f"{field('License-Expression') or field('License') or 'dist-info 라이선스 파일 참조'}")
+            python.append(f"- {field('Name')} {field('Version')}: "
+                          f"{field('License-Expression') or field('License') or 'dist-info 라이선스 파일 참조'}")
+    if python:
+        lines += ["", "■ 동봉한 Python 패키지 (라이선스 파일: runtime\\python\\Lib\\site-packages\\<이름>-<버전>.dist-info)",
+                  *python]
     lines += ["", "■ 화면(frontend\\dist)에 번들된 npm 패키지 (라이선스 전문: runtime\\licenses\\npm\\<이름>)"]
     lock = json.loads((ROOT / "frontend/package-lock.json").read_text(encoding="utf-8"))
     for key, package in sorted(lock["packages"].items()):
@@ -138,7 +144,7 @@ def notice(staging, files):
     files["오픈소스고지.txt"] = target
 
 
-def build(destination):
+def build(destination, variant="portable"):
     destination = destination.resolve()
     if destination.exists():
         raise ValueError("패키지 대상 파일이 이미 존재합니다.")
@@ -150,18 +156,27 @@ def build(destination):
     files = {name: ROOT / name for name in tracked if product_file(name)}
     for name in ("README.md", "docs/PILOT_OPERATIONS.md"):
         files[name] = ROOT / name
-    files["Start.cmd"] = ROOT / "scripts/windows/Start.cmd"
+    if variant == "online":
+        for name in ("backend/pyproject.toml", "backend/uv.lock"):
+            files[name] = ROOT / name
+        for name in ("Install.cmd", "install.ps1", "Start.cmd"):
+            files[name] = ROOT / "scripts/windows/online" / name
+    else:
+        files["Start.cmd"] = ROOT / "scripts/windows/Start.cmd"
     files.update({path.relative_to(ROOT).as_posix(): path for path in (ROOT / "frontend/dist").rglob("*") if path.is_file()})
     with (ROOT / "backend/pyproject.toml").open("rb") as project_file:
         version = tomllib.load(project_file)["project"]["version"]
     with tempfile.TemporaryDirectory(prefix="kdog-release-") as temporary:
         staging = Path(temporary)
-        files.update(python_runtime(staging))
-        files.update(ffmpeg_runtime())
-        notice(staging, files)
-        manifest = {"format": "kdog-release-1", "version": version, "commit": subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=ROOT).decode().strip(),
-            "working_tree_dirty": False, "python": PYTHON_VERSION,
+        if variant == "online":
+            notice(staging, files, ROOT / "scripts/windows/online/오픈소스고지.txt")
+        else:
+            files.update(python_runtime(staging))
+            files.update(ffmpeg_runtime())
+            notice(staging, files, ROOT / "scripts/windows/오픈소스고지.txt")
+        manifest = {"format": "kdog-release-1", "variant": variant, "version": version,
+            "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT).decode().strip(),
+            "working_tree_dirty": False, **({"python": PYTHON_VERSION} if variant == "portable" else {}),
             "files": {name: sha256(path) for name, path in sorted(files.items())}}
         destination.parent.mkdir(parents=True, exist_ok=True)
         with ZipFile(destination, "x", ZIP_DEFLATED) as archive:
@@ -177,4 +192,7 @@ def build(destination):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("destination", type=Path)
-    build(parser.parse_args().destination)
+    parser.add_argument("--variant", choices=("portable", "online"), default="portable",
+                        help="portable: Python·FFmpeg 내장 (기본). online: 사용자가 uv·FFmpeg를 설치하고 설치 때 인터넷 사용")
+    args = parser.parse_args()
+    build(args.destination, args.variant)

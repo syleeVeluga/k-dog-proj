@@ -160,13 +160,14 @@ class IssueTests(unittest.TestCase):
     def tearDown(self):
         self.temporary.cleanup()
 
-    def plain(self, tamper=False, supported=True):
+    def plain(self, tamper=False, supported=True, variant=None):
         files = {"Start.cmd": b"@echo off\r\n", "backend/app/secret.py": b"PRODUCT_SOURCE_MARKER = 1\n",
                  "backend/app/manage.py": b'sub.add_parser("provision-accounts")\n' if supported else b"",
                  "runtime/python/python.exe": b"MZ runtime", CRYPTO: b"Name: cryptography\n", "오픈소스고지.txt": "고지".encode()}
         manifest = {"format": "kdog-release-1", "version": "0.3.0", "commit": "b" * 40,
-                    "files": {name: hashlib.sha256(data).hexdigest() for name, data in files.items()}}
-        path = self.root / f"plain-{tamper}-{supported}.zip"
+                    "files": {name: hashlib.sha256(data).hexdigest() for name, data in files.items()},
+                    **({"variant": variant} if variant else {})}
+        path = self.root / f"plain-{tamper}-{supported}-{variant}.zip"
         with ZipFile(path, "w") as archive:
             for name, data in files.items():
                 archive.writestr(name, data + (b"x" if tamper and name == "Start.cmd" else b""))
@@ -212,6 +213,7 @@ class IssueTests(unittest.TestCase):
         for plain, customer, accounts, message in (
                 (self.plain(tamper=True), "SCHOOL-1", good, "release.json"),
                 (self.plain(supported=False), "SCHOOL-1", good, "발행 설치를 지원하지"),
+                (self.plain(variant="online"), "SCHOOL-1", good, "사용자 설치형"),
                 (self.plain(), "bad customer", good, "고객 ID"),
                 (self.plain(), "SCHOOL-1", [("manager", "admin", "short")], "비밀번호"),
                 (self.plain(), "SCHOOL-1", [("keyman", "developer", "Issued-dev-pass-1")], "관리자"),

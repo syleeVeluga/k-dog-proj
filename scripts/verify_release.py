@@ -3,6 +3,8 @@
 Plain ZIP: new Korean/space path, damaged-file rejection, bundled runtime, HTTP login/intake/restart, locks.
 Issued ZIP (synthetic customer VERIFY): no readable product files, wrong key and tampering change nothing,
 key install with accounts and shortcut, admin/developer login, and reinstall keeping data and accounts.
+User-install ZIP (--variant online, uv/FFmpeg on PATH, internet): Start.cmd asks for Install.cmd first, damage
+is rejected before a venv exists, Install.cmd builds backend/.venv, then the same HTTP, restart and lock checks.
 """
 
 import argparse
@@ -50,7 +52,7 @@ def run_python(python, app, env, *arguments):
 
 
 @contextmanager
-def served(command, app, env, *, kill_tree=False):
+def served(command, app, env, *, kill_tree=False, python=None):
     """Run the launcher on a free port until ready; yield a factory of logged-out HTTP clients."""
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
@@ -98,11 +100,13 @@ def served(command, app, env, *, kill_tree=False):
         process.wait(timeout=10)
         process.stdout.close()
         # The supervisor must release locks even after an abrupt termination.
-        python = Path(app) / "runtime/python/python.exe"
+        python = python or Path(app) / "runtime/python/python.exe"
+        # A venv interpreter cannot start under the deliberately wrong PYTHONHOME; the launchers clear it.
+        clean = {key: value for key, value in env.items() if key not in ("PYTHONHOME", "PYTHONPATH")}
         deadline = time.monotonic() + 10
         while True:
             try:
-                run_python(python, app, env, "-c", "from pathlib import Path; import os; from app.storage import Store\n"
+                run_python(python, app, clean, "-c","from pathlib import Path; import os; from app.storage import Store\n"
                            "from app.maintenance import offline\n"
                            "with offline(Store(Path(os.environ['KDOG_DATA_DIR']))):\n    pass\n")
                 break
@@ -112,8 +116,7 @@ def served(command, app, env, *, kill_tree=False):
                 time.sleep(0.1)
 
 
-def verify_plain(package, root):
-    app = root / "새 설치 경로"
+def unpack(package, app):
     with ZipFile(package) as archive:
         for name in archive.namelist():
             if not (app / name).resolve().is_relative_to(app.resolve()):
@@ -124,6 +127,12 @@ def verify_plain(package, root):
         if set(archive.namelist()) != set(manifest["files"]) | {"release.json"}:
             raise ValueError("package entries differ from release.json")
         archive.extractall(app)
+    return manifest
+
+
+def verify_plain(package, root):
+    app = root / "새 설치 경로"
+    unpack(package, app)
     for name in ("Start.cmd", "release.json", "오픈소스고지.txt", "runtime/python/python.exe",
                  "runtime/python/python314._pth", "runtime/python/LICENSE.txt", "runtime/ffmpeg/bin/ffmpeg.exe",
                  "runtime/ffmpeg/bin/ffprobe.exe", "runtime/ffmpeg/build.json", "runtime/ffmpeg/licenses/COPYING.GPLv2",
@@ -173,6 +182,73 @@ def verify_plain(package, root):
     return {"bundled_runtime_only": True, "unicode_space_path": True, "corruption_rejected_by_check": True,
             "environment_override_isolated": True, "http_login_create_restart": "passed",
             "supervisor_shutdown": "passed"}
+
+
+def verify_online(package, root):
+    """User-install ZIP: uv and FFmpeg come from PATH; Install.cmd downloads Python 3.14 and locked dependencies."""
+    for tool in ("uv", "ffmpeg", "ffprobe"):
+        if not shutil.which(tool):
+            raise RuntimeError(f"{tool} must be on PATH to verify a user-install package")
+    app = root / "새 설치 경로"
+    manifest = unpack(package, app)
+    if manifest.get("variant") != "online" or "python" in manifest or any(name.startswith("runtime/") for name in manifest["files"]):
+        raise RuntimeError("user-install package must not bundle a runtime")
+    for name in ("Install.cmd", "install.ps1", "Start.cmd", "오픈소스고지.txt", "backend/pyproject.toml", "backend/uv.lock"):
+        if not (app / name).is_file():
+            raise RuntimeError(f"package is missing {name}")
+    env = {**os.environ, "KDOG_DATA_DIR": str(root / "data"), "GEMINI_API_KEY": "", "OPENAI_API_KEY": "",
+           "ANTHROPIC_API_KEY": "", "PYTHONUTF8": "1", "UV_PROJECT_ENVIRONMENT": str(root / "wrong-env"),
+           "PYTHONPATH": str(root / "wrong-path"), "PYTHONHOME": str(root / "wrong-home")}
+    clean = {key: value for key, value in env.items() if key not in ("PYTHONHOME", "PYTHONPATH")}
+    def run(*command, timeout=120):
+        return subprocess.run([str(app / command[0]), *command[1:]], cwd=app, env=env, stdin=subprocess.DEVNULL,
+                              capture_output=True, timeout=timeout)
+    early = run("Start.cmd", "--check")
+    if early.returncode == 0 or b"Install.cmd" not in early.stdout + early.stderr:
+        raise RuntimeError("Start.cmd before installation did not ask for Install.cmd")
+    asset = app / "frontend/dist/index.html"
+    original = asset.read_bytes()
+    asset.write_bytes(b"corrupted release")
+    try:
+        damaged = run("Install.cmd", "-SkipAccounts", timeout=600)
+        if damaged.returncode == 0 or (app / "backend/.venv").exists():
+            raise RuntimeError("damaged release was not rejected before installation")
+    finally:
+        asset.write_bytes(original)
+    installed = run("Install.cmd", "-SkipAccounts", timeout=600)
+    if installed.returncode or "Installation complete" not in installed.stdout.decode("utf-8", errors="replace"):
+        raise RuntimeError("Install.cmd failed: " + (installed.stdout + installed.stderr).decode("utf-8", errors="replace"))
+    if (root / "wrong-env").exists():
+        raise RuntimeError("installer used an unrelated UV_PROJECT_ENVIRONMENT")
+    checked = run("Start.cmd", "--check")
+    if checked.returncode:
+        raise RuntimeError("Start.cmd --check failed: " + (checked.stdout + checked.stderr).decode("utf-8", errors="replace"))
+    backend, python = app / "backend", app / "backend/.venv/Scripts/python.exe"
+    found = run_python(python, backend, clean, "-c", "import sys; from app import media; print(media.tool('ffmpeg')); "
+                       "print(sys.prefix); print(sys.version_info[:2] == (3, 14))")
+    tool, prefix, version = found.stdout.decode().splitlines()
+    if tool != "ffmpeg" or Path(prefix).resolve() != (backend / ".venv").resolve() or version != "True":
+        raise RuntimeError("installed app does not use its venv Python 3.14 and the PATH FFmpeg")
+    run_python(python, backend, clean, "-c", "from pathlib import Path; import os; from app.storage import Store\n"
+               "from app.auth import create_user\nfrom app.input_models import UserCreate\n"
+               "with Store(Path(os.environ['KDOG_DATA_DIR'])).connect(write=True) as db:\n"
+               "    create_user(db,UserCreate(username='pilot',role='admin',password='Synthetic-install-only-42'))\n")
+    case_id = None
+    for command, launch_env, kill_tree in (([str(python), "-X", "utf8", "-m", "app.launcher"], clean, False),
+                                           ([str(app / "Start.cmd")], env, True)):
+        with served(command, backend, launch_env, kill_tree=kill_tree, python=python) as client:
+            request = client()
+            request("/api/auth/login", {"username": "pilot", "password": "Synthetic-install-only-42"})
+            if case_id is None:
+                case = request("/api/cases", {"event_id": "S1-INSTALL", "participant_id": "0001", "dog_name": "설치 시험견"})
+                if case["manifest"]["schema_version"] != "intake-4.0":
+                    raise RuntimeError("new package created an old input edition")
+                case_id = case["case_id"]
+            elif request("/api/cases/" + case_id)["participant_id"] != "0001":
+                raise RuntimeError("restart through Start.cmd lost data")
+    return {"fresh_venv": True, "unicode_space_path": True, "start_before_install_rejected": True,
+            "corruption_rejected_before_install": True, "environment_override_isolated": True,
+            "path_ffmpeg_and_venv_python": True, "http_login_create_restart": "passed", "supervisor_shutdown": "passed"}
 
 
 def verify_issued(package, root):
@@ -249,6 +325,15 @@ def verify_issued(package, root):
 
 
 def verify(package):
+    with ZipFile(package) as archive:
+        variant = json.loads(archive.read("release.json")).get("variant", "portable")
+    if variant == "online":
+        with tempfile.TemporaryDirectory(prefix="kdog-s1-online-") as temporary:
+            result = {"package": str(package.resolve()), "variant": variant, **verify_online(package, Path(temporary))}
+        print(json.dumps({**result, "external_ai_calls": 0, "spec": "20261002", "s1_catalog_report_assets": "passed",
+                          "scope": "new folder and venv on current Windows host with uv/FFmpeg on PATH and internet; "
+                                   "not a clean OS/second PC"}, ensure_ascii=False))
+        return
     with tempfile.TemporaryDirectory(prefix="kdog-s1-clean-") as temporary:
         result = {"package": str(package.resolve()), **verify_plain(package, Path(temporary) / "plain")}
     with tempfile.TemporaryDirectory(prefix="kdog-s1-issued-") as temporary:
@@ -260,5 +345,5 @@ def verify(package):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("package", type=Path, help="build_release.py로 만든 평문 포터블 ZIP")
+    parser.add_argument("package", type=Path, help="build_release.py로 만든 평문 ZIP (포터블 또는 사용자 설치형)")
     verify(parser.parse_args().package)

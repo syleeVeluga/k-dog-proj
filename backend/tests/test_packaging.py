@@ -223,6 +223,48 @@ class LauncherTests(unittest.TestCase):
         with patch("app.launcher.shutil.which", return_value=None):
             with self.assertRaisesRegex(ValueError, "ffmpeg"):
                 preflight()
+        # A user-install folder has no runtime/, so the user must fix PATH rather than reinstall.
+        with tempfile.TemporaryDirectory(prefix="kdog-path-ffmpeg-") as temporary, \
+                patch.object(media, "RUNTIME", Path(temporary) / "runtime"), \
+                patch("app.launcher.shutil.which", return_value=None):
+            with self.assertRaisesRegex(ValueError, "PATH에 등록"):
+                preflight()
+
+    def test_user_install_scripts_stay_ascii_check_hashes_and_install_the_locked_venv(self):
+        online = REPO_ROOT / "scripts/windows/online"
+        for name in ("Install.cmd", "Start.cmd", "install.ps1"):
+            content = (online / name).read_bytes()
+            content.decode("ascii")  # cmd.exe and Windows PowerShell 5.1 read these without a BOM
+            if name.endswith(".cmd"):
+                self.assertEqual(content.count(b"\n"), content.count(b"\r\n"), name)
+        script = (online / "install.ps1").read_text(encoding="ascii")
+        self.assertLess(script.index("release.json"), script.index("uv sync --locked --no-dev"))
+        self.assertIn("Remove-Item Env:PYTHONHOME, Env:PYTHONPATH", script)
+        self.assertIn("UV_PROJECT_ENVIRONMENT", script)
+        start = (online / "Start.cmd").read_text(encoding="ascii")
+        self.assertIn(r'".venv\Scripts\python.exe" -X utf8 -m app.launcher %*', start)
+        self.assertIn('exit /b %status%', start)
+        self.assertIn('install.ps1" %*', (online / "Install.cmd").read_text(encoding="ascii"))
+
+    @unittest.skipUnless((REPO_ROOT / "frontend/node_modules").is_dir(), "frontend dependencies are not installed")
+    def test_open_source_notice_lists_python_packages_only_when_bundled(self):
+        spec = importlib.util.spec_from_file_location("build_release_notice", REPO_ROOT / "scripts/build_release.py")
+        release = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(release)
+        with tempfile.TemporaryDirectory(prefix="kdog-notice-") as temporary:
+            staging = Path(temporary)
+            files = {}
+            release.notice(staging, files, REPO_ROOT / "scripts/windows/online/오픈소스고지.txt")
+            text = files["오픈소스고지.txt"].read_text(encoding="utf-8-sig")
+            self.assertIn("사용자 설치형", text)
+            self.assertNotIn("동봉한 Python 패키지", text)
+            self.assertIn("- react ", text)
+            self.assertTrue(any(name.startswith("runtime/licenses/npm/react/") for name in files))
+            metadata = staging / "METADATA"
+            metadata.write_text("Name: fastapi\nVersion: 0.141.1\nLicense-Expression: MIT\n", encoding="utf-8")
+            files = {"runtime/python/Lib/site-packages/fastapi-0.141.1.dist-info/METADATA": metadata}
+            release.notice(staging, files, REPO_ROOT / "scripts/windows/오픈소스고지.txt")
+            self.assertIn("- fastapi 0.141.1: MIT", files["오픈소스고지.txt"].read_text(encoding="utf-8-sig"))
 
     def test_start_both_ready_duplicate_rejected_and_stop_releases_locks(self):
         with tempfile.TemporaryDirectory(prefix="kdog-m6-launch-") as temporary:
