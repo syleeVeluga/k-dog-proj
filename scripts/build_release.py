@@ -1,16 +1,30 @@
-"""Build an allowlisted Windows online-install ZIP; never package local runtime data."""
+"""Build an allowlisted Windows portable ZIP with bundled Python and FFmpeg; never package local runtime data."""
 
 import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
+import tempfile
 import tomllib
+from urllib.request import urlopen
 from zipfile import ZipFile, ZIP_DEFLATED
 
 
 ROOT = Path(__file__).resolve().parents[1]
+CACHE = ROOT / "releases/.cache"
+
+# Official signed CPython embeddable; checked against python.org's published SHA-256 (2026-10-05).
+PYTHON_VERSION = "3.14.8"
+PYTHON_ARCHIVE = f"python-{PYTHON_VERSION}-embed-amd64.zip"
+PYTHON_URL = f"https://www.python.org/ftp/python/{PYTHON_VERSION}/{PYTHON_ARCHIVE}"
+PYTHON_SHA256 = "a93abe456ab01bd96d7a085b3cdb6566b3063f4241360d114142fbdb07f0a310"
+# With a ._pth file the interpreter ignores PYTHONPATH, PYTHONHOME and user site-packages.
+PYTHON_PATHS = ("python314.zip", ".", r"Lib\site-packages", r"..\..\backend")
+# D00 output (scripts/ffmpeg/build-ffmpeg.sh), verified against its build.json before use.
+FFMPEG_BUILD = CACHE / "ffmpeg-9.0.2-kdog"
 
 # Historical fixtures stay in the repository, outside the S1 product package.
 # Retain only historical assets still needed by raw-input reset or source extraction.
@@ -40,35 +54,124 @@ def product_file(name):
     )
 
 
+def sha256(path):
+    with path.open("rb") as file:
+        return hashlib.file_digest(file, "sha256").hexdigest()
+
+
+def python_archive():
+    path = CACHE / PYTHON_ARCHIVE
+    if not path.is_file():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        partial = path.with_name(path.name + ".part")
+        with urlopen(PYTHON_URL, timeout=120) as response:
+            partial.write_bytes(response.read())
+        partial.replace(path)
+    if sha256(path) != PYTHON_SHA256:
+        raise ValueError(f"{path} SHA-256이 고정값과 다릅니다. 파일을 지우고 다시 실행하세요.")
+    return path
+
+
+def python_runtime(staging):
+    """Embeddable CPython plus the locked, hash-pinned binary wheels; nothing is downloaded at install time."""
+    python = staging / "runtime/python"
+    with ZipFile(python_archive()) as archive:
+        archive.extractall(python)
+    (python / "python314._pth").write_text("\n".join(PYTHON_PATHS) + "\n", encoding="utf-8")
+    requirements = staging / "requirements.txt"
+    uv = shutil.which("uv")
+    if not uv:
+        raise ValueError("릴리즈 빌드에는 uv가 필요합니다 (docs/DEVELOPMENT.md).")
+    subprocess.run([uv, "export", "--locked", "--no-dev", "--format", "requirements-txt", "--output-file",
+                    str(requirements)], cwd=ROOT / "backend", check=True, stdout=subprocess.DEVNULL)
+    subprocess.run([uv, "pip", "install", "--python", str(python / "python.exe"), "--target",
+                    str(python / "Lib/site-packages"), "--require-hashes", "--no-deps", "--only-binary", ":all:",
+                    "--no-config", "--requirements", str(requirements)], cwd=staging, check=True)
+    # Console-script launchers embed the staging interpreter path; the app runs modules with -m instead.
+    shutil.rmtree(python / "Lib/site-packages/bin", ignore_errors=True)
+    (python / "Lib/site-packages/.lock").unlink(missing_ok=True)
+    files = {"runtime/python/" + path.relative_to(python).as_posix(): path
+             for path in python.rglob("*") if path.is_file() and "__pycache__" not in path.parts}
+    # The embeddable LICENSE.txt omits bundled OpenSSL, expat, libmpdec, zstd and others; ship CPython's full list.
+    files["runtime/licenses/python/license.rst"] = ROOT / f"scripts/windows/licenses/python-{PYTHON_VERSION}-license.rst"
+    return files
+
+
+def ffmpeg_runtime():
+    manifest_path = FFMPEG_BUILD / "build.json"
+    if not manifest_path.is_file():
+        raise ValueError(f"FFmpeg 빌드 결과가 없습니다: {FFMPEG_BUILD} (scripts/ffmpeg/README.md)")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    actual = {path.relative_to(FFMPEG_BUILD).as_posix(): path for path in FFMPEG_BUILD.rglob("*")
+              if path.is_file() and path != manifest_path}
+    if actual.keys() != manifest["files"].keys() or any(
+            sha256(actual[name]) != digest for name, digest in manifest["files"].items()):
+        raise ValueError("FFmpeg 빌드 결과가 build.json과 다릅니다. scripts/ffmpeg/build-ffmpeg.sh로 다시 빌드하세요.")
+    return {"runtime/ffmpeg/" + name: path for name, path in {**actual, "build.json": manifest_path}.items()}
+
+
+def notice(staging, files):
+    """Korean open-source notice: fixed text plus the exact bundled Python and npm package lists."""
+    lines = [(ROOT / "scripts/windows/오픈소스고지.txt").read_text(encoding="utf-8").rstrip("\n"), "",
+             "■ 동봉한 Python 패키지 (라이선스 파일: runtime\\python\\Lib\\site-packages\\<이름>-<버전>.dist-info)"]
+    for name in sorted(files):
+        if re.fullmatch(r"runtime/python/Lib/site-packages/[^/]+\.dist-info/METADATA", name):
+            metadata = files[name].read_text(encoding="utf-8").split("\n\n", 1)[0].splitlines()
+            field = lambda key: next((line.split(": ", 1)[1] for line in metadata if line.startswith(key + ": ")), "")
+            lines.append(f"- {field('Name')} {field('Version')}: "
+                         f"{field('License-Expression') or field('License') or 'dist-info 라이선스 파일 참조'}")
+    lines += ["", "■ 화면(frontend\\dist)에 번들된 npm 패키지 (라이선스 전문: runtime\\licenses\\npm\\<이름>)"]
+    lock = json.loads((ROOT / "frontend/package-lock.json").read_text(encoding="utf-8"))
+    for key, package in sorted(lock["packages"].items()):
+        if not key or package.get("dev") or package.get("optional"):
+            continue
+        name = key.rsplit("node_modules/", 1)[1]
+        lines.append(f"- {name} {package['version']}: {package.get('license', '라이선스 파일 참조')}")
+        licenses = [path for path in (ROOT / "frontend" / key).iterdir() if path.is_file() and
+                    path.name.upper().startswith(("LICENSE", "LICENCE", "COPYING", "NOTICE"))]
+        if not licenses:
+            raise ValueError(f"npm 패키지 라이선스 파일이 없습니다: {name}")
+        for path in licenses:
+            files[f"runtime/licenses/npm/{name}/{path.name}"] = path
+    target = staging / "오픈소스고지.txt"
+    target.write_text("\r\n".join(lines) + "\r\n", encoding="utf-8-sig", newline="")
+    files["오픈소스고지.txt"] = target
+
+
 def build(destination):
     destination = destination.resolve()
     if destination.exists():
         raise ValueError("패키지 대상 파일이 이미 존재합니다.")
+    if subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT):
+        raise ValueError("릴리즈 패키지는 커밋된 깨끗한 작업 트리에서 생성해야 합니다.")
     subprocess.run([shutil.which("npm.cmd") or shutil.which("npm"), "run", "build"],
                    cwd=ROOT / "frontend", check=True)
     tracked = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT).decode().split("\0")
     files = {name: ROOT / name for name in tracked if product_file(name)}
-    for name in ("README.md", "backend/pyproject.toml", "backend/uv.lock", "docs/PILOT_OPERATIONS.md"):
+    for name in ("README.md", "docs/PILOT_OPERATIONS.md"):
         files[name] = ROOT / name
-    for name in ("Install.cmd", "Start.cmd", "install.ps1"):
-        files[name] = ROOT / "scripts/windows" / name
+    files["Start.cmd"] = ROOT / "scripts/windows/Start.cmd"
     files.update({path.relative_to(ROOT).as_posix(): path for path in (ROOT / "frontend/dist").rglob("*") if path.is_file()})
-    if subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT):
-        raise ValueError("릴리즈 패키지는 커밋된 깨끗한 작업 트리에서 생성해야 합니다.")
     with (ROOT / "backend/pyproject.toml").open("rb") as project_file:
         version = tomllib.load(project_file)["project"]["version"]
-    manifest = {"format": "kdog-release-1", "version": version, "commit": subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], cwd=ROOT).decode().strip(),
-        "working_tree_dirty": False,
-        "files": {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in sorted(files.items())}}
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    with ZipFile(destination, "x", ZIP_DEFLATED) as archive:
-        for name, path in sorted(files.items()):
-            archive.write(path, name)
-        archive.writestr("release.json", json.dumps(manifest, ensure_ascii=False, indent=2))
-    digest = hashlib.sha256(destination.read_bytes()).hexdigest()
+    with tempfile.TemporaryDirectory(prefix="kdog-release-") as temporary:
+        staging = Path(temporary)
+        files.update(python_runtime(staging))
+        files.update(ffmpeg_runtime())
+        notice(staging, files)
+        manifest = {"format": "kdog-release-1", "version": version, "commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT).decode().strip(),
+            "working_tree_dirty": False, "python": PYTHON_VERSION,
+            "files": {name: sha256(path) for name, path in sorted(files.items())}}
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with ZipFile(destination, "x", ZIP_DEFLATED) as archive:
+            for name, path in sorted(files.items()):
+                archive.write(path, name)
+            archive.writestr("release.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+    digest = sha256(destination)
     destination.with_suffix(destination.suffix + ".sha256").write_text(digest + "  " + destination.name + "\n", encoding="utf-8")
-    print(json.dumps({"package": str(destination), "files": len(files), "sha256": digest}, ensure_ascii=False))
+    print(json.dumps({"package": str(destination), "files": len(files), "bytes": destination.stat().st_size,
+                      "sha256": digest}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

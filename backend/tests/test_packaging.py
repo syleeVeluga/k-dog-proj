@@ -18,7 +18,8 @@ from urllib.request import build_opener, ProxyHandler
 
 from fastapi import HTTPException
 
-from app.launcher import REQUIRED, launch, preflight, process_group
+from app import media
+from app.launcher import REQUIRED, launch, preflight, process_group, verify_release
 from app.storage import REPO_ROOT
 from app.maintenance import offline
 from app.storage import Store, encode, now
@@ -125,6 +126,67 @@ class LauncherTests(unittest.TestCase):
             self.assertIn("--enable-w32threads", configure)
             self.assertIn("--disable-autodetect", configure)
             self.assertEqual(sorted(re.findall(r"--enable-(lib\w+|zlib)", configure)), ["libx264", "zlib"])
+
+    def test_check_rejects_damaged_missing_or_escaping_release_files(self):
+        with tempfile.TemporaryDirectory(prefix="kdog-release-check-") as temporary:
+            root = Path(temporary) / "K-DOG"
+            (root / "runtime/ffmpeg/bin").mkdir(parents=True)
+            (root / "runtime/ffmpeg/bin/ffmpeg.exe").write_bytes(b"bundled")
+            digest = hashlib.sha256(b"bundled").hexdigest()
+            def manifest(files):
+                (root / "release.json").write_text(json.dumps({"files": files}), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "release.json"):
+                verify_release(root)  # a packaged tree (runtime/) must keep its manifest
+            verify_release(Path(temporary))  # a development checkout has neither
+            manifest({"runtime/ffmpeg/bin/ffmpeg.exe": digest})
+            verify_release(root)
+            for files in ({"runtime/ffmpeg/bin/ffmpeg.exe": "0" * 64}, {"runtime/ffmpeg/bin/ffprobe.exe": digest},
+                          {"../outside.txt": digest}):
+                manifest(files)
+                with self.assertRaisesRegex(ValueError, "손상"):
+                    verify_release(root)
+            (Path(temporary) / "outside.txt").write_bytes(b"bundled")
+            with self.assertRaisesRegex(ValueError, "손상"):
+                verify_release(root)
+
+    def test_packaged_release_uses_only_bundled_ffmpeg(self):
+        with tempfile.TemporaryDirectory(prefix="kdog-bundled-ffmpeg-") as temporary:
+            runtime = Path(temporary) / "runtime"
+            with patch.object(media, "RUNTIME", runtime):
+                self.assertEqual(media.tool("ffmpeg"), "ffmpeg")  # development: PATH
+                runtime.mkdir()
+                bundled = str(runtime / "ffmpeg/bin/ffprobe.exe")
+                self.assertEqual(media.tool("ffprobe"), bundled)  # even if quarantined, never PATH
+                with patch("app.media.subprocess.run", side_effect=FileNotFoundError) as run:
+                    with self.assertRaises(media.MediaError):
+                        media.command(["ffprobe", "-version"])
+                self.assertEqual(run.call_args.args[0], [bundled, "-version"])
+                with patch("app.launcher.subprocess.run") as run, self.assertRaisesRegex(ValueError, "ffmpeg"):
+                    preflight()
+                run.assert_not_called()
+
+    def test_release_build_accepts_only_the_exact_ffmpeg_build(self):
+        spec = importlib.util.spec_from_file_location("build_release_ffmpeg", REPO_ROOT / "scripts/build_release.py")
+        release = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(release)
+        with tempfile.TemporaryDirectory(prefix="kdog-ffmpeg-gate-") as temporary:
+            build = Path(temporary)
+            (build / "bin").mkdir()
+            (build / "bin/ffmpeg.exe").write_bytes(b"ffmpeg")
+            def manifest(files):
+                (build / "build.json").write_text(json.dumps({"files": files}), encoding="utf-8")
+            with patch.object(release, "FFMPEG_BUILD", build):
+                with self.assertRaisesRegex(ValueError, "없습니다"):
+                    release.ffmpeg_runtime()
+                manifest({"bin/ffmpeg.exe": hashlib.sha256(b"ffmpeg").hexdigest()})
+                self.assertEqual(sorted(release.ffmpeg_runtime()), ["runtime/ffmpeg/bin/ffmpeg.exe", "runtime/ffmpeg/build.json"])
+                (build / "bin/extra.dll").write_bytes(b"")
+                with self.assertRaisesRegex(ValueError, "build.json"):
+                    release.ffmpeg_runtime()
+                (build / "bin/extra.dll").unlink()
+                manifest({"bin/ffmpeg.exe": "0" * 64})
+                with self.assertRaisesRegex(ValueError, "build.json"):
+                    release.ffmpeg_runtime()
 
     def test_preflight_rejects_missing_media_tools(self):
         with patch("app.launcher.shutil.which", return_value=None):

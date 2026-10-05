@@ -14,11 +14,17 @@ class NoVideoError(MediaError):
 
 
 LOCAL_INPUT = ["-protocol_whitelist", "file,pipe", "-format_whitelist", "mov,matroska,webm,avi"]
+# A packaged release uses only its own FFmpeg, never another one on PATH; development and server installs use PATH.
+RUNTIME = Path(__file__).resolve().parents[2] / "runtime"
+
+
+def tool(name: str) -> str:
+    return str(RUNTIME / "ffmpeg/bin" / f"{name}.exe") if RUNTIME.is_dir() else name
 
 
 def command(arguments: list[str], timeout=900) -> str:
     try:
-        result = subprocess.run(arguments, capture_output=True, timeout=timeout,
+        result = subprocess.run([tool(arguments[0]), *arguments[1:]], capture_output=True, timeout=timeout,
                                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except FileNotFoundError as exc:
         raise MediaError("개발자 설정 필요: FFmpeg/ffprobe를 설치하세요.") from exc
