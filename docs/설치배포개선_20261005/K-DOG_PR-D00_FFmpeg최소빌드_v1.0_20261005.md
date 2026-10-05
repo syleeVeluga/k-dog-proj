@@ -1,6 +1,6 @@
 # PR-D00 FFmpeg 최소 빌드
 
-버전: v1.0 · 2026-10-05 · 상태: 계획 · 선행: 없음 · 기준: main `6376311`
+버전: v1.0 · 2026-10-05 · 상태: 구현 완료 (2026-10-05) · 선행: 없음 · 기준: main `6376311`
 
 상위: [설치·배포 개선 계획](K-DOG_설치배포개선계획_v1.0_20261005.md). 공통 절차는 [S1 계획 §7](../개발반영_20261003/K-DOG_개발반영계획_v1.0_20261003.md)을 적용한다.
 
@@ -66,8 +66,71 @@ S1 전처리 계약은 `libx264`·CRF 20을 고정한다 ([preprocess_v4.py:22](
 
 ## 구현 및 검증 기록
 
-- [ ] 구현·변경 파일 및 commit/PR 기록
-- [ ] FFmpeg·x264·zlib·MSYS2 최신·선택 버전·확인일·근거 기록
-- [ ] `-buildconf`·기능 목록·시험 결과와 바이너리 SHA-256 기록
-- [ ] 리뷰 발견사항과 수용/보류/거절·수정·재검증 기록
-- [ ] D01 인계 사항(빌드 결과 경로·`build.json` 형식) 기록
+- [x] 구현·변경 파일 및 commit/PR 기록
+- [x] FFmpeg·x264·zlib·MSYS2 최신·선택 버전·확인일·근거 기록
+- [x] `-buildconf`·기능 목록·시험 결과와 바이너리 SHA-256 기록
+- [x] 리뷰 발견사항과 수용/보류/거절·수정·재검증 기록
+- [x] D01 인계 사항(빌드 결과 경로·`build.json` 형식) 기록
+
+### 구현 (2026-10-05)
+
+브랜치 `veluga/d00-ffmpeg-minimal-build`, [PR #47](https://github.com/syleeVeluga/k-dog-proj/pull/47). 변경 파일: `scripts/ffmpeg/build-ffmpeg.sh`(신설), `scripts/ffmpeg/README.md`(신설), `backend/tests/test_packaging.py`(`test_ffmpeg_build_manifest_matches_files`). 계획과 달라진 점:
+
+- 병렬 컴파일 수를 `KDOG_FFMPEG_JOBS`(기본 4)로 둔다. 개발 PC에서 `nproc`(16) 병렬로 `cc1.exe: out of memory`가 났다 (커밋 여유 메모리 약 4.6GB).
+- 시스템 DLL 확인은 이름 목록 대신 "System32에 실제로 있는 DLL 또는 UCRT API-set(`api-ms-win-crt-*`)"으로 판단한다. FFmpeg 기본 입력 장치(vfwcap·gdigrab)가 `AVICAP32`·`GDI32` 등을 가져오기 때문이다.
+- 재빌드 확인을 위해 `KDOG_FFMPEG_SOURCES`(소스 폴더)와 `KDOG_FFMPEG_OUT`(결과 폴더)를 둔다. Git Bash에서 MSYS2 bash를 부르면 환경변수가 넘어가지 않으므로 UCRT64 셸이나 PowerShell에서 실행한다.
+
+### 버전 확인 (2026-10-05)
+
+| 대상 | 최신 확인 | 선택 | 근거 |
+| --- | --- | --- | --- |
+| FFmpeg | 9.0.2 (2026-09-18) | 9.0.2 | [ffmpeg.org download](https://ffmpeg.org/download.html). `ffmpeg-9.0.2.tar.xz.asc` PGP 서명 확인: "Good signature", 키 `FCF9 86EA 15E6 E293 A564 4F10 B432 2F04 D676 58D8`. SHA-256 `8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e` |
+| x264 | `stable` 최신 `b35605ace3ddf7c1a5d67a2eb553f034aef41d55` (2025-06-08) | 같음 | [code.videolan.org API](https://code.videolan.org/api/v4/projects/videolan%2Fx264/repository/branches/stable). GitLab 압축 파일 SHA-256 `6eeb82934e69fd51e043bd8c5b0d152839638d1ce7aa4eea65a3fedcf83ff224` |
+| zlib | 1.3.2 (2026-02-17) | 1.3.2 | [madler/zlib v1.3.2](https://github.com/madler/zlib/releases/tag/v1.3.2). SHA-256 `d7a0654783a4da529d1bb793b7ad9c3318020af77667bcae35f95d0e42a792f3`는 GitHub 게시 digest와 일치 |
+| MSYS2 도구 | 2026-10-05 `pacman -Syu` 후 최신 | gcc 16.2.0-4, binutils 2.47-3, mingw-w64 crt/winpthreads 14.0.0.r426, nasm 3.02-1, pkgconf 3.0.7-1, make 4.4.1-3 | 개발 PC `D:\msys64` (원래 설치본 2023-10-26, gcc 13.2.0). 정확한 목록은 `build.json`의 `toolchain` |
+
+code.videolan.org는 스크립트 다운로드에 x264 압축 파일 대신 봇 확인 HTML(7KB)을 준 적이 있다. 고정 SHA-256 검사가 이를 거절했고, 스크립트는 받은 파일을 지우고 브라우저로 받거나 이전 빌드의 `source/`에서 복사하라고 안내한다.
+
+### 빌드 결과와 기능 확인
+
+결과 `releases/.cache/ffmpeg-9.0.2-kdog/` (git 무시 대상):
+
+- `bin/ffmpeg.exe` SHA-256 `141b21b712f782eec5b19a17a55bc34f4d8ef5c8168270aa04ab520158d8a2c6` (33,194,496 B)
+- `bin/ffprobe.exe` SHA-256 `4c9cb35bbaecade8915131b790045960dca782e55906da75f104917999517f6b` (32,993,280 B)
+- `-buildconf`: `--enable-gpl --enable-libx264 --enable-zlib --disable-autodetect --enable-w32threads --disable-ffplay --disable-doc --pkg-config-flags=--static`와 경로 옵션뿐이다. 다른 외부 라이브러리는 없다.
+- `-L`: "GNU General Public License ... either version 2 of the License, or (at your option) any later version".
+- 의존 DLL: `KERNEL32`, `USER32`, `GDI32`, `SHELL32`, `ole32`, `OLEAUT32`, `SHLWAPI`, `AVICAP32`, `WS2_32`, `bcrypt`와 UCRT `api-ms-win-crt-*`뿐이다. `libwinpthread-1.dll`·`libgcc_s_seh-1.dll`·`zlib1.dll` 의존은 없다.
+- 기능: 인코더 `libx264`·`aac`·`png`, 디코더 `h264`·`hevc`·`aac`, demuxer `mov,mp4,…`·`matroska,webm`·`avi`, muxer `mp4`·`image2`, 필터 `select`·`fps`·`scale`·`testsrc`·`testsrc2`·`sine`, 입력 장치 `lavfi`, 프로토콜 `file`·`pipe` 모두 있다.
+- 실행 파일에 빌드 PC의 절대 경로(`/d/dev/k_dog_proj/releases/.cache/...`)가 configure 문자열로 들어간다. 동작에는 영향이 없다.
+
+재빌드 확인: 결과의 `source/build-ffmpeg.sh`(커밋된 스크립트와 동일)를 `KDOG_FFMPEG_SOURCES=<결과>/source`로 실행했다. 인터넷 없이 `source/`의 파일만으로 빌드되었다. 소스 해시와 명령은 결과 폴더 경로만 다르고 같다. 바이너리는 내장 경로 문자열 때문에 바이트가 다르다 (계획대로 비트 동일성은 요구하지 않음).
+
+### 시험
+
+- 빌드한 FFmpeg를 PATH 맨 앞에 둔 backend 전체 시험: **583개 OK, skip 2** (역사 원본 부재로 정상 skip). 이 실행은 리뷰 반영 전 빌드(같은 소스·옵션)로 했다.
+- 최종 빌드로 `test_preprocess`·`test_preprocess_v4`·`test_preprocess_api_v4`·`test_report_runs_v4`·`test_rehearsal`·`test_packaging` 51개 OK (skip 없음). D01 패키지에 들어간 최종 바이너리(위 SHA-256)로 `test_preprocess_v4`·`test_preprocess_api_v4`·`test_report_runs_v4`·`test_rehearsal` 37개 OK.
+- 개발 환경 FFmpeg 8.1.1(gyan.dev full)과 시험 결과 차이는 없다. 출력 바이트 비교는 하지 않았다.
+- frontend build, 전체 e2e **45개 통과**, `git diff --check` 통과.
+
+### cold review와 조치
+
+독립 cold review 결과 P1 없음, P2 3건, P3 6건.
+
+| 등급 | 발견 | 조치 |
+| --- | --- | --- |
+| P2 | zlib makefile이 복사 실패를 무시하면 FFmpeg가 MSYS2 기본 zlib로 조용히 링크될 수 있음 | 수용: 의존 라이브러리·헤더·`.pc` 설치 확인 후 실패 시 중단, README 표현 수정 |
+| P2 | 기록된 FFmpeg configure 명령의 따옴표가 빠져 그대로 다시 실행할 수 없음 | 수용: `printf %q`로 기록 |
+| P2 | 상대 경로 `KDOG_FFMPEG_OUT`이면 빌드 실패·MSYS2 zlib 대체 | 수용: 소스·결과 경로를 절대 경로로 변환 |
+| P3 | 실행 파일에 빌드 PC 경로가 들어감 | 보류: 동작 영향 없음, 위에 기록 |
+| P3 | `source/`에 빌드 도구 설치 정보 없음, mingw-w64 런타임 소스 미동봉 | 부분 수용: `configure-commands.txt`에 `pacman` 명령 추가. 런타임(CRT·winpthreads·libgcc)은 허용형·GCC Runtime Library Exception이며 GPLv2 §3의 시스템 구성요소 예외로 보는 것이 일반적이어서 라이선스·버전만 동봉한다. 벨루가의 Q01 확인에서 요구하면 MSYS2 소스 패키지를 추가한다 |
+| P3 | FFmpeg `LICENSE.md`의 IJG 표기 | 수용(D01): 한국어 오픈소스 고지에 포함 |
+| P3 | 해시 불일치 시 이전 빌드 `source/`의 파일 이름을 바꿔 그 빌드를 훼손 | 수용: 이름을 바꾸지 않고 안내만 출력 |
+| P3 | 캐시 결과가 리뷰 반영 전 스크립트로 만든 것 | 수용: 최종 스크립트로 다시 빌드 (위 결과) |
+| P3 | 시험이 결과 자체 일관성만 확인 | 수용: 스크립트 고정 SHA-256과 `build.json` 대조, configure 옵션·런타임 라이선스 폴더 확인 추가 |
+
+### D01 인계
+
+- 결과 경로: `releases/.cache/ffmpeg-9.0.2-kdog/` (`bin/`, `source/`, `licenses/`, `build.json`).
+- `build.json` 형식 `kdog-ffmpeg-build-1`: `ffmpeg`·`x264`·`zlib` 버전, `license`, `built_at`, `compiler`, `toolchain`, `configure`(zlib·x264·ffmpeg 명령), `sources`(압축 파일 SHA-256), `files`(`bin`·`source`·`licenses` 아래 모든 파일의 상대 경로 → SHA-256). D01은 `files`와 실제 파일이 정확히 같을 때만 패키지에 넣는다.
+- 한국어 오픈소스 고지에 IJG 표기를 넣는다.
+- Q01 확인 담당자(벨루가)의 동봉물 점검 결과는 D01 기록에 남긴다.

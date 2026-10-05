@@ -1,8 +1,11 @@
 """M6 real process supervision and attempt accounting regressions."""
 
+import hashlib
+import json
 import os
 import importlib.util
 from pathlib import Path
+import re
 import socket
 import subprocess
 import sys
@@ -96,6 +99,32 @@ class LauncherTests(unittest.TestCase):
         self.assertIn("resources/report/templates/s1.css", REQUIRED)
         self.assertFalse([name for name in REQUIRED if name.endswith(("behavior-v1.json", "survey-v1.json", "scoring-v1.json"))])
         self.assertEqual([name for name in REQUIRED if not (REPO_ROOT / name).is_file() and not name.startswith("frontend/")], [])
+
+    def test_ffmpeg_build_manifest_matches_files(self):
+        builds = sorted((REPO_ROOT / "releases/.cache").glob("ffmpeg-*-kdog/build.json"))
+        if not builds:
+            self.skipTest("D00 FFmpeg build output is absent (scripts/ffmpeg/build-ffmpeg.sh)")
+        script = (REPO_ROOT / "scripts/ffmpeg/build-ffmpeg.sh").read_text(encoding="utf-8")
+        pinned = re.findall(r"^(?:FFMPEG|X264|ZLIB)_SHA256=([0-9a-f]{64})$", script, re.M)
+        self.assertEqual(len(pinned), 3)
+        for path in builds:
+            build, root = json.loads(path.read_text(encoding="utf-8")), path.parent
+            actual = {file.relative_to(root).as_posix(): hashlib.sha256(file.read_bytes()).hexdigest()
+                      for file in root.rglob("*") if file.is_file() and file != path}
+            self.assertEqual(build["files"], actual, root)
+            for name in ("bin/ffmpeg.exe", "bin/ffprobe.exe", "licenses/COPYING.GPLv2",
+                         "licenses/x264-COPYING", "licenses/zlib-LICENSE", "source/build-ffmpeg.sh"):
+                self.assertIn(name, actual, root)
+            for name, digest in build["sources"].items():
+                self.assertEqual(actual["source/" + name], digest, name)
+            # A stale cache must not survive a version or source bump in the committed script.
+            self.assertEqual(sorted(build["sources"].values()), sorted(pinned), root)
+            for name in ("mingw-w64-crt", "mingw-w64-winpthreads", "mingw-w64-libgcc"):
+                self.assertTrue(any(file.startswith(f"licenses/{name}/") for file in actual), name)
+            configure = build["configure"]["ffmpeg"]
+            self.assertIn("--enable-w32threads", configure)
+            self.assertIn("--disable-autodetect", configure)
+            self.assertEqual(sorted(re.findall(r"--enable-(lib\w+|zlib)", configure)), ["libx264", "zlib"])
 
     def test_preflight_rejects_missing_media_tools(self):
         with patch("app.launcher.shutil.which", return_value=None):
