@@ -61,7 +61,7 @@ health 응답은 이미 `{"service": "K-DOG", ...}`를 반환하므로 API 변�
 
 ### 구현 (2026-10-05)
 
-브랜치 `veluga/d02-launcher-window`. 변경 파일: `backend/app/launcher.py`, `backend/app/storage.py`·`backend/app/api.py`(health의 `install`), `scripts/windows/Start.cmd`(`title K-DOG`), `backend/tests/test_packaging.py`, `docs/PILOT_OPERATIONS.md`.
+브랜치 `veluga/d02-launcher-window`, [PR #49](https://github.com/syleeVeluga/k-dog-proj/pull/49). 변경 파일: `backend/app/launcher.py`, `backend/app/storage.py`·`backend/app/api.py`(health의 `install`), `scripts/windows/Start.cmd`(`title K-DOG`), `backend/tests/test_packaging.py`, `docs/PILOT_OPERATIONS.md`.
 
 - 실행 전에 `/api/health`를 1초 제한으로 조회한다. 같은 설치의 K-DOG가 응답하면 "K-DOG가 이미 실행 중입니다. 브라우저를 엽니다."를 출력하고 브라우저만 연 뒤 종료 코드 0으로 끝난다. `Start.cmd`는 `pause` 없이 창을 닫는다.
 - 실행 잠금(또는 API·worker·유지보수 잠금)이 잡혀 있으면 "K-DOG를 시작하는 중입니다. 잠시 기다리세요."를 출력하고 최대 30초 동안 0.5초 간격으로 잠금을 다시 시도하며 health를 조회한다. 같은 설치가 응답하면 브라우저만 열고, 먼저 실행한 쪽이 멈춰 잠금이 풀리면 이어서 정상 시작한다. 끝까지 둘 다 아니면 기존 잠금 오류를 보여준다.
