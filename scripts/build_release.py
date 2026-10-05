@@ -85,6 +85,9 @@ def python_runtime(staging):
     subprocess.run([uv, "pip", "install", "--python", str(python / "python.exe"), "--target",
                     str(python / "Lib/site-packages"), "--require-hashes", "--no-deps", "--only-binary", ":all:",
                     "--no-config", "--requirements", str(requirements)], cwd=staging, check=True)
+    # Console-script launchers embed the staging interpreter path; the app runs modules with -m instead.
+    shutil.rmtree(python / "Lib/site-packages/bin")
+    (python / "Lib/site-packages/.lock").unlink()
     return {"runtime/python/" + path.relative_to(python).as_posix(): path
             for path in python.rglob("*") if path.is_file() and "__pycache__" not in path.parts}
 
