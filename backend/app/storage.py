@@ -110,6 +110,12 @@ BEGIN SELECT RAISE(ABORT, 'run snapshots are immutable'); END;
 """
 
 
+def install_id(data_root: Path) -> str:
+    """Opaque identity of this program folder and data folder; health exposes it instead of the paths."""
+    key = f"{REPO_ROOT}|{Path(data_root).expanduser().resolve()}".casefold()
+    return hashlib.sha256(key.encode()).hexdigest()[:16]
+
+
 class Store:
     def __init__(self, root: Path):
         self.root = root.expanduser().resolve()

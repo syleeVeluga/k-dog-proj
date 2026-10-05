@@ -1,4 +1,5 @@
 @echo off
+title K-DOG
 setlocal
 cd /d "%~dp0"
 set "PYTHONHOME="

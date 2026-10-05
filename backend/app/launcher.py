@@ -1,8 +1,9 @@
 """Supervise the local API and worker without a shell or a second installation."""
 
 import argparse
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 import hashlib
+import http.client
 import json
 import os
 from pathlib import Path
@@ -18,8 +19,10 @@ from urllib.request import build_opener, ProxyHandler
 import uuid
 import webbrowser
 
+from fastapi import HTTPException
+
 from app import media
-from app.storage import REPO_ROOT, Store
+from app.storage import REPO_ROOT, Store, install_id
 from app.maintenance import offline, runtime_lock
 
 
@@ -141,19 +144,65 @@ def stop(children):
             child.wait(timeout=10)
 
 
-def launch(data_dir, port=8000, *, open_browser=True, stop_event=None, ready=None):
+def running_health(url, opener):
+    """The health body of a K-DOG answering on this port, or None for nothing or another program."""
+    try:
+        with opener.open(url + "/api/health", timeout=1) as response:
+            body = json.load(response)
+    except (OSError, URLError, ValueError, http.client.HTTPException):
+        return None
+    return body if isinstance(body, dict) and body.get("service") == "K-DOG" else None
+
+
+def launch(data_dir, port=8000, *, open_browser=True, stop_event=None, ready=None, lock_wait=30):
     if not 1 <= port <= 65535:
         raise ValueError("포트는 1~65535여야 합니다.")
+    url = f"http://127.0.0.1:{port}"
+    opener = build_opener(ProxyHandler({}))
+
+    def reuse_running():
+        # Clicking the icon again only reopens the browser, and only for this program and data folder.
+        health = running_health(url, opener)
+        if health is None:
+            return False
+        if health.get("install") != install_id(data_dir):
+            raise ValueError(f"다른 위치나 버전의 K-DOG가 {port} 포트에서 실행 중입니다. 그 실행 창을 닫은 뒤 다시 실행하세요.")
+        print("K-DOG가 이미 실행 중입니다." + (" 브라우저를 엽니다." if open_browser else ""), flush=True)
+        if open_browser:
+            webbrowser.open(url)
+        return True
+
+    if reuse_running():
+        return
     preflight()
     store = Store(data_dir)
     stop_event = stop_event or threading.Event()
-    with runtime_lock(store, "launcher"):
-        with offline(store):
-            pass
+    with ExitStack() as locks:
+        # An earlier click may still be starting (up to 30 seconds); maintenance never answers health.
+        deadline, waiting = time.monotonic() + lock_wait, False
+        while True:
+            try:
+                locks.enter_context(runtime_lock(store, "launcher"))
+                with offline(store):
+                    pass
+                break
+            except HTTPException:
+                locks.close()
+                if reuse_running():
+                    return
+                if time.monotonic() >= deadline:
+                    raise
+                if not waiting:
+                    print("K-DOG를 시작하는 중입니다. 잠시 기다리세요.", flush=True)
+                    waiting = True
+                time.sleep(0.5)
         with socket.socket() as probe:
             if os.name == "nt":
                 probe.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
-            probe.bind(("127.0.0.1", port))
+            try:
+                probe.bind(("127.0.0.1", port))
+            except OSError:
+                raise ValueError(f"다른 프로그램이 {port} 포트를 사용 중입니다. 그 프로그램을 종료한 뒤 다시 실행하세요.") from None
         with tempfile.TemporaryDirectory(prefix="kdog-launch-") as temporary, process_group() as attach:
             marker = Path(temporary) / "worker-ready"
             instance = uuid.uuid4().hex
@@ -169,8 +218,6 @@ def launch(data_dir, port=8000, *, open_browser=True, stop_event=None, ready=Non
                     attach(children[-1])
                     children[-1].stdin.write(b"1")
                     children[-1].stdin.flush()
-                url = f"http://127.0.0.1:{port}"
-                opener = build_opener(ProxyHandler({}))
                 deadline = time.monotonic() + 30
                 while True:
                     if any(child.poll() is not None for child in children):
@@ -187,7 +234,10 @@ def launch(data_dir, port=8000, *, open_browser=True, stop_event=None, ready=Non
                     if time.monotonic() >= deadline:
                         raise RuntimeError("실행 준비 제한 시간(30초)을 초과했습니다.")
                     stop_event.wait(0.2)
-                print(f"K-DOG 실행 중: {url}\n종료하려면 이 창에서 Ctrl+C를 누르세요.", flush=True)
+                print(f"K-DOG 실행 중: {url}", flush=True)
+                if open_browser:
+                    print("브라우저가 자동으로 열립니다. 열리지 않으면 위 주소를 브라우저에 입력하세요.", flush=True)
+                print("이 창을 닫으면 K-DOG가 종료됩니다. 작업 중에는 창을 최소화해 두세요.", flush=True)
                 if ready:
                     ready(children)
                 if open_browser:
@@ -201,7 +251,6 @@ def launch(data_dir, port=8000, *, open_browser=True, stop_event=None, ready=Non
 
 def main():
     from app.api import DEFAULT_DATA
-    from fastapi import HTTPException
     parser = argparse.ArgumentParser(description="K-DOG API·worker 원클릭 실행")
     parser.add_argument("--data-dir", type=Path, default=Path(os.environ.get("KDOG_DATA_DIR", DEFAULT_DATA)))
     parser.add_argument("--port", type=int, default=8000)

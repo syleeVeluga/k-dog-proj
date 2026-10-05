@@ -1,6 +1,8 @@
 """M6 real process supervision and attempt accounting regressions."""
 
+import contextlib
 import hashlib
+import io
 import json
 import os
 import importlib.util
@@ -20,8 +22,8 @@ from fastapi import HTTPException
 
 from app import media
 from app.launcher import REQUIRED, launch, preflight, process_group, verify_release
-from app.storage import REPO_ROOT
-from app.maintenance import offline
+from app.storage import REPO_ROOT, install_id
+from app.maintenance import offline, runtime_lock
 from app.storage import Store, encode, now
 from app.usage import summarize, token_meters, validate_prices
 from tests.support import AppCase
@@ -31,6 +33,35 @@ def free_port():
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         return sock.getsockname()[1]
+
+
+@contextlib.contextmanager
+def responder(reply):
+    """Listen on a free loopback port and answer each connection with reply() bytes; None never answers."""
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        def serve():
+            while True:
+                try:
+                    connection, _ = listener.accept()
+                except OSError:
+                    return
+                with connection:
+                    try:
+                        connection.recv(65536)
+                        connection.sendall(reply())
+                    except OSError:
+                        pass
+        if reply:
+            threading.Thread(target=serve, daemon=True).start()
+        yield listener.getsockname()[1]
+
+
+def http_json(body, status=200):
+    data = json.dumps(body).encode()
+    return (f"HTTP/1.1 {status} Status\r\nContent-Type: application/json\r\nContent-Length: {len(data)}\r\n"
+            "Connection: close\r\n\r\n").encode() + data
 
 
 class LauncherTests(unittest.TestCase):
@@ -199,22 +230,76 @@ class LauncherTests(unittest.TestCase):
             event = threading.Event()
             def ready(children):
                 self.assertTrue(all(child.poll() is None for child in children))
+                # Same data on another port: nothing answers there, so the lock error stands.
                 with self.assertRaises(HTTPException):
-                    launch(root, free_port(), open_browser=False)
+                    launch(root, free_port(), open_browser=False, lock_wait=1)
+                # Clicking again: only the browser opens for the running instance.
+                again = io.StringIO()
+                with (patch("app.launcher.webbrowser.open") as browser, patch("app.launcher.subprocess.Popen") as spawn,
+                      contextlib.redirect_stdout(again)):
+                    launch(root, port)
+                browser.assert_called_once_with(f"http://127.0.0.1:{port}")
+                spawn.assert_not_called()
+                self.assertIn("이미 실행 중입니다. 브라우저를 엽니다.", again.getvalue())
+                # Another data folder (or another installed version) on the same port is not silently reused.
+                with tempfile.TemporaryDirectory(prefix="kdog-m6-other-") as other:
+                    with self.assertRaisesRegex(ValueError, "다른 위치나 버전의 K-DOG"):
+                        launch(Path(other), port, open_browser=False)
                 event.set()
-            launch(root, port, open_browser=False, stop_event=event, ready=ready)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                launch(root, port, open_browser=False, stop_event=event, ready=ready)
+            self.assertIn("이 창을 닫으면 K-DOG가 종료됩니다", output.getvalue())
+            self.assertNotIn("Ctrl+C", output.getvalue())
+            self.assertNotIn("브라우저", output.getvalue())  # --no-browser
             with offline(Store(root)):
                 pass
 
-    def test_occupied_port_starts_no_children(self):
-        with tempfile.TemporaryDirectory(prefix="kdog-m6-port-") as temporary, socket.socket() as sock:
-            sock.bind(("127.0.0.1", 0))
-            sock.listen()
-            with patch("app.launcher.subprocess.Popen") as spawn:
-                # preflight also uses Popen; isolate it for this focused bind regression.
-                with patch("app.launcher.preflight"):
-                    with self.assertRaises(OSError):
-                        launch(Path(temporary), sock.getsockname()[1], open_browser=False)
+    def test_second_click_while_first_is_starting_waits_and_opens_browser(self):
+        started = threading.Event()
+        with tempfile.TemporaryDirectory(prefix="kdog-starting-") as temporary:
+            root = Path(temporary)
+            health = lambda: http_json({"service": "K-DOG", "install": install_id(root)}, 200 if started.is_set() else 503)
+            # The first launcher holds its lock and becomes healthy only after a delay.
+            timer = threading.Timer(1.5, started.set)
+            output = io.StringIO()
+            with (responder(health) as port, runtime_lock(Store(root), "launcher"),
+                  patch("app.launcher.webbrowser.open") as browser, patch("app.launcher.preflight"),
+                  patch("app.launcher.subprocess.Popen") as spawn, contextlib.redirect_stdout(output)):
+                timer.start()
+                launch(root, port, lock_wait=10)
+            timer.cancel()
+            self.assertTrue(started.is_set())
+            browser.assert_called_once_with(f"http://127.0.0.1:{port}")
+            spawn.assert_not_called()
+            self.assertIn("시작하는 중", output.getvalue())
+
+    def test_first_launch_that_stops_while_waiting_lets_the_second_start(self):
+        with tempfile.TemporaryDirectory(prefix="kdog-lock-retry-") as temporary:
+            root, held = Path(temporary), threading.Event()
+            def first():
+                with runtime_lock(Store(root), "launcher"):
+                    held.set()
+                    time.sleep(1.5)
+            thread = threading.Thread(target=first)
+            thread.start()
+            held.wait(5)
+            with responder(None) as port, patch("app.launcher.preflight"):
+                # Reaching the port check proves the lock was retried and acquired after the first stopped.
+                with self.assertRaisesRegex(ValueError, "포트를 사용 중"):
+                    launch(root, port, open_browser=False, lock_wait=10)
+            thread.join()
+
+    def test_other_programs_on_the_port_start_no_children(self):
+        replies = {"silent": None, "not HTTP": lambda: b"SSH-2.0-OpenSSH\r\n",
+                   "truncated": lambda: b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n{",
+                   "JSON list": lambda: http_json([1]), "other service": lambda: http_json({"service": "other"})}
+        for name, reply in replies.items():
+            with self.subTest(name), tempfile.TemporaryDirectory(prefix="kdog-m6-port-") as temporary:
+                with (responder(reply) as port, patch("app.launcher.subprocess.Popen") as spawn,
+                      patch("app.launcher.preflight")):  # preflight also uses Popen
+                    with self.assertRaisesRegex(ValueError, "다른 프로그램이 .* 포트를 사용 중"):
+                        launch(Path(temporary), port, open_browser=False)
                 spawn.assert_not_called()
 
     def test_worker_failure_stops_api(self):

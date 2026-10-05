@@ -30,7 +30,7 @@ from app.input_models import (
     Revision, SessionEdit, SessionMetadata, StoredVideo, UserCreate, UserEdit, UserView,
 )
 from app.intake import create_case, new_session, save_survey, selected_session, template
-from app.storage import REPO_ROOT, Store, now, uid
+from app.storage import REPO_ROOT, Store, install_id, now, uid
 from app import settings
 from app import forms_v4, uploads, capture_v4, preprocess_v4, sheets_v4
 from app.domain.catalog_v4 import BehaviorCatalogV4, load_catalog_v4
@@ -99,7 +99,8 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
 
     @app.get("/api/health")
     def health():
-        return {"service": "K-DOG", "instance": os.environ.get("KDOG_INSTANCE", ""), "spec": "20261002"}
+        return {"service": "K-DOG", "instance": os.environ.get("KDOG_INSTANCE", ""), "spec": "20261002",
+                "install": install_id(store.root)}
 
     @app.middleware("http")
     async def boundary(request: Request, call_next):
