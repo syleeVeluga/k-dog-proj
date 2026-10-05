@@ -254,17 +254,23 @@ class LauncherTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="kdog-notice-") as temporary:
             staging = Path(temporary)
             files = {}
-            release.notice(staging, files, REPO_ROOT / "scripts/windows/online/오픈소스고지.txt")
+            release.notice(staging, files, REPO_ROOT / "scripts/windows/online/오픈소스고지.txt", "licenses")
             text = files["오픈소스고지.txt"].read_text(encoding="utf-8-sig")
             self.assertIn("사용자 설치형", text)
             self.assertNotIn("동봉한 Python 패키지", text)
             self.assertIn("- react ", text)
-            self.assertTrue(any(name.startswith("runtime/licenses/npm/react/") for name in files))
+            self.assertIn("라이선스 전문: licenses\\npm\\<이름>", text)
+            # runtime/ would make the app look for a bundled FFmpeg that a user-install package does not have.
+            self.assertTrue(any(name.startswith("licenses/npm/react/") for name in files))
+            self.assertFalse(any(name.startswith("runtime/") for name in files))
             metadata = staging / "METADATA"
             metadata.write_text("Name: fastapi\nVersion: 0.141.1\nLicense-Expression: MIT\n", encoding="utf-8")
             files = {"runtime/python/Lib/site-packages/fastapi-0.141.1.dist-info/METADATA": metadata}
             release.notice(staging, files, REPO_ROOT / "scripts/windows/오픈소스고지.txt")
-            self.assertIn("- fastapi 0.141.1: MIT", files["오픈소스고지.txt"].read_text(encoding="utf-8-sig"))
+            text = files["오픈소스고지.txt"].read_text(encoding="utf-8-sig")
+            self.assertIn("- fastapi 0.141.1: MIT", text)
+            self.assertIn("라이선스 전문: runtime\\licenses\\npm\\<이름>", text)
+            self.assertTrue(any(name.startswith("runtime/licenses/npm/react/") for name in files))
 
     def test_start_both_ready_duplicate_rejected_and_stop_releases_locks(self):
         with tempfile.TemporaryDirectory(prefix="kdog-m6-launch-") as temporary:

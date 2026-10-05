@@ -114,8 +114,11 @@ def ffmpeg_runtime():
     return {"runtime/ffmpeg/" + name: path for name, path in {**actual, "build.json": manifest_path}.items()}
 
 
-def notice(staging, files, fixed):
-    """Korean open-source notice: fixed text plus the exact bundled Python and npm package lists."""
+def notice(staging, files, fixed, license_dir="runtime/licenses"):
+    """Korean open-source notice: fixed text plus the exact bundled Python and npm package lists.
+
+    A user-install package keeps npm licenses outside runtime/, which marks a bundled runtime to the app.
+    """
     lines, python = [fixed.read_text(encoding="utf-8").rstrip("\n")], []
     for name in sorted(files):
         if re.fullmatch(r"runtime/python/Lib/site-packages/[^/]+\.dist-info/METADATA", name):
@@ -126,7 +129,7 @@ def notice(staging, files, fixed):
     if python:
         lines += ["", "■ 동봉한 Python 패키지 (라이선스 파일: runtime\\python\\Lib\\site-packages\\<이름>-<버전>.dist-info)",
                   *python]
-    lines += ["", "■ 화면(frontend\\dist)에 번들된 npm 패키지 (라이선스 전문: runtime\\licenses\\npm\\<이름>)"]
+    lines += ["", f"■ 화면(frontend\\dist)에 번들된 npm 패키지 (라이선스 전문: {license_dir.replace('/', '\\')}\\npm\\<이름>)"]
     lock = json.loads((ROOT / "frontend/package-lock.json").read_text(encoding="utf-8"))
     for key, package in sorted(lock["packages"].items()):
         if not key or package.get("dev") or package.get("optional"):
@@ -138,7 +141,7 @@ def notice(staging, files, fixed):
         if not licenses:
             raise ValueError(f"npm 패키지 라이선스 파일이 없습니다: {name}")
         for path in licenses:
-            files[f"runtime/licenses/npm/{name}/{path.name}"] = path
+            files[f"{license_dir}/npm/{name}/{path.name}"] = path
     target = staging / "오픈소스고지.txt"
     target.write_text("\r\n".join(lines) + "\r\n", encoding="utf-8-sig", newline="")
     files["오픈소스고지.txt"] = target
@@ -169,7 +172,7 @@ def build(destination, variant="portable"):
     with tempfile.TemporaryDirectory(prefix="kdog-release-") as temporary:
         staging = Path(temporary)
         if variant == "online":
-            notice(staging, files, ROOT / "scripts/windows/online/오픈소스고지.txt")
+            notice(staging, files, ROOT / "scripts/windows/online/오픈소스고지.txt", "licenses")
         else:
             files.update(python_runtime(staging))
             files.update(ffmpeg_runtime())
