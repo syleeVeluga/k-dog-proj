@@ -1,6 +1,6 @@
 # PR-D01 내장 런타임 패키지
 
-버전: v1.0 · 2026-10-05 · 상태: 계획 · 선행: D00 · 기준: main `6376311`
+버전: v1.0 · 2026-10-05 · 상태: 구현 완료 (2026-10-05) · 선행: D00 · 기준: main `6376311`
 
 상위: [설치·배포 개선 계획](K-DOG_설치배포개선계획_v1.0_20261005.md). 공통 절차는 [S1 계획 §7](../개발반영_20261003/K-DOG_개발반영계획_v1.0_20261003.md)을 적용한다.
 
@@ -79,8 +79,65 @@ Lib\site-packages
 
 ## 구현 및 검증 기록
 
-- [ ] 구현·변경 파일 및 commit/PR 기록
-- [ ] 라이브러리/도구 최신·선택 버전·확인일·근거 기록
-- [ ] 시험 결과(backend/e2e/전처리/리허설/verify_release)와 ZIP 크기·SHA-256 기록
-- [ ] 리뷰 발견사항과 수용/보류/거절·수정·재검증 기록
-- [ ] D02 인계 사항 기록
+- [x] 구현·변경 파일 및 commit/PR 기록
+- [x] 라이브러리/도구 최신·선택 버전·확인일·근거 기록
+- [x] 시험 결과(backend/e2e/전처리/리허설/verify_release)와 ZIP 크기·SHA-256 기록
+- [x] 리뷰 발견사항과 수용/보류/거절·수정·재검증 기록
+- [x] D02 인계 사항 기록
+
+### 구현 (2026-10-05)
+
+브랜치 `veluga/d01-bundled-runtime`. 계획의 파일별 변경을 모두 반영했다. 계획과 다르거나 추가된 점:
+
+- `Start.cmd`가 실패 후 `pause`를 거치면 종료 코드가 0이 되는 기존 결함을 고쳤다 (`set "status=%errorlevel%"` 후 `exit /b %status%`). 손상 패키지의 `--check`가 성공으로 보이던 문제를 `verify_release`가 찾아냈다.
+- `uv pip install --target`이 만드는 `Lib/site-packages/bin/*.exe`(빌드 임시 경로가 박힌 실행 파일)와 `.lock`은 패키지에서 뺀다. 앱은 `-m`으로 모듈을 실행하므로 필요 없다.
+- embeddable의 `LICENSE.txt`에는 함께 들어 있는 OpenSSL·expat·libmpdec·zstd 등의 라이선스가 없다. CPython 3.14.8 `Doc/license.rst`를 `scripts/windows/licenses/python-3.14.8-license.rst`로 저장소에 두고 `runtime/licenses/python/license.rst`로 동봉한다.
+- 패키지 폴더(`runtime/`이 있는 폴더)는 PATH의 다른 FFmpeg로 대체하지 않고, `release.json`이 없으면 `--check`가 손상으로 거절한다. 개발·중앙 서버 저장소 실행은 지금처럼 PATH FFmpeg를 쓴다.
+- `backend/pyproject.toml`·`backend/uv.lock`은 더 이상 패키지에 넣지 않는다 (설치 단계의 `uv sync`가 없어짐).
+- `verify_release`는 PATH를 Windows 기본 경로로 제한할 뿐 아니라 `PYTHONPATH`·`PYTHONHOME`을 틀린 경로로 두고도 동작하는지, ZIP 항목이 `release.json` 목록과 정확히 같은지 확인한다.
+
+### 버전 확인 (2026-10-05)
+
+| 대상 | 최신 확인 | 선택 | 근거 |
+| --- | --- | --- | --- |
+| CPython Windows embeddable (amd64) | 3.14.8 (2026-09-30) | 3.14.8 | [python.org 3.14.8](https://www.python.org/downloads/release/python-3148/) 게시 SHA-256 `a93abe456ab01bd96d7a085b3cdb6566b3063f4241360d114142fbdb07f0a310`과 받은 파일 일치. 개발 환경 3.14.2와 같은 3.14 계열 |
+| uv (개발자 빌드 도구) | 0.12.23 (2026-10-03) | 개발 PC 0.11.18 그대로 | [uv releases](https://github.com/astral-sh/uv/releases). 사용한 `uv export --locked --no-dev --format requirements-txt`, `uv pip install --target --python --require-hashes --no-deps --only-binary :all: --no-config`가 0.11.18 `--help`에 있고 동작을 확인했다. 사용자 PC에는 uv가 필요 없으므로 관련 없는 개발 도구 업그레이드는 하지 않았다 |
+| Python 의존성 | `backend/uv.lock` 고정 | 변경 없음 | fastapi 0.141.1, uvicorn 0.52.4, pydantic 2.13.5, openpyxl 3.1.5, reportlab 5.0.1, pillow 12.3.0 등 18개 wheel 모두 3.14 Windows 바이너리로 설치됨 (소스 빌드 없음) |
+| FFmpeg | D00 결과 | 9.0.2 + libx264 + zlib | D00 `build.json` 해시와 일치할 때만 동봉 |
+
+### 시험과 패키지
+
+- 패키지: `releases/d01-final/k-dog-v0.3.0-s1-windows-x64-e71b52e.zip` (git 무시 대상), 1,192개 파일, **70,686,216 B** (압축 해제 약 137MB), SHA-256 `50a35df8abc88fb440975a575bf72ada201f32044ae4b528df41143f975db674`. 같은 ZIP에 `.sha256` 파일을 만든다. 이 파일은 내부 검증용이며 고객에게는 D03 발행물만 보낸다.
+- `verify_release.py` 통과: PATH에 uv·Python·FFmpeg 없음, 새 한글·공백 경로, 손상 시 `Start.cmd --check` 실패(종료 코드 1, "손상" 안내), 원복 후 통과, 내장 Python(`sys.prefix`)·내장 FFmpeg 사용, 로그인·접수·재시작 조회, 강제 종료 후 잠금 해제, 외부 AI 호출 0.
+- 내장 Python으로 `app` 아래 78개 모듈 import 성공 (embeddable에 없는 표준 모듈 사용 없음).
+- 패키지에서 꺼낸 `runtime/ffmpeg/bin`(D00 바이너리와 SHA-256 동일)을 PATH 맨 앞에 두고 `test_preprocess_v4`·`test_preprocess_api_v4`·`test_report_runs_v4`·`test_rehearsal` **37개 OK**.
+- backend 전체: **586개 OK, skip 3**. skip은 역사 원본 부재 2건과 S1 고객 원본(SRC02/SRC03) 대조 1건이다. 이 실행은 고객 원본이 없는 별도 작업 폴더(git worktree)에서 했으며, `--spec 20261002 --check`는 고객 원본이 있는 기본 작업 폴더에서 통과했다 (D01은 카탈로그 코드를 바꾸지 않음).
+- frontend build, 전체 e2e **45개 통과**, `git diff --check` 통과.
+- 패키지에는 시험·`.venv`·`.git`·`node_modules`·`__pycache__`·키·런타임 자료·`pyproject.toml`·`uv.lock`·`Install.cmd`가 없다. 18개 Python 패키지의 `dist-info` 라이선스, FFmpeg `licenses/`·`source/`(세 원본 압축 파일, 빌드 스크립트, 명령), Python `LICENSE.txt`·`license.rst`, npm(react·react-dom·scheduler) 라이선스, 글꼴 OFL, `오픈소스고지.txt`(IJG 표기 포함)가 있다.
+
+### Q01·Q05 상태
+
+- Q01 (FFmpeg GPL 재배포): 결정 K07·K08대로 대응 소스·라이선스·한국어 고지를 동봉했고 위 목록으로 개발자 점검을 마쳤다. **확인 담당자(벨루가)의 동봉물 점검은 아직 기록되지 않았다.** 고객 발송 전에 이 문서나 D03 기록에 결과를 남긴다.
+- Q05 (H.264/AAC 특허): 비상용 학교 이벤트(K08)로 추가 특허 조치 없이 진행한다. 상용 배포로 바뀌면 다시 검토한다.
+- 이 ZIP은 고객에게 보내지 않는다 (고객 전달은 D03 발행물).
+
+### cold review와 조치
+
+독립 cold review 결과 P1 없음, P2 3건, P3 5건. 모두 수용해 반영하고 패키지를 다시 만들어 `verify_release`와 시험을 다시 통과했다.
+
+| 등급 | 발견 | 조치 |
+| --- | --- | --- |
+| P2 | 고지문이 OpenSSL·SQLite 등의 고지가 embeddable `LICENSE.txt`에 있다고 했으나 실제로 없음 (OpenSSL Apache 2.0 전문 필요) | CPython 3.14.8 `Doc/license.rst` 동봉, 고지 문구 수정 |
+| P2 | 패키지에서 `release.json`이 빠져도 `--check`가 통과 (D03 설치에 위험) | `runtime/`이 있는 폴더는 `release.json` 필수, 시험 추가 |
+| P2 | 운영 안내 주석 두 곳이 아직 `backend/`에서 실행하라고 함 | 프로그램 폴더로 수정 |
+| P3 | 내장 FFmpeg가 사라지면(백신 격리 등) PATH의 다른 FFmpeg로 조용히 대체 | 패키지 폴더는 PATH로 대체하지 않음, 시험 추가 |
+| P3 | ZIP 항목과 `release.json` 목록 일치 확인 없음 | `verify_release`에 추가 |
+| P3 | 중첩 npm 패키지 라이선스 경로가 `node_modules` 누출 검사와 충돌 가능 | 마지막 `node_modules/` 뒤 이름 사용 |
+| P3 | `uv` 없음·`uv export` 오류 출력·`bin`/`.lock` 없음에 취약 | 명확한 오류, stderr 표시, 없으면 건너뜀 |
+| P3 | FFmpeg 빌드 결과 거절(해시 불일치·추가 파일·`build.json` 없음) 시험 없음 | 시험 추가. `pyproject.toml` 미포함은 위 패키지 점검으로 확인 |
+
+### D02 인계
+
+- 실행 진입점은 `Start.cmd` → `runtime\python\python.exe -X utf8 -m app.launcher`이다. 한국어 문구는 모두 Python에서 출력하고 `Start.cmd`는 ASCII만 쓴다. `title K-DOG`를 넣을 위치는 `@echo off` 다음이다.
+- `Start.cmd`는 런처의 종료 코드를 그대로 돌려준다. 이미 실행 중일 때 브라우저만 열고 0으로 끝나면 창이 `pause` 없이 바로 닫힌다.
+- D03 설치 프로그램은 설치 폴더에서 `runtime\python\python.exe -X utf8 -m app.launcher --check`를 실행하면 된다. `release.json`이 runtime을 포함한 전체 파일 해시를 담는다.
