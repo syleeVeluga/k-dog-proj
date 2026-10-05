@@ -87,7 +87,7 @@ Lib\site-packages
 
 ### 구현 (2026-10-05)
 
-브랜치 `veluga/d01-bundled-runtime`. 계획의 파일별 변경을 모두 반영했다. 계획과 다르거나 추가된 점:
+브랜치 `veluga/d01-bundled-runtime`, [PR #48](https://github.com/syleeVeluga/k-dog-proj/pull/48). 계획의 파일별 변경을 모두 반영했다. 계획과 다르거나 추가된 점:
 
 - `Start.cmd`가 실패 후 `pause`를 거치면 종료 코드가 0이 되는 기존 결함을 고쳤다 (`set "status=%errorlevel%"` 후 `exit /b %status%`). 손상 패키지의 `--check`가 성공으로 보이던 문제를 `verify_release`가 찾아냈다.
 - `uv pip install --target`이 만드는 `Lib/site-packages/bin/*.exe`(빌드 임시 경로가 박힌 실행 파일)와 `.lock`은 패키지에서 뺀다. 앱은 `-m`으로 모듈을 실행하므로 필요 없다.
