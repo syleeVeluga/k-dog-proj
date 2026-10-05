@@ -178,8 +178,7 @@ def shortcut(target: Path, directory: Path | None) -> Path | None:
               "$d = if ($env:KDOG_SHORTCUT_DIR) { $env:KDOG_SHORTCUT_DIR } else { [Environment]::GetFolderPath('Desktop') }; "
               "$p = Join-Path $d 'K-DOG.lnk'; $w = New-Object -ComObject WScript.Shell; $s = $w.CreateShortcut($p); "
               "$s.TargetPath = $env:KDOG_START; $s.WorkingDirectory = $env:KDOG_HOME; $s.Description = 'K-DOG'; $s.Save(); "
-              "if ($w.CreateShortcut($p).TargetPath -ne $env:KDOG_START) { exit 1 }; "
-              "[Console]::OutputEncoding = [Text.Encoding]::UTF8; Write-Output $p")
+              "[Console]::OutputEncoding = [Text.Encoding]::UTF8; Write-Output $p; Write-Output $w.CreateShortcut($p).TargetPath")
     powershell = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32/WindowsPowerShell/v1.0/powershell.exe"
     env = {**os.environ, "KDOG_START": str(target / "Start.cmd"), "KDOG_HOME": str(target),
            "KDOG_SHORTCUT_DIR": str(directory) if directory else ""}
@@ -190,8 +189,11 @@ def shortcut(target: Path, directory: Path | None) -> Path | None:
                                  "-Command", script], env=env, capture_output=True, timeout=60)
     except (OSError, subprocess.SubprocessError):
         return None
-    path = result.stdout.decode("utf-8", errors="replace").strip()
-    return Path(path) if result.returncode == 0 and path and Path(path).is_file() else None
+    lines = result.stdout.decode("utf-8", errors="replace").strip().splitlines()
+    # resolve() expands 8.3 short names, which WScript.Shell reports in long form.
+    if result.returncode or len(lines) != 2 or Path(lines[1]).resolve() != (target / "Start.cmd").resolve():
+        return None
+    return Path(lines[0])
 
 
 def main(argv=None) -> int:
