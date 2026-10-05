@@ -74,7 +74,7 @@ S1 전처리 계약은 `libx264`·CRF 20을 고정한다 ([preprocess_v4.py:22](
 
 ### 구현 (2026-10-05)
 
-브랜치 `veluga/d00-ffmpeg-minimal-build`. 변경 파일: `scripts/ffmpeg/build-ffmpeg.sh`(신설), `scripts/ffmpeg/README.md`(신설), `backend/tests/test_packaging.py`(`test_ffmpeg_build_manifest_matches_files`). 계획과 달라진 점:
+브랜치 `veluga/d00-ffmpeg-minimal-build`, [PR #47](https://github.com/syleeVeluga/k-dog-proj/pull/47). 변경 파일: `scripts/ffmpeg/build-ffmpeg.sh`(신설), `scripts/ffmpeg/README.md`(신설), `backend/tests/test_packaging.py`(`test_ffmpeg_build_manifest_matches_files`). 계획과 달라진 점:
 
 - 병렬 컴파일 수를 `KDOG_FFMPEG_JOBS`(기본 4)로 둔다. 개발 PC에서 `nproc`(16) 병렬로 `cc1.exe: out of memory`가 났다 (커밋 여유 메모리 약 4.6GB).
 - 시스템 DLL 확인은 이름 목록 대신 "System32에 실제로 있는 DLL 또는 UCRT API-set(`api-ms-win-crt-*`)"으로 판단한다. FFmpeg 기본 입력 장치(vfwcap·gdigrab)가 `AVICAP32`·`GDI32` 등을 가져오기 때문이다.
