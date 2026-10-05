@@ -35,6 +35,9 @@ def verify(package):
                     raise ValueError("unsafe package path")
                 if any(part in {"tests", ".venv", ".git", "node_modules", "__pycache__", ".env"} for part in Path(name).parts):
                     raise ValueError("development/runtime file leaked into package")
+            manifest = json.loads(archive.read("release.json"))
+            if set(archive.namelist()) != set(manifest["files"]) | {"release.json"}:
+                raise ValueError("package entries differ from release.json")
             archive.extractall(app)
         for name in ("Start.cmd", "release.json", "오픈소스고지.txt", "runtime/python/python.exe",
                      "runtime/python/python314._pth", "runtime/python/LICENSE.txt", "runtime/ffmpeg/bin/ffmpeg.exe",

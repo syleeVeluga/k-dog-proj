@@ -102,7 +102,9 @@ def verify_release(root=REPO_ROOT):
     """A packaged release rejects damaged or altered files, including its bundled runtime."""
     manifest = root / "release.json"
     if not manifest.is_file():
-        return
+        if (root / "runtime").is_dir():
+            raise ValueError("설치 파일이 손상되었습니다: release.json. 프로그램을 다시 설치하세요.")
+        return  # a development or server checkout has no release manifest
     base = root.resolve()
     for name, digest in json.loads(manifest.read_text(encoding="utf-8"))["files"].items():
         path = (root / name).resolve()

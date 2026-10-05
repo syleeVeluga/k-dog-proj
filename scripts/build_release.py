@@ -80,16 +80,21 @@ def python_runtime(staging):
     (python / "python314._pth").write_text("\n".join(PYTHON_PATHS) + "\n", encoding="utf-8")
     requirements = staging / "requirements.txt"
     uv = shutil.which("uv")
+    if not uv:
+        raise ValueError("릴리즈 빌드에는 uv가 필요합니다 (docs/DEVELOPMENT.md).")
     subprocess.run([uv, "export", "--locked", "--no-dev", "--format", "requirements-txt", "--output-file",
-                    str(requirements)], cwd=ROOT / "backend", check=True, capture_output=True)
+                    str(requirements)], cwd=ROOT / "backend", check=True, stdout=subprocess.DEVNULL)
     subprocess.run([uv, "pip", "install", "--python", str(python / "python.exe"), "--target",
                     str(python / "Lib/site-packages"), "--require-hashes", "--no-deps", "--only-binary", ":all:",
                     "--no-config", "--requirements", str(requirements)], cwd=staging, check=True)
     # Console-script launchers embed the staging interpreter path; the app runs modules with -m instead.
-    shutil.rmtree(python / "Lib/site-packages/bin")
-    (python / "Lib/site-packages/.lock").unlink()
-    return {"runtime/python/" + path.relative_to(python).as_posix(): path
-            for path in python.rglob("*") if path.is_file() and "__pycache__" not in path.parts}
+    shutil.rmtree(python / "Lib/site-packages/bin", ignore_errors=True)
+    (python / "Lib/site-packages/.lock").unlink(missing_ok=True)
+    files = {"runtime/python/" + path.relative_to(python).as_posix(): path
+             for path in python.rglob("*") if path.is_file() and "__pycache__" not in path.parts}
+    # The embeddable LICENSE.txt omits bundled OpenSSL, expat, libmpdec, zstd and others; ship CPython's full list.
+    files["runtime/licenses/python/license.rst"] = ROOT / f"scripts/windows/licenses/python-{PYTHON_VERSION}-license.rst"
+    return files
 
 
 def ffmpeg_runtime():
@@ -120,7 +125,7 @@ def notice(staging, files):
     for key, package in sorted(lock["packages"].items()):
         if not key or package.get("dev") or package.get("optional"):
             continue
-        name = key.removeprefix("node_modules/")
+        name = key.rsplit("node_modules/", 1)[1]
         lines.append(f"- {name} {package['version']}: {package.get('license', '라이선스 파일 참조')}")
         licenses = [path for path in (ROOT / "frontend" / key).iterdir() if path.is_file() and
                     path.name.upper().startswith(("LICENSE", "LICENCE", "COPYING", "NOTICE"))]

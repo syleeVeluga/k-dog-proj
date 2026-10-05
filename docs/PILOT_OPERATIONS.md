@@ -59,7 +59,7 @@ runtime/python/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" backu
 기본 `Start.cmd`는 loopback 감독 실행이다. 중앙 서버는 IT 담당자가 HTTPS 인증서·DNS·TLS reverse proxy를 준비한 후 다음 API와 worker를 각각 감독하여 실행한다. 아래 주소는 예시이므로 실제 인증서의 origin으로 바꾼다. proxy가 같은 서버이면 API는 loopback에 유지한다.
 
 ```powershell
-# 중앙 서버 backend/: 서로 별도 감독 프로세스
+# 중앙 서버 프로그램 폴더: 서로 별도 감독 프로세스
 runtime/python/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" serve --host 127.0.0.1 --port 8000 --public-origin "https://kdog.example.org"
 runtime/python/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" worker
 ```
@@ -85,7 +85,7 @@ G01/G04 확인 전 실제 빈 Excel 채점양식 가져오기, D03/D04/D05의 �
 백업에는 참가자 자료가 있으므로 접근·보관을 관리한다. 키와 로그인 세션은 제외한다. 원본·미연결 수신물·batch·시트·의견·발급물·검수 참고·비교 집단·연구 export까지 고정 참조를 검사한다. 복원/정리 전에 API·worker·전처리를 모두 종료한다.
 
 ```powershell
-# 프로그램 backend/; 모든 대상은 새 폴더
+# 프로그램 폴더; 모든 대상은 새 폴더
 runtime/python/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" backup "E:/K-DOG/backup-s1" --actor manager
 runtime/python/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" restore "E:/K-DOG/backup-s1" "D:/K-DOG/restored-s1"
 runtime/python/python.exe -X utf8 -m app.manage --data-dir "D:/K-DOG/data" clean --purge-deleted

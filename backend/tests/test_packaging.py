@@ -135,7 +135,9 @@ class LauncherTests(unittest.TestCase):
             digest = hashlib.sha256(b"bundled").hexdigest()
             def manifest(files):
                 (root / "release.json").write_text(json.dumps({"files": files}), encoding="utf-8")
-            verify_release(root)  # a development tree has no release.json
+            with self.assertRaisesRegex(ValueError, "release.json"):
+                verify_release(root)  # a packaged tree (runtime/) must keep its manifest
+            verify_release(Path(temporary))  # a development checkout has neither
             manifest({"runtime/ffmpeg/bin/ffmpeg.exe": digest})
             verify_release(root)
             for files in ({"runtime/ffmpeg/bin/ffmpeg.exe": "0" * 64}, {"runtime/ffmpeg/bin/ffprobe.exe": digest},
@@ -147,17 +149,44 @@ class LauncherTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "손상"):
                 verify_release(root)
 
-    def test_bundled_ffmpeg_is_preferred_over_path(self):
+    def test_packaged_release_uses_only_bundled_ffmpeg(self):
         with tempfile.TemporaryDirectory(prefix="kdog-bundled-ffmpeg-") as temporary:
-            with patch.object(media, "BUNDLED_TOOLS", Path(temporary)):
-                self.assertEqual(media.tool("ffmpeg"), "ffmpeg")
-                (Path(temporary) / "ffmpeg.exe").write_bytes(b"")
-                self.assertEqual(media.tool("ffmpeg"), str(Path(temporary) / "ffmpeg.exe"))
-                self.assertEqual(media.tool("ffprobe"), "ffprobe")
+            runtime = Path(temporary) / "runtime"
+            with patch.object(media, "RUNTIME", runtime):
+                self.assertEqual(media.tool("ffmpeg"), "ffmpeg")  # development: PATH
+                runtime.mkdir()
+                bundled = str(runtime / "ffmpeg/bin/ffprobe.exe")
+                self.assertEqual(media.tool("ffprobe"), bundled)  # even if quarantined, never PATH
                 with patch("app.media.subprocess.run", side_effect=FileNotFoundError) as run:
                     with self.assertRaises(media.MediaError):
-                        media.command(["ffmpeg", "-version"])
-                self.assertEqual(run.call_args.args[0], [str(Path(temporary) / "ffmpeg.exe"), "-version"])
+                        media.command(["ffprobe", "-version"])
+                self.assertEqual(run.call_args.args[0], [bundled, "-version"])
+                with patch("app.launcher.subprocess.run") as run, self.assertRaisesRegex(ValueError, "ffmpeg"):
+                    preflight()
+                run.assert_not_called()
+
+    def test_release_build_accepts_only_the_exact_ffmpeg_build(self):
+        spec = importlib.util.spec_from_file_location("build_release_ffmpeg", REPO_ROOT / "scripts/build_release.py")
+        release = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(release)
+        with tempfile.TemporaryDirectory(prefix="kdog-ffmpeg-gate-") as temporary:
+            build = Path(temporary)
+            (build / "bin").mkdir()
+            (build / "bin/ffmpeg.exe").write_bytes(b"ffmpeg")
+            def manifest(files):
+                (build / "build.json").write_text(json.dumps({"files": files}), encoding="utf-8")
+            with patch.object(release, "FFMPEG_BUILD", build):
+                with self.assertRaisesRegex(ValueError, "없습니다"):
+                    release.ffmpeg_runtime()
+                manifest({"bin/ffmpeg.exe": hashlib.sha256(b"ffmpeg").hexdigest()})
+                self.assertEqual(sorted(release.ffmpeg_runtime()), ["runtime/ffmpeg/bin/ffmpeg.exe", "runtime/ffmpeg/build.json"])
+                (build / "bin/extra.dll").write_bytes(b"")
+                with self.assertRaisesRegex(ValueError, "build.json"):
+                    release.ffmpeg_runtime()
+                (build / "bin/extra.dll").unlink()
+                manifest({"bin/ffmpeg.exe": "0" * 64})
+                with self.assertRaisesRegex(ValueError, "build.json"):
+                    release.ffmpeg_runtime()
 
     def test_preflight_rejects_missing_media_tools(self):
         with patch("app.launcher.shutil.which", return_value=None):
