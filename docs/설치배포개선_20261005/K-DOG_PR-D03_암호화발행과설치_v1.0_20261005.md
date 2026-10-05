@@ -73,7 +73,7 @@ K-DOG-<고객ID>-v<버전>-<commit7>.zip
 | --- | --- | --- |
 | `scripts/windows/kdog_install.py` | 신설 | 키 정규화, 봉인/개봉, 설치 흐름 1~7. 발행 패키지에는 `installer\kdog_install.py`로 들어간다. 검증용 `--install-root`·`--shortcut-dir` 인자 (기본값은 실제 경로) |
 | `scripts/windows/Install.cmd` | 신설 | ASCII 전용. 런타임 존재 확인, `PYTHONPATH`·`PYTHONHOME` 비우기, 설치 프로그램 실행, `pause` |
-| `scripts/windows/설치안내.txt` | 신설 | ① 받은 ZIP의 SHA-256을 키와 함께 받은 값과 비교(방법 한 줄) ② 압축 풀기 (필요하면 "차단 해제") ③ Install.cmd 실행 ④ 키 입력 ⑤ 바탕화면 아이콘으로 실행 ⑥ 창을 닫으면 종료 ⑦ 문의처 |
+| `scripts/windows/설치안내.txt` | 신설 | ① 받은 ZIP의 SHA-256을 키와 함께 받은 값과 비교(방법 한 줄) ② 압축 풀기 (필요하면 "차단 해제") ③ Install.cmd 실행 ④ 키 입력 ⑤ 바탕화면 아이콘으로 실행 ⑥ 창을 닫으면 종료 ⑦ 문의처: 벨루가 veluga.app@veluga.io |
 | `scripts/issue_release.py` | 신설 | `issue_release.py <평문 ZIP> --customer <ID> --admin <아이디> [--developer <아이디>]`. 고객 ID는 `[A-Za-z0-9-]{1,32}`. 계정마다 `getpass`로 두 번 입력받고 12~256자를 확인한다. 키 생성 → 봉인 → `releases/issued/<고객ID>/`에 ZIP·`.sha256`·발행 기록 저장. 키는 콘솔에 한 번 출력한다. "이미 설치된 PC에서는 같은 아이디의 기존 비밀번호가 유지된다"는 경고도 함께 출력한다 |
 | `backend/app/manage.py`, `backend/app/auth.py` | 수정 | `provision-accounts` 하위 명령: 표준입력 JSON을 검증한 뒤 설치 흐름 5의 규칙대로 admin/developer 계정 생성. 감사 기록 `user.provisioned`(고객 ID 포함) |
 | `backend/pyproject.toml`, `backend/uv.lock` | 수정 | `cryptography==50.0.2` 추가 (구현 시 최신 재확인). 관련 없는 의존성은 올리지 않는다 |
