@@ -229,8 +229,13 @@ class LauncherTests(unittest.TestCase):
                 patch("app.launcher.shutil.which", return_value=None):
             with self.assertRaisesRegex(ValueError, "PATH에 등록"):
                 preflight()
+        with tempfile.TemporaryDirectory(prefix="kdog-bundled-missing-") as temporary, \
+                patch.object(media, "RUNTIME", Path(temporary)), \
+                patch("app.launcher.shutil.which", return_value=None):
+            with self.assertRaisesRegex(ValueError, "다시 설치"):
+                preflight()
 
-    def test_user_install_scripts_stay_ascii_check_hashes_and_install_the_locked_venv(self):
+    def test_user_install_scripts_stay_ascii_and_hash_check_before_the_locked_venv(self):
         online = REPO_ROOT / "scripts/windows/online"
         for name in ("Install.cmd", "Start.cmd", "install.ps1"):
             content = (online / name).read_bytes()

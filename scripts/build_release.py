@@ -160,6 +160,11 @@ def build(destination, variant="portable"):
     for name in ("README.md", "docs/PILOT_OPERATIONS.md"):
         files[name] = ROOT / name
     if variant == "online":
+        # The user's Install.cmd runs uv sync --locked; a stale lock must fail here, not on their PC.
+        uv = shutil.which("uv")
+        if not uv:
+            raise ValueError("사용자 설치형 빌드에는 uv가 필요합니다 (docs/DEVELOPMENT.md).")
+        subprocess.run([uv, "lock", "--check"], cwd=ROOT / "backend", check=True)
         for name in ("backend/pyproject.toml", "backend/uv.lock"):
             files[name] = ROOT / name
         for name in ("Install.cmd", "install.ps1", "Start.cmd"):

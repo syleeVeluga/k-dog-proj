@@ -34,7 +34,7 @@ try {
     Set-Location -LiteralPath (Join-Path $PSScriptRoot 'backend')
     $env:UV_PROJECT_ENVIRONMENT = Join-Path $PSScriptRoot 'backend/.venv'
     & uv sync --locked --no-dev --python 3.14
-    if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed. Check the internet connection and run Install.cmd again.' }
+    if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed. Check the internet connection, update uv (uv self update), and run Install.cmd again.' }
     $python = Join-Path $PSScriptRoot 'backend/.venv/Scripts/python.exe'
     & $python -X utf8 -m app.launcher --check
     if ($LASTEXITCODE -ne 0) { throw 'Installation check failed.' }
@@ -49,6 +49,6 @@ try {
     }
     Write-Host 'Installation complete. Open Start.cmd. Data: KDOG_DATA_DIR or %LOCALAPPDATA%/K-DOG/data.'
 } catch {
-    Write-Error $_
+    [Console]::Error.WriteLine("Installation failed: $($_.Exception.Message)")
     exit 1
 }

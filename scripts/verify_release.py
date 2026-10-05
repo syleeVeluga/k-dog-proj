@@ -100,13 +100,13 @@ def served(command, app, env, *, kill_tree=False, python=None):
         process.wait(timeout=10)
         process.stdout.close()
         # The supervisor must release locks even after an abrupt termination.
+        if python:  # a venv interpreter cannot start under the deliberately wrong PYTHONHOME; launchers clear it
+            env = {key: value for key, value in env.items() if key not in ("PYTHONHOME", "PYTHONPATH")}
         python = python or Path(app) / "runtime/python/python.exe"
-        # A venv interpreter cannot start under the deliberately wrong PYTHONHOME; the launchers clear it.
-        clean = {key: value for key, value in env.items() if key not in ("PYTHONHOME", "PYTHONPATH")}
         deadline = time.monotonic() + 10
         while True:
             try:
-                run_python(python, app, clean, "-c","from pathlib import Path; import os; from app.storage import Store\n"
+                run_python(python, app, env, "-c", "from pathlib import Path; import os; from app.storage import Store\n"
                            "from app.maintenance import offline\n"
                            "with offline(Store(Path(os.environ['KDOG_DATA_DIR']))):\n    pass\n")
                 break
@@ -211,7 +211,8 @@ def verify_online(package, root):
     asset.write_bytes(b"corrupted release")
     try:
         damaged = run("Install.cmd", "-SkipAccounts", timeout=600)
-        if damaged.returncode == 0 or (app / "backend/.venv").exists():
+        if damaged.returncode == 0 or b"hash mismatch" not in damaged.stdout + damaged.stderr or \
+                (app / "backend/.venv").exists():
             raise RuntimeError("damaged release was not rejected before installation")
     finally:
         asset.write_bytes(original)
@@ -220,6 +221,13 @@ def verify_online(package, root):
         raise RuntimeError("Install.cmd failed: " + (installed.stdout + installed.stderr).decode("utf-8", errors="replace"))
     if (root / "wrong-env").exists():
         raise RuntimeError("installer used an unrelated UV_PROJECT_ENVIRONMENT")
+    asset.write_bytes(b"corrupted release")
+    try:
+        damaged = run("Start.cmd", "--check")
+        if damaged.returncode == 0 or "손상".encode() not in damaged.stdout + damaged.stderr:
+            raise RuntimeError("damage after installation was not rejected by Start.cmd --check")
+    finally:
+        asset.write_bytes(original)
     checked = run("Start.cmd", "--check")
     if checked.returncode:
         raise RuntimeError("Start.cmd --check failed: " + (checked.stdout + checked.stderr).decode("utf-8", errors="replace"))
@@ -247,7 +255,7 @@ def verify_online(package, root):
             elif request("/api/cases/" + case_id)["participant_id"] != "0001":
                 raise RuntimeError("restart through Start.cmd lost data")
     return {"fresh_venv": True, "unicode_space_path": True, "start_before_install_rejected": True,
-            "corruption_rejected_before_install": True, "environment_override_isolated": True,
+            "corruption_rejected_before_install": True, "corruption_rejected_by_check": True, "environment_override_isolated": True,
             "path_ffmpeg_and_venv_python": True, "http_login_create_restart": "passed", "supervisor_shutdown": "passed"}
 
 
