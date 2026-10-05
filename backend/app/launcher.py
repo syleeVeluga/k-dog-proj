@@ -127,7 +127,9 @@ def preflight():
     for name in ("ffmpeg", "ffprobe"):
         executable = shutil.which(media.tool(name))
         if not executable:
-            raise ValueError(f"{name}이 없습니다. 프로그램을 다시 설치하세요.")
+            # Only a portable package bundles FFmpeg; other installs use the one the user put on PATH.
+            remedy = "프로그램을 다시 설치하세요." if media.RUNTIME.is_dir() else "FFmpeg를 설치하고 PATH에 등록한 뒤 새 창에서 다시 실행하세요."
+            raise ValueError(f"{name}이 없습니다. {remedy}")
         subprocess.run([executable, "-version"], check=True, capture_output=True, timeout=10,
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
 

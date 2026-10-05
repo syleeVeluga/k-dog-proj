@@ -1,0 +1,11 @@
+K-DOG 오픈소스 고지 (사용자 설치형)
+
+이 패키지에는 아래 오픈소스 소프트웨어가 함께 들어 있습니다. 각 소프트웨어는 해당 라이선스를 따르며, 라이선스 전문은 아래 위치에 있습니다. 문의처: 벨루가 veluga.app@veluga.io
+
+■ Python·FFmpeg (이 패키지에 들어 있지 않음)
+- Python 3.14와 Python 패키지는 Install.cmd 실행 중 uv가 잠금 파일(backend\uv.lock)대로 인터넷에서 받아 backend\.venv에 설치합니다. 각 패키지의 라이선스: backend\.venv\Lib\site-packages\<이름>-<버전>.dist-info
+- FFmpeg/ffprobe는 사용자가 따로 설치한 프로그램을 사용하며, 그 프로그램의 라이선스를 따릅니다.
+
+■ 글꼴 (resources\fonts)
+- 나눔고딕(NanumGothic): SIL Open Font License 1.1 (resources\fonts\OFL.txt)
+- Noto Sans Symbols: SIL Open Font License 1.1 (resources\fonts\OFL-NotoSansSymbols.txt)
