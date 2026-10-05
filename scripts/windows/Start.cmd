@@ -9,4 +9,6 @@ if not exist "runtime\python\python.exe" (
   exit /b 1
 )
 "runtime\python\python.exe" -X utf8 -m app.launcher %*
-if errorlevel 1 pause
+set "status=%errorlevel%"
+if not "%status%"=="0" pause
+exit /b %status%
