@@ -1,6 +1,6 @@
 # PR-D04 사용자 설치형 패키지
 
-버전: v1.0 · 2026-10-05 · 상태: 구현 중 · 선행: D01–D03 · 기준: main `1f67d50`
+버전: v1.0 · 2026-10-05 · 상태: 구현 완료 (2026-10-05) · 선행: D01–D03 · 기준: main `1f67d50`
 
 상위: [설치·배포 개선 계획](K-DOG_설치배포개선계획_v1.0_20261005.md). 공통 절차는 [S1 계획 §7](../개발반영_20261003/K-DOG_개발반영계획_v1.0_20261003.md)을 적용한다.
 
@@ -45,7 +45,45 @@ D01에서 Python·FFmpeg 내장 포터블 ZIP으로 바꾸면서 S15의 사용�
 
 ## 구현 및 검증 기록
 
-- [ ] 구현·변경 파일 및 commit/PR 기록
-- [ ] 라이브러리/도구 최신·선택 버전·확인일·근거 기록
-- [ ] 시험 결과와 ZIP 크기·SHA-256 기록
-- [ ] cold review 발견사항과 수용/보류/거절·수정·재검증 기록
+- [x] 구현·변경 파일 및 commit/PR 기록
+- [x] 라이브러리/도구 최신·선택 버전·확인일·근거 기록
+- [x] 시험 결과와 ZIP 크기·SHA-256 기록
+- [x] cold review 발견사항과 수용/보류/거절·수정·재검증 기록
+
+### 구현 (2026-10-05)
+
+브랜치 `veluga/d04-user-install`. 위 파일별 변경을 모두 반영했다. 계획과 다르거나 추가된 점:
+
+- 첫 검증에서 `verify_release`가 결함을 찾았다: npm 라이선스가 `runtime/licenses/npm`에 들어가 사용자 설치형에도 `runtime/` 폴더가 생겼고, 앱은 `runtime/`이 있으면 내장 FFmpeg만 찾으므로 PATH FFmpeg를 쓰지 못한다. 사용자 설치형은 `licenses/npm`에 두도록 고쳤다 (포터블은 그대로 `runtime/licenses/npm`).
+- 사용자 설치형 빌드는 `uv lock --check`로 잠금 파일이 최신인지 먼저 확인한다 (cold review).
+
+### 버전 확인 (2026-10-05)
+
+| 대상 | 최신 확인 | 선택 | 근거 |
+| --- | --- | --- | --- |
+| uv (사용자 PC 준비물) | 0.12.23 (2026-10-03) | 최신 설치 안내 | [uv releases](https://github.com/astral-sh/uv/releases/latest). 사용하는 `uv sync --locked --no-dev --python 3.14`는 개발 PC의 0.11.18에서도 동작을 확인했다. `uv.lock` revision 3을 못 읽는 오래된 uv는 설치 실패 안내에서 `uv self update`를 권한다 |
+| FFmpeg (사용자 PC 준비물) | 9.0.2 (2026-09-18) | 사용자 설치본 | [ffmpeg.org download](https://ffmpeg.org/download.html). 개발 PC 검증은 PATH의 gyan.dev 8.1.1 full build로 했다. 사용자 설치형은 FFmpeg를 재배포하지 않는다 |
+| Python 의존성 | `backend/uv.lock` 고정 | 변경 없음 | 설치 때 uv가 잠금 그대로 설치한다 |
+
+### 시험과 패키지
+
+- 사용자 설치형: `releases/d04/k-dog-v0.3.0-s1-windows-x64-online-ab5936b.zip` (git 무시 대상), 153개 파일, **1,938,591 B**, SHA-256 `58bc6e766eccb36354fd10c454f216f116c4ae50be7affa53f6908538685d172`. `runtime/`·`.venv`·시험이 없고 `pyproject.toml`·`uv.lock`·`Install.cmd`·`install.ps1`·`Start.cmd`·`오픈소스고지.txt`·`licenses/npm`이 있다.
+- `verify_release.py <사용자 설치형>` 통과 (약 47초, uv 캐시 사용): 설치 전 `Start.cmd --check` 실패와 `Install.cmd` 안내, 손상 시 `hash mismatch`로 `.venv` 생성 전 거절, 틀린 `UV_PROJECT_ENVIRONMENT`·`PYTHONHOME`·`PYTHONPATH` 무시, 설치 후 손상을 `Start.cmd --check`가 "손상"으로 거절, `backend/.venv`의 Python 3.14와 PATH FFmpeg 사용, 로그인·접수, `Start.cmd`로 재시작 후 조회, 강제 종료 후 잠금 해제, 외부 AI 호출 0.
+- 포터블 회귀: 같은 commit의 `k-dog-v0.3.0-s1-windows-x64-ab5936b.zip` (1,362개 파일, 74,768,470 B, SHA-256 `a4b792bd507f03c58ed049edf2edae75013efba4f8c4cb6fb4d5361a8f174fad`)로 기존 `verify_release.py`(포터블+합성 발행)가 그대로 통과했다.
+- backend 전체 **601개 OK, skip 2** (역사 원본 부재로 정상 skip), `--spec 20261002 --check`(G01/G04 미수령은 기존 상태), `git diff --check` 통과. frontend 코드는 바꾸지 않았다 (빌드는 패키지 생성 때 실행됨).
+- 자동 검증 범위 밖: 설치 중 관리자·개발자 계정 이름·숨김 비밀번호 입력은 콘솔 입력이 필요해 `-SkipAccounts`로 건너뛰었다. 같은 `app.manage create-user` 명령은 S15와 같다. 깨끗한 OS·다른 PC는 E10 범위다.
+
+### cold review와 조치
+
+독립 cold review 결과 P1·P2 없음, P3 8건. 모두 수용해 반영하고 두 ZIP을 다시 만들어 `verify_release`와 시험을 다시 통과했다.
+
+| 등급 | 발견 | 조치 |
+| --- | --- | --- |
+| P3 | `catch`의 `Write-Error`가 `Stop`에서 다시 예외가 되어 긴 오류 덤프가 나옴 (S15부터 있던 결함) | 한 줄 `Installation failed: ...` 출력 후 `exit 1` |
+| P3 | 손상 거절 검증이 실패 이유를 확인하지 않음 | `hash mismatch` 출력 확인 |
+| P3 | 설치 후 손상을 `Start.cmd --check`가 거절하는지 검증 없음 | 사용자 설치형 검증에 추가 |
+| P3 | 공통 `served()`의 잠금 확인이 포터블에서도 `PYTHONHOME`을 지운 환경으로 바뀜 | venv 인터프리터를 넘길 때만 지움. 포터블 경로는 이전과 같음 |
+| P3 | 오래된 uv의 `--locked` 실패가 인터넷 문제로만 안내됨 | `uv self update` 안내 추가 |
+| P3 | 사용자 설치형 빌드가 오래된 `uv.lock`을 그대로 넣음 | 빌드 때 `uv lock --check` |
+| P3 | 포터블 쪽 FFmpeg 안내 분기 시험 없음, 시험 이름 과장 | 시험 추가, 이름 수정 |
+| P3 | 상위 계획 §5의 "사용자 전달은 D03 발행물만"과 충돌, 일반 사용자 실행 안내 누락 | 예외 문구 추가, 운영 안내에 사용자 설치형 실행 추가 |
