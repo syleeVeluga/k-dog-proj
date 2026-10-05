@@ -15,8 +15,9 @@ import shutil
 import subprocess
 import sys
 import time
+import unicodedata
 from uuid import uuid4
-from zipfile import ZipFile
+from zipfile import BadZipFile, ZipFile
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives import hashes
@@ -51,11 +52,12 @@ def display_key(key: str) -> str:
 
 
 def normalize_key(text: str) -> str | None:
-    """Accept the key as typed: optional KDOG prefix, any case, hyphens and spaces, O for 0 and I/L for 1."""
-    value = text.strip().upper()
-    if value.startswith("KDOG"):
+    """Accept the key as typed: optional KDOG (or K-DOG) prefix, any case or width, hyphens and spaces,
+    O for 0 and I/L for 1. The prefix is recognised by length, so it can never eat a key character."""
+    value = re.sub(r"[\s\-‐-―]", "", unicodedata.normalize("NFKC", text)).upper()
+    value = value.translate(str.maketrans("OIL", "011"))
+    if len(value) == KEY_LENGTH + 4 and value.startswith("KD0G"):
         value = value[4:]
-    value = re.sub(r"[\s-]", "", value).translate(str.maketrans("OIL", "011"))
     return value if len(value) == KEY_LENGTH and all(char in ALPHABET for char in value) else None
 
 
@@ -78,10 +80,12 @@ def read_header(data: bytes) -> tuple[dict, bytes, bytes]:
     raw = data[12:12 + size]
     try:
         header = json.loads(raw)
-    except ValueError:
+    except (ValueError, RecursionError):
         raise PackageError from None
+    # Version and commit name the install folder, so they must be plain tokens even though they are authenticated.
     if not (isinstance(header, dict) and header.get("format") == FORMAT
             and all(isinstance(header.get(name), str) for name in ("customer", "version", "commit"))
+            and re.fullmatch(r"[0-9A-Za-z.+-]{1,32}", header["version"]) and re.fullmatch(r"[0-9a-f]{40}", header["commit"])
             and re.fullmatch(r"[0-9a-f]{32}", str(header.get("salt"))) and re.fullmatch(r"[0-9a-f]{24}", str(header.get("nonce")))):
         raise PackageError
     return header, raw, data[12 + size:]
@@ -122,7 +126,7 @@ def ask_key(data: bytes) -> bytes | None:
             return None
         key = normalize_key(text)
         if key is None:
-            print("키 형식이 맞지 않습니다. KDOG-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX 형태의 25자를 확인하세요.")
+            print("키 형식이 맞지 않습니다. KDOG-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX 형태의 25자를 확인하세요. (한/영 입력 상태도 확인하세요.)")
             continue
         try:
             return unseal(data, key)[1]
@@ -147,8 +151,12 @@ def install_files(archive: ZipFile, package: Path, root: Path, target: Path) -> 
         if not (temporary / info.filename).resolve().is_relative_to(temporary.resolve()):
             raise PackageError
         archive.extract(info, temporary)
-    shutil.copytree(package / "runtime", temporary / "runtime")
-    shutil.copy2(package / "오픈소스고지.txt", temporary / "오픈소스고지.txt")
+    # Copy only the public files the sealed manifest lists, so nothing added to the extracted folder is installed.
+    listed = json.loads(archive.read("release.json"))["files"]
+    for name in listed:
+        if name.startswith("runtime/") or name == "오픈소스고지.txt":
+            (temporary / name).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(package / name, temporary / name)
     if not check(temporary):
         shutil.rmtree(temporary, ignore_errors=True)
         print("설치 파일 확인에 실패했습니다. ZIP을 다시 받아 SHA-256을 확인한 뒤 설치하세요.")
@@ -165,10 +173,13 @@ def install_files(archive: ZipFile, package: Path, root: Path, target: Path) -> 
 
 
 def shortcut(target: Path, directory: Path | None) -> Path | None:
-    script = ("$d = if ($env:KDOG_SHORTCUT_DIR) { $env:KDOG_SHORTCUT_DIR } else { [Environment]::GetFolderPath('Desktop') }; "
-              "$p = Join-Path $d 'K-DOG.lnk'; $s = (New-Object -ComObject WScript.Shell).CreateShortcut($p); "
-              "$s.TargetPath = $env:KDOG_START; $s.WorkingDirectory = $env:KDOG_HOME; $s.Description = 'K-DOG'; "
-              "$s.Save(); [Console]::OutputEncoding = [Text.Encoding]::UTF8; Write-Output $p")
+    # Stop on any error and read the link back, so a locked old shortcut is never reported as updated.
+    script = ("$ErrorActionPreference = 'Stop'; "
+              "$d = if ($env:KDOG_SHORTCUT_DIR) { $env:KDOG_SHORTCUT_DIR } else { [Environment]::GetFolderPath('Desktop') }; "
+              "$p = Join-Path $d 'K-DOG.lnk'; $w = New-Object -ComObject WScript.Shell; $s = $w.CreateShortcut($p); "
+              "$s.TargetPath = $env:KDOG_START; $s.WorkingDirectory = $env:KDOG_HOME; $s.Description = 'K-DOG'; $s.Save(); "
+              "if ($w.CreateShortcut($p).TargetPath -ne $env:KDOG_START) { exit 1 }; "
+              "[Console]::OutputEncoding = [Text.Encoding]::UTF8; Write-Output $p")
     powershell = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32/WindowsPowerShell/v1.0/powershell.exe"
     env = {**os.environ, "KDOG_START": str(target / "Start.cmd"), "KDOG_HOME": str(target),
            "KDOG_SHORTCUT_DIR": str(directory) if directory else ""}
@@ -202,16 +213,20 @@ def main(argv=None) -> int:
         print("설치를 취소했습니다. 아무것도 바뀌지 않았습니다.")
         return 1
     target = args.install_root / f"{header['version']}-{header['commit'][:7]}"
+    print("키를 확인했습니다. 설치 중입니다. 1~2분 걸릴 수 있으니 창을 닫지 마세요...")
     try:
         with ZipFile(BytesIO(product)) as archive:
             provision = archive.read("provision.json")
             args.install_root.mkdir(parents=True, exist_ok=True)
             if not install_files(archive, package, args.install_root, target):
                 return 1
-    except (OSError, ValueError, KeyError, PackageError) as exc:
-        print(f"설치에 실패했습니다: {exc}")
+        accounts = run_python(target, "-m", "app.manage", "provision-accounts", stdin=provision)
+    except subprocess.TimeoutExpired:
+        print("설치 확인이 제한 시간 안에 끝나지 않았습니다. 백신 검사가 끝난 뒤 Install.cmd를 다시 실행하세요.")
         return 1
-    accounts = run_python(target, "-m", "app.manage", "provision-accounts", stdin=provision)
+    except (OSError, ValueError, KeyError, PackageError, BadZipFile, subprocess.SubprocessError) as exc:
+        print(f"설치에 실패했습니다: {exc or type(exc).__name__}. 문의처: 벨루가 veluga.app@veluga.io")
+        return 1
     print((accounts.stdout + accounts.stderr).decode("utf-8", errors="replace").strip())
     if accounts.returncode:
         print("계정을 만들지 못했습니다. 프로그램 파일은 설치되었습니다. 문의처: 벨루가 veluga.app@veluga.io")

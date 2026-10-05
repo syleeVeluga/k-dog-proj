@@ -48,6 +48,11 @@ def issue(plain_zip: Path, customer: str, accounts: list[tuple[str, str, str]], 
         if set(names) != set(manifest["files"]) | {"release.json"} or any(
                 hashlib.sha256(plain.read(name)).hexdigest() != digest for name, digest in manifest["files"].items()):
             raise ValueError("평문 패키지가 release.json과 다릅니다. build_release.py로 다시 만드세요.")
+        # The installer comes from this checkout; the product must already carry what it needs.
+        crypto = r"runtime/python/Lib/site-packages/cryptography-[^/]+\.dist-info/METADATA"
+        if not any(re.fullmatch(crypto, name) for name in names) or \
+                b"provision-accounts" not in plain.read("backend/app/manage.py"):
+            raise ValueError("평문 패키지가 발행 설치를 지원하지 않습니다 (cryptography·provision-accounts 없음). 현재 코드로 다시 만드세요.")
         version, commit = manifest["version"], manifest["commit"]
         provision = {"format": "kdog-provision-1", "customer": customer,
                      "issued_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -62,9 +67,12 @@ def issue(plain_zip: Path, customer: str, accounts: list[tuple[str, str, str]], 
         key = installer.new_key()
         payload = installer.seal(product.getvalue(), key, customer=customer, version=version, commit=commit)
         stem = f"K-DOG-{customer}-v{version}-{commit[:7]}"
-        out_dir.mkdir(parents=True, exist_ok=True)
         target = out_dir / f"{stem}.zip"
-        with ZipFile(target, "x", ZIP_DEFLATED) as issued:
+        if target.exists():
+            raise ValueError(f"같은 이름의 발행 패키지가 이미 있습니다: {target}. 지우거나 --out으로 다른 폴더를 지정하세요.")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        partial = target.with_name(target.name + ".part")
+        with ZipFile(partial, "w", ZIP_DEFLATED) as issued:
             issued.writestr("Install.cmd", crlf(ROOT / "scripts/windows/Install.cmd"))
             issued.writestr("설치안내.txt", b"\xef\xbb\xbf" + crlf(ROOT / "scripts/windows/설치안내.txt"))
             issued.write(ROOT / "scripts/windows/kdog_install.py", "installer/kdog_install.py")
@@ -72,11 +80,13 @@ def issue(plain_zip: Path, customer: str, accounts: list[tuple[str, str, str]], 
                 if name.startswith(PUBLIC):
                     issued.writestr(name, plain.read(name))
             issued.writestr("payload.kdog", payload, compress_type=ZIP_STORED)
+        partial.replace(target)
     digest = hashlib.sha256(target.read_bytes()).hexdigest()
     target.with_name(target.name + ".sha256").write_text(f"{digest}  {target.name}\n", encoding="utf-8")
     record = {"customer": customer, "version": version, "commit": commit, "issued_at": provision["issued_at"],
               "package": target.name, "sha256": digest,
               "plain_package_sha256": hashlib.sha256(plain_zip.read_bytes()).hexdigest(),
+              "installer_sha256": hashlib.sha256((ROOT / "scripts/windows/kdog_install.py").read_bytes()).hexdigest(),
               "accounts": [{"username": username, "role": role} for username, role, _ in accounts]}
     (out_dir / f"{stem}.json").write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
     return {**record, "path": target, "key": installer.display_key(key)}

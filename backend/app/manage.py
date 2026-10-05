@@ -150,11 +150,11 @@ def main():
             pass
         return
     if args.command == "provision-accounts":
-        store = Store(args.data_dir)
         try:
+            store = Store(args.data_dir)
             with store.connect(write=True) as db:
                 messages = provision_accounts(db, store, sys.stdin.buffer.read())
-        except ValueError as exc:
+        except (ValueError, sqlite3.Error) as exc:
             parser.exit(1, f"계정 생성 실패: {exc}\n")
         print("\n".join(messages))
         return

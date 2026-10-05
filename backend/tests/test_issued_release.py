@@ -24,6 +24,7 @@ def load(name, path):
 
 
 installer = load("kdog_install_test", "scripts/windows/kdog_install.py")
+CRYPTO = "runtime/python/Lib/site-packages/cryptography-50.0.2.dist-info/METADATA"
 
 
 def provision(*accounts, customer="SCHOOL-1"):
@@ -41,7 +42,9 @@ class KeyAndSealTests(unittest.TestCase):
             self.assertTrue(set(key) <= set(installer.ALPHABET))
             shown = installer.display_key(key)
             self.assertRegex(shown, r"^KDOG(-[0-9A-Z]{5}){5}$")
-            for typed in (shown, shown.lower(), shown.replace("-", " "), shown[5:], f"  kdog {shown[5:]}  "):
+            wide = "".join(chr(ord(char) + 0xFEE0) if "!" <= char <= "~" else char for char in shown)
+            for typed in (shown, shown.lower(), shown.replace("-", " "), shown[5:], f"  kdog {shown[5:]}  ",
+                          f"K-DOG-{shown[5:]}", f"KD0G-{shown[5:]}", wide):
                 self.assertEqual(installer.normalize_key(typed), key)
         self.assertEqual(installer.normalize_key("KDOG-OILOO-11111-22222-33333-44444"), "01100111112222233333" + "44444")
         for typed in ("", "KDOG-", "KDOG-11111-22222-33333-44444", "KDOG-11111-22222-33333-44444-5555U",
@@ -63,7 +66,10 @@ class KeyAndSealTests(unittest.TestCase):
         for altered in (changed_header, changed_body, data[:12 + size + 20] + bytes([data[12 + size + 20] ^ 1]) + data[12 + size + 21:]):
             with self.assertRaises(installer.WrongKey):
                 installer.unseal(altered, key)
-        for damaged in (b"", b"PK\x03\x04" + data[4:], data[:12 + size], data[:8] + (5000).to_bytes(4, "big") + data[12:]):
+        unsafe = [installer.seal(product, key, customer="SCHOOL-1", version="../x", commit="a" * 40),
+                  installer.seal(product, key, customer="SCHOOL-1", version="0.3.0", commit="abc"),
+                  installer.MAGIC + (3).to_bytes(4, "big") + b"[1]" + bytes(16)]
+        for damaged in (b"", b"PK\x03\x04" + data[4:], data[:12 + size], data[:8] + (5000).to_bytes(4, "big") + data[12:], *unsafe):
             with self.assertRaises(installer.PackageError):
                 installer.unseal(damaged, key)
 
@@ -154,12 +160,13 @@ class IssueTests(unittest.TestCase):
     def tearDown(self):
         self.temporary.cleanup()
 
-    def plain(self, tamper=False):
+    def plain(self, tamper=False, supported=True):
         files = {"Start.cmd": b"@echo off\r\n", "backend/app/secret.py": b"PRODUCT_SOURCE_MARKER = 1\n",
-                 "runtime/python/python.exe": b"MZ runtime", "오픈소스고지.txt": "고지".encode()}
+                 "backend/app/manage.py": b'sub.add_parser("provision-accounts")\n' if supported else b"",
+                 "runtime/python/python.exe": b"MZ runtime", CRYPTO: b"Name: cryptography\n", "오픈소스고지.txt": "고지".encode()}
         manifest = {"format": "kdog-release-1", "version": "0.3.0", "commit": "b" * 40,
                     "files": {name: hashlib.sha256(data).hexdigest() for name, data in files.items()}}
-        path = self.root / ("plain-tampered.zip" if tamper else "plain.zip")
+        path = self.root / f"plain-{tamper}-{supported}.zip"
         with ZipFile(path, "w") as archive:
             for name, data in files.items():
                 archive.writestr(name, data + (b"x" if tamper and name == "Start.cmd" else b""))
@@ -174,7 +181,7 @@ class IssueTests(unittest.TestCase):
         with ZipFile(package) as issued:
             names = set(issued.namelist())
             self.assertEqual(names, {"Install.cmd", "설치안내.txt", "installer/kdog_install.py",
-                                     "runtime/python/python.exe", "오픈소스고지.txt", "payload.kdog"})
+                                     "runtime/python/python.exe", CRYPTO, "오픈소스고지.txt", "payload.kdog"})
             for name in names - {"payload.kdog"}:
                 content = issued.read(name)
                 self.assertNotIn(b"PRODUCT_SOURCE_MARKER", content)
@@ -183,23 +190,28 @@ class IssueTests(unittest.TestCase):
             header, product = installer.unseal(issued.read("payload.kdog"), installer.normalize_key(result["key"]))
         self.assertEqual((header["customer"], header["commit"]), ("SCHOOL-1", "b" * 40))
         with ZipFile(BytesIO(product)) as sealed:
-            self.assertEqual(set(sealed.namelist()), {"Start.cmd", "backend/app/secret.py", "release.json", "provision.json"})
+            self.assertEqual(set(sealed.namelist()), {"Start.cmd", "backend/app/secret.py", "backend/app/manage.py",
+                                                      "release.json", "provision.json"})
             accounts_in = json.loads(sealed.read("provision.json"))["accounts"]
         self.assertEqual([(row["username"], row["role"]) for row in accounts_in], [("manager", "admin"), ("keyman", "developer")])
         self.assertTrue(check_password("Issued-admin-pass-1", accounts_in[0]["password_hash"]))
         record = (self.root / "out/K-DOG-SCHOOL-1-v0.3.0-bbbbbbb.json").read_text(encoding="utf-8")
         sha = (self.root / "out/K-DOG-SCHOOL-1-v0.3.0-bbbbbbb.zip.sha256").read_text(encoding="utf-8")
         self.assertEqual(sha.split()[0], hashlib.sha256(package.read_bytes()).hexdigest())
+        self.assertIn("installer_sha256", record)
         for secret in ("Issued-admin-pass-1", "Issued-dev-pass-1", result["key"], installer.normalize_key(result["key"]), "scrypt$"):
             self.assertNotIn(secret, record)
-        # Every issue gets a new key.
+        # Every issue gets a new key; an existing package is never overwritten.
         again = self.issuer.issue(self.plain(), "SCHOOL-1", accounts[:1], self.root / "out2")
         self.assertNotEqual(again["key"], result["key"])
+        with self.assertRaisesRegex(ValueError, "이미 있습니다"):
+            self.issuer.issue(self.plain(), "SCHOOL-1", accounts[:1], self.root / "out")
 
     def test_issue_rejects_bad_inputs_before_writing(self):
         good = [("manager", "admin", "Issued-admin-pass-1")]
         for plain, customer, accounts, message in (
                 (self.plain(tamper=True), "SCHOOL-1", good, "release.json"),
+                (self.plain(supported=False), "SCHOOL-1", good, "발행 설치를 지원하지"),
                 (self.plain(), "bad customer", good, "고객 ID"),
                 (self.plain(), "SCHOOL-1", [("manager", "admin", "short")], "비밀번호"),
                 (self.plain(), "SCHOOL-1", [("keyman", "developer", "Issued-dev-pass-1")], "관리자"),
@@ -227,6 +239,49 @@ class InstallerTests(unittest.TestCase):
             self.assertIn("키 형식이 맞지 않습니다", printed)
             self.assertFalse(root.exists())
             self.assertFalse((Path(temporary) / "desk").exists())
+
+    def product(self, extra=None):
+        listed = {"Start.cmd": b"@echo off\r\n", "runtime/python/python.exe": b"MZ", "오픈소스고지.txt": b"notice"}
+        buffer = BytesIO()
+        with ZipFile(buffer, "w") as archive:
+            archive.writestr("Start.cmd", listed["Start.cmd"])
+            archive.writestr("provision.json", b"{}")
+            archive.writestr("release.json", json.dumps({"files": {name: "0" * 64 for name in listed}}))
+            for name, data in (extra or {}).items():
+                archive.writestr(name, data)
+        return ZipFile(BytesIO(buffer.getvalue()))
+
+    def test_install_files_keeps_provision_in_memory_and_copies_only_listed_public_files(self):
+        with tempfile.TemporaryDirectory(prefix="kdog-install-files-") as temporary:
+            package, root = Path(temporary) / "package", Path(temporary) / "설치 위치"
+            (package / "runtime/python").mkdir(parents=True)
+            (package / "runtime/python/python.exe").write_bytes(b"MZ")
+            (package / "runtime/python/sitecustomize.py").write_bytes(b"planted after the hash check")
+            (package / "오픈소스고지.txt").write_bytes(b"notice")
+            root.mkdir()
+            (root / ".tmp-leftover").mkdir()
+            target = root / "0.3.0-ccccccc"
+            with patch.object(installer, "check", return_value=False):
+                self.assertFalse(installer.install_files(self.product(), package, root, target))
+            self.assertEqual(list(root.iterdir()), [])  # failed check removes its temporary folder and leftovers
+            with patch.object(installer, "check", return_value=True):
+                self.assertTrue(installer.install_files(self.product(), package, root, target))
+            installed = sorted(path.relative_to(target).as_posix() for path in target.rglob("*") if path.is_file())
+            self.assertEqual(installed, ["Start.cmd", "release.json", "runtime/python/python.exe", "오픈소스고지.txt"])
+            with patch.object(installer, "check", return_value=True) as check:
+                self.assertTrue(installer.install_files(self.product(), package, root, target))
+            check.assert_called_once_with(target)  # an installed version is only re-checked
+            with self.assertRaises(installer.PackageError):
+                installer.install_files(self.product({"../escape.txt": b"x"}), package, root, root / "0.3.0-ddddddd")
+            self.assertFalse((Path(temporary) / "escape.txt").exists())
+
+    def test_shortcut_failure_falls_back_to_start_path(self):
+        with tempfile.TemporaryDirectory(prefix="kdog-shortcut-") as temporary:
+            failed = subprocess.CompletedProcess([], 1, stdout=b"", stderr=b"denied")
+            with patch.object(installer.subprocess, "run", return_value=failed):
+                self.assertIsNone(installer.shortcut(Path(temporary) / "app", Path(temporary) / "desk"))
+            with patch.object(installer.subprocess, "run", side_effect=OSError):
+                self.assertIsNone(installer.shortcut(Path(temporary) / "app", Path(temporary) / "desk"))
 
 
 if __name__ == "__main__":
