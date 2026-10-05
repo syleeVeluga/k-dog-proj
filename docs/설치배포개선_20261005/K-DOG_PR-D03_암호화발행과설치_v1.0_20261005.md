@@ -118,7 +118,7 @@ K-DOG-<고객ID>-v<버전>-<commit7>.zip
 
 ### 구현 (2026-10-05)
 
-브랜치 `veluga/d03-issued-install`. 계획의 파일별 변경을 모두 반영했다 (`scripts/windows/kdog_install.py`·`Install.cmd`·`설치안내.txt`, `scripts/issue_release.py`, `backend/app/auth.py`·`manage.py`의 `provision-accounts`, `backend/pyproject.toml`·`uv.lock`, `scripts/verify_release.py`, `backend/tests/test_issued_release.py`, `docs/PILOT_OPERATIONS.md`·`README.md`·`docs/DEVELOPMENT.md`). 계획과 다르거나 구체화한 점:
+브랜치 `veluga/d03-issued-install`, [PR #50](https://github.com/syleeVeluga/k-dog-proj/pull/50). 계획의 파일별 변경을 모두 반영했다 (`scripts/windows/kdog_install.py`·`Install.cmd`·`설치안내.txt`, `scripts/issue_release.py`, `backend/app/auth.py`·`manage.py`의 `provision-accounts`, `backend/pyproject.toml`·`uv.lock`, `scripts/verify_release.py`, `backend/tests/test_issued_release.py`, `docs/PILOT_OPERATIONS.md`·`README.md`·`docs/DEVELOPMENT.md`). 계획과 다르거나 구체화한 점:
 
 - HKDF `info`는 `K-DOG issued package v1`로 코드에 고정했다. 헤더는 `sort_keys` JSON이며 AAD는 저장된 헤더 바이트 그대로다.
 - 키 입력은 `KDOG`·`K-DOG`·`KD0G` 접두어를 길이(29자)로만 인식해 떼므로 키 글자를 잘못 지우지 않는다. NFKC 정규화로 전각 문자도 받는다. 형식 오류 안내에 한/영 확인을 덧붙였다.
