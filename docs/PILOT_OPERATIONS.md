@@ -1,6 +1,6 @@
 # K-DOG Windows 설치·S1 운영 안내
 
-버전: v1.7 · 2026-10-05 · 통합명세 v1.3 / S1.1
+버전: v1.8 · 2026-10-05 · 통합명세 v1.3 / S1.1
 
 ## 일반 사용자 실행
 
@@ -14,9 +14,9 @@
 
 대상은 Windows 11 x64와 Chromium 계열 브라우저다. Windows ARM/32비트/S모드·다른 OS는 검증 대상이 아니다. 프로그램·자료는 로컬 디스크에 두며 네트워크 공유·동기화 폴더·이동식 드라이브는 운영 검수 대상이 아니다. 공급자 키는 Windows DPAPI로 보호하므로 설치·키 등록·API·worker는 같은 Windows 사용자로 실행한다.
 
-사용자에게 전달하는 설치물은 **고객별 발행 패키지**(`K-DOG-<고객ID>-v<버전>-<commit>.zip`)뿐이다. 평문 포터블 ZIP(`build_release.py` 결과)은 내부 검증과 담당자 설치에만 쓴다. GitHub의 구판 v0.2.0 또는 자동 생성 Source code ZIP은 S1 설치물로 사용하지 않는다.
+사용자에게 전달하는 기본 설치물은 **고객별 발행 패키지**(`K-DOG-<고객ID>-v<버전>-<commit>.zip`)다. 평문 포터블 ZIP(`build_release.py` 결과)은 내부 검증과 담당자 설치에만 쓴다. uv·FFmpeg를 직접 설치해 쓰는 기존(S15) 방식이 필요하면 [사용자 설치형 ZIP](#사용자-설치형-zip)을 쓴다. GitHub의 구판 v0.2.0 또는 자동 생성 Source code ZIP은 S1 설치물로 사용하지 않는다.
 
-ZIP에는 Python 3.14와 잠금 의존성(`runtime/python`), FFmpeg/ffprobe(`runtime/ffmpeg`)가 들어 있다. uv·Python·FFmpeg를 따로 설치하거나 PATH에 등록하지 않으며 설치·실행에 인터넷이 필요 없다. FFmpeg는 GPL 2 이상이며 대응 소스는 `runtime/ffmpeg/source`에 있다. 동봉 오픈소스와 라이선스 위치는 `오픈소스고지.txt`를 본다. 자료 기본 경로는 `%LOCALAPPDATA%/K-DOG/data`다. 별도 자료 경로는 설치·실행 전에 `KDOG_DATA_DIR`을 프로그램 밖 로컬 폴더로 지정한다. 기존 데이터 경로를 바꾸면 다른 DB가 열리므로 경로를 먼저 확인한다.
+포터블·발행 ZIP에는 Python 3.14와 잠금 의존성(`runtime/python`), FFmpeg/ffprobe(`runtime/ffmpeg`)가 들어 있다. uv·Python·FFmpeg를 따로 설치하거나 PATH에 등록하지 않으며 설치·실행에 인터넷이 필요 없다. FFmpeg는 GPL 2 이상이며 대응 소스는 `runtime/ffmpeg/source`에 있다. 동봉 오픈소스와 라이선스 위치는 `오픈소스고지.txt`를 본다. 자료 기본 경로는 `%LOCALAPPDATA%/K-DOG/data`다. 별도 자료 경로는 설치·실행 전에 `KDOG_DATA_DIR`을 프로그램 밖 로컬 폴더로 지정한다. 기존 데이터 경로를 바꾸면 다른 DB가 열리므로 경로를 먼저 확인한다.
 
 ### 발행 (개발자)
 
@@ -66,6 +66,23 @@ if ($actualHash -ne $expectedHash) { throw 'ZIP SHA-256 불일치' }
    ```
 
 3. `Start.cmd --check`로 전체 파일 SHA-256(`release.json`)·Python·FFmpeg를 확인하고 `Start.cmd`를 실행한다. 기본 로컬 주소는 `http://127.0.0.1:8000`이다.
+
+### 사용자 설치형 ZIP
+
+S15와 같은 방식이다. ZIP에 Python·FFmpeg가 없어 작고(포터블은 약 70MB), 대신 사용자가 uv와 FFmpeg를 설치하고 최초 설치 때 인터넷이 필요하다. 개발자는 `build_release.py --variant online`으로 만들고 `verify_release.py`로 검증한다 ([개발 안내](DEVELOPMENT.md#패키지와-종단-리허설)). 암호화·발행 키·발행 계정·바탕화면 아이콘이 없는 평문 ZIP이므로 제품 파일이 그대로 보인다. 받을 사람이 그래도 되는 경우에만 전달하고, 발행 패키지가 필요한 고객에게는 쓰지 않는다 (`issue_release`는 이 ZIP을 거절한다).
+
+1. [uv 공식 설치](https://docs.astral.sh/uv/getting-started/installation/)와 [FFmpeg 공식 다운로드](https://ffmpeg.org/download.html)의 Windows 안내를 따른다 (2026-10-05 확인: uv 0.12.23, FFmpeg 9.0.2). 새 PowerShell 창에서 `uv --version`, `ffmpeg -version`, `ffprobe -version`이 동작해야 한다. H.264/AAC 디코더와 libx264/AAC 인코더가 있는 빌드가 필요하다. Python은 따로 설치하지 않아도 uv가 3.14를 받는다.
+2. ZIP과 같은 이름의 `.sha256`으로 위 [담당자 설치](#담당자-설치-평문-zip-내부용) 1번처럼 hash를 확인하고, 빈 새 폴더(예: `C:/K-DOG/app-s1`)에 "모두 압축 풀기"로 푼다. ZIP 안에서 바로 실행하지 않는다.
+3. `Install.cmd`를 실행한다. 전체 파일 SHA-256(`release.json`)을 확인한 뒤 uv가 Python 3.14와 잠금 의존성(`backend/uv.lock`)을 `backend/.venv`에 설치하고 `--check`를 실행한다. 이어서 관리자(`admin`)와 개발자(`developer`) 계정 이름을 묻고 숨김 프롬프트로 비밀번호를 받는다. 계정 이름에서 Enter를 누르면 생략하므로, 최초 로그인 전에 관리자 계정이 반드시 있어야 한다. 생략했다면 프로그램 `backend/`에서 만든다.
+
+   ```powershell
+   .venv/Scripts/python.exe -X utf8 -m app.manage create-user manager --role admin
+   .venv/Scripts/python.exe -X utf8 -m app.manage create-user key-manager --role developer
+   ```
+
+4. `Start.cmd`로 실행한다 (실행 창·브라우저·창 닫기 종료는 포터블과 같다). 바탕화면 아이콘은 만들지 않으므로 필요하면 `Start.cmd` 바로가기를 직접 만든다. 담당자 CLI는 프로그램 `backend/`에서 `.venv/Scripts/python.exe -X utf8 -m app.manage ...`로 실행한다 (이 안내의 `runtime/python/python.exe` 명령과 같은 인자).
+
+`.venv`를 다른 PC·폴더로 복사하지 않는다. FFmpeg를 지우거나 PATH에서 빼면 실행 전 확인이 FFmpeg 설치를 안내한다. 업데이트는 앱 종료·백업 후 새 프로그램 폴더에 같은 방법으로 설치하고 같은 자료 경로를 쓴다. 자료 경로는 포터블·발행 설치와 같으므로 방식을 바꿔도 같은 DB와 계정을 쓴다 (동시에 두 설치를 실행하지 않는다).
 
 첫 실행으로 AI 호출이나 공급자 연결 시험을 자동 수행하지 않는다. 공급자 키 등록·연결 시험·실제 AI 분석은 명시 조작이며 비용이 발생할 수 있다. 조직 정책으로 차단되면 IT 담당자가 검토한다. `--check`가 손상을 알리면 ZIP을 새 빈 폴더에 다시 풀거나 다시 설치한다.
 
