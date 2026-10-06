@@ -55,13 +55,13 @@ Keep API keys, participant data, videos, and runtime files outside source contro
 
 ## Mandatory Graft Usage
 
-Always use graft for repository code discovery and analysis, in every session and task. If `graft/` is missing or `graft check` reports it stale, run `graft build` before relying on it.
+Always use the connected graft MCP tools for repository code discovery and analysis, in every session and task; use the installed graft CLI when MCP is unavailable. codebase-memory-mcp is retired for this project; do not recreate `.codebase-memory/` or require its indexing tools. If `graft/` is missing or `graft check` reports it stale, run `graft build` before relying on it.
 
 - Use `graft ask "<task>" --source` (MCP `graft_find_code`) to locate and understand code.
 - Use `graft grep "<literal>"` (`graft_find_all`) when every occurrence is needed.
 - Use `graft callers <symbol>` (`graft_trace_calls`) before changing a symbol, `graft skeleton <file>` (`graft_file_api`) for a file's API, and `graft map` (`graft_repo_map`) for an overview.
 
-Do not bypass these with grep/glob/whole-file reads. Text search is allowed for documentation, configuration, string literals, unindexed files, or insufficient graph results. Run `graft build` after code changes. If graft is unavailable, state the limitation before using fallback tools.
+Do not bypass these with grep/glob/whole-file reads. Text search is allowed for documentation, configuration, string literals, unindexed files, or insufficient graph results. Retrieval tools refresh the graph against uncommitted edits automatically; use `graft build` for initial generation or explicit recovery, and `graft check` to verify freshness. If graft is unavailable, state the limitation before using fallback tools.
 
 ## 1. Think Before Coding
 
