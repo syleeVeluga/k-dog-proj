@@ -42,7 +42,7 @@ def assets(survey_policy=RUNTIME_SURVEY_POLICY_VERSION):
 def build(final, final_ref, *, batch=None, common_events=(), survey_policy=RUNTIME_SURVEY_POLICY_VERSION):
     final = FinalResultV4.model_validate(final)
     final_ref = FinalReferenceV4.model_validate(final_ref)
-    if final.final_id != final_ref.final_id or finals.domains_for(final.basic_document, final.opinion_document) != final.domains:
+    if final.final_id != final_ref.final_id or finals.domains_for(final.basic_document, final.opinion_document, final.attachment_assessment) != final.domains:
         raise ValueError("final result identity or domain priority differs")
     basic = final.basic_document
     doc = basic.input_document
@@ -134,6 +134,12 @@ def build(final, final_ref, *, batch=None, common_events=(), survey_policy=RUNTI
     for key, title in (("education_attitude", "보호자 교육태도"), ("attachment", "반려견과 보호자의 애착관계")):
         item = domains[key]
         lines = [claim("card:"+key, templates["selected_type"].format(title=title,label=item.label) if item.label else templates["missing_type"].format(title=title), ("final:"+key,))]
+        if key == "attachment" and (basic.attachment_assessment or final.attachment_assessment):
+            reason_id = fact("attachment:reason", "ai_judgement", item.reason, codes=item.evidence_codes,
+                evidence=tuple(basis for code in item.evidence_codes if code in observations for basis in observations[code].evidence),
+                refs=(final.attachment_inference.ref if final.attachment_inference else final.basic.ref,))
+            ids = (reason_id, "final:attachment", *("observation:"+code for code in item.evidence_codes if code in observations))
+            lines.append(claim("card-judgement:attachment", item.reason, ids, expected_type=item.label, type_family=ATTACHMENT_TYPES))
         if item.text:
             lines.append(claim("card-opinion:"+key, item.text, ("opinion:"+key,), human=True, expected_type=item.label,
                 type_family=OWNER_TYPES if key=="education_attitude" else ATTACHMENT_TYPES))

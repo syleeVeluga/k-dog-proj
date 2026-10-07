@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { accessLost, api } from './api';
 import { mayLeave, useEditBase } from './Editing';
 import type { Case } from './types';
+import type { AttachmentRunV4 } from './attachmentTypesV4';
 import type { BasicResultViewV4 } from './BasicResultsV4';
 import type { EvidenceV4, InterpretationReferenceV4, SheetSummaryV4 } from './ScoringTypesV4';
 import { DOMAIN_NAMES_V4, type BasicReferenceV4, type BasicSummaryV4, type DomainKeyV4, type DomainOpinionV4, type FinalSummaryV4, type FinalViewV4, type OpinionMetadataV4, type OpinionViewV4 } from './finalTypesV4';
 
 const states: Record<string, string> = { draft: '작성 중', complete: '완료', withdrawn: '철회', selected: '유형 선택 적용', observation_text: '관찰 의견', facts_available: '원관찰 있음', missing: '근거 부족', policy_pending: '규칙 확인 대기' };
-const sources = { completed_opinion: '완료 의견', manual_selection: '유효 수동 선택', basic: '고정 기본 결과' };
+const sources = { completed_opinion: '완료 의견', completed_opinion_inference: '완료 의견의 AI 후속 해석', manual_selection: '유효 수동 선택', basic: '고정 기본 결과' };
 const choices: Partial<Record<DomainKeyV4, string[]>> = { attachment: ['곁에서 안심하는 사이', '가까이 있어도 안심이 어려운 사이', '거리를 두고 지내는 사이', '다가감과 물러섬이 함께 나오는 사이'], education_attitude: ['허용형', '조율형', '통제형'] };
 const domains = Object.keys(DOMAIN_NAMES_V4) as DomainKeyV4[];
 const blankDomain = (domain: DomainKeyV4): DomainOpinionV4 => ({ domain, text: '', label: null, reason: '', evidence_codes: [], counter_codes: [], counter_note: null, scene_refs: [] });
@@ -22,6 +23,7 @@ export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sh
   const [viewer, setViewer] = useState(''), [metadata, setMetadata] = useState<OpinionMetadataV4 | null>(null);
   const [opinion, setOpinion] = useState<OpinionViewV4 | null>(null), [finals, setFinals] = useState<FinalSummaryV4[]>([]), [candidates, setCandidates] = useState<BasicSummaryV4[]>([]);
   const [basic, setBasic] = useState<BasicResultViewV4 | null>(null), [selectedFinal, setSelectedFinal] = useState<FinalViewV4 | null>(null);
+  const [attachmentRun, setAttachmentRun] = useState<AttachmentRunV4 | null>(null);
   const [error, setError] = useState(''), [opinionError, setOpinionError] = useState(''), [busy, setBusy] = useState(false), [unavailable, setUnavailable] = useState(false);
   const [revealReason, setRevealReason] = useState(''), [assembleReason, setAssembleReason] = useState(''), [dirty, setDirty] = useState(false), [editorBusy, setEditorBusy] = useState(false);
   const alive = useRef(true), pending = useRef(false), sequence = useRef(0);
@@ -30,6 +32,7 @@ export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sh
   const own = sheets.filter(sheet => sheet.own && sheet.active && sheet.rater_kind === 'human' && sheet.state === 'submitted');
   const viewerRow = own.find(sheet => sheet.sheet_id === viewer);
   const selectedBasic = basic ? basicRef(basic) : null;
+  useEffect(() => { setAttachmentRun(null); }, [path, viewer, basic?.summary.manifest_hash, metadata?.reference?.hash]);
   async function reload() {
     const current = ++sequence.current, scope = context.current;
     const [meta, list, available] = await Promise.all([api<OpinionMetadataV4>(path + '/opinions-s1/metadata'), api<FinalSummaryV4[]>(path + '/final-results-s1' + query), api<BasicSummaryV4[]>(path + '/final-results-s1/candidates' + query)]);
@@ -76,7 +79,7 @@ export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sh
   return <section className="panel" aria-label="S1 의견과 최종 결과" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <h2>S1 행사 의견과 최종 결과</h2>
     <p>영역별 완료 의견 → 유효 수동 선택 → 고정 기본 결과 순서로 적용합니다. 원점수·자동 비율과 이전 최종본은 보존됩니다.</p>
-    <p className="fine">여섯 영역 모두 작성하거나 사람 판정을 확정해야만 최종본을 만들 수 있는 것은 아닙니다. 자유서술의 유형 추출은 D04 확인 대기이며, 입장 선택만으로 완료하는 대안은 G01 원양식 확인 대기입니다.</p>
+    <p className="fine">여섯 영역 모두 작성하거나 사람 판정을 확정해야만 최종본을 만들 수 있는 것은 아닙니다. 유형 없는 완료 애착 의견은 별도 AI 실행으로 해석할 수 있습니다. 실제 적절성은 교수 테스트 대기입니다.</p>
     {error && <p role="alert" className="error">{error}</p>}
     <fieldset disabled={busy || editorBusy}><legend>고정 입력과 공개 맥락</legend>
       <label>해석 공개를 기록할 본인 제출 시트<select aria-label="해석 공개를 기록할 본인 제출 시트" value={viewer} onChange={event => { if (mayLeave()) { setViewer(event.target.value); setBasic(null); setOpinion(null); setSelectedFinal(null); setDirty(false); } }}><option value="">본인 결과만 사용</option>{own.map(sheet => <option key={sheet.sheet_id} value={sheet.sheet_id}>{sheet.rater_name} · r{sheet.revision} · {sheet.purpose === 'independent' ? '독립' : '공개 후 검수'}</option>)}</select></label>
@@ -100,8 +103,15 @@ export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sh
     <fieldset disabled={busy || editorBusy || dirty}><legend>새 최종본 고정</legend>
       <p>현재 의견 {metadata?.reference ? `r${metadata.reference.revision} (${states[metadata.state ?? ''] ?? metadata.state})` : '없음'}을 함께 연결합니다. 철회·작성 중 의견도 출처로 고정하지만 완료 의견으로 적용하지 않습니다.</p>
       {metadata?.basic && selectedBasic && !sameBasic(metadata.basic, selectedBasic) && <p role="status">현재 의견과 선택한 기본 결과가 다릅니다. 의견을 재개방하고 고정 기본 입력과 근거를 다시 연결하세요.</p>}
+      {opinion?.document?.state === 'complete' && opinion.document.domains.some(domain => domain.domain === 'attachment' && domain.text.trim() && domain.label === null) && <section aria-label="완료 애착 의견 AI 해석">
+        <p>원문과 기본 결과를 보존하는 별도 실행입니다. 명시한 유형은 변경하지 않으며, 불명확한 의견은 보류합니다.</p>
+        <button disabled={!selectedBasic || !metadata?.reference || !!metadata.basic && !sameBasic(metadata.basic, selectedBasic) || !!attachmentRun && ['queued', 'running', 'retry_wait'].includes(attachmentRun.status)} onClick={() => void work(async () => { const scope = context.current; const value = await api<AttachmentRunV4>(path + '/opinions-s1/attachment-runs', 'POST', { request_id: crypto.randomUUID(), basic: selectedBasic, opinion: metadata?.reference, viewer_sheet_id: viewer || null }); if (alive.current && scope === context.current) setAttachmentRun(value); })}>완료 애착 의견을 AI로 해석</button>
+        {attachmentRun && <><p>해석 실행 {attachmentRun.status} · 예약 호출 {attachmentRun.reserved_calls}회 · {attachmentRun.reference ? '이 해석 판본을 새 최종본에 연결합니다.' : '원채점 재호출 없이 처리 중이거나 보류·실패했습니다.'}</p>
+          <button onClick={() => void work(async () => { const scope = context.current; const value = await api<AttachmentRunV4>(path + `/opinions-s1/attachment-runs/${attachmentRun.run_id}` + query); if (alive.current && scope === context.current) setAttachmentRun(value); })}>애착 해석 상태 새로고침</button>
+          {['queued', 'running', 'retry_wait'].includes(attachmentRun.status) && <button onClick={() => void work(async () => { const scope = context.current; const value = await api<AttachmentRunV4>(path + `/opinions-s1/attachment-runs/${attachmentRun.run_id}/stop` + query, 'POST', { expected_updated_at: attachmentRun.updated_at, reason: '운영자 명시 중지' }); if (alive.current && scope === context.current) setAttachmentRun(value); })}>애착 해석 중지</button>}</>}
+      </section>}
       <label>최종본 고정 사유<input maxLength={4000} value={assembleReason} onChange={event => setAssembleReason(event.target.value)} /></label>
-      <button disabled={!basic || !metadata || metadata.requires_reveal || !!metadata.basic && !sameBasic(metadata.basic, selectedBasic) || !assembleReason.trim()} onClick={() => void work(async () => { const value = await api<FinalViewV4>(path + '/final-results-s1', 'POST', { basic: selectedBasic, opinion: metadata?.reference ?? null, viewer_sheet_id: viewer || null, reason: assembleReason.trim() }); await reload(); if (alive.current) { setSelectedFinal(value); setAssembleReason(''); } })}>선택한 판본으로 새 최종본 생성</button>
+      <button disabled={!basic || !metadata || metadata.requires_reveal || !!metadata.basic && !sameBasic(metadata.basic, selectedBasic) || !assembleReason.trim()} onClick={() => void work(async () => { const value = await api<FinalViewV4>(path + '/final-results-s1', 'POST', { basic: selectedBasic, opinion: metadata?.reference ?? null, attachment_inference: attachmentRun?.reference ?? null, viewer_sheet_id: viewer || null, reason: assembleReason.trim() }); await reload(); if (alive.current) { setSelectedFinal(value); setAssembleReason(''); } })}>선택한 판본으로 새 최종본 생성</button>
       {dirty && <p>의견의 미저장 입력을 먼저 저장하거나 버리세요.</p>}
     </fieldset>
     <h3>보존 최종본</h3>{!finals.length && <p>생성된 최종본이 없습니다.</p>}
@@ -171,7 +181,8 @@ function FinalSnapshot({ value }: { value: FinalViewV4 }) {
     <h3>고정 최종본 · 읽기 전용</h3><p>{new Date(doc.recorded_at).toLocaleString()} · 작성 계정 {doc.actor} · {doc.change_reason}</p>
     <p>기본 r{doc.basic.revision} · 의견 {doc.opinion ? `r${doc.opinion.revision}` : '없음'} · {doc.independent_ai ? '독립 AI 기본 결과' : '선택한 입력과 의견을 적용한 행사 결과'}</p>
     {doc.opinion_document && <p>의견 평가자 {doc.opinion_document.evaluator || '미입력'} · 의견 작성 계정 {doc.opinion_document.actor} · {states[doc.opinion_document.state]}</p>}
-    <p>상세 유형 자동 해석은 D04 확인 대기입니다. 누락·보류 사유를 함께 보존합니다.</p>
+    {doc.attachment_assessment && <p>완료 의견의 AI 후속 해석 · 모델 {doc.attachment_assessment.model} · 지침 {doc.attachment_assessment.response.instruction_version} · 의견 r{doc.opinion?.revision} 고정</p>}
+    <p>{doc.interpretation_policy === 'attachment-20261007-rp02' ? '애착 AI 판단의 실제 적절성은 교수 테스트 대기입니다.' : '이 보존본은 이전 애착 해석 정책을 사용합니다.'} 누락·보류 사유를 함께 보존합니다.</p>
     {doc.domains.map(domain => <article key={domain.domain} aria-label={`${DOMAIN_NAMES_V4[domain.domain]} 최종 영역`}><h4>{DOMAIN_NAMES_V4[domain.domain]} · {domain.label ?? '유형 확정 없음'}</h4><p>{sources[domain.source]} · {states[domain.status] ?? domain.status} · {domain.reason}</p>{domain.text && <p style={{ whiteSpace: 'pre-wrap' }}>{domain.text}</p>}<p>원래 자동 유형: {domain.original_label ?? '보류'} · 사용 항목: {domain.evidence_codes.join(', ') || '없음'} · 반대 근거: {domain.counter_codes.join(', ') || '없음'}</p>{domain.counter_note && <p>반대 근거 검토: {domain.counter_note}</p>}
       {domain.source === 'completed_opinion' && doc.opinion_document?.domains.find(item => item.domain === domain.domain)?.scene_refs.map((scene, index) => <p key={index}>고정 장면: {sceneText(scene)}</p>)}
     </article>)}

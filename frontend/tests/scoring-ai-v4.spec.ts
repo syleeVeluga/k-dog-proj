@@ -24,7 +24,7 @@ test('S1 AI settings use explicit raw scope, immutable activation, schema-only v
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await login(page, 'developer');
   const panel = page.getByRole('region', { name: 'S1 AI 설정', exact: true });
-  await expect(panel.getByText(/43개 항목군 · 기본 예정 공급자 호출 42회/)).toBeVisible();
+  await expect(panel.getByText(/43개 항목군 · 기본 예정 공급자 호출 43회/)).toBeVisible();
   await expect(panel.getByText(/실제 공급자 정확도·처리 시간은 S16/)).toBeVisible();
   const initial: AiSettingsViewV4 = await (await page.request.get('/api/settings-s1')).json();
   const group = Object.keys(initial.groups).find(key => initial.groups[key].provider_call)!;
@@ -41,7 +41,7 @@ test('S1 AI settings use explicit raw scope, immutable activation, schema-only v
   await panel.getByLabel('입력 클립', { exact: true }).selectOption('ai');
   const prompt = initial.config.groups[group].prompt + '\n합성 UI 설정 검증 전용';
   await panel.getByLabel('S1 항목군 프롬프트', { exact: true }).fill(prompt);
-  await panel.getByLabel('관찰 원자료 적용 범위를 확인했습니다. D04 상세 해석은 계속 보류합니다.', { exact: true }).check();
+  await panel.getByLabel('관찰 원자료 적용 범위를 확인했습니다. 애착 판단의 실제 적절성은 교수 테스트 대기입니다.', { exact: true }).check();
   const saved = page.waitForResponse(value => value.url().endsWith('/api/settings-s1') && value.request().method() === 'POST');
   await panel.getByRole('button', { name: 'S1 설정 초안 저장', exact: true }).click();
   const save = await saved; expect(save.status(), await save.text()).toBe(201); const version = (await save.json()).version;
@@ -88,10 +88,10 @@ test('S1 AI operations distinguish partial work, unknown billing, explicit reuse
   let runs: AiRunV4[] = [];
   const starts: Record<string, unknown>[] = [], actions: { action: string; value: Record<string, unknown> }[] = [];
   const run = (id: string, status: string): AiRunV4 => ({ run_id: id, case_id: item.case_id, session_id: item.selected_session_id, kind: 's1', input_revision: item.input_revision, status,
-    updated_at: '2026-10-04T01:00:00+00:00', outdated: false, failure_code: status === 'partial' ? 'provider_timeout' : null, result_available: status === 'partial', planned_provider_calls: 42, reserved_calls: 2, max_ai_calls: 100, judgement_status: 'policy_pending_D04',
+    updated_at: '2026-10-04T01:00:00+00:00', outdated: false, failure_code: status === 'partial' ? 'provider_timeout' : null, result_available: status === 'partial', planned_provider_calls: 43, reserved_calls: 2, max_ai_calls: 100, judgement_status: 'implemented_professor_test_pending',
     steps: [{ stage: 'score_v4', key: 'group-entry', attempt: 1, status: 'succeeded', code: null, billing_uncertain: false, call_reserved: true, reused: false, remote_cleanup_pending: false, timing: { upload_seconds: 1, inference_seconds: 2, stage_seconds: 4 }, token_meters: { total_tokens: 30 }, input_tokens: 20, output_tokens: 10, total_tokens: 30, cost_usd: null },
       { stage: 'score_v4', key: 'group-walk', attempt: 2, status: 'failed', code: 'provider_timeout', billing_uncertain: true, call_reserved: true, reused: false, remote_cleanup_pending: true, timing: { cleanup_seconds: 0.2 }, token_meters: {}, input_tokens: null, output_tokens: null, total_tokens: null, cost_usd: null }] });
-  await page.route('**/api/scoring-ai-s1/readiness', route => route.fulfill({ json: { active_version: 'synthetic-settings', planned_provider_calls: 42, enabled, judgement_status: 'policy_pending_D04' } }));
+  await page.route('**/api/scoring-ai-s1/readiness', route => route.fulfill({ json: { active_version: 'synthetic-settings', planned_provider_calls: 43, enabled, judgement_status: 'implemented_professor_test_pending' } }));
   await page.route('**' + path + '/preprocess-s1', route => route.fulfill({ json: { status: 'partial', input_revision: item.input_revision, outdated, result_pointer: { ref: 'synthetic/batch.json', hash: 'a'.repeat(64) } } }));
   await page.route('**' + path + '/runs-s1', async route => {
     if (route.request().method() === 'GET') { await route.fulfill(forbidden ? { status: 403, json: { detail: '실행 조회 권한이 없습니다.' } } : { json: runs }); return; }

@@ -22,7 +22,7 @@ from .recording_v4 import build_windows_v4
 from .scoring_v4 import RULE_HASH, RULE_VERSION, calculate, verify_rules, vocal_score
 from .storage import encode, now
 
-VERSION = "ai-scoring-20261002-s1.1-1"
+VERSION = "ai-scoring-20261007-rp02"
 CATALOG = load_catalog_v4()
 
 
@@ -39,7 +39,7 @@ class AiReadinessV4(sheets.Model):
     active_version: str
     planned_provider_calls: int
     enabled: bool
-    judgement_status: str = "policy_pending_D04"
+    judgement_status: str = "implemented_professor_test_pending"
 
 
 def readiness(store):
@@ -47,9 +47,9 @@ def readiness(store):
     with store.connect() as db:
         version = settings_v4.active(db)
         pipeline = settings_v4.load(store, db, version) if version != "inactive" else None
-    return {"active_version": version, "planned_provider_calls": sum(group["provider_call"] for group in groups().values()),
+    return {"active_version": version, "planned_provider_calls": 1 + sum(group["provider_call"] for group in groups().values()),
             "enabled": pipeline is not None and pipeline.raw_observation_scope_confirmed,
-            "judgement_status": "policy_pending_D04"}
+            "judgement_status": "implemented_professor_test_pending"}
 
 
 def reveal(store, sheet_id, value, user):
@@ -168,7 +168,8 @@ def configuration(version, pipeline):
     common = {"key": "session", "item_codes": [item.code for item in CATALOG.rated_items()], "window_ids": [],
               "production_fps": "one_actual_frame_per_second", "request_fps": None, "media_resolution": "medium", "model": "program",
               "provider": "program", "provider_call": False, "prompt": "S1 source-defined calculation; D04 interpretation held", "response_schema": {"type": "object"}}
-    stages.extend({**common, "stage": stage} for stage in ("calculate_v4", "publish_v4"))
+    from . import attachment_ai_v4
+    stages.extend(({**common, "stage": "calculate_v4"}, attachment_ai_v4.configuration(common), {**common, "stage": "publish_v4"}))
     return RunConfigV4.model_validate_json(encode({"version": VERSION, "active_settings_version": version,
         "settings_hash": analysis.digest(pipeline.model_dump(mode="json")), "raw_observation_scope_confirmed": pipeline.raw_observation_scope_confirmed,
         "stages": stages, "max_attempts": pipeline.max_attempts, "max_ai_calls": pipeline.max_ai_calls, "max_schema_repairs": pipeline.max_schema_repairs}))
@@ -391,13 +392,39 @@ def basic_data(worker, row, calculation):
     ref, doc = calc_document(worker, row, calculation)
     calculated = CalculationsV4.model_validate_json(encode(calculation["calculations"]))
     decisions = judgements.initial_decisions(doc, ref, calculated)
-    return {"result_id": "ai-basic-"+row["run_id"], "case_id": row["case_id"], "session_id": row["session_id"], "revision": 1,
+    data = {"result_id": "ai-basic-"+row["run_id"], "case_id": row["case_id"], "session_id": row["session_id"], "revision": 1,
         "actor": doc.actor, "recorded_at": doc.recorded_at, "change_reason": "S1 AI 고정 원자료의 기본 계산; D04 AI 해석 보류",
         "input": ref.model_dump(mode="json"), "input_document": doc.model_dump(mode="json"), "rule_version": RULE_VERSION,
         "rule_hash": RULE_HASH, "rule_snapshot": verify_rules(), "conditions": CalculationConditionsV4().model_dump(mode="json"),
         "audio_sources": calculation["audio_sources"], "evaluation_context": {"purpose": "independent", "ai_exposed": False, "exposures": []},
         "calculations": calculation["calculations"], "automatic_decisions": decisions, "decisions": decisions,
         "decision_sources": {item["key"]: "automatic" for item in decisions}}
+    config = RunConfigV4.model_validate_json(row["config_snapshot_json"])
+    group = next((item for item in config.stages if item.stage == "attachment_v4"), None)
+    if group:
+        from . import attachment_ai_v4 as attachment
+        from .domain.attachment_v4 import AttachmentAssessmentV4
+        attachment.verify_stage(group)
+        payload = stage_result(worker, row, "attachment_v4")
+        context = attachment.context_for(doc, ref, calculation["calculations"])
+        if payload is None:
+            with worker.store.connect() as db:
+                failed = db.execute("SELECT usage_json FROM steps WHERE run_id=? AND stage='attachment_v4' ORDER BY attempt DESC LIMIT 1", (row["run_id"],)).fetchone()
+            code = json.loads(failed[0]).get("code", "request_failed")
+            if code == "artifact_invalid":
+                raise ValueError("attachment artifact integrity failure prevents partial adoption")
+            assessment = attachment.held(context, "애착 AI 판단 실패: " + code)
+        else:
+            assessment = AttachmentAssessmentV4.model_validate_json(encode(payload["assessment"]))
+            if attachment.normalize(context, payload["response"], assessment.model) != assessment:
+                raise ValueError("attachment response and adopted judgement differ")
+        selected = attachment.validate(assessment, doc, ref, calculation["calculations"])
+        data["attachment_assessment"] = assessment.model_dump(mode="json")
+        data["automatic_decisions"] = [item if item["key"] != "attachment_type" else selected.model_dump(mode="json") for item in decisions]
+        data["decisions"] = data["automatic_decisions"]
+        data["decision_sources"]["attachment_type"] = "ai"
+        data["change_reason"] = "S1 AI 고정 원관찰·계산 및 별도 근거 기반 애착 판단"
+    return data
 
 
 def publish(worker, row, snapshot, calculation):
@@ -439,9 +466,11 @@ def handler(worker, snapshot, group, row):
     from .run_v4 import DependenciesPending
     if group.stage == "calculate_v4":
         collect(worker, row, snapshot)
-    calculation = stage_result(worker, row, "calculate_v4") if group.stage == "publish_v4" else None
-    if group.stage == "publish_v4" and calculation is None:
+    calculation = stage_result(worker, row, "calculate_v4") if group.stage in ("attachment_v4", "publish_v4") else None
+    if group.stage in ("attachment_v4", "publish_v4") and calculation is None:
         raise DependenciesPending()
+    if group.stage == "publish_v4" and any(item.stage == "attachment_v4" for item in RunConfigV4.model_validate_json(row["config_snapshot_json"]).stages):
+        stage_result(worker, row, "attachment_v4")
 
     def validate(payload):
         if group.stage == "score_v4":
@@ -454,6 +483,15 @@ def handler(worker, snapshot, group, row):
             audio, facts = judgements.audio_amounts(worker.store, doc)
             if calculate(doc, audio_available=audio).model_dump(mode="json") != payload["calculations"] or facts != payload["audio_sources"]:
                 raise ValueError("S1 calculation differs from pinned observation/audio")
+        elif group.stage == "attachment_v4":
+            from . import attachment_ai_v4 as attachment
+            from .domain.attachment_v4 import AttachmentAssessmentV4
+            ref, doc = calc_document(worker, row, calculation)
+            context = attachment.context_for(doc, ref, calculation["calculations"])
+            assessment = AttachmentAssessmentV4.model_validate_json(encode(payload["assessment"]))
+            if attachment.normalize(context, payload["response"], assessment.model) != assessment:
+                raise ValueError("attachment response differs from adopted assessment")
+            attachment.validate(assessment, doc, ref, calculation["calculations"])
         elif group.stage == "publish_v4":
             link = payload["basic_result"]
             model = judgements.read_result(worker.store, link["ref"], link["hash"])
@@ -470,6 +508,16 @@ def handler(worker, snapshot, group, row):
             return calc_payload(worker, row, snapshot)
         if group.stage == "publish_v4":
             return publish(worker, row, snapshot, calculation)
+        if group.stage == "attachment_v4":
+            from . import attachment_ai_v4 as attachment
+            ref, doc = calc_document(worker, row, calculation)
+            attachment_context = attachment.context_for(doc, ref, calculation["calculations"])
+            payload = attachment.request(worker, row, step, group, attachment_context, lambda: guarded(worker, row, snapshot))
+            try:
+                return validate(payload)
+            except (ValueError, KeyError) as exc:
+                payload["usage"]["contract_errors"] = contract_errors(exc)
+                raise ProviderError("v4_schema_invalid", retryable=True, usage=payload["usage"]) from None
         program = program_group(snapshot, group)
         if program is not None:
             return {**program, "usage": {"program_merge": True}}

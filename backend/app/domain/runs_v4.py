@@ -10,7 +10,7 @@ from ..input_models_v4 import SessionV4
 
 
 class StageV4(ContractV4):
-    stage: Literal["score_v4", "calculate_v4", "publish_v4"]
+    stage: Literal["score_v4", "calculate_v4", "attachment_v4", "publish_v4"]
     key: Text
     item_codes: Annotated[tuple[ItemCode, ...], Field(min_length=1, max_length=86)]
     window_ids: tuple[Text, ...] = ()
@@ -37,8 +37,8 @@ class StageV4(ContractV4):
         if not self.provider_call and (self.provider != "program" or self.model != "program"):
             raise ValueError("non-provider stages must use the program executor")
         if self.provider_call:
-            if self.stage != "score_v4" or self.provider != "gemini" or self.model != "gemini-3.8-flash":
-                raise ValueError("only S1 raw observation has an approved provider contract")
+            if self.stage not in ("score_v4", "attachment_v4") or self.provider != "gemini" or self.model != "gemini-3.8-flash":
+                raise ValueError("unsupported S1 provider stage")
             if (self.processing_mode == "agentic") != (self.request_fps is None):
                 raise ValueError("static sampling requires fps; agentic requires null fps")
             if self.input_variant == "ai" and self.request_fps is not None and self.request_fps > 1:
@@ -47,7 +47,7 @@ class StageV4(ContractV4):
 
 
 class RunConfigV4(ContractV4):
-    version: Literal["ai-scoring-20261002-s1.1-1"] = "ai-scoring-20261002-s1.1-1"
+    version: Literal["ai-scoring-20261002-s1.1-1", "ai-scoring-20261007-rp02"] = "ai-scoring-20261007-rp02"
     active_settings_version: Text | None = None
     settings_hash: Hash | None = None
     raw_observation_scope_confirmed: bool = False
@@ -116,7 +116,7 @@ class ActionV4(Model):
 
 
 class RunStepViewV4(Model):
-    stage: Literal["score_v4", "calculate_v4", "publish_v4"]
+    stage: Literal["score_v4", "calculate_v4", "attachment_v4", "publish_v4"]
     key: Text
     attempt: Annotated[int, Field(ge=1)]
     status: str
@@ -148,4 +148,4 @@ class RunViewV4(Model):
     planned_provider_calls: Annotated[int, Field(ge=0)]
     reserved_calls: Annotated[int, Field(ge=0)]
     max_ai_calls: Annotated[int, Field(ge=1)]
-    judgement_status: Literal["policy_pending_D04"]
+    judgement_status: Literal["policy_pending_D04", "implemented_professor_test_pending"]

@@ -3,6 +3,44 @@ import { execFileSync } from 'node:child_process';
 
 const headers = { 'X-KDOG-Request': '1' };
 const password = 'Browser-test-only-42';
+
+test('RP02 completed attachment opinion starts a separate run and pins its result explicitly', async ({ page, request }, testInfo) => {
+  test.setTimeout(120000);
+  const data = await fixture(request, 'rp02-opinion');
+  const opinion = await request.put(data.path + '/opinions-s1', { headers, data: { expected_revision: 0, basic: data.basicRef, evaluator: '합성 해석 검토자', completion_requested: true, domains: [{ domain: 'attachment', text: '재회 관찰을 더 확인해야 합니다.' }], reason: '합성 완료 애착 의견' } });
+  expect(opinion.status(), await opinion.text()).toBe(200);
+  const current = await opinion.json();
+  const reference = { run_id: 'synthetic-attachment', ref: 'runs/synthetic-attachment/attempt/output.json', hash: 'a'.repeat(64) };
+  const view = { run_id: reference.run_id, status: 'queued', updated_at: 'synthetic', reserved_calls: 0, judgement_status: 'completed_opinion_inference', reference: null };
+  let requests = 0;
+  await page.route('**/opinions-s1/attachment-runs', async route => {
+    expect(route.request().method()).toBe('POST');
+    expect(route.request().postDataJSON()).toMatchObject({ basic: data.basicRef, opinion: current.reference });
+    requests++;
+    await route.fulfill({ status: 201, json: view });
+  });
+  await page.route('**/opinions-s1/attachment-runs/synthetic-attachment', route => route.fulfill({ json: { ...view, status: 'succeeded', reserved_calls: 1, reference } }));
+  await login(page, 'operator'); await open(page, 'rp02-opinion');
+  const panel = page.getByRole('region', { name: 'S1 의견과 최종 결과', exact: true });
+  await panel.getByLabel('행사에 사용할 고정 기본 결과', { exact: true }).selectOption(`${data.basicRef.result_id}:${data.basicRef.revision}`);
+  const section = panel.getByRole('region', { name: '완료 애착 의견 AI 해석', exact: true });
+  await section.getByRole('button', { name: '완료 애착 의견을 AI로 해석', exact: true }).click();
+  await expect(section).toContainText('해석 실행 queued');
+  await section.getByRole('button', { name: '애착 해석 상태 새로고침', exact: true }).click();
+  await expect(section).toContainText('이 해석 판본을 새 최종본에 연결합니다.');
+  await page.route('**/final-results-s1', async route => {
+    if (route.request().method() !== 'POST') { await route.continue(); return; }
+    expect(route.request().postDataJSON()).toMatchObject({ attachment_inference: reference, opinion: current.reference });
+    await route.fulfill({ status: 409, json: { detail: '합성 UI 시험: 가상 해석 참조를 실제 최종본으로 채택하지 않음' } });
+  });
+  await panel.getByLabel('최종본 고정 사유', { exact: true }).fill('별도 해석 고정 전달 검증');
+  await panel.getByRole('button', { name: '선택한 판본으로 새 최종본 생성', exact: true }).click();
+  await expect(panel.getByRole('alert')).toContainText('합성 UI 시험');
+  expect(requests).toBe(1);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await section.screenshot({ path: testInfo.outputPath('rp02-opinion-inference-360.png'), animations: 'disabled' });
+});
 async function login(page: Page, username: string) {
   await page.goto('/'); await page.getByLabel('계정', { exact: true }).fill(username); await page.getByLabel('비밀번호', { exact: true }).fill(password);
   await page.getByRole('button', { name: '로그인', exact: true }).click(); await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();

@@ -54,7 +54,7 @@ class AiApiV4Tests(unittest.TestCase):
         self.assertEqual(self.developer.post(f"/api/settings-s1/{version}/validate-s1", json={"group": group, "mode": "provider"}).status_code, 422)
         self.assertEqual(self.developer.post(f"/api/settings-s1/{version}/activate", json={"expected_active": "inactive"}).status_code, 409)
         ready = self.operator.get("/api/scoring-ai-s1/readiness").json()
-        self.assertEqual((ready["enabled"], ready["planned_provider_calls"], ready["judgement_status"]), (True, 42, "policy_pending_D04"))
+        self.assertEqual((ready["enabled"], ready["planned_provider_calls"], ready["judgement_status"]), (True, 43, "implemented_professor_test_pending"))
         self.assertEqual(self.operator.get(self.path).json(), [])
 
     def test_explicit_run_stop_retry_public_status_and_s1_usage_include_only_reserved_calls(self):

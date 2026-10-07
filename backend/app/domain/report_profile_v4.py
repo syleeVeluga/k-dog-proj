@@ -17,7 +17,7 @@ SELECTION_VERSION = "report-scenes-20261002-s1.1-1"
 
 class FactV4(ContractV4):
     fact_id: Text
-    kind: Literal["observation", "metric", "final_type", "opinion", "survey", "recorded_event", "policy"]
+    kind: Literal["observation", "metric", "final_type", "opinion", "ai_judgement", "survey", "recorded_event", "policy"]
     value: int | float | str | None
     unit: Text | None = None
     label: Text | None = None

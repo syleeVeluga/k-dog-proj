@@ -4,6 +4,7 @@ from typing import Annotated, Literal, Self
 from pydantic import Field, model_validator
 from .catalog_v4 import ContractV4, Hash, ItemCode, SCORING_VERSION, Text
 from .contracts_v4 import DecisionV4, EvidenceV4, ObservationV4
+from .attachment_v4 import AttachmentAssessmentV4
 from .media_v4 import MediaKey
 from .disclosures_v4 import InterpretationExposureV4
 from .recording_v4 import SafeBaseResultV4
@@ -123,6 +124,7 @@ class BasicResultV4(ContractV4):
     decisions: tuple[DecisionV4, ...]
     decision_sources: dict[str, Literal["automatic", "human", "ai"]]
     previous: tuple[ResultReferenceV4, ...] = ()
+    attachment_assessment: AttachmentAssessmentV4 | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def pinned_identity(self) -> Self:

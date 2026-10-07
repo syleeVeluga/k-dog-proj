@@ -151,6 +151,9 @@ class Worker:
 
 
     def process(self, row):
+        if row["kind"] == "attachment_v4":
+            from app import attachment_runs_v4
+            return attachment_runs_v4.process(self, row)
         if row["kind"] == "report_v4":
             from app import report_runs_v4
             return report_runs_v4.process(self, row)

@@ -46,7 +46,7 @@ export function AiSettingsV4() {
     <h2>S1 관찰 원자료 AI 설정</h2>
     <p>숫자 83개 · 관찰 메모 3개 · {Object.keys(view.groups).length}개 항목군 · 기본 예정 공급자 호출 {view.planned_provider_calls}회</p>
     <p>활성 설정: {latest?.active_version === 'inactive' ? '없음' : latest?.active_version} · 비용: {view.price_estimate ?? '미측정'}</p>
-    <p>자동 4개는 앱이 계산합니다. 개21 복수 사건 집계와 D04 상세 유형 해석은 보류하며, 이 화면의 범위 확인으로 승인되지 않습니다.</p>
+    <p>자동 4개는 앱이 계산합니다. 개21 복수 사건 집계는 규칙 확인 대기입니다. AI 애착 판단 1회를 기본 호출 계획에 포함합니다. 실제 적절성은 교수 테스트 대기입니다.</p>
     <p className="fine">합성 스키마 검증은 외부 호출 0회입니다. 실제 공급자 정확도·처리 시간은 S16에서 별도로 측정합니다.</p>
     {error && <p role="alert" className="error">{error} 미저장 입력은 유지합니다.</p>}{notice && <p role="status">{notice}</p>}
     {edit.dirty && latest?.active_version !== view.active_version && <p role="status">다른 활성 설정이 저장되었습니다. 입력과 편집 시작 판본을 유지합니다.</p>}
@@ -68,12 +68,12 @@ export function AiSettingsV4() {
       <div className="form-grid"><label>전체 호출 상한<input type="number" min={view.planned_provider_calls} max={1000} value={config.max_ai_calls} onChange={event => change({ max_ai_calls: Number(event.target.value) })} /></label>
         <label>단계 시도 상한<input type="number" min={1} max={3} value={config.max_attempts} onChange={event => change({ max_attempts: Number(event.target.value) })} /></label>
         <label>스키마 수리 상한<input type="number" min={0} max={1} value={config.max_schema_repairs} onChange={event => change({ max_schema_repairs: Number(event.target.value) })} /></label></div>
-      <label className="check"><input type="checkbox" checked={config.raw_observation_scope_confirmed} onChange={event => change({ raw_observation_scope_confirmed: event.target.checked })} />관찰 원자료 적용 범위를 확인했습니다. D04 상세 해석은 계속 보류합니다.</label>
+      <label className="check"><input type="checkbox" checked={config.raw_observation_scope_confirmed} onChange={event => change({ raw_observation_scope_confirmed: event.target.checked })} />관찰 원자료 적용 범위를 확인했습니다. 애착 판단의 실제 적절성은 교수 테스트 대기입니다.</label>
       <div className="toolbar"><button onClick={() => void work(async () => { validate(); const next = await api<{ version: string }>('/settings-s1', 'POST', { expected_active: view.active_version, config }); const difference = await api<AiDifferenceV4>(`/settings-s1/${next.version}/diff`); if (alive.current) { setSaved(difference); edit.reset(); setNotice('S1 초안을 저장했습니다. 차이와 범위를 확인한 뒤 활성화하세요.'); } })}>S1 설정 초안 저장</button>
         {edit.dirty && <button onClick={() => { if (edit.discard()) { setDraft(null); setError(''); } }}>미저장 설정 버리고 최신 조회</button>}</div>
       <label>보존 S1 설정<select aria-label="보존 S1 설정" disabled={edit.dirty} value={saved?.version ?? ''} onChange={event => { const version = event.target.value; void work(async () => { const next = version ? await api<AiDifferenceV4>(`/settings-s1/${version}/diff`) : null; if (alive.current) setSaved(next); }); }}><option value="">저장한 설정 선택</option>{latest?.versions.map(value => <option key={value.version} value={value.version}>{new Date(value.created_at).toLocaleString()} · {value.actor} · {value.version.slice(0, 8)}</option>)}</select></label>
       {saved && <><details open><summary>활성 설정과의 차이</summary><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{saved.diff || '차이 없음'}</pre></details>
-        <p>초안 {saved.version} · 관찰 원자료 범위 {saved.config.raw_observation_scope_confirmed ? '확인' : '미확인'} · D04 해석 보류</p>
+        <p>초안 {saved.version} · 관찰 원자료 범위 {saved.config.raw_observation_scope_confirmed ? '확인' : '미확인'} · 애착 판단 구현 · 교수 테스트 대기</p>
         <div className="toolbar"><button disabled={edit.dirty || !saved.config.raw_observation_scope_confirmed} onClick={() => void work(async () => { await api(`/settings-s1/${saved.version}/activate`, 'POST', { expected_active: saved.active_version }); if (alive.current) { setSaved(null); edit.reset(); setNotice('S1 관찰 원자료 설정을 활성화했습니다. 기존 실행의 고정 설정은 보존됩니다.'); } })}>선택한 S1 설정 활성화</button>
           <button disabled={edit.dirty} onClick={() => void work(async () => { const result = await api<AiTrialV4>(`/settings-s1/${saved.version}/validate-s1`, 'POST', { group: selectedGroup, mode: 'schema' }); if (alive.current) setNotice(`합성 스키마 검증 완료 · 외부 호출 ${result.usage.provider_calls}회 · 실제 판독은 미측정`); })}>합성 스키마 검증 · 외부 호출 없음</button></div>
       </>}

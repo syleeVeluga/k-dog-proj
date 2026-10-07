@@ -27,9 +27,9 @@ class SettingsV4Tests(unittest.TestCase):
 
     def test_exact_source_groups_and_default_sampling_do_not_enable_ai_or_d04(self):
         result = settings.view(self.store)
-        self.assertEqual((result["active_version"], result["planned_provider_calls"], len(result["groups"])), ("inactive", 42, 43))
+        self.assertEqual((result["active_version"], result["planned_provider_calls"], len(result["groups"])), ("inactive", 43, 43))
         self.assertEqual(sum(len(group["codes"]) for group in result["groups"].values()), 86)
-        self.assertEqual(result["judgement_status"], "policy_pending_D04")
+        self.assertEqual(result["judgement_status"], "implemented_professor_test_pending")
         self.assertEqual(result["provider_trial_status"], "deferred_S16")
         self.assertIsNone(result["price_estimate"])
         self.assertFalse(result["config"]["raw_observation_scope_confirmed"])
@@ -95,8 +95,8 @@ class SettingsV4Tests(unittest.TestCase):
         self.assertEqual(config.stages[0].production_fps, "source_frames")
         self.assertEqual(config.stages[0].request_fps, 8.0)
         self.assertEqual(config.active_settings_version, "pinned-s1-version")
-        self.assertEqual(len(config.stages), 45)
-        self.assertEqual(sum(stage.provider_call for stage in config.stages), 42)
+        self.assertEqual(len(config.stages), 46)
+        self.assertEqual(sum(stage.provider_call for stage in config.stages), 43)
 
 
 if __name__ == "__main__":

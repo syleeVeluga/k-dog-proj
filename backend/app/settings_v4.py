@@ -110,7 +110,7 @@ class AiSettingsViewV4(Model):
     trials: list[AiTrialResultV4]
     planned_provider_calls: int
     price_estimate: str | None
-    judgement_status: Literal["policy_pending_D04"]
+    judgement_status: Literal["implemented_professor_test_pending"]
     provider_trial_status: Literal["deferred_S16"]
 
 
@@ -158,8 +158,8 @@ def view(store):
                     for row in db.execute("SELECT * FROM changes WHERE action='settings_v4.draft' ORDER BY rowid DESC")]
         trials = [json.loads(row[0]) for row in db.execute("SELECT detail_json FROM changes WHERE action='settings_v4.trial' ORDER BY rowid DESC LIMIT 20")]
     return {"active_version": version, "config": config.model_dump(mode="json"), "groups": groups(), "versions": versions, "trials": trials,
-            "planned_provider_calls": sum(group["provider_call"] for group in groups().values()), "price_estimate": None,
-            "judgement_status": "policy_pending_D04", "provider_trial_status": "deferred_S16"}
+            "planned_provider_calls": 1 + sum(group["provider_call"] for group in groups().values()), "price_estimate": None,
+            "judgement_status": "implemented_professor_test_pending", "provider_trial_status": "deferred_S16"}
 
 
 def save(store, value, actor):
@@ -199,8 +199,8 @@ def activate(store, version, value, actor):
             raise HTTPException(409, "S1 활성 설정이 변경되었습니다.")
         config = load(store, db, version)
         if not config.raw_observation_scope_confirmed:
-            raise HTTPException(422, "관찰 원자료 적용 범위를 확인한 설정만 활성화할 수 있습니다. D04 해석은 계속 보류입니다.")
-        if config.max_ai_calls < sum(group["provider_call"] for group in groups().values()):
+            raise HTTPException(422, "관찰 원자료 적용 범위를 확인한 설정만 활성화할 수 있습니다.")
+        if config.max_ai_calls < 1 + sum(group["provider_call"] for group in groups().values()):
             raise HTTPException(422, "기본 계획 호출 수보다 전체 호출 상한이 작습니다.")
         store.audit(db, actor, version, "settings_v4.activate", {"version": version, "previous": value.expected_active})
     return {"active_version": version}

@@ -1,3 +1,4 @@
+import type { AttachmentAssessmentV4 } from './attachmentTypesV4';
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import { mayLeave, useUnsaved } from './Editing';
@@ -9,7 +10,7 @@ type Edit = Pick<Decision, 'key' | 'label' | 'status' | 'evidence_codes' | 'coun
 type Metric = { key: string; value: number | string | null; status: string; reason: string; inputs: ObservationV4[]; used_codes: string[]; excluded: Record<string, string>; numerator: number | null; denominator: number | null; caution: boolean; internal_only: boolean };
 type Summary = { result_id: string; revision: number; manifest_ref: string; manifest_hash: string; input: SheetReferenceV4 };
 export type BasicResultViewV4 = { summary: Summary; sheet_changed: boolean; source_changed: boolean; document: {
-  revision: number; actor: string; recorded_at: string; change_reason: string; input: SheetReferenceV4; input_document: SheetDocumentV4;
+  revision: number; actor: string; recorded_at: string; change_reason: string; attachment_assessment?: AttachmentAssessmentV4; input: SheetReferenceV4; input_document: SheetDocumentV4;
   conditions: { same_object: boolean | null; same_object_reason: string | null }; rule_version: string; rule_hash: string;
   evaluation_context: { purpose: string; ai_exposed: boolean; exposures: SheetReferenceV4[] };
   decisions: Decision[]; automatic_decisions: Decision[]; manual_decisions: Decision[]; decision_sources: Record<DecisionKey, string>;
@@ -101,7 +102,7 @@ function ResultEditor({ resultId, blocked }: { resultId: string; blocked: boolea
     <details><summary>장면 평균·합계와 고정 출처</summary><p>장면 합계: {owner.totals.map(valueText).join(' / ')}</p>{Object.entries(owner.scene_means).map(([scene, means]) => <p key={scene}>{scene}: {means.map(valueText).join(' / ')}</p>)}<p className="fine">원자료 {doc.input.ref} · SHA256 {doc.input.hash}<br />계산 {doc.rule_version} · SHA256 {doc.rule_hash}<br />작성 {doc.actor} · {doc.recorded_at} · {doc.change_reason}</p></details>
     <h4>계산·원값·보류 사유</h4>{doc.calculations.metrics.map(metric => <details key={metric.key}><summary>{metric.key}: {valueText(metric.value)} · {states[metric.status] ?? metric.status}{metric.caution ? ' · 주의' : ''}{metric.internal_only ? ' · 내부 보조값' : ''}</summary><p>{metric.reason}</p><p>분자 {valueText(metric.numerator)} / 분모 {valueText(metric.denominator)} · 사용 {metric.used_codes.join(', ') || '없음'}</p>{metric.inputs.map(item => <p key={item.code}>{item.code}: {valueText(item.value)} · {item.status}{metric.excluded[item.code] && ` · 제외: ${metric.excluded[item.code]}`}</p>)}</details>)}
     <p>안전기지 실제 순서: {doc.calculations.safe_base.status === 'confirmed_sequence' ? '접근·접촉·탐색 재개 순서 확인' : '확인 필요'}{doc.calculations.safe_base.reasons.map(reason => ` · ${sequenceReasons[reason] ?? reason}`)}{doc.calculations.safe_base.reference_seconds.length > 0 && ` · 기준 영상 ${doc.calculations.safe_base.reference_seconds.map(value => `${value}초`).join(' → ')}`}</p>
-    <p className="fine">정책 확인 대기: {doc.calculations.policy_pending_codes.join(', ')}. 개21 전체30초 자동 집계·보5 복수 사건 종합·D04 상세 AI 유형 반환은 승인된 규칙으로 대체하기 전까지 보류합니다.</p>
+    <p className="fine">정책 확인 대기: {doc.calculations.policy_pending_codes.join(', ')}. 개21 전체30초 자동 집계·보5 복수 사건 종합은 규칙 확인 대기입니다. AI 애착 판단은 별도 실행 결과와 보류 사유를 확인하세요.</p>
     <h4>기본 유형 선택</h4><p>작성 중 선택은 자동 초안을 유지합니다. 완료 또는 판정보류로 저장하면 수동 선택을 적용합니다.</p>
     <fieldset disabled={readonly}>{edits.map((edit, index) => {
       const automatic = doc.automatic_decisions.find(item => item.key === edit.key)!;
