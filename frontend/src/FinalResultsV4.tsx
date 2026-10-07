@@ -27,6 +27,7 @@ export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sh
   const [error, setError] = useState(''), [opinionError, setOpinionError] = useState(''), [busy, setBusy] = useState(false), [unavailable, setUnavailable] = useState(false);
   const [revealReason, setRevealReason] = useState(''), [assembleReason, setAssembleReason] = useState(''), [dirty, setDirty] = useState(false), [editorBusy, setEditorBusy] = useState(false);
   const alive = useRef(true), pending = useRef(false), sequence = useRef(0);
+  const attachmentRequest = useRef<{ fingerprint: string; request_id: string } | null>(null);
   const context = useRef(''); context.current = `${path}:${viewer}`;
   const query = viewer ? `?viewer_sheet_id=${encodeURIComponent(viewer)}` : '';
   const own = sheets.filter(sheet => sheet.own && sheet.active && sheet.rater_kind === 'human' && sheet.state === 'submitted');
@@ -67,6 +68,17 @@ export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sh
     const value = await api<BasicResultViewV4>(path + `/final-results-s1/candidates/${row.result_id}/${row.revision}` + query);
     if (alive.current && scope === context.current) { setBasic(value); setDirty(false); }
   }
+  async function startAttachment() {
+    const scope = context.current;
+    const fields = { basic: selectedBasic, opinion: metadata?.reference, viewer_sheet_id: viewer || null };
+    const fingerprint = JSON.stringify(fields);
+    if (attachmentRequest.current?.fingerprint !== fingerprint || attachmentRun) {
+      attachmentRequest.current = { fingerprint, request_id: crypto.randomUUID() };
+      setAttachmentRun(null);
+    }
+    const value = await api<AttachmentRunV4>(path + '/opinions-s1/attachment-runs', 'POST', { ...fields, request_id: attachmentRequest.current.request_id });
+    if (alive.current && scope === context.current) setAttachmentRun(value);
+  }
   async function reveal(target: InterpretationReferenceV4) {
     if (!viewerRow || !revealReason.trim() || !mayLeave()) return;
     const scope = context.current;
@@ -105,7 +117,8 @@ export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sh
       {metadata?.basic && selectedBasic && !sameBasic(metadata.basic, selectedBasic) && <p role="status">현재 의견과 선택한 기본 결과가 다릅니다. 의견을 재개방하고 고정 기본 입력과 근거를 다시 연결하세요.</p>}
       {opinion?.document?.state === 'complete' && opinion.document.domains.some(domain => domain.domain === 'attachment' && domain.text.trim() && domain.label === null) && <section aria-label="완료 애착 의견 AI 해석">
         <p>원문과 기본 결과를 보존하는 별도 실행입니다. 명시한 유형은 변경하지 않으며, 불명확한 의견은 보류합니다.</p>
-        <button disabled={!selectedBasic || !metadata?.reference || !!metadata.basic && !sameBasic(metadata.basic, selectedBasic) || !!attachmentRun && ['queued', 'running', 'retry_wait'].includes(attachmentRun.status)} onClick={() => void work(async () => { const scope = context.current; const value = await api<AttachmentRunV4>(path + '/opinions-s1/attachment-runs', 'POST', { request_id: crypto.randomUUID(), basic: selectedBasic, opinion: metadata?.reference, viewer_sheet_id: viewer || null }); if (alive.current && scope === context.current) setAttachmentRun(value); })}>완료 애착 의견을 AI로 해석</button>
+        <button disabled={!selectedBasic || !metadata?.reference || !!metadata.basic && !sameBasic(metadata.basic, selectedBasic) || !!attachmentRun && ['queued', 'running', 'retry_wait'].includes(attachmentRun.status)} onClick={() => void work(startAttachment)}>완료 애착 의견을 AI로 해석</button>
+        {attachmentRequest.current && !attachmentRun && <p role="status">응답 확인이 필요한 요청입니다. 같은 입력으로 다시 누르면 동일 요청 ID를 사용합니다.</p>}
         {attachmentRun && <><p>해석 실행 {attachmentRun.status} · 예약 호출 {attachmentRun.reserved_calls}회 · {attachmentRun.reference ? '이 해석 판본을 새 최종본에 연결합니다.' : '원채점 재호출 없이 처리 중이거나 보류·실패했습니다.'}</p>
           <button onClick={() => void work(async () => { const scope = context.current; const value = await api<AttachmentRunV4>(path + `/opinions-s1/attachment-runs/${attachmentRun.run_id}` + query); if (alive.current && scope === context.current) setAttachmentRun(value); })}>애착 해석 상태 새로고침</button>
           {['queued', 'running', 'retry_wait'].includes(attachmentRun.status) && <button onClick={() => void work(async () => { const scope = context.current; const value = await api<AttachmentRunV4>(path + `/opinions-s1/attachment-runs/${attachmentRun.run_id}/stop` + query, 'POST', { expected_updated_at: attachmentRun.updated_at, reason: '운영자 명시 중지' }); if (alive.current && scope === context.current) setAttachmentRun(value); })}>애착 해석 중지</button>}</>}

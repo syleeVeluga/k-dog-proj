@@ -1,5 +1,6 @@
 """Synthetic attachment contracts, actual pipeline and opinion-revision fences."""
 import copy
+import hashlib
 import json
 import unittest
 from unittest.mock import patch
@@ -12,7 +13,7 @@ from app.domain.final_results_v4 import FinalReferenceV4, FinalResultV4
 from app.domain.results_v4 import BasicResultV4
 from app.domain.sheets_v4 import SheetReferenceV4
 from app.gemini import ProviderError
-from app.storage import encode, uid
+from app.storage import encode, now, uid
 from app.worker import Worker
 from tests.report_fixture_v4 import fixture
 from tests.test_opinions_v4 import model, setup_case, save_opinion, result_reference
@@ -71,6 +72,24 @@ class AttachmentContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             attachment.normalize(context, selected(context), "gemini-3.8-flash")
 
+    def test_human_override_has_no_ai_reason_claim_or_fact(self):
+        assessment = attachment.normalize(self.context, selected(self.context), "gemini-3.8-flash")
+        decision = attachment.validate(assessment, self.basic.input_document, self.basic.input, self.basic.calculations.model_dump(mode="json"))
+        data = self.basic.model_dump(mode="json")
+        choices = [item.model_dump(mode="json") if item.key != "attachment_type" else decision.model_dump(mode="json") for item in self.basic.decisions]
+        data.update(attachment_assessment=assessment.model_dump(mode="json"), decisions=choices, automatic_decisions=choices,
+            decision_sources={"owner_type": "automatic", "attachment_type": "ai"})
+        basic = BasicResultV4.model_validate_json(encode(data))
+        final, pointer, batch = fixture({"개18": 1}, opinion={"domains": [{"domain": "attachment", "text": "실제 사람 평가자의 명시 선택", "label": ATTACHMENT_TYPES[2],
+            "reason": "실제 거리 양상을 확인했습니다.", "evidence_codes": ["개18"], "counter_note": "반대 근거 검토 완료"}]})
+        final = final.model_copy(update={"basic_document": basic, "domains": finals.domains_for(basic, final.opinion_document), "interpretation_policy": attachment.VERSION})
+        profile = reports.build(final, pointer, batch=batch)
+        card = next(item for item in profile.cards if item.key == "attachment")
+        self.assertEqual(card.label, ATTACHMENT_TYPES[2])
+        self.assertNotIn("attachment:reason", {item.fact_id for item in profile.facts})
+        self.assertNotIn("card-judgement:attachment", {item.claim_id for item in card.claims})
+        self.assertIn("card-opinion:attachment", {item.claim_id for item in card.claims})
+
 
 class AttachmentOpinionTests(unittest.TestCase):
     def setUp(self):
@@ -88,6 +107,15 @@ class AttachmentOpinionTests(unittest.TestCase):
         submitted = sheets.revise(self.store, updated["sheet_id"], model(sheets.SheetReasonV4, expected_revision=updated["revision"], reason="synthetic submit"), self.user, "submit")
         self.basic = judgements.create(self.store, submitted["sheet_id"], model(judgements.CalculateV4, input={"sheet_id": submitted["sheet_id"], "revision": submitted["revision"], "ref": submitted["manifest_ref"], "hash": submitted["manifest_hash"]}), self.user)
         self.basic_ref = result_reference(self.basic)
+        from app.domain.media_v4 import UploadCreateV4
+        for video in sheets.document_for(self.store, submitted).source.session.videos:
+            request = UploadCreateV4(request_id="synthetic-" + video.upload_id, filename=video.original_name, expected_size=video.size_bytes,
+                expected_sha256=video.sha256, case_id=self.case_id, session_id=self.session_id, source_kind="original")
+            raw = request.model_dump_json()
+            with self.store.connect(write=True) as db:
+                db.execute("INSERT INTO upload_receipts(upload_id,creator,request_id,request_hash,request_json,state,scope_case_id,scope_session_id,storage_ref,sha256,size_bytes,linked_case_id,linked_session_id,video_id,created_at,updated_at,link_json) VALUES(?,?,?,?,?,'linked',?,?,?,?,?,?,?,?,?,?,?)",
+                    (video.upload_id, self.user.username, request.request_id, hashlib.sha256(raw.encode()).hexdigest(), raw, self.case_id, self.session_id,
+                    video.storage_ref, video.sha256, video.size_bytes, self.case_id, self.session_id, video.video_id, now(), now(), encode({"camera_id": video.camera_id, "source_original_number": video.source_original_number})))
         self.opinion = save_opinion(self, domains=[{"domain": "attachment", "text": "재회 후 다가와 곁에서 몸이 편안해졌습니다."}])
         with self.store.connect(write=True) as db:
             db.execute("INSERT OR IGNORE INTO users(username,role,password_hash) VALUES('developer','developer','synthetic')")
@@ -167,6 +195,22 @@ class AttachmentOpinionTests(unittest.TestCase):
             path = self.store.path(self.basic["document"]["input_document"]["source"]["session"]["videos"][0]["storage_ref"])
             path.write_bytes(b"changed synthetic source")
         run, calls = self.complete(tamper)
+        self.assertEqual((run["status"], run["reference"]), ("failed", None))
+
+    def test_receipt_cancelled_during_provider_blocks_adoption(self):
+        def cancel(context):
+            with self.store.connect(write=True) as db:
+                db.execute("UPDATE upload_receipts SET state='failed',failure_code='cancelled'")
+        run, calls = self.complete(cancel)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual((run["status"], run["reference"]), ("failed", None))
+
+    def test_receipt_camera_metadata_changed_during_provider_blocks_adoption(self):
+        def change(context):
+            with self.store.connect(write=True) as db:
+                db.execute("UPDATE upload_receipts SET link_json=?", (encode({"camera_id": "wrong", "source_original_number": "1"}),))
+        run, calls = self.complete(change)
+        self.assertEqual(len(calls), 1)
         self.assertEqual((run["status"], run["reference"]), ("failed", None))
 
     def test_explicit_type_is_not_overwritten_and_new_opinion_revision_needs_new_inference(self):

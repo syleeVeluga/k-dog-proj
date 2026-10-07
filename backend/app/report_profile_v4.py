@@ -134,7 +134,7 @@ def build(final, final_ref, *, batch=None, common_events=(), survey_policy=RUNTI
     for key, title in (("education_attitude", "보호자 교육태도"), ("attachment", "반려견과 보호자의 애착관계")):
         item = domains[key]
         lines = [claim("card:"+key, templates["selected_type"].format(title=title,label=item.label) if item.label else templates["missing_type"].format(title=title), ("final:"+key,))]
-        if key == "attachment" and (basic.attachment_assessment or final.attachment_assessment):
+        if key == "attachment" and ((item.source == "basic" and basic.attachment_assessment) or item.source == "completed_opinion_inference"):
             reason_id = fact("attachment:reason", "ai_judgement", item.reason, codes=item.evidence_codes,
                 evidence=tuple(basis for code in item.evidence_codes if code in observations for basis in observations[code].evidence),
                 refs=(final.attachment_inference.ref if final.attachment_inference else final.basic.ref,))

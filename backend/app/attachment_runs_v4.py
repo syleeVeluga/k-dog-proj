@@ -4,7 +4,7 @@ import hashlib
 from types import SimpleNamespace
 from fastapi import HTTPException
 from pydantic import field_validator
-from . import analysis, attachment_ai_v4 as attachment, disclosures_v4, opinions_v4 as opinions, sheets_v4 as sheets, settings_v4
+from . import analysis, attachment_ai_v4 as attachment, disclosures_v4, opinions_v4 as opinions, preprocess_v4, sheets_v4 as sheets, settings_v4
 from .domain.attachment_v4 import AttachmentAssessmentV4, AttachmentReferenceV4
 from .domain.catalog_v4 import ContractV4, Hash, Text
 from .domain.final_results_v4 import OpinionDocumentV4, OpinionReferenceV4
@@ -75,10 +75,11 @@ def eligible(opinion):
         raise HTTPException(409, "유형을 명시하지 않은 완료 애착 의견만 별도 해석할 수 있습니다.")
 
 
-def verify_sources(store, basic):
+def verify_sources(store, db, basic, case_id, actor):
     source = basic.input_document.source
+    live_files, _ = preprocess_v4._source_snapshot(store, db, case_id, source.session, actor)
     files = {source.input.manifest_ref: source.input.manifest_hash,
-        **{video.storage_ref: video.sha256 for video in source.session.videos}}
+        **{file.ref: file.hash for file in live_files}}
     if source.preprocess:
         files[source.preprocess.ref] = source.preprocess.hash
     for ref, expected in files.items():
@@ -107,7 +108,7 @@ def check_access(store, db, row):
         raise HTTPException(409, "애착 해석 부모 문서가 변경되었습니다.")
     disclosures_v4.require(db, source.case_id, source.session_id, user, disclosures_v4.target("opinion", source.opinion), source.opinion_document.actor)
     eligible(source.opinion_document)
-    verify_sources(store, basic)
+    verify_sources(store, db, basic, source.case_id, source.requested_by)
     return source
 
 

@@ -13,10 +13,13 @@ test('RP02 completed attachment opinion starts a separate run and pins its resul
   const reference = { run_id: 'synthetic-attachment', ref: 'runs/synthetic-attachment/attempt/output.json', hash: 'a'.repeat(64) };
   const view = { run_id: reference.run_id, status: 'queued', updated_at: 'synthetic', reserved_calls: 0, judgement_status: 'completed_opinion_inference', reference: null };
   let requests = 0;
+  const requestIds: string[] = [];
   await page.route('**/opinions-s1/attachment-runs', async route => {
     expect(route.request().method()).toBe('POST');
     expect(route.request().postDataJSON()).toMatchObject({ basic: data.basicRef, opinion: current.reference });
     requests++;
+    requestIds.push(route.request().postDataJSON().request_id);
+    if (requests === 1 || requests === 3) { await route.abort('failed'); return; }
     await route.fulfill({ status: 201, json: view });
   });
   await page.route('**/opinions-s1/attachment-runs/synthetic-attachment', route => route.fulfill({ json: { ...view, status: 'succeeded', reserved_calls: 1, reference } }));
@@ -24,6 +27,14 @@ test('RP02 completed attachment opinion starts a separate run and pins its resul
   const panel = page.getByRole('region', { name: 'S1 의견과 최종 결과', exact: true });
   await panel.getByLabel('행사에 사용할 고정 기본 결과', { exact: true }).selectOption(`${data.basicRef.result_id}:${data.basicRef.revision}`);
   const section = panel.getByRole('region', { name: '완료 애착 의견 AI 해석', exact: true });
+  await section.getByRole('button', { name: '완료 애착 의견을 AI로 해석', exact: true }).click();
+  await expect(section).toContainText('같은 입력으로 다시 누르면 동일 요청 ID');
+  await section.getByRole('button', { name: '완료 애착 의견을 AI로 해석', exact: true }).click();
+  await expect(section).toContainText('해석 실행 queued');
+  await section.getByRole('button', { name: '애착 해석 상태 새로고침', exact: true }).click();
+  await expect(section).toContainText('이 해석 판본을 새 최종본에 연결합니다.');
+  await section.getByRole('button', { name: '완료 애착 의견을 AI로 해석', exact: true }).click();
+  await expect(section).toContainText('같은 입력으로 다시 누르면 동일 요청 ID');
   await section.getByRole('button', { name: '완료 애착 의견을 AI로 해석', exact: true }).click();
   await expect(section).toContainText('해석 실행 queued');
   await section.getByRole('button', { name: '애착 해석 상태 새로고침', exact: true }).click();
@@ -36,7 +47,11 @@ test('RP02 completed attachment opinion starts a separate run and pins its resul
   await panel.getByLabel('최종본 고정 사유', { exact: true }).fill('별도 해석 고정 전달 검증');
   await panel.getByRole('button', { name: '선택한 판본으로 새 최종본 생성', exact: true }).click();
   await expect(panel.getByRole('alert')).toContainText('합성 UI 시험');
-  expect(requests).toBe(1);
+  expect(requests).toBe(4);
+  expect(requestIds[0]).toBeTruthy();
+  expect(requestIds[1]).toBe(requestIds[0]);
+  expect(requestIds[2]).not.toBe(requestIds[0]);
+  expect(requestIds[3]).toBe(requestIds[2]);
   await page.setViewportSize({ width: 360, height: 800 });
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await section.screenshot({ path: testInfo.outputPath('rp02-opinion-inference-360.png'), animations: 'disabled' });
