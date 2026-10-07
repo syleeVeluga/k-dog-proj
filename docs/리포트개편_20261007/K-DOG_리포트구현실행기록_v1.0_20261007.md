@@ -10,7 +10,7 @@
 | --- | --- | --- | --- |
 | [RP01](K-DOG_PR-RP01_설문응답정책_v1.0_20261007.md) | 완료, [수용 4건](K-DOG_PR-RP01_ColdReview_v1.0_20261007.md) 반영 | [PR #54](https://github.com/syleeVeluga/k-dog-proj/pull/54), `edc0d475` 원격·로컬 일치 | 구글폼 설정 실물 확인은 의뢰자 담당 |
 | [RP02](K-DOG_PR-RP02_AI애착판단_v1.0_20261007.md) | 완료, [수용 3건](K-DOG_PR-RP02_ColdReview_v1.0_20261007.md) 반영 | [PR #55](https://github.com/syleeVeluga/k-dog-proj/pull/55), `35637f9` 원격·로컬 일치 | 교수 적절성 검토는 기술 합성 검증과 별도 |
-| [RP03](K-DOG_PR-RP03_AI리포트문장_v1.0_20261007.md) | 완료, [수용 2건](K-DOG_PR-RP03_ColdReview_v1.0_20261007.md) 반영 | PR 생성·병합 준비 | 교수 문장 품질은 실제 검토 대기 |
+| [RP03](K-DOG_PR-RP03_AI리포트문장_v1.0_20261007.md) | 완료, [수용 2건](K-DOG_PR-RP03_ColdReview_v1.0_20261007.md) 반영 | [PR #56](https://github.com/syleeVeluga/k-dog-proj/pull/56), 최종 head 확인 후 병합 | 교수 문장 품질은 실제 검토 대기 |
 | [RP04](K-DOG_PR-RP04_장면제거와출력개편_v1.0_20261007.md) | 미착수 | 미실행 | 장면 제거·새 HTML/PDF·시각 검수 |
 | [RP05](K-DOG_PR-RP05_통합검증과교수검토_v1.0_20261007.md) | 미착수 | 미실행 | 통합 기술 검증과 실제 교수 검토 분리 |
 | [RP06](K-DOG_PR-RP06_외부비교기준표적용_v1.0_20261007.md) | 조건부 대기 | 미실행 | 교수 확정 두 기준표는 계획상 미수령; 자료 위치를 사용자에게 확인 중 |
@@ -77,6 +77,8 @@
 초기 실패는 존재하지 않는 시험 모듈명(`test_maintenance`/`test_usage`), 합성 원값의 문항 척도 불일치, 수용 수정 회귀의 유형 미확정 fixture로 구별해 정확한 기존 모듈·유효 입력·명시 완료 유형으로 수정했다. 최신 최종 결과를 위에 기록했으며 시험 횟수를 합산하지 않는다. 실제 공급자 호출·운영 데이터 초기화는 0회다. 신규 의미적 품질은 교수 검토 대기이며 자동 문자열·출처 검증만으로 적절성을 보장하지 않는다. 독립 cold review 두 P2를 모두 수용·수정하고 독립 재검토까지 완료했다.
 
 ![RP03 합성 문장 생성 호출·비용 미확인 표시](images/rp03-report-usage-360.png)
+
+구현 commit `9f166afffd7e426e74ab928b4d964e7f2939f3f2`와 수용 수정·문서 commit `3bd7a80037b26b45447554e40257059122cb68e9`를 push하고 [PR #56](https://github.com/syleeVeluga/k-dog-proj/pull/56)을 이 채팅에 연결했다. 수정 head의 원격 checks/statuses는 비어 있고 `CLEAN`/`MERGEABLE`이었다. CI 통과로 표시하지 않는다. 이 기록을 포함한 최종 head를 확인해 `--match-head-commit`으로 병합하고 원격·로컬 일치 결과를 후속 단계에서 기록한다.
 
 ## 2 라이브러리·프레임워크 확인
 
