@@ -1,6 +1,6 @@
 # K-DOG 리포트 개편 구현 실행 기록
 
-버전: v1.0 · 2026-10-07 · 최초 작업 기준: `main / aa3f3ac` · 상태: RP01 원격·로컬 병합 완료, RP02 구현·검증·수용 수정 완료
+버전: v1.0 · 2026-10-07 · 최초 작업 기준: `main / aa3f3ac` · 상태: RP01·RP02 원격·로컬 병합 완료, RP03 구현·검증 완료
 
 상위: [수용안 적용 계획](K-DOG_리포트수용안적용계획_v1.0_20261007.md). 이 대장은 제품 구현과 원격·로컬 병합의 실제 근거를 기록한다. 교수 검토·실제 공급자·외부 기준표 수령을 합성 자동 검증과 구별한다.
 
@@ -9,8 +9,8 @@
 | 단계 | 구현·검증·리뷰 | 원격·로컬 병합 | 남은 경계 |
 | --- | --- | --- | --- |
 | [RP01](K-DOG_PR-RP01_설문응답정책_v1.0_20261007.md) | 완료, [수용 4건](K-DOG_PR-RP01_ColdReview_v1.0_20261007.md) 반영 | [PR #54](https://github.com/syleeVeluga/k-dog-proj/pull/54), `edc0d475` 원격·로컬 일치 | 구글폼 설정 실물 확인은 의뢰자 담당 |
-| [RP02](K-DOG_PR-RP02_AI애착판단_v1.0_20261007.md) | 완료, [수용 3건](K-DOG_PR-RP02_ColdReview_v1.0_20261007.md) 반영 | [PR #55](https://github.com/syleeVeluga/k-dog-proj/pull/55), 최종 head 확인·병합 대기 | 교수 적절성 검토는 기술 합성 검증과 별도 |
-| [RP03](K-DOG_PR-RP03_AI리포트문장_v1.0_20261007.md) | 미착수 | 미실행 | 새 AI 내용 계약·실행 |
+| [RP02](K-DOG_PR-RP02_AI애착판단_v1.0_20261007.md) | 완료, [수용 3건](K-DOG_PR-RP02_ColdReview_v1.0_20261007.md) 반영 | [PR #55](https://github.com/syleeVeluga/k-dog-proj/pull/55), `35637f9` 원격·로컬 일치 | 교수 적절성 검토는 기술 합성 검증과 별도 |
+| [RP03](K-DOG_PR-RP03_AI리포트문장_v1.0_20261007.md) | 구현·검증 완료, cold review 준비 | 미실행 | 새 AI 내용 계약·실행 |
 | [RP04](K-DOG_PR-RP04_장면제거와출력개편_v1.0_20261007.md) | 미착수 | 미실행 | 장면 제거·새 HTML/PDF·시각 검수 |
 | [RP05](K-DOG_PR-RP05_통합검증과교수검토_v1.0_20261007.md) | 미착수 | 미실행 | 통합 기술 검증과 실제 교수 검토 분리 |
 | [RP06](K-DOG_PR-RP06_외부비교기준표적용_v1.0_20261007.md) | 조건부 대기 | 미실행 | 교수 확정 두 기준표는 계획상 미수령; 자료 위치를 사용자에게 확인 중 |
@@ -44,6 +44,8 @@
 
 수용 수정·문서 commit `d0f5f488bd489ffc477e19058fc11ffd04b75c53`을 push하고 [PR #55](https://github.com/syleeVeluga/k-dog-proj/pull/55)를 채팅에 연결했다. 이 head의 checks/statuses는 비어 있고 `CLEAN`/`MERGEABLE`이었다. CI 통과로 표시하지 않는다. 이 기록을 포함한 최종 head를 다시 확인한 후 일치하는 commit만 병합한다.
 
+최종 head `f2a89bcf1ddd4b5542c84b646373730d22b1c9fa`의 checks/statuses 없음 및 `CLEAN`/`MERGEABLE`을 다시 확인해 `--match-head-commit`으로 2026-10-07 14:31:59 UTC 병합했다. merge commit `35637f9b1a7f48eb04120ff04d7d32563818f434`로 로컬 `main`과 `origin/main`이 일치했고 RP03 브랜치를 그 commit에서 시작했다.
+
 | 검증 | 실제 결과 |
 | --- | --- |
 | 확대 backend | `uv run --locked python -X utf8 -m unittest tests.test_attachment_ai_v4 tests.test_judgements_v4 tests.test_final_results_v4 tests.test_opinions_v4 tests.test_scoring_ai_v4 tests.test_ai_api_v4 tests.test_gemini_v4 tests.test_settings_v4 tests.test_run_v4 tests.test_report_content_v4 tests.test_report_validation_v4 tests.test_report_runs_v4 tests.test_exports_v4 tests.test_packaging -v` — 171개, 258.994초, OK |
@@ -57,6 +59,19 @@
 초기 시험 실패는 새 단계의 실행 상태 enum 누락, 함수 지역명 충돌, 합성 관찰 창 및 공개 배정 target revision 오류로 구분하여 수정하고 재검증했다. 기존 원점수·설문 정책·교육태도 비율·과거 S1 발급 bytes를 변경하지 않았다. 실제 공급자·운영 데이터 호출/초기화는 0회이며 교수 적절성·처리 시간·정산은 미측정이다. 새 UI 시험은 가상 실행 참조 전달을 검사하고 실제 최종본 채택은 거절하는 합성 mock이며, 위 backend 실제 조립 시험과 구별한다.
 
 ![RP02 합성 완료 의견의 별도 AI 실행·참조 전달 UI](images/rp02-opinion-inference-360.png)
+
+### RP03 실행
+
+구현 기준 `35637f9`, 브랜치 `veluga/rp03-report-narrative`. 새 지침·구조화 문장·텍스트 공급자 stage·별도 생성 profile/hash 및 게시 content ref를 추가했다. 원근거 profile을 덮어쓰지 않고 이전 S1 설정과 발급 bytes를 보존한다. 새로운 문장 생성·제한된 수리·실패 상태·명시 재사용·다운로드 무호출·원문/D39 우선·원척도 숫자 고정을 시험했다.
+
+| 검증 | 실제 결과 |
+| --- | --- |
+| 확대 backend | `uv run --locked python -X utf8 -m unittest tests.test_report_narrative_v4 tests.test_report_content_v4 tests.test_report_validation_v4 tests.test_report_runs_v4 tests.test_report_api_v4 tests.test_settings tests.test_packaging tests.test_ai_api_v4 tests.test_gemini_v4 -v` — 94개, 146.341초, OK |
+| 최종 문장 회귀 | `uv run --locked python -X utf8 -m unittest tests.test_report_narrative_v4 -v` — 15개, 31.516초, OK. 새 실제 HTML/PDF·생성 내용 백업복원/삭제·수리 cap 포함 |
+| renderer·복원 추가 | 실제 renderer 및 생성 내용 backup/restore/delete 두 시험 — 2개, 9.539초, OK |
+| frontend | `npm run build` 통과. `$env:KDOG_TEST_INTAKE_SPEC='20261002'; npx playwright test tests/report-v4.spec.ts` — 3개, 20.6초, 통과. 생성 호출 예약과 비용 미확인 표시, 원격 응답 유실·고정 참조·다운로드·인쇄·공개 철회 |
+
+초기 실패는 존재하지 않는 시험 모듈명(`test_maintenance`/`test_usage`), 합성 원값의 문항 척도 불일치로 구별해 정확한 기존 모듈·유효 입력으로 수정했다. 최신 최종 결과를 위에 기록했으며 시험 횟수를 합산하지 않는다. 실제 공급자 호출·운영 데이터 초기화는 0회다. 신규 의미적 품질은 교수 검토 대기이며 자동 문자열·출처 검증만으로 적절성을 보장하지 않는다. 독립 cold review를 다음 순서로 수행한다.
 
 ## 2 라이브러리·프레임워크 확인
 
