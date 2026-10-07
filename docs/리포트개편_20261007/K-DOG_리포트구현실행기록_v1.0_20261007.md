@@ -1,6 +1,6 @@
 # K-DOG 리포트 개편 구현 실행 기록
 
-버전: v1.0 · 2026-10-07 · 최초 작업 기준: `main / aa3f3ac` · 상태: RP01~RP05 기술 검증·원격/로컬 병합 완료, 실제 공급자·교수 검토·RP06 확정표 적용 대기
+버전: v1.0 · 2026-10-07 · 최초 작업 기준: `main / aa3f3ac` · 상태: RP01~RP05 기술 검증 및 RP06 수령 전 검증의 원격/로컬 병합 완료, 실제 공급자·교수 검토·RP06 확정표 적용 대기
 
 상위: [수용안 적용 계획](K-DOG_리포트수용안적용계획_v1.0_20261007.md). 이 대장은 제품 구현과 원격·로컬 병합의 실제 근거를 기록한다. 교수 검토·실제 공급자·외부 기준표 수령을 합성 자동 검증과 구별한다.
 
@@ -13,7 +13,7 @@
 | [RP03](K-DOG_PR-RP03_AI리포트문장_v1.0_20261007.md) | 완료, [수용 2건](K-DOG_PR-RP03_ColdReview_v1.0_20261007.md) 반영 | [PR #56](https://github.com/syleeVeluga/k-dog-proj/pull/56), `66984cf` 원격·로컬 일치 | 교수 문장 품질은 실제 검토 대기 |
 | [RP04](K-DOG_PR-RP04_장면제거와출력개편_v1.0_20261007.md) | 완료, [수용 1건](K-DOG_PR-RP04_ColdReview_v1.0_20261007.md) 반영 | [PR #57](https://github.com/syleeVeluga/k-dog-proj/pull/57), `15c4065` 원격·로컬 일치 | 실제 공급자/전문 품질은 별도 |
 | [RP05](K-DOG_PR-RP05_통합검증과교수검토_v1.0_20261007.md) | 기술 검증 완료, [수용 2건](K-DOG_PR-RP05_ColdReview_v1.0_20261007.md) 반영 | [PR #58](https://github.com/syleeVeluga/k-dog-proj/pull/58), `edeb63b` 원격·로컬 일치 | 실제 공급자·교수 검토 대기 |
-| [RP06](K-DOG_PR-RP06_외부비교기준표적용_v1.0_20261007.md) | 수령 전 합성 검증·[독립 review](K-DOG_PR-RP06_ColdReview_v1.0_20261007.md) 완료, 발견 0건 | 수령 전 범위 PR 준비 | 교수 확정 두 기준표 미수령; 실제 적용 미실행 |
+| [RP06](K-DOG_PR-RP06_외부비교기준표적용_v1.0_20261007.md) | 수령 전 합성 검증·[독립 review](K-DOG_PR-RP06_ColdReview_v1.0_20261007.md) 완료, 발견 0건 | 수령 전 범위 [PR #59](https://github.com/syleeVeluga/k-dog-proj/pull/59), `06064af` 원격·로컬 일치 | 교수 확정 두 기준표 미수령; 실제 적용 미실행 |
 
 ### RP01 실행
 
@@ -119,6 +119,10 @@ RP06은 실제 확정표 미수령 상태다. 기존 S13/S17의 조건부 확인
 RP06 추가 renderer/실행 27개, 68.976초 및 frontend build/S1 E2E 9개, 1.0분에 통과했다. 실제 브라우저 비교 PDF는 이 합성 사례에서 6쪽이며 pypdf 6.19.0으로 0 평균·참고 평균·유효 연구 표본 텍스트를 확인했다. 고정 6쪽 기준이나 실제 교수표 수치 대조로 표시하지 않는다.
 
 RP06 독립 cold review는 신규 2개, 10.265초에 통과했고 actionable 발견은 0건이다. 새 참고 수치나 실제 승인 자산을 추가하지 않았다. 비교 PDF 6쪽의 전체 PNG 검수도 완료했다. 이 단계의 기술 PR은 수령 전 범위에 한정한다. 실제 공급자·RP-T12 교수 검토, 두 확정 기준표의 전사/기대값 검증/적용·운영 활성화는 미실행이다.
+
+RP06 수령 전 범위의 최종 head `6b79df582026313e2a3ce9a21992c46c3850f887`에서 checks/statuses 없음 및 `CLEAN`/`MERGEABLE`을 확인했다. CI 통과로 표시하지 않는다. `--match-head-commit`으로 2026-10-07 15:56:56 UTC [PR #59](https://github.com/syleeVeluga/k-dog-proj/pull/59)를 병합했다. merge commit `06064af7f5d0e70db85ca5d07d50baf2b5e7cfcb`로 로컬 `main`과 `origin/main`이 일치했다. RP06 실제 기준표 적용과 전체 RP01~RP06 목표는 아직 완료되지 않았다.
+
+마지막 병합 기록 문서 3개의 독립 cold review에서 추가 actionable 발견은 없었다. 리포트 계획/기록과 연결된 기존 대장 총 19개 문서의 committed 상대 링크 291개 및 `git diff --check`를 확인했다. 이 문서 변경은 제품 코드나 실제 공급자·운영 활성화 상태를 변경하지 않는다.
 
 ## 2 라이브러리·프레임워크 확인
 
