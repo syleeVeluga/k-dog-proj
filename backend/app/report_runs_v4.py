@@ -107,9 +107,9 @@ class ReportRunViewV4(Model):
 def config(comparison=None, external_comparison=None):
     from .report_render_v4 import assets
     hashes = {**profiles.assets()[1], narrative.ASSET: hashlib.sha256((REPO_ROOT / "resources" / narrative.ASSET).read_bytes()).hexdigest()}
-    return ReportConfigV4(version="report-run-20261007-rp03", stages=(narrative.stage(), *(ReportStageV4(stage=name) for name in REPORT_STAGES[1:])),
+    return ReportConfigV4(version="report-run-20261007-rp04", stages=(narrative.stage(), *(ReportStageV4(stage=name) for name in REPORT_STAGES[1:])),
         max_schema_repairs=1, max_ai_calls=3, provider_text_status="generated_professor_test_pending",
-        template_hashes=assets(), content_hashes=hashes, comparison_snapshot=comparison, external_comparison=external_comparison)
+        template_hashes=assets(True), content_hashes=hashes, comparison_snapshot=comparison, external_comparison=external_comparison)
 
 
 def _actor(db, username):
@@ -264,17 +264,18 @@ def verify_files(store, snapshot):
 
 
 def verify_assets(configuration):
-    from .report_render_v4 import ASSETS, assets
+    from .report_render_v4 import ASSETS, NEW_ASSETS, assets
     survey_policy = profiles.RUNTIME_SURVEY_POLICY_VERSION if "rules/survey-policy-20261007.json" in configuration.content_hashes else profiles.SURVEY_POLICY_VERSION
-    generated = configuration.version == "report-run-20261007-rp03"
-    names = (*ASSETS, *("resources/"+name for name in profiles.asset_names(survey_policy)), *(('resources/'+narrative.ASSET,) if generated else ()))
+    generated = configuration.version != "report-run-20261002-s1.1-1"
+    photo_free = configuration.version == "report-run-20261007-rp04"
+    names = (*(NEW_ASSETS if photo_free else ASSETS), *("resources/"+name for name in profiles.asset_names(survey_policy)), *(('resources/'+narrative.ASSET,) if generated else ()))
     stamps = {name: analysis.file_stamp(REPO_ROOT/name) for name in names}
     hashes = profiles.assets(survey_policy)[1]
     if generated:
         hashes = {**hashes, narrative.ASSET: hashlib.sha256((REPO_ROOT / "resources" / narrative.ASSET).read_bytes()).hexdigest()}
         if configuration.stages[0] != narrative.stage():
             raise HTTPException(409, "AI 문장 지침·모델·출력 계약이 변경되었습니다.")
-    if configuration.template_hashes != assets() or configuration.content_hashes != hashes:
+    if configuration.template_hashes != assets(photo_free) or configuration.content_hashes != hashes:
         raise HTTPException(409, "실행 중 문장·선택 기준 또는 출력 템플릿이 변경되었습니다.")
     check_asset_stamps(stamps)
     return stamps
@@ -328,7 +329,9 @@ def enqueue(store, case_id, session_id, value: ReportStartV4, user):
     if FinalReferenceV4.model_validate_json(encode(shown["reference"])) != value.final:
         raise HTTPException(409, "리포트로 선택한 최종 결과 pin이 다릅니다.")
     final = FinalResultV4.model_validate_json(encode(shown["document"]))
-    profile = profiles.from_final(store, case_id, session_id, value.final.final_id, user, value.viewer_sheet_id)
+    configuration = config(value.comparison, value.external_comparison)
+    profile = profiles.from_final(store, case_id, session_id, value.final.final_id, user, value.viewer_sheet_id,
+        **({"presentation_version": "report-presentation-20261007-rp04"} if configuration.version == "report-run-20261007-rp04" else {}))
     cohort = comparisons_v4.for_report(store, value.comparison, user) if value.comparison else None
     if value.external_comparison:
         external = external_comparisons_v4.for_output(store, value.external_comparison, user)
@@ -338,7 +341,6 @@ def enqueue(store, case_id, session_id, value: ReportStartV4, user):
             raise HTTPException(409, "외부 비교와 최종 결과의 설문 원입력 판본이 다릅니다.")
         profile = type(profile).model_validate_json(encode({**profile.model_dump(mode="json"),
             "external_comparison": external.model_dump(mode="json"), "external_comparison_status": "approved_selected"}))
-    configuration = config(value.comparison, value.external_comparison)
     with store.connect() as db:
         basic_row, _ = opinions.selected_basic(store, db, case_id, session_id, final.basic, user, value.viewer_sheet_id)
         source_row = sheets.row_for(store, db, final.basic_document.input.sheet_id)
@@ -464,7 +466,9 @@ def _image_stamps(store, images, *, profile=None):
 def validate_prepared(store, snapshot, prepared, configuration=None):
     if prepared.profile_hash != analysis.digest(prepared.profile.model_dump(mode="json")):
         raise ValueError("report content hash differs")
-    if configuration and configuration.version == "report-run-20261007-rp03":
+    if configuration and configuration.version != "report-run-20261002-s1.1-1":
+        if bool(prepared.profile.presentation_version) != (configuration.version == "report-run-20261007-rp04"):
+            raise ValueError("report presentation differs from pinned configuration")
         narrative.validate(snapshot.profile, prepared.profile)
     elif prepared.profile != snapshot.profile or prepared.profile_hash != snapshot.profile_hash:
         raise ValueError("report content differs from pinned profile")
@@ -597,7 +601,7 @@ def process(worker, row):
                     profile, usage = (narrative.request(worker, row, step, group, snapshot.profile,
                         lambda: (worker.check(row), verify_assets(configuration), verify_files(worker.store, snapshot)))
                         if group.provider_call else (snapshot.profile, {"program_merge": True}))
-                    images, issues = capture_images(worker.store, snapshot, row["run_id"], step["step_id"], lambda: worker.check(row))
+                    images, issues = ((), {}) if profile.presentation_version else capture_images(worker.store, snapshot, row["run_id"], step["step_id"], lambda: worker.check(row))
                     prepared = ReportPreparedV4(profile=profile, profile_hash=analysis.digest(profile.model_dump(mode="json")), images=images, image_issues=issues)
                     payload = {"prepared": prepared.model_dump(mode="json"), "usage": usage}
             elif stage == "validate_content_v4":

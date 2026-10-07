@@ -133,11 +133,14 @@ class ReportProfileV4(ContractV4):
     sentence_bank_status: Literal["pending_G02", "generated_rp03"] = "pending_G02"
     provider_text_status: Literal["deferred_S16", "generated_professor_test_pending"] = "deferred_S16"
     narrative: NarrativeAssessmentV4 | None = Field(default=None, exclude_if=lambda value: value is None)
+    presentation_version: Literal["report-presentation-20261007-rp04"] | None = Field(default=None, exclude_if=lambda value: value is None)
     external_comparison_status: Literal["pending_D06", "approved_selected"] = "pending_D06"
     external_comparison: ExternalPublicV4 | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def renderer_contract(self) -> Self:
+        if self.presentation_version and (self.scenes or self.scene_notice or self.scene_review):
+            raise ValueError("photo-free reports cannot contain scene presentation data")
         if (self.external_comparison is not None) != (self.external_comparison_status == "approved_selected"):
             raise ValueError("external comparison status requires its explicitly selected snapshot")
         if self.external_comparison and (self.external_comparison.target.case_id, self.external_comparison.target.session_id,

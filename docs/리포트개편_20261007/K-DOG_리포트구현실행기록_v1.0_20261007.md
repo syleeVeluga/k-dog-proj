@@ -1,6 +1,6 @@
 # K-DOG 리포트 개편 구현 실행 기록
 
-버전: v1.0 · 2026-10-07 · 최초 작업 기준: `main / aa3f3ac` · 상태: RP01·RP02 원격·로컬 병합 완료, RP03 구현·검증 완료
+버전: v1.0 · 2026-10-07 · 최초 작업 기준: `main / aa3f3ac` · 상태: RP01~RP03 원격·로컬 병합 완료, RP04 구현·검증 완료
 
 상위: [수용안 적용 계획](K-DOG_리포트수용안적용계획_v1.0_20261007.md). 이 대장은 제품 구현과 원격·로컬 병합의 실제 근거를 기록한다. 교수 검토·실제 공급자·외부 기준표 수령을 합성 자동 검증과 구별한다.
 
@@ -10,8 +10,8 @@
 | --- | --- | --- | --- |
 | [RP01](K-DOG_PR-RP01_설문응답정책_v1.0_20261007.md) | 완료, [수용 4건](K-DOG_PR-RP01_ColdReview_v1.0_20261007.md) 반영 | [PR #54](https://github.com/syleeVeluga/k-dog-proj/pull/54), `edc0d475` 원격·로컬 일치 | 구글폼 설정 실물 확인은 의뢰자 담당 |
 | [RP02](K-DOG_PR-RP02_AI애착판단_v1.0_20261007.md) | 완료, [수용 3건](K-DOG_PR-RP02_ColdReview_v1.0_20261007.md) 반영 | [PR #55](https://github.com/syleeVeluga/k-dog-proj/pull/55), `35637f9` 원격·로컬 일치 | 교수 적절성 검토는 기술 합성 검증과 별도 |
-| [RP03](K-DOG_PR-RP03_AI리포트문장_v1.0_20261007.md) | 완료, [수용 2건](K-DOG_PR-RP03_ColdReview_v1.0_20261007.md) 반영 | [PR #56](https://github.com/syleeVeluga/k-dog-proj/pull/56), 최종 head 확인 후 병합 | 교수 문장 품질은 실제 검토 대기 |
-| [RP04](K-DOG_PR-RP04_장면제거와출력개편_v1.0_20261007.md) | 미착수 | 미실행 | 장면 제거·새 HTML/PDF·시각 검수 |
+| [RP03](K-DOG_PR-RP03_AI리포트문장_v1.0_20261007.md) | 완료, [수용 2건](K-DOG_PR-RP03_ColdReview_v1.0_20261007.md) 반영 | [PR #56](https://github.com/syleeVeluga/k-dog-proj/pull/56), `66984cf` 원격·로컬 일치 | 교수 문장 품질은 실제 검토 대기 |
+| [RP04](K-DOG_PR-RP04_장면제거와출력개편_v1.0_20261007.md) | 구현·검증·시각 검수 완료, cold review 준비 | 미실행 | 실제 공급자/전문 품질은 별도 |
 | [RP05](K-DOG_PR-RP05_통합검증과교수검토_v1.0_20261007.md) | 미착수 | 미실행 | 통합 기술 검증과 실제 교수 검토 분리 |
 | [RP06](K-DOG_PR-RP06_외부비교기준표적용_v1.0_20261007.md) | 조건부 대기 | 미실행 | 교수 확정 두 기준표는 계획상 미수령; 자료 위치를 사용자에게 확인 중 |
 
@@ -82,6 +82,22 @@
 
 ## 2 라이브러리·프레임워크 확인
 
+### RP03 병합·RP04 실행
+
+RP03 최종 head `c0dabfa773a9f66f3943146f47859562027b2d5b`의 checks/statuses 없음 및 `CLEAN`/`MERGEABLE`을 확인해 `--match-head-commit`으로 2026-10-07 15:02:33 UTC 병합했다. merge commit `66984cf5dd682c193dffff4c65f7cba9576df07b`로 로컬 `main`과 `origin/main`이 일치했고 RP04 `veluga/rp04-report-design`을 시작했다. RP04 검증은 2026-10-08 KST에 이어 수행했다.
+
+| RP04 검증 | 실제 결과 |
+| --- | --- |
+| 관련 backend | `uv run --locked python -X utf8 -m unittest tests.test_report_design_v4 tests.test_report_narrative_v4 tests.test_report_render_v4 tests.test_report_content_v4 tests.test_report_validation_v4 tests.test_report_runs_v4 tests.test_report_api_v4 tests.test_report_scenes_v4 -v` — 87개, 110.837초, OK |
+| PDF 쪽 경계 보완 후 | 새 디자인·실제 생성 renderer·기존 renderer 9개, 9.917초, OK. RP03 bytes/재사용 회귀 추가 뒤 `tests.test_report_design_v4` 4개, 9.427초, OK |
+| frontend | build 통과. 기존 리포트/인쇄 E2E 5개 통과. 새 `tests/report-design-v4.spec.ts` 1개가 최종 12.4초 통과. 360px·데스크톱·A4, 오프라인·28문항·사진/script 없음·실천 0~3개·긴 표식 유지 |
+| 시각 검수 | `uv run --locked python -X utf8 -m tests.build_report_design_v4 --output <저장소 밖 임시 경로>` — 9개 서버 PDF 54쪽 전체 PNG 검수. 브라우저 filled/missing/long/comparison PDF 32쪽 전체 PNG 검수. 서버 4~9쪽·브라우저 6~11쪽, 고정 페이지 수 없음 |
+| 내용 보존 | pypdf로 13개 PDF에서 필수 제목·장면 사진 문구 없음·긴 설명 끝 표식 확인. 실제 frame 추출 함수 호출 금지 주입에서도 신규 발급 성공. 사진 제거 전후 facts/cards/timeline/source/comparisons 동일 |
+
+초기 실패는 새 선택 인자를 받지 않는 시험 wrapper, 비어 있는 합성 총평, 정의되지 않은 관찰 창·memo/발성 입력 metadata의 QA fixture 범위를 구별해 수정했다. 제품의 누락 관찰을 0으로 채우거나 청취 metadata를 추정하지 않았다. 시각 검수에서 발견한 출처 단락·짧은 카드/그래프의 쪽 경계를 보완했다. actual provider 0회·교수 품질 미검증 경계를 유지하며 기술 회귀 수를 합산하지 않는다.
+
+RP04 의존성 확인: 2026-10-07~08. ReportLab 최신/선택 5.0.1 ([PyPI](https://pypi.org/project/reportlab/), [5.0 변경](https://docs.reportlab.com/releases/notes/whats-new-50/), [표 API](https://docs.reportlab.com/reportlab/userguide/ch7_tables/)); Python ≥3.9,<4와 기존 Python 3.14.2 호환. Pillow 최신/선택 12.3.0 ([PyPI](https://pypi.org/project/pillow/), [릴리스](https://pillow.readthedocs.io/en/stable/releasenotes/12.3.0.html))는 QA contact sheet에만 사용했다. 제품 manifest/lockfile의 기존 판을 유지했다. Poppler 최신 26.10.0/선택 번들 26.07.0 ([공식 릴리스](https://poppler.freedesktop.org/))는 번들 read-only `pdfinfo`/`pdftoppm` 도구를 사용했다. 번들에 `pdftotext`가 없어 그 명령의 실패를 확인 후 pypdf 텍스트 추출로 대체했다. pypdf 최신 6.19.0/선택 번들 6.10.0 ([PyPI](https://pypi.org/project/pypdf/), [선택판 API](https://pypdf.readthedocs.io/en/6.10.0/user/extract-text.html))는 Python ≥3.9와 호환하는 번들 Python의 일회성 QA에만 사용했다. 무관한 앱 의존성 갱신·신규 설치는 없다.
+
 ### 확인한 버전과 공식 근거
 
 RP02에서도 2026-10-07 공식 [Gemini 3.8 Flash 안정 모델](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash), [Interactions API](https://ai.google.dev/gemini-api/docs/interactions-overview), [구조화 출력](https://ai.google.dev/gemini-api/docs/structured-output), [2026-05 breaking changes](https://ai.google.dev/gemini-api/docs/interactions-breaking-changes-may-2026)를 확인했다. 기존 `gemini-3.8-flash` 모델과 REST adapter의 `steps`/`response_format` 계약을 재사용하고, 텍스트 전용 입력을 사용한다. 새 SDK 설치나 무관한 의존성 갱신은 없다. 기존 Pydantic 2.13.5의 strict 계약·조건부 필드 제외를 사용해 과거 S1 직렬화 hash를 유지한다. 실제 외부 호출 검증으로 표시하지 않는다.
@@ -98,3 +114,4 @@ RP02에서도 2026-10-07 공식 [Gemini 3.8 Flash 안정 모델](https://ai.goog
 | openpyxl | 3.1.5 / 3.1.5 | Python ≥3.8 충족. 기존 `load_workbook` 읽기로 CSV/XLSX 정책 열 검증. [PyPI](https://pypi.org/project/openpyxl/), [공식 API](https://openpyxl.readthedocs.io/en/stable/) |
 
 RP02 이후 공급자 API·새 사용 라이브러리의 확인은 해당 단계 기록에 추가한다. 교수 전문 기준을 라이브러리/API 문서로 대체하지 않는다.
+

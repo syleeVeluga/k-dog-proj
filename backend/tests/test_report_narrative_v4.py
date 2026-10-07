@@ -209,9 +209,9 @@ class NarrativeRunTests(unittest.TestCase):
 
     def test_blocking_input_requires_review_without_provider(self):
         original = runs.profiles.from_final
-        def blocked(*args):
+        def blocked(*args, **kwargs):
             from app.domain.report_profile_v4 import ValidationIssueV4
-            result = original(*args)
+            result = original(*args, **kwargs)
             return result.model_copy(update={"status": "review_required", "validation_issues": (ValidationIssueV4(code="synthetic", target="summary", reason="synthetic review", blocking=True),)})
         with patch.object(runs.profiles, "from_final", side_effect=blocked):
             created = self.helper.enqueue()

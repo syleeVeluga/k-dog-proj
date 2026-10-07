@@ -1,0 +1,9 @@
+{
+  "version": "report-presentation-20261007-rp04",
+  "source": "리포트 개편 수용 A05/A06 및 PR-RP04",
+  "colors": {"background": "#F5F1E9", "paper": "#FFFFFF", "ink": "#292C36", "muted": "#676974", "accent": "#80633B", "survey": "#846FAD", "video": "#5C735D", "line": "#DDD8CE"},
+  "sections": ["함께 읽는 핵심 결과", "평소의 응답", "설문과 영상 함께 보기", "관찰의 세부 설명", "총평과 실천", "관찰 범위와 출처"],
+  "legend": "보호자 설문은 평소의 경험, 영상 관찰은 이번에 확인한 행동입니다.",
+  "scale_notice": "설문 원척도와 영상의 행동별 눈금은 서로 다릅니다. 같은 점수나 길이가 같은 의미를 뜻하지 않습니다.",
+  "external_notice": "외부 연구 비교는 교수님이 확정한 문항과 기준이 있는 범위에만 적용합니다."
+}

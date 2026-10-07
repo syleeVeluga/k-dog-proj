@@ -14,13 +14,15 @@ from .storage import REPO_ROOT
 ASSETS = ("resources/report/presentation-v4.json", "resources/report/templates/s1.html",
           "resources/report/templates/s1.css", "resources/fonts/NanumGothic-Regular.ttf",
           "resources/fonts/NotoSansSymbols.ttf")
+NEW_ASSETS = ("resources/report/presentation-20261007.json", "resources/report/templates/report-20261007.html",
+              "resources/report/templates/report-20261007.css", *ASSETS[3:])
 STATUS = {"available": "관찰됨", "partial": "일부 관찰", "insufficient": "관찰 부족", "held": "판단 보류"}
 SEGMENTS = {"entry": "입장", "baseline": "기준", "alone": "혼자", "reunion": "재회", "ignore": "무시", "walk": "걷기", "stranger": "낯선", "exit": "퇴장"}
 PHASES = {"move_1": "첫 이동", "stop_1": "첫 정지", "move_2": "둘째 이동", "stop_2": "둘째 정지", "move_3": "셋째 이동", "stop_3": "셋째 정지"}
 
 
-def assets():
-    return {name: hashlib.sha256((REPO_ROOT / name).read_bytes()).hexdigest() for name in ASSETS}
+def assets(photo_free=False):
+    return {name: hashlib.sha256((REPO_ROOT / name).read_bytes()).hexdigest() for name in (NEW_ASSETS if photo_free else ASSETS)}
 
 
 def presentation():
@@ -73,7 +75,7 @@ def validate(profile, header, images):
         if not image.data.startswith(signature) or hashlib.sha256(image.data).hexdigest() != image.image_sha256:
             raise ValueError("사진 형식 또는 고정 hash가 다릅니다.")
         photos[image.scene_id] = image
-    assets()
+    assets(bool(profile.presentation_version))
     return profile, header, photos
 
 
@@ -150,6 +152,9 @@ def timeline_rows(profile, kind):
 
 
 def render_html(profile, header, images=(), *, cohort=None):
+    if profile.presentation_version:
+        from .report_design_v4 import html
+        return html(profile, header, images, cohort=cohort)
     profile, header, photos = validate(profile, header, images)
     cohort = CohortPublicV4.model_validate(cohort) if cohort is not None else None
     surveys = survey_rows(profile, cohort)

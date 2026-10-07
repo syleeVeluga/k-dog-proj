@@ -29,6 +29,9 @@ class SurveyBar(Flowable):
 
 
 def render_pdf(profile, header, images=(), *, cohort=None):
+    if profile.presentation_version:
+        from .report_design_v4 import pdf
+        return pdf(profile, header, images, cohort=cohort)
     profile, header, photos = validate(profile, header, images)
     cohort = CohortPublicV4.model_validate(cohort) if cohort is not None else None
     surveys = survey_rows(profile, cohort)
