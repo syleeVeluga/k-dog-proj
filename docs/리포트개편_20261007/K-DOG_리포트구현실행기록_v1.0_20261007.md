@@ -9,7 +9,7 @@
 | 단계 | 구현·검증·리뷰 | 원격·로컬 병합 | 남은 경계 |
 | --- | --- | --- | --- |
 | [RP01](K-DOG_PR-RP01_설문응답정책_v1.0_20261007.md) | 완료, [수용 4건](K-DOG_PR-RP01_ColdReview_v1.0_20261007.md) 반영 | [PR #54](https://github.com/syleeVeluga/k-dog-proj/pull/54), `edc0d475` 원격·로컬 일치 | 구글폼 설정 실물 확인은 의뢰자 담당 |
-| [RP02](K-DOG_PR-RP02_AI애착판단_v1.0_20261007.md) | 완료, [수용 3건](K-DOG_PR-RP02_ColdReview_v1.0_20261007.md) 반영 | PR 생성·병합 대기 | 교수 적절성 검토는 기술 합성 검증과 별도 |
+| [RP02](K-DOG_PR-RP02_AI애착판단_v1.0_20261007.md) | 완료, [수용 3건](K-DOG_PR-RP02_ColdReview_v1.0_20261007.md) 반영 | [PR #55](https://github.com/syleeVeluga/k-dog-proj/pull/55), 최종 head 확인·병합 대기 | 교수 적절성 검토는 기술 합성 검증과 별도 |
 | [RP03](K-DOG_PR-RP03_AI리포트문장_v1.0_20261007.md) | 미착수 | 미실행 | 새 AI 내용 계약·실행 |
 | [RP04](K-DOG_PR-RP04_장면제거와출력개편_v1.0_20261007.md) | 미착수 | 미실행 | 장면 제거·새 HTML/PDF·시각 검수 |
 | [RP05](K-DOG_PR-RP05_통합검증과교수검토_v1.0_20261007.md) | 미착수 | 미실행 | 통합 기술 검증과 실제 교수 검토 분리 |
@@ -41,6 +41,8 @@
 ### RP02 실행
 
 구현 기준 `edc0d475`, 브랜치 `veluga/rp02-attachment-ai`, 구현 commit `e5278afd64942c13ca440da607901eeaf3218a57`. [RP02 계획·구현 인계](K-DOG_PR-RP02_AI애착판단_v1.0_20261007.md)에 새 판단·별도 완료 의견 해석·우선순위·hash/권한 보호 계약을 기록했다. 독립 cold review 세 발견을 수용하고 재검토·관련 재검증을 완료했다. 원격 PR·병합은 후속 기록으로 확인한다.
+
+수용 수정·문서 commit `d0f5f488bd489ffc477e19058fc11ffd04b75c53`을 push하고 [PR #55](https://github.com/syleeVeluga/k-dog-proj/pull/55)를 채팅에 연결했다. 이 head의 checks/statuses는 비어 있고 `CLEAN`/`MERGEABLE`이었다. CI 통과로 표시하지 않는다. 이 기록을 포함한 최종 head를 다시 확인한 후 일치하는 commit만 병합한다.
 
 | 검증 | 실제 결과 |
 | --- | --- |
