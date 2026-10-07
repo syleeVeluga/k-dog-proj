@@ -105,6 +105,7 @@ test('S1 report publication UI opens guarded cards and offline HTML, marks histo
   await expect.poll(() => created.length).toBe(1); expect(created[0].reuse_run_id).toBe(runId);
   await page.setViewportSize({ width: 360, height: 800 }); await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await output.screenshot({ path: testInfo.outputPath('report-issued-s1-360.png'), animations: 'disabled' });
+  await current.screenshot({ path: testInfo.outputPath('rp03-report-usage-360.png'), animations: 'disabled' });
   blocked = true; await panel.getByRole('button', { name: '리포트 상태 새로고침', exact: true }).click();
   await expect(output).toHaveCount(0); await expect(panel.getByRole('alert')).toHaveText('합성 권한 철회: 발급본 열람 차단');
 });

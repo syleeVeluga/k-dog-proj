@@ -57,19 +57,24 @@ def apply(profile, assessment):
     if len(response.actions) > context["action_capacity"] or context["action_capacity"] and not response.actions:
         raise ValueError("narrative action count differs from available evidence")
     facts = {item.fact_id: item for item in profile.facts}
-    final_labels = {item.value for item in profile.facts if item.kind == "final_type" and item.value}
-    forbidden_types = set((*ATTACHMENT_TYPES, *OWNER_TYPES)) - final_labels
+    type_names = set((*ATTACHMENT_TYPES, *OWNER_TYPES))
 
     def claim(item, key):
         if len(set(item.fact_ids)) != len(item.fact_ids) or not set(item.fact_ids) <= set(facts):
             raise ValueError("narrative references duplicate or unknown facts")
         if key.startswith("action:") and not any(action_evidence(facts[value]) for value in item.fact_ids):
             raise ValueError("narrative action lacks observed or survey evidence")
+        card_key = key.split(":")[1] if key.startswith("card:") else None
+        if card_key and any(facts[value].kind == "final_type" and value != "final:"+card_key for value in item.fact_ids):
+            raise ValueError("narrative card references another final type")
+        supported_types = {facts[value].value for value in item.fact_ids if facts[value].kind == "final_type" and facts[value].value}
         plain = PLACEHOLDER.sub("", item.text)
         if any(character.isdecimal() for character in plain) or any(term in item.text for term in assessment.instruction_snapshot["forbidden_terms"]):
             raise ValueError("narrative contains unpinned number or forbidden claim")
-        if any(term in item.text for term in forbidden_types):
+        if any(term in item.text for term in type_names - supported_types):
             raise ValueError("narrative contains contradictory type")
+        if "%" in item.text or "퍼센트" in item.text or re.search(r"\]\]\s*(?:점|회|배|명|개|국면|분|초|세|등급|비율|백분율)", item.text):
+            raise ValueError("narrative adds an unpinned unit or scale")
         if any(term in item.text.lower() for term in ("<", ">", "http:", "https:", "javascript:")):
             raise ValueError("narrative contains markup or link")
 
@@ -78,6 +83,8 @@ def apply(profile, assessment):
             fact = facts.get(fact_id)
             if fact is None or fact_id not in item.fact_ids or fact.kind not in ("metric", "survey") or type(fact.value) not in (int, float):
                 raise ValueError("narrative numeric slot is not a pinned numeric fact")
+            if fact.kind == "survey" and fact.unit:
+                return f"{fact.value} (원척도 {fact.unit})"
             return str(fact.value) + (" " + fact.unit if fact.unit else "")
         text = PLACEHOLDER.sub(number, item.text)
         if "[[" in text or "]]" in text:

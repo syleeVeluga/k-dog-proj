@@ -57,9 +57,37 @@ class NarrativeContractTests(unittest.TestCase):
         raw["summary"] = [{"text": "고정된 계산값은 [["+fact.fact_id+"]]입니다.", "fact_ids": [fact.fact_id]}]
         result = narrative.apply(self.profile, narrative.normalize(self.profile, raw, "gemini-3.8-flash"))
         self.assertIn(str(fact.value), result.summary[0].text)
+        if fact.kind == "survey":
+            self.assertIn(f"{fact.value} (원척도 {fact.unit})", result.summary[0].text)
         raw["summary"][0]["fact_ids"] = ["policy:scope"]
         with self.assertRaises(ValueError):
             narrative.normalize(self.profile, raw, "gemini-3.8-flash")
+
+    def test_numeric_slot_rejects_model_added_units(self):
+        for suffix in ("%", "퍼센트", "점", " 회", "배", "명", "개", "국면", "분", "초", "세", "등급", "비율"):
+            raw = generated(self.context)
+            raw["summary"] = [{"text": "설문 결과는 [[survey:s01]]"+suffix+"입니다.", "fact_ids": ["survey:s01"]}]
+            with self.subTest(suffix=suffix), self.assertRaisesRegex(ValueError, "unit or scale"):
+                narrative.normalize(self.profile, raw, "gemini-3.8-flash")
+
+    def test_card_rejects_another_domains_type_and_unreferenced_type(self):
+        final, ref, batch = fixture({"개18": 1, "보23": 2}, opinion={"domains": [
+            {"domain": "attachment", "label": "곁에서 안심하는 사이", "text": "확인한 애착 의견", "reason": "관찰 근거 확인", "evidence_codes": ["개18"], "counter_note": "반대 근거 없음"},
+            {"domain": "education_attitude", "label": "허용형", "text": "확인한 교육 의견", "reason": "관찰 근거 확인", "evidence_codes": ["보23"], "counter_note": "반대 근거 없음"}]})
+        profile = profiles.build(final, ref, batch=batch)
+        context = narrative.context_for(profile)
+        raw = generated(context)
+        card = next(item for item in raw["cards"] if item["key"] == "attachment")
+        card["claims"] = [{"text": "애착 유형은 허용형입니다.", "fact_ids": ["final:education_attitude"]}]
+        with self.assertRaisesRegex(ValueError, "another final type"):
+            narrative.normalize(profile, raw, "gemini-3.8-flash")
+        raw = generated(context)
+        raw["summary"] = [{"text": "허용형으로 살펴봅니다.", "fact_ids": ["policy:scope"]}]
+        with self.assertRaisesRegex(ValueError, "contradictory type"):
+            narrative.normalize(profile, raw, "gemini-3.8-flash")
+        raw["summary"][0]["fact_ids"] = ["final:education_attitude"]
+        result = narrative.apply(profile, narrative.normalize(profile, raw, "gemini-3.8-flash"))
+        profiles.validate_profile(result, final, ref, batch=batch)
 
     def test_archived_instructions_replay_without_current_asset_and_mutation_rejects(self):
         result = narrative.apply(self.profile, narrative.normalize(self.profile, generated(self.context), "gemini-3.8-flash"))
