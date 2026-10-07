@@ -684,7 +684,9 @@ def _outdated(store, db, row, snapshot, case):
     configuration = ReportConfigV4.model_validate_json(row["config_snapshot_json"])
     try:
         verify_assets(configuration)
-        assets_changed = configuration.content_hashes != config().content_hashes
+        current = config()
+        assets_changed = (configuration.version, configuration.content_hashes, configuration.template_hashes) != (
+            current.version, current.content_hashes, current.template_hashes)
     except (HTTPException, OSError, ValueError):
         assets_changed = True
     return (case["input_revision"] != snapshot.input_revision or case["selected_session_id"] != snapshot.session_id

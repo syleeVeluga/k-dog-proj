@@ -56,6 +56,18 @@ class DesignRunTests(unittest.TestCase):
         publication = helper.manifest(old_id)
         self.assertIsNone(publication.profile.presentation_version)
         self.assertEqual(runs.download(helper.store,helper.helper.case_id,helper.helper.session_id,old_id,"pdf",helper.helper.user)[0],original)
+        row = helper.helper.row(old_id)
+        snapshot = runs.snapshot_for(row)
+        # Isolate presentation change from this fixture's later consent revision.
+        source = snapshot.final_document.basic_document.input_document.source.model_copy(update={"input_revision":snapshot.input_revision})
+        input_document = snapshot.final_document.basic_document.input_document.model_copy(update={"source":source})
+        basic = snapshot.final_document.basic_document.model_copy(update={"input_document":input_document})
+        aligned = snapshot.model_copy(update={"final_document":snapshot.final_document.model_copy(update={"basic_document":basic})})
+        with helper.store.connect() as db:
+            case = helper.helper.current()
+            with patch.object(runs,"config",side_effect=previous):
+                self.assertFalse(runs._outdated(helper.store,db,row,aligned,case))
+            self.assertTrue(runs._outdated(helper.store,db,row,aligned,case))
         request = helper.helper.request.model_copy(update={"request_id":"rp04-cannot-reuse-rp03","reuse_run_id":old_id})
         from fastapi import HTTPException
         with self.assertRaises(HTTPException):

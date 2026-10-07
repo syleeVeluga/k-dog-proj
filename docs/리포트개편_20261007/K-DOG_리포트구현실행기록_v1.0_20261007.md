@@ -11,7 +11,7 @@
 | [RP01](K-DOG_PR-RP01_설문응답정책_v1.0_20261007.md) | 완료, [수용 4건](K-DOG_PR-RP01_ColdReview_v1.0_20261007.md) 반영 | [PR #54](https://github.com/syleeVeluga/k-dog-proj/pull/54), `edc0d475` 원격·로컬 일치 | 구글폼 설정 실물 확인은 의뢰자 담당 |
 | [RP02](K-DOG_PR-RP02_AI애착판단_v1.0_20261007.md) | 완료, [수용 3건](K-DOG_PR-RP02_ColdReview_v1.0_20261007.md) 반영 | [PR #55](https://github.com/syleeVeluga/k-dog-proj/pull/55), `35637f9` 원격·로컬 일치 | 교수 적절성 검토는 기술 합성 검증과 별도 |
 | [RP03](K-DOG_PR-RP03_AI리포트문장_v1.0_20261007.md) | 완료, [수용 2건](K-DOG_PR-RP03_ColdReview_v1.0_20261007.md) 반영 | [PR #56](https://github.com/syleeVeluga/k-dog-proj/pull/56), `66984cf` 원격·로컬 일치 | 교수 문장 품질은 실제 검토 대기 |
-| [RP04](K-DOG_PR-RP04_장면제거와출력개편_v1.0_20261007.md) | 구현·검증·시각 검수 완료, cold review 준비 | 미실행 | 실제 공급자/전문 품질은 별도 |
+| [RP04](K-DOG_PR-RP04_장면제거와출력개편_v1.0_20261007.md) | 완료, [수용 1건](K-DOG_PR-RP04_ColdReview_v1.0_20261007.md) 반영 | PR 생성 준비 | 실제 공급자/전문 품질은 별도 |
 | [RP05](K-DOG_PR-RP05_통합검증과교수검토_v1.0_20261007.md) | 미착수 | 미실행 | 통합 기술 검증과 실제 교수 검토 분리 |
 | [RP06](K-DOG_PR-RP06_외부비교기준표적용_v1.0_20261007.md) | 조건부 대기 | 미실행 | 교수 확정 두 기준표는 계획상 미수령; 자료 위치를 사용자에게 확인 중 |
 
@@ -95,6 +95,8 @@ RP03 최종 head `c0dabfa773a9f66f3943146f47859562027b2d5b`의 checks/statuses �
 초기 실패는 새 선택 인자를 받지 않는 시험 wrapper, 비어 있는 합성 총평, 정의되지 않은 관찰 창·memo/발성 입력 metadata의 QA fixture 범위를 구별해 수정했다. 제품의 누락 관찰을 0으로 채우거나 청취 metadata를 추정하지 않았다. 시각 검수에서 발견한 출처 단락·짧은 카드/그래프의 쪽 경계를 보완했다. actual provider 0회·교수 품질 미검증 경계를 유지하며 기술 회귀 수를 합산하지 않는다.
 
 RP04 의존성 확인: 2026-10-07~08. ReportLab 최신/선택 5.0.1 ([PyPI](https://pypi.org/project/reportlab/), [5.0 변경](https://docs.reportlab.com/releases/notes/whats-new-50/), [표 API](https://docs.reportlab.com/reportlab/userguide/ch7_tables/)); Python ≥3.9,<4와 기존 Python 3.14.2 호환. Pillow 최신/선택 12.3.0 ([PyPI](https://pypi.org/project/pillow/), [릴리스](https://pillow.readthedocs.io/en/stable/releasenotes/12.3.0.html))는 QA contact sheet에만 사용했다. 제품 manifest/lockfile의 기존 판을 유지했다. Poppler 최신 26.10.0/선택 번들 26.07.0 ([공식 릴리스](https://poppler.freedesktop.org/))는 번들 read-only `pdfinfo`/`pdftoppm` 도구를 사용했다. 번들에 `pdftotext`가 없어 그 명령의 실패를 확인 후 pypdf 텍스트 추출로 대체했다. pypdf 최신 6.19.0/선택 번들 6.10.0 ([PyPI](https://pypi.org/project/pypdf/), [선택판 API](https://pypdf.readthedocs.io/en/6.10.0/user/extract-text.html))는 Python ≥3.9와 호환하는 번들 Python의 일회성 QA에만 사용했다. 무관한 앱 의존성 갱신·신규 설치는 없다.
+
+RP04 독립 cold review 1건을 수용했다. `_outdated`가 실행 판본·내용 hash·템플릿 hash를 함께 비교하도록 수정하고 관련 디자인/실행/API 27개, 76.291초에 통과했다. 독립 재검토에서 기존 RP03 판본만 최신일 때는 `False`, RP04 판본에서는 `True`이며 과거 PDF bytes 보존을 확인했다(1개, 3.998초). 초기 독립 경계 검증 7개, 24.143초와 완료 의견 두 개의 긴 원문 끝 표식 확인은 별도 기록이다.
 
 ## 2 라이브러리·프레임워크 확인
 
