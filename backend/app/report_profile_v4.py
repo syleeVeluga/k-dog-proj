@@ -246,6 +246,12 @@ def build(final, final_ref, *, batch=None, common_events=(), survey_policy=RUNTI
 def validate_profile(profile, final, final_ref, *, batch=None, common_events=()):
     profile = ReportProfileV4.model_validate(profile)
     expected = build(final, final_ref, batch=batch, common_events=common_events, survey_policy=profile.source.survey.policy_version)
+    if profile.narrative is not None:
+        from .report_narrative_v4 import validate
+        # External comparison is a separately validated explicit output selection.
+        if profile.external_comparison:
+            expected = expected.model_copy(update={"external_comparison": profile.external_comparison, "external_comparison_status": profile.external_comparison_status})
+        return validate(expected, profile)
     if profile != expected:
         raise ValueError("report contains an unsupported claim, value, type, scene, source, or policy")
     return profile

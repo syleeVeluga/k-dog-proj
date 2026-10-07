@@ -1,4 +1,4 @@
-"""Program-only report lifecycle with synthetic inputs and no provider requests."""
+"""Historical program-only report lifecycle; new AI narrative tests are separate."""
 import hashlib
 import json
 from concurrent.futures import ThreadPoolExecutor
@@ -13,7 +13,7 @@ from fastapi import HTTPException
 
 from app import analysis, maintenance, media, report_runs_v4 as reports, uploads
 from app.domain.media_v4 import UploadCreateV4
-from app.domain.report_runs_v4 import ReportPublicationV4, ReportPreparedV4
+from app.domain.report_runs_v4 import REPORT_STAGES, ReportConfigV4, ReportPublicationV4, ReportPreparedV4, ReportStageV4
 from app.storage import Store, encode, now, uid
 from app.worker import Worker
 from tests.test_opinions_v4 import setup_case, model, save_opinion
@@ -22,6 +22,13 @@ from tests.test_final_results_v4 import assemble
 
 class ReportRunV4Tests(unittest.TestCase):
     def setUp(self):
+        def historical_config(comparison=None, external_comparison=None):
+            from app.report_render_v4 import assets
+            return ReportConfigV4(stages=tuple(ReportStageV4(stage=name) for name in REPORT_STAGES), template_hashes=assets(),
+                content_hashes=reports.profiles.assets()[1], comparison_snapshot=comparison, external_comparison=external_comparison)
+        self.historical_config = patch.object(reports, "config", side_effect=historical_config)
+        self.historical_config.start()
+        self.addCleanup(self.historical_config.stop)
         setup_case(self)
         with self.store.connect(write=True) as db:
             case = self.store.case(db, self.case_id)

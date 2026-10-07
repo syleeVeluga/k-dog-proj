@@ -9,6 +9,7 @@ from .results_v4 import ResultReferenceV4
 from .preprocess_v4 import FileV4
 from .sheets_v4 import BatchPointerV4, InputPointerV4, SheetReferenceV4
 from .comparisons_v4 import ExternalPublicV4
+from .report_narrative_v4 import NarrativeAssessmentV4
 from ..survey_v4 import SurveyResultV4
 
 CONTENT_VERSION = "report-content-20261002-s1.1-1"
@@ -129,8 +130,9 @@ class ReportProfileV4(ContractV4):
     actions: Annotated[tuple[ClaimV4, ...], Field(max_length=3)]
     actions_notice: Text | None = None
     validation_issues: tuple[ValidationIssueV4, ...] = ()
-    sentence_bank_status: Literal["pending_G02"] = "pending_G02"
-    provider_text_status: Literal["deferred_S16"] = "deferred_S16"
+    sentence_bank_status: Literal["pending_G02", "generated_rp03"] = "pending_G02"
+    provider_text_status: Literal["deferred_S16", "generated_professor_test_pending"] = "deferred_S16"
+    narrative: NarrativeAssessmentV4 | None = Field(default=None, exclude_if=lambda value: value is None)
     external_comparison_status: Literal["pending_D06", "approved_selected"] = "pending_D06"
     external_comparison: ExternalPublicV4 | None = Field(default=None, exclude_if=lambda value: value is None)
 

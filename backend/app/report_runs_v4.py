@@ -1,4 +1,4 @@
-"""Pinned program-only report runs, explicit content reuse and atomic publication."""
+"""Pinned report content generation, explicit reuse and atomic publication."""
 import hashlib
 import json
 import os
@@ -11,6 +11,7 @@ from pydantic import Field, field_validator
 
 from . import analysis, disclosures_v4, final_results_v4 as finals, media, opinions_v4 as opinions
 from . import comparisons_v4, external_comparisons_v4, report_profile_v4 as profiles, sheets_v4 as sheets, uploads
+from . import report_narrative_v4 as narrative
 from .domain.comparisons_v4 import CohortReferenceV4, ExternalReferenceV4
 from .domain.final_results_v4 import FinalReferenceV4, FinalResultV4
 from .domain.preprocess_v4 import BatchV4, FileV4
@@ -24,6 +25,7 @@ from .domain.catalog_v4 import Hash, Text
 from .input_models import Model
 from .input_models_v4 import ManifestV4
 from .storage import REPO_ROOT, encode, now, uid
+from .usage import token_meters
 
 KIND = "report_v4"
 TERMINAL = ("succeeded", "failed", "stopped", "review_required")
@@ -66,7 +68,10 @@ class ReportStepViewV4(Model):
     code: str | None
     timing: dict[str, float]
     reused: bool
-    provider_calls: Literal[0] = 0
+    provider_calls: Annotated[int, Field(ge=0, le=1)] = 0
+    billing_uncertain: bool = False
+    token_meters: dict[str, int] = Field(default_factory=dict)
+    cost_usd: float | None = None
 
 
 class ReportRunViewV4(Model):
@@ -89,6 +94,9 @@ class ReportRunViewV4(Model):
     external_comparison: ExternalReferenceV4 | None = None
     external_comparison_status: Literal["not_selected", "approved", "blocked"] = "not_selected"
     external_comparison_reason: str | None = None
+    planned_provider_calls: int = 0
+    max_ai_calls: int = 0
+    provider_text_status: str = "deferred_S16"
 
     @field_validator("final", mode="before")
     @classmethod
@@ -98,8 +106,10 @@ class ReportRunViewV4(Model):
 
 def config(comparison=None, external_comparison=None):
     from .report_render_v4 import assets
-    return ReportConfigV4(stages=tuple(ReportStageV4(stage=name) for name in REPORT_STAGES),
-        template_hashes=assets(), content_hashes=profiles.assets()[1], comparison_snapshot=comparison, external_comparison=external_comparison)
+    hashes = {**profiles.assets()[1], narrative.ASSET: hashlib.sha256((REPO_ROOT / "resources" / narrative.ASSET).read_bytes()).hexdigest()}
+    return ReportConfigV4(version="report-run-20261007-rp03", stages=(narrative.stage(), *(ReportStageV4(stage=name) for name in REPORT_STAGES[1:])),
+        max_schema_repairs=1, max_ai_calls=3, provider_text_status="generated_professor_test_pending",
+        template_hashes=assets(), content_hashes=hashes, comparison_snapshot=comparison, external_comparison=external_comparison)
 
 
 def _actor(db, username):
@@ -256,9 +266,15 @@ def verify_files(store, snapshot):
 def verify_assets(configuration):
     from .report_render_v4 import ASSETS, assets
     survey_policy = profiles.RUNTIME_SURVEY_POLICY_VERSION if "rules/survey-policy-20261007.json" in configuration.content_hashes else profiles.SURVEY_POLICY_VERSION
-    names = (*ASSETS, *("resources/"+name for name in profiles.asset_names(survey_policy)))
+    generated = configuration.version == "report-run-20261007-rp03"
+    names = (*ASSETS, *("resources/"+name for name in profiles.asset_names(survey_policy)), *(('resources/'+narrative.ASSET,) if generated else ()))
     stamps = {name: analysis.file_stamp(REPO_ROOT/name) for name in names}
-    if configuration.template_hashes != assets() or configuration.content_hashes != profiles.assets(survey_policy)[1]:
+    hashes = profiles.assets(survey_policy)[1]
+    if generated:
+        hashes = {**hashes, narrative.ASSET: hashlib.sha256((REPO_ROOT / "resources" / narrative.ASSET).read_bytes()).hexdigest()}
+        if configuration.stages[0] != narrative.stage():
+            raise HTTPException(409, "AI 문장 지침·모델·출력 계약이 변경되었습니다.")
+    if configuration.template_hashes != assets() or configuration.content_hashes != hashes:
         raise HTTPException(409, "실행 중 문장·선택 기준 또는 출력 템플릿이 변경되었습니다.")
     check_asset_stamps(stamps)
     return stamps
@@ -290,7 +306,7 @@ def reuse_for(store, db, source_id, snapshot, configuration):
         raise HTTPException(409, "재사용할 성공 내용 단계가 없습니다.")
     payload = analysis.step_payload(store, source, step)
     prepared = ReportPreparedV4.model_validate_json(encode(payload["prepared"]))
-    validate_prepared(store, snapshot, prepared)
+    validate_prepared(store, snapshot, prepared, configuration)
     return ReportReuseV4(source_run_id=source_id, step_id=step["step_id"], ref=step["output_ref"], hash=step["output_hash"], compatibility_hash=expected)
 
 
@@ -445,8 +461,12 @@ def _image_stamps(store, images, *, profile=None):
     return stamps
 
 
-def validate_prepared(store, snapshot, prepared):
-    if prepared.profile != snapshot.profile or prepared.profile_hash != snapshot.profile_hash:
+def validate_prepared(store, snapshot, prepared, configuration=None):
+    if prepared.profile_hash != analysis.digest(prepared.profile.model_dump(mode="json")):
+        raise ValueError("report content hash differs")
+    if configuration and configuration.version == "report-run-20261007-rp03":
+        narrative.validate(snapshot.profile, prepared.profile)
+    elif prepared.profile != snapshot.profile or prepared.profile_hash != snapshot.profile_hash:
         raise ValueError("report content differs from pinned profile")
     if {image.scene_id for image in prepared.images} | set(prepared.image_issues) != {scene.scene_id for scene in snapshot.profile.scenes}:
         raise ValueError("each scene must preserve an image or explicit missing reason")
@@ -476,6 +496,8 @@ def output_stamps(store, stage, payload):
     elif stage == "publish_report_v4":
         pointer = FileV4.model_validate_json(encode(payload["publication"]))
         publication = ReportPublicationV4.model_validate_json(_read_file(store, pointer, stamps))
+        if publication.content:
+            _read_file(store, publication.content, stamps)
         stamps.update(validate_rendered(store, publication.output))
     else:
         raise ValueError("unknown report stage")
@@ -498,6 +520,14 @@ def _stage_payload(store, row, stage):
     return analysis.step_payload(store, row, step)
 
 
+def content_reference(store, row):
+    with store.connect() as db:
+        step = db.execute("SELECT output_ref,output_hash FROM steps WHERE run_id=? AND stage='content_v4' AND status='succeeded' ORDER BY attempt DESC LIMIT 1", (row["run_id"],)).fetchone()
+    if not step:
+        raise ValueError("validated report content is absent")
+    return FileV4(ref=step["output_ref"], hash=step["output_hash"])
+
+
 def process(worker, row):
     snapshot = snapshot_for(row)
     configuration = ReportConfigV4.model_validate_json(row["config_snapshot_json"])
@@ -506,6 +536,9 @@ def process(worker, row):
     if configuration.external_comparison != (snapshot.profile.external_comparison.reference if snapshot.profile.external_comparison else None):
         raise ValueError("external comparison input and configuration pins differ")
     worker.check(row); verify_assets(configuration); verify_files(worker.store, snapshot)
+    if configuration.stages[0].provider_call and (snapshot.profile.status == "review_required" or any(issue.blocking for issue in snapshot.profile.validation_issues)):
+        finish(worker, row, "review_required", "report_content_review_required")
+        return
     reuses = [ReportReuseV4.model_validate_json(encode(entry)) for entry in json.loads(row["reuse_manifest_json"])]
     if len(reuses) > 1:
         raise ValueError("report reuses only one explicit content stage")
@@ -516,14 +549,15 @@ def process(worker, row):
             verify_assets(configuration)
             if stage in ("content_v4", "validate_content_v4"):
                 prepared = ReportPreparedV4.model_validate_json(encode(payload["prepared"]))
-                validate_prepared(worker.store, snapshot, prepared)
+                validate_prepared(worker.store, snapshot, prepared, configuration)
                 if stage == "validate_content_v4" and any(issue.blocking for issue in prepared.profile.validation_issues):
                     raise ValueError("blocking report content issue")
             elif stage in ("render_v4", "validate_output_v4"):
                 rendered = ReportRenderedV4.model_validate_json(encode(payload["rendered"]))
-                if rendered.profile_hash != snapshot.profile_hash or rendered.header_hash != analysis.digest(snapshot.header.model_dump(mode="json")):
-                    raise ValueError("rendered input mismatch")
                 prepared = ReportPreparedV4.model_validate_json(encode(_stage_payload(worker.store, row, "validate_content_v4")["prepared"]))
+                validate_prepared(worker.store, snapshot, prepared, configuration)
+                if rendered.profile_hash != prepared.profile_hash or rendered.header_hash != analysis.digest(snapshot.header.model_dump(mode="json")):
+                    raise ValueError("rendered input mismatch")
                 if (rendered.images, rendered.image_issues) != (prepared.images, prepared.image_issues):
                     raise ValueError("rendered scene evidence differs from validated content")
                 if stage == "validate_output_v4" and rendered != ReportRenderedV4.model_validate_json(encode(_stage_payload(worker.store, row, "render_v4")["rendered"])):
@@ -532,11 +566,15 @@ def process(worker, row):
             else:
                 pointer = FileV4.model_validate_json(encode(payload["publication"]))
                 publication = ReportPublicationV4.model_validate_json(_read_file(worker.store, pointer))
+                prepared = ReportPreparedV4.model_validate_json(encode(_stage_payload(worker.store, row, "validate_content_v4")["prepared"]))
+                validate_prepared(worker.store, snapshot, prepared, configuration)
                 if (publication.run_id, publication.case_id, publication.session_id, publication.input_hash, publication.config_hash,
                         publication.final, publication.header, publication.profile, publication.cohort) != (
                         row["run_id"], snapshot.case_id, snapshot.session_id, row["input_hash"], analysis.digest(configuration.model_dump(mode="json")),
-                        snapshot.final, snapshot.header, snapshot.profile, snapshot.cohort):
+                        snapshot.final, snapshot.header, prepared.profile, snapshot.cohort):
                     raise ValueError("publication snapshot mismatch")
+                if prepared.profile.narrative and (publication.content, publication.input_profile_hash, publication.pending_reasons) != (content_reference(worker.store, row), snapshot.profile_hash, ()):
+                    raise ValueError("publication narrative content pins differ")
                 if publication.output != ReportRenderedV4.model_validate_json(encode(_stage_payload(worker.store, row, "validate_output_v4")["rendered"])):
                     raise ValueError("publication differs from validated output")
                 validate_rendered(worker.store, publication.output)
@@ -556,9 +594,12 @@ def process(worker, row):
                         payload = analysis.step_payload(worker.store, source, old_step)
                     payload["usage"] = {"program_merge": True, "reused": True, "source_run_id": exact.source_run_id}
                 else:
+                    profile, usage = (narrative.request(worker, row, step, group, snapshot.profile,
+                        lambda: (worker.check(row), verify_assets(configuration), verify_files(worker.store, snapshot)))
+                        if group.provider_call else (snapshot.profile, {"program_merge": True}))
                     images, issues = capture_images(worker.store, snapshot, row["run_id"], step["step_id"], lambda: worker.check(row))
-                    prepared = ReportPreparedV4(profile=snapshot.profile, profile_hash=snapshot.profile_hash, images=images, image_issues=issues)
-                    payload = {"prepared": prepared.model_dump(mode="json")}
+                    prepared = ReportPreparedV4(profile=profile, profile_hash=analysis.digest(profile.model_dump(mode="json")), images=images, image_issues=issues)
+                    payload = {"prepared": prepared.model_dump(mode="json"), "usage": usage}
             elif stage == "validate_content_v4":
                 payload = _stage_payload(worker.store, row, "content_v4")
                 if snapshot.profile.status == "review_required" or any(issue.blocking for issue in snapshot.profile.validation_issues):
@@ -571,7 +612,7 @@ def process(worker, row):
                     mime=image.mime, data=_read_file(worker.store, image.file)) for image in prepared.images)
                 html, pdf = render_report(prepared.profile, snapshot.header, images, **({"cohort": snapshot.cohort} if snapshot.cohort else {}))
                 prefix = f"runs/{row['run_id']}/{step['step_id']}"
-                rendered = ReportRenderedV4(profile_hash=snapshot.profile_hash, header_hash=analysis.digest(snapshot.header.model_dump(mode="json")),
+                rendered = ReportRenderedV4(profile_hash=prepared.profile_hash, header_hash=analysis.digest(snapshot.header.model_dump(mode="json")),
                     html=_write_bytes(worker.store, prefix+"/report.html", html), pdf=_write_bytes(worker.store, prefix+"/report.pdf", pdf),
                     images=prepared.images, image_issues=prepared.image_issues)
                 payload = {"rendered": rendered.model_dump(mode="json")}
@@ -581,16 +622,24 @@ def process(worker, row):
                 payload = {"rendered": rendered.model_dump(mode="json")}
             else:
                 rendered = ReportRenderedV4.model_validate_json(encode(_stage_payload(worker.store, row, "validate_output_v4")["rendered"]))
+                prepared = ReportPreparedV4.model_validate_json(encode(_stage_payload(worker.store, row, "validate_content_v4")["prepared"]))
                 publication = ReportPublicationV4(report_id=row["run_id"], case_id=snapshot.case_id, session_id=snapshot.session_id,
                     run_id=row["run_id"], input_hash=row["input_hash"], config_hash=analysis.digest(configuration.model_dump(mode="json")),
-                    final=snapshot.final, input_revision=snapshot.input_revision, header=snapshot.header, profile=snapshot.profile,
-                    output=rendered, cohort=snapshot.cohort, created_at=now())
+                    final=snapshot.final, input_revision=snapshot.input_revision, header=snapshot.header, profile=prepared.profile,
+                    output=rendered, cohort=snapshot.cohort, created_at=now(),
+                    **({"pending_reasons": (), "content": content_reference(worker.store, row), "input_profile_hash": snapshot.profile_hash} if prepared.profile.narrative else {}))
                 pointer = _write_bytes(worker.store, f"runs/{row['run_id']}/{step['step_id']}/report.json", publication.model_dump_json().encode())
                 payload = {"publication": pointer.model_dump(mode="json")}
-            payload.setdefault("usage", {}).update(program_merge=True, timing={"stage_seconds": time.monotonic()-started})
+            payload.setdefault("usage", {}).setdefault("program_merge", not group.provider_call)
+            payload["usage"].setdefault("timing", {})["stage_seconds"] = time.monotonic()-started
             return payload
         result = worker.stage(row, stage, group.key, validate, work)
         if result is None:
+            with worker.store.connect() as db:
+                retrying = db.execute("SELECT 1 FROM steps WHERE run_id=? AND stage=? AND status='retry_wait'", (row["run_id"], stage)).fetchone()
+            if retrying:
+                finish(worker, row, "retry_wait", "report_stage_retry_wait")
+                return
             held = stage == "validate_content_v4" and (snapshot.profile.status == "review_required" or any(issue.blocking for issue in snapshot.profile.validation_issues))
             finish(worker, row, "review_required" if held else "failed", "report_content_review_required" if held else "report_stage_failed")
             return
@@ -631,7 +680,7 @@ def _outdated(store, db, row, snapshot, case):
     configuration = ReportConfigV4.model_validate_json(row["config_snapshot_json"])
     try:
         verify_assets(configuration)
-        assets_changed = configuration.content_hashes != profiles.assets()[1]
+        assets_changed = configuration.content_hashes != config().content_hashes
     except (HTTPException, OSError, ValueError):
         assets_changed = True
     return (case["input_revision"] != snapshot.input_revision or case["selected_session_id"] != snapshot.session_id
@@ -650,10 +699,14 @@ def view(store, run_id, user, viewer_sheet_id=None):
         latest = db.execute("SELECT run_id FROM runs WHERE case_id=? AND session_id=? AND kind=? AND status='succeeded' AND result_ref IS NOT NULL ORDER BY created_at DESC,run_id DESC LIMIT 1",
             (row["case_id"], row["session_id"], KIND)).fetchone()
         steps = []
+        configuration = ReportConfigV4.model_validate_json(row["config_snapshot_json"])
         for step in db.execute("SELECT * FROM steps WHERE run_id=? ORDER BY created_at,attempt", (run_id,)):
             usage = json.loads(step["usage_json"])
             steps.append({"stage": step["stage"], "attempt": step["attempt"], "status": step["status"], "code": usage.get("code"),
-                "timing": {key: value for key, value in usage.get("timing", {}).items() if type(value) in (int, float)}, "reused": bool(usage.get("reused")), "provider_calls": 0})
+                "timing": {key: value for key, value in usage.get("timing", {}).items() if type(value) in (int, float)}, "reused": bool(usage.get("reused")), "provider_calls": int(step["call_reserved"]),
+                "billing_uncertain": bool(usage.get("billing_uncertain") or step["call_reserved"] and step["status"] == "running"),
+                "token_meters": token_meters(usage.get("provider_usage", usage)),
+                "cost_usd": usage["cost_usd"] if type(usage.get("cost_usd")) in (int, float) else None})
         external_status,external_reason="not_selected",None
         external=snapshot.profile.external_comparison
         if external:
@@ -669,7 +722,9 @@ def view(store, run_id, user, viewer_sheet_id=None):
             "input_revision": row["input_revision"], "status": row["status"], "updated_at": row["updated_at"], "failure_code": row["failure_code"],
             "outdated": _outdated(store, db, row, snapshot, case), "result_available": available,
             "is_latest_issued": bool(latest and latest["run_id"] == run_id), "publication_state": "issued" if row["result_ref"] else None,
-            "pending_reasons": ["G02"], "normal_publish_available": row["status"] == "succeeded" and available,
+            "pending_reasons": ["G02"] if configuration.provider_text_status == "deferred_S16" else [], "normal_publish_available": row["status"] == "succeeded" and available,
+            "planned_provider_calls": sum(group.provider_call for group in configuration.stages), "max_ai_calls": configuration.max_ai_calls,
+            "provider_text_status": configuration.provider_text_status,
             "final": snapshot.final.model_dump(mode="json"), "steps": steps,
             "external_comparison":external.reference.model_dump(mode="json") if external else None,
             "external_comparison_status":external_status,"external_comparison_reason":external_reason}
@@ -747,10 +802,16 @@ def download(store, case_id, session_id, run_id, format, user, viewer_sheet_id=N
     raw = _read_file(store, pointer, stamps)
     publication = ReportPublicationV4.model_validate_json(raw)
     configuration = ReportConfigV4.model_validate_json(row["config_snapshot_json"])
+    prepared = ReportPreparedV4.model_validate_json(encode(_stage_payload(store, row, "validate_content_v4")["prepared"]))
+    validate_prepared(store, snapshot, prepared, configuration)
+    if prepared.profile.narrative:
+        if (publication.content, publication.input_profile_hash, publication.pending_reasons) != (content_reference(store, row), snapshot.profile_hash, ()):
+            raise HTTPException(409, "발급 AI 문장의 고정 산출물 참조가 다릅니다.")
+        _read_file(store, publication.content, stamps)
     if (publication.run_id, publication.case_id, publication.session_id, publication.input_revision, publication.input_hash,
             publication.config_hash, publication.final, publication.profile, publication.header, publication.cohort) != (
             run_id, case_id, session_id, snapshot.input_revision, row["input_hash"], analysis.digest(configuration.model_dump(mode="json")),
-            snapshot.final, snapshot.profile, snapshot.header, snapshot.cohort):
+            snapshot.final, prepared.profile, snapshot.header, snapshot.cohort):
         raise HTTPException(409, "리포트 발급본의 고정 입력이 다릅니다.")
     stamps.update(validate_rendered(store, publication.output))
     data = raw if format == "manifest" else _read_file(store, getattr(publication.output, format), stamps)

@@ -1,6 +1,6 @@
 # PR-RP03 AI 리포트 문장 생성과 실행 연결
 
-버전: v1.0 · 2026-10-07 · 상태: 계획·미구현 · 선행: RP02
+버전: v1.0 · 2026-10-07 · 상태: 구현·검증·독립 cold review·수용 수정 완료, 원격·로컬 병합 준비 · 선행: RP02 원격·로컬 병합 완료
 
 상위: [수용안 적용 계획](K-DOG_리포트수용안적용계획_v1.0_20261007.md). 연결: A02/A06, G02/P08, R18/R21~R23, T16/T27/T31, RP-T06~08.
 
@@ -37,7 +37,15 @@
 - HTML/PDF 렌더링 전후의 내용 hash가 같으며 교수 수정 후에는 새로운 지침/실행 판본을 사용한다.
 - 상태 `pending_G02` 제거만으로 끝내지 않고 실제 공급자 adapter와 fixture 종단 시험을 갖춘다. 실제 공급자 품질 확인은 RP05로 분리한다.
 
-구현 후 backend에서 `uv run --locked python -X utf8 -m unittest tests.test_report_narrative_v4 tests.test_report_content_v4 tests.test_report_validation_v4 tests.test_report_runs_v4 tests.test_report_api_v4 -v`를 수행한다. `test_report_narrative_v4`는 신설 예정이며 현재 실행하지 않았다. 변경한 공급자·백업/삭제 경로의 기존 관련 시험도 Graft 영향 범위에 따라 추가한다.
+새 `test_report_narrative_v4`와 내용·검증·실행·API, 기존 설정·packaging·AI 사용량·Gemini adapter를 포함한 확대 회귀 94개가 146.341초에 통과했다. frontend build·리포트 E2E 3개가 20.6초에 통과했다. 실제 renderer·백업복원/삭제 추가 두 시험은 9.539초에 통과했다. 최종 문장 회귀 및 독립 cold review 결과는 [실행 기록](K-DOG_리포트구현실행기록_v1.0_20261007.md)에 이어 기록한다.
+
+## 실제 구현 인계
+
+- `report-narrative-20261007-rp03` 지침과 `report-run-20261007-rp03` 실행 계약을 추가했다. 새 `content_v4`만 텍스트 공급자를 사용하며 계획 한 호출·공유 최대 세 시도/세 호출·계약 수리 한 번으로 제한한다. schema·모델·지침 및 원입력 hash를 pin한다.
+- AI 문장의 숫자는 직접 받지 않고 `[[fact_id]]`를 프로그램 값·단위로 채운다. 설문은 `값 (원척도 눈금)`으로 표시하고 모델의 추가 단위·퍼센트 접미를 거절한다. 카드별 최종 유형 참조와 유형 명칭의 문장 근거 연결을 검사한다. 알 수 없는 근거·유형 불일치·숫자 변조·HTML/링크·명시적 견본 문구를 거절한다. 이 검사로 의미적 정답을 보장하지 않는다. [독립 cold review](K-DOG_PR-RP03_ColdReview_v1.0_20261007.md)의 두 재현을 수용했다.
+- 고정 입력 profile을 수정하지 않는다. 생성 assessment를 별도 content 단계의 점유/hash 봉투에 보존하고, 생성 profile hash와 content ref를 HTML/PDF·게시 manifest에 연결한다. 다운로드·인쇄·명시 재사용은 저장된 내용만 소비한다.
+- 완료 영역 의견 원문과 D39 우선 도움을 유지한다. 결측은 조언 근거로 사용하지 않으며 0~4 문항의 유효 0을 결측으로 취급하지 않는다. 검토 필요 원입력은 공급자 호출 없이 멈춘다. 공급자 장애·수리 실패를 정상 문장 완료로 위장하지 않는다.
+- 기존 S1 program-only 실행 시험은 보존 계약을 명시하는 역사 설정으로 유지하고 새 AI 실행 시험을 분리했다. 기존 선택 필드의 없는 값은 직렬화하지 않아 과거 발급 bytes를 유지한다. 공통 typed 백업/삭제 경로가 신규 참조를 보존·제거하는 것을 실제 시험으로 확인했다.
 
 ## 인계
 
