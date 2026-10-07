@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 from . import analysis, final_results_v4 as finals, report_scenes_v4 as scenes, sheets_v4 as sheets
 from .domain.catalog_v3 import SurveyCatalogV3
-from .domain.catalog_v4 import RESOURCES, load_catalog_v4, load_mapping_v4, validate_source_references_v4
+from .domain.catalog_v4 import RESOURCES, RUNTIME_SURVEY_POLICY_VERSION, SURVEY_POLICY_VERSION, load_catalog_v4, load_mapping_v4, validate_source_references_v4
 from .domain.final_results_v4 import FinalReferenceV4, FinalResultV4
 from .domain.report_profile_v4 import (CONTENT_VERSION, SELECTION_VERSION, ClaimV4, FactV4, ReportCardV4,
     ReportProfileV4, ReportSectionV4, ReportSourceV4, SceneV4, SurveyComparisonV4, TimelineIntervalV4, ValidationIssueV4)
@@ -19,8 +19,17 @@ ASSETS = ("report/content-v4.json", "report/feedback-candidates-v4.json", "mappi
           "mappings/survey-behavior-v4.json", "catalogs/behavior-v4.json", "catalogs/survey-v3.json", "rules/survey-policy-v4.json")
 
 
-def assets():
-    hashes = {name: hashlib.sha256((RESOURCES/name).read_bytes()).hexdigest() for name in ASSETS}
+def asset_names(survey_policy=RUNTIME_SURVEY_POLICY_VERSION):
+    if survey_policy == SURVEY_POLICY_VERSION:
+        return ASSETS
+    if survey_policy == RUNTIME_SURVEY_POLICY_VERSION:
+        return (*ASSETS[:-1], "rules/survey-policy-20261007.json")
+    raise ValueError("unsupported S1 survey policy")
+
+
+def assets(survey_policy=RUNTIME_SURVEY_POLICY_VERSION):
+    names = asset_names(survey_policy)
+    hashes = {name: hashlib.sha256((RESOURCES/name).read_bytes()).hexdigest() for name in names}
     content = json.loads((RESOURCES/ASSETS[0]).read_bytes())
     candidates = json.loads((RESOURCES/ASSETS[1]).read_bytes())
     validate_source_references_v4(content)
@@ -30,7 +39,7 @@ def assets():
     return content, hashes
 
 
-def build(final, final_ref, *, batch=None, common_events=()):
+def build(final, final_ref, *, batch=None, common_events=(), survey_policy=RUNTIME_SURVEY_POLICY_VERSION):
     final = FinalResultV4.model_validate(final)
     final_ref = FinalReferenceV4.model_validate(final_ref)
     if final.final_id != final_ref.final_id or finals.domains_for(final.basic_document, final.opinion_document) != final.domains:
@@ -46,11 +55,11 @@ def build(final, final_ref, *, batch=None, common_events=()):
         raise ValueError("report batch belongs to another source")
     if doc.source.preprocess is not None and batch is None:
         raise ValueError("pinned preprocessing batch must be supplied and verified")
-    policy, hashes = assets()
+    policy, hashes = assets(survey_policy)
     templates = policy["templates"]
     catalog = {item.code: item for item in load_catalog_v4().rated_items()}
     survey_catalog = SurveyCatalogV3.model_validate_json((RESOURCES/"catalogs/survey-v3.json").read_bytes())
-    survey = survey_scores_v4(doc.source.session, survey_catalog)
+    survey = survey_scores_v4(doc.source.session, survey_catalog, policy_version=survey_policy)
     source = ReportSourceV4(final=final_ref, basic=final.basic, sheet=basic.input, input=doc.source.input,
         batch=doc.source.preprocess, survey=survey, asset_hashes=hashes,
         common_events_hash=analysis.digest([event.model_dump(mode="json") for event in common_events]),
@@ -230,7 +239,7 @@ def build(final, final_ref, *, batch=None, common_events=()):
 
 def validate_profile(profile, final, final_ref, *, batch=None, common_events=()):
     profile = ReportProfileV4.model_validate(profile)
-    expected = build(final, final_ref, batch=batch, common_events=common_events)
+    expected = build(final, final_ref, batch=batch, common_events=common_events, survey_policy=profile.source.survey.policy_version)
     if profile != expected:
         raise ValueError("report contains an unsupported claim, value, type, scene, source, or policy")
     return profile

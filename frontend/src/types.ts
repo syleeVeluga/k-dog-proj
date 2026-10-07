@@ -88,10 +88,10 @@ export type SurveyResultV3 = {
 };
 
 export type SurveyResultV4 = Omit<SurveyResultV3, 'comparison_status' | 'domains'> & {
-  policy_version: 'survey-policy-20261002-s1.1';
+  policy_version: 'survey-policy-20261002-s1.1' | 'survey-policy-20261007-rp01';
   calculation_status: 'complete' | 'partial' | 'unavailable';
   external_comparison_status: 'pending_approval'; external_comparison_reason: string;
-  domains: { domain: string; question_ids: string[]; answered_count: number; target_count: number; mean: number | null; denominator: number | null; aggregation: 'mean' | 'reverse_mean' | 'single_raw'; status: 'calculated' | 'policy_pending' | 'insufficient_responses' | 'missing'; reason: string | null }[];
+  domains: { domain: string; question_ids: string[]; missing_question_ids: string[]; answered_count: number; target_count: number; mean: number | null; denominator: number | null; aggregation: 'mean' | 'reverse_mean' | 'single_raw'; status: 'calculated' | 'policy_pending' | 'insufficient_responses' | 'missing'; reason: string | null }[];
   items: { item_id: string; raw: number | null; converted: number | null; reverse_scored: boolean; blank_reason: string | null }[];
   pending_policies: string[];
 };

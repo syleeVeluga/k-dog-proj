@@ -6,7 +6,7 @@ from pydantic import Field, model_validator
 
 from .domain.catalog_v3 import SurveyCatalogV3
 from .domain.catalog_v4 import (ContractV4, RESOURCES, SourceV4, SURVEY_POLICY_VERSION,
-                                SURVEY_VERSION, Text)
+                                RUNTIME_SURVEY_POLICY_VERSION, SurveyPolicyVersion, SURVEY_VERSION, Text)
 from .input_models_v4 import SessionV4
 
 QuestionId = Annotated[str, Field(pattern=r"^s(0[1-9]|1[0-9]|2[0-8])$")]
@@ -20,9 +20,10 @@ class SurveyGroupPolicyV4(ContractV4):
 
 
 class SurveyPolicyV4(ContractV4):
-    version: Literal["survey-policy-20261002-s1.1"] = SURVEY_POLICY_VERSION
+    version: SurveyPolicyVersion = SURVEY_POLICY_VERSION
     survey_version: Literal["survey-20260929-v3"] = SURVEY_VERSION
     source: SourceV4
+    decision_reference: Text | None = None
     groups: tuple[SurveyGroupPolicyV4, ...]
     registration_completion: Literal["unconfirmed"]
     external_comparison: Literal["pending_D06"]
@@ -37,7 +38,7 @@ class SurveyPolicyV4(ContractV4):
             single = len(group.question_ids) == 1
             fear = group.question_ids[0] in ("s10", "s12")
             aggregation = "single_raw" if single else "reverse_mean" if group.question_ids[0] == "s26" else "mean"
-            missing = "missing" if single else "insufficient_responses" if fear else "policy_pending"
+            missing = "missing" if single else "insufficient_responses" if fear or self.version == RUNTIME_SURVEY_POLICY_VERSION else "policy_pending"
             if (group.aggregation, group.partial_status) != (aggregation, missing):
                 raise ValueError("S1 confirmed fear policy and pending D05 policy must remain distinct")
         return self
@@ -71,7 +72,7 @@ class SurveyDomainV4(ContractV4):
 
 class SurveyResultV4(ContractV4):
     survey_version: Literal["survey-20260929-v3"] = SURVEY_VERSION
-    policy_version: Literal["survey-policy-20261002-s1.1"] = SURVEY_POLICY_VERSION
+    policy_version: SurveyPolicyVersion = SURVEY_POLICY_VERSION
     policy_source: SourceV4
     session_id: Text
     status: Literal["calculated", "partial", "unregistered"]
@@ -88,17 +89,24 @@ class SurveyResultV4(ContractV4):
     pending_policies: tuple[Text, ...]
 
 
-def load_survey_policy_v4() -> SurveyPolicyV4:
-    return SurveyPolicyV4.model_validate_json((RESOURCES / "rules/survey-policy-v4.json").read_bytes())
+def load_survey_policy_v4(policy_version=RUNTIME_SURVEY_POLICY_VERSION) -> SurveyPolicyV4:
+    paths = {SURVEY_POLICY_VERSION: "rules/survey-policy-v4.json",
+             RUNTIME_SURVEY_POLICY_VERSION: "rules/survey-policy-20261007.json"}
+    if policy_version not in paths:
+        raise ValueError("unsupported S1 survey policy")
+    policy = SurveyPolicyV4.model_validate_json((RESOURCES / paths[policy_version]).read_bytes())
+    if policy.version != policy_version:
+        raise ValueError("survey policy asset version differs")
+    return policy
 
 
-def survey_scores_v4(session: SessionV4, catalog: SurveyCatalogV3) -> SurveyResultV4:
+def survey_scores_v4(session: SessionV4, catalog: SurveyCatalogV3, *, policy_version=RUNTIME_SURVEY_POLICY_VERSION) -> SurveyResultV4:
     # Stored sessions contain mutable dictionaries; validate before reading them.
     if any(answer is not None and type(answer) is not int for answer in session.survey.values()):
         raise ValueError("survey answers must be raw integers or null, not coerced values")
     session = SessionV4.model_validate_json(session.model_dump_json())
     catalog = SurveyCatalogV3.model_validate(catalog)
-    policy = load_survey_policy_v4()
+    policy = load_survey_policy_v4(policy_version)
     if session.survey_version != policy.survey_version or catalog.version != policy.survey_version:
         raise ValueError("S1 aggregation requires the original survey-20260929-v3 responses")
     values = tuple(SurveyValueV4(
@@ -120,7 +128,8 @@ def survey_scores_v4(session: SessionV4, catalog: SurveyCatalogV3) -> SurveyResu
         complete = not missing
         status = "calculated" if complete else "missing" if not present else group.partial_status
         reason = None if complete else "원응답 없음" if not present else (
-            "확정 두려움 묶음 규칙: 하나라도 결측이면 해당 묶음 미산출" if status == "insufficient_responses"
+            ("확정 두려움 묶음 규칙: 하나라도 결측이면 해당 묶음 미산출" if ids[0] in ("s10", "s12")
+             else "전체 응답 필요: 누락 문항 보완 전 해당 묶음 미산출") if status == "insufficient_responses"
             else "D05 부분 결측 산출 정책 미확정: 부분평균과 0 대체를 적용하지 않음")
         domains.append(SurveyDomainV4(
             domain=questions[ids[0]].report_domain, question_ids=ids, aggregation=group.aggregation,
@@ -135,7 +144,9 @@ def survey_scores_v4(session: SessionV4, catalog: SurveyCatalogV3) -> SurveyResu
     if any(domain.status == "policy_pending" for domain in domains):
         pending.append("D05 비공포 묶음의 부분 결측 산출 정책 확인 대기")
     return SurveyResultV4(
-        session_id=session.session_id, policy_source=policy.source,
+        session_id=session.session_id, policy_version=policy.version,
+        policy_source=policy.source if policy.decision_reference is None else policy.source.model_copy(
+            update={"location": f"{policy.source.location}; 후속 결정: {policy.decision_reference}"}),
         status="calculated" if count == 28 else "partial" if count or reasons else "unregistered",
         calculation_status="complete" if calculated == 9 else "partial" if calculated else "unavailable",
         answered_count=count, blank_reason_count=reasons,

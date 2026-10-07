@@ -28,7 +28,7 @@ from .storage import encode, now, uid
 from .survey_v4 import survey_scores_v4
 
 ACTION = "export.s1.issue"
-ASSETS = ("catalogs/behavior-v4.json", "catalogs/survey-v3.json", "rules/survey-policy-v4.json")
+ASSETS = ("catalogs/behavior-v4.json", "catalogs/survey-v3.json", "rules/survey-policy-20261007.json")
 
 
 def _assets():
@@ -247,6 +247,11 @@ def _snapshot(store, value, user):
     catalog = load_catalog_v4()
     survey_catalog = SurveyCatalogV3.model_validate_json((RESOURCES/"catalogs/survey-v3.json").read_bytes())
     surveys = tuple(survey_scores_v4(member.sheet.source.session,survey_catalog) for member in members)
+    if cohort and any((survey.survey_version, survey.policy_version) != (cohort.survey_version, cohort.survey_policy) for survey in surveys):
+        raise HTTPException(409, "연구 설문과 선택 집단의 문항·집계 정책 판본이 다릅니다.")
+    if any((entry.gate.scope.survey_version, entry.gate.scope.policy_version) != (surveys[0].survey_version, surveys[0].policy_version)
+           for comparison in external for entry in comparison.entries):
+        raise HTTPException(409, "연구 설문과 외부 비교의 문항·집계 정책 판본이 다릅니다.")
     if _assets() != assets:raise HTTPException(409,"연구 파일 생성 중 카탈로그·설문 정책이 변경되었습니다.")
     return ExportSnapshotV4(export_id=uid(), request_id=value.request_id, request_hash=analysis.digest(value.model_dump(mode="json")),
         actor=user.username, created_at=now(), reason=value.reason, format=value.format, members=tuple(members), excluded=tuple(excluded),
@@ -388,9 +393,10 @@ def tables(snapshot):
                 "config_sha256":member.report.config_hash,"html_sha256":member.report.output.html.hash,"pdf_sha256":member.report.output.pdf.hash,
                 "state":member.report.publication_state,"cohort_sha256":member.report.cohort.reference.hash if member.report.cohort else None})
         for question in survey.items:
-            output["survey_responses"].append({**base,**question.model_dump(mode="json"),"blank_reason":_text(snapshot,question.blank_reason)})
+            output["survey_responses"].append({**base,"survey_version":survey.survey_version,"policy_version":survey.policy_version,
+                **question.model_dump(mode="json"),"blank_reason":_text(snapshot,question.blank_reason)})
         for domain in survey.domains:
-            output["survey_domains"].append({**base,**domain.model_dump(mode="json")})
+            output["survey_domains"].append({**base,"survey_version":survey.survey_version,"policy_version":survey.policy_version,**domain.model_dump(mode="json")})
         required = [item.code for item in catalog.items if item.usage == "numeric" and not item.optional]
         nulls = sum(not observations.get(code) or observations[code].value is None for code in required)
         valid = sum(row.status == "observed" and row.validity == "valid" and type(row.value) is int for row in doc.sheet.observations)
@@ -400,7 +406,8 @@ def tables(snapshot):
     output["excluded"] = [{key:value for key,value in row.items() if key != "case_id"} for row in snapshot.excluded]
     if snapshot.cohort:
         for domain in snapshot.cohort.domains:
-            output["comparisons"].append({"source":"selected_own_cohort","snapshot_sha256":snapshot.cohort.reference.hash,**domain.model_dump(mode="json")})
+            output["comparisons"].append({"source":"selected_own_cohort","snapshot_sha256":snapshot.cohort.reference.hash,
+                "survey_version":snapshot.cohort.survey_version,"policy_version":snapshot.cohort.survey_policy,**domain.model_dump(mode="json")})
     for external in snapshot.external_comparisons:
         member = _external_member(snapshot.members, external)
         for entry in external.entries:

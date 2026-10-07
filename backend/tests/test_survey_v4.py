@@ -49,12 +49,12 @@ class SurveyV4Tests(unittest.TestCase):
                 self.assertEqual(other.mean, 1.0)
                 self.assertTrue(other.same_edition_value_available)
 
-    def test_t25_nonfear_partial_policy_does_not_block_complete_fear(self):
+    def test_t25_nonfear_missing_responses_do_not_block_complete_fear(self):
         result = self.result(s01=5, s07=1, s15=2, s22=3, s26=1, s10=0, s11=2)
         for first in ("s01", "s07", "s15", "s22", "s26"):
             domain = self.domain(result, first)
-            self.assertEqual(domain.status, "policy_pending")
-            self.assertIn("D05", domain.reason)
+            self.assertEqual(domain.status, "insufficient_responses")
+            self.assertIn("누락 문항 보완", domain.reason)
             self.assertIsNone(domain.denominator)
             self.assertIsNone(domain.mean)
         self.assertEqual(self.domain(result, "s10").mean, 1.0)
@@ -67,6 +67,37 @@ class SurveyV4Tests(unittest.TestCase):
             domain = self.domain(result, first)
             self.assertEqual((domain.mean, domain.denominator, domain.status), (3.0, denominator, "calculated"))
         self.assertEqual(self.domain(result, "s10").status, "missing")
+
+    def test_rp01_every_missing_position_holds_only_its_group_and_preserves_raw_input(self):
+        answers = {f"s{n:02}": 0 if 10 <= n <= 14 else 3 for n in range(1, 29)}
+        for question in answers:
+            with self.subTest(question=question):
+                session = self.session(**{**answers, question: None})
+                before = session.model_dump_json()
+                result = survey_scores_v4(session, self.catalog)
+                self.assertEqual(session.model_dump_json(), before)
+                self.assertFalse(any("D05" in reason for reason in result.pending_policies))
+                if question == "s25":
+                    self.assertIsNone(result.standalone.raw)
+                    self.assertTrue(all(domain.status == "calculated" for domain in result.domains))
+                else:
+                    held = next(domain for domain in result.domains if question in domain.question_ids)
+                    self.assertEqual(held.missing_question_ids, (question,))
+                    self.assertEqual((held.mean, held.numerator, held.denominator), (None, None, None))
+                    self.assertEqual(held.status, "missing" if question == "s24" else "insufficient_responses")
+                    self.assertTrue(all(domain.status == "calculated" for domain in result.domains if domain != held))
+
+    def test_previous_s1_policy_is_explicit_and_keeps_pending_partial_status(self):
+        session = self.session(s01=3, s10=0, s11=2)
+        previous = survey_scores_v4(session, self.catalog, policy_version="survey-policy-20261002-s1.1")
+        self.assertEqual(self.domain(previous, "s01").status, "policy_pending")
+        self.assertNotIn("후속 결정", previous.policy_source.location)
+        current = survey_scores_v4(session, self.catalog)
+        self.assertEqual(self.domain(current, "s01").status, "insufficient_responses")
+        self.assertIn("A01", current.policy_source.location)
+        self.assertEqual(self.domain(previous, "s10").mean, self.domain(current, "s10").mean)
+        with self.assertRaises(ValueError):
+            survey_scores_v4(session, self.catalog, policy_version="unapproved")
 
     def test_q24_and_q25_stay_separate_raw_single_values(self):
         result = self.result(s24=5, s25=1)
@@ -95,7 +126,7 @@ class SurveyV4Tests(unittest.TestCase):
         self.assertIsNone(result.registration_complete)
         self.assertEqual(result.external_comparison_status, "pending_approval")
         self.assertTrue(all(domain.same_edition_value_available for domain in result.domains))
-        self.assertEqual((result.schema_version, result.policy_version), ("4.0", "survey-policy-20261002-s1.1"))
+        self.assertEqual((result.schema_version, result.policy_version), ("4.0", "survey-policy-20261007-rp01"))
 
     def test_no_answers_and_recorded_blank_reasons_remain_missing(self):
         empty = self.result()
@@ -129,7 +160,7 @@ class SurveyV4Tests(unittest.TestCase):
         policy = load_survey_policy_v4().model_dump(mode="json")
         for mutate in (lambda p: p.update(version="old-policy"),
                        lambda p: p["source"].update(sha256="0" * 64),
-                       lambda p: p["groups"][1].update(partial_status="insufficient_responses"),
+                       lambda p: p["groups"][1].update(partial_status="policy_pending"),
                        lambda p: p["groups"][2].update(question_ids=["s10", "s11", "s12"])):
             with self.subTest(mutate=mutate), self.assertRaises(ValidationError):
                 data = deepcopy(policy)

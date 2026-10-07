@@ -55,13 +55,38 @@ class ComparisonFixture(unittest.TestCase):
 
 
 class CohortComparisonV4Tests(ComparisonFixture):
+    def test_rp01_previous_policy_snapshot_read_is_immutable_and_new_policy_is_explicit(self):
+        from app.survey_v4 import survey_scores_v4
+        previous = 'survey-policy-20261002-s1.1'
+        original_assets = compare.assets
+        def old_scores(session, catalog, **kwargs):
+            return survey_scores_v4(session, catalog, policy_version=previous)
+        with patch.object(compare, 'RUNTIME_SURVEY_POLICY_VERSION', previous), \
+             patch.object(compare, 'survey_scores_v4', side_effect=old_scores), \
+             patch.object(compare, 'assets', side_effect=lambda *args: original_assets(previous)):
+            old = self.create('old-policy')
+        before = self.store.path(old.reference.ref).read_bytes()
+        shown = compare.view(self.store, old.reference.snapshot_id, self.user)
+        public = compare.for_report(self.store, old.reference, self.user)
+        self.assertEqual(shown.document.survey_policy, previous)
+        self.assertEqual(public.survey_policy, previous)
+        self.assertEqual(self.store.path(old.reference.ref).read_bytes(), before)
+        new = self.create('new-policy')
+        self.assertEqual(new.document.survey_policy, 'survey-policy-20261007-rp01')
+        self.assertEqual(compare.for_report(self.store, new.reference, self.user).survey_policy, new.document.survey_policy)
+        with self.assertRaisesRegex(ValueError, 'mixed'):
+            compare.aggregate((old.document.members[0], new.document.members[1]))
+        with self.assertRaises(ValueError):
+            type(old.document).model_validate_json(
+                encode({**old.document.model_dump(mode='json'), 'members': [old.document.members[0].model_dump(mode='json'), new.document.members[1].model_dump(mode='json')]}))
+
     def test_per_domain_valid_n_zero_and_undecided_partial_means(self):
         value=self.create()
         rows={row.domain:row for row in value.document.domains}
         self.assertEqual((rows['낯선 사람 두려움'].mean,rows['낯선 사람 두려움'].n),(1.5,2))
         self.assertEqual((rows['비사회적 두려움'].mean,rows['비사회적 두려움'].n),(2,1))
         self.assertEqual((rows['가르치는 방식'].mean,rows['가르치는 방식'].n),(2,1))
-        self.assertEqual(rows['가르치는 방식'].excluded[self.ids[1]],'policy_pending')
+        self.assertEqual(rows['가르치는 방식'].excluded[self.ids[1]],'insufficient_responses')
         self.assertEqual((rows['감정의 일관성'].mean,rows['감정의 일관성'].n),(None,0))
         self.assertEqual(rows['일상 따라옴 (Q25 단일 응답)'].n,1)
         public=compare.for_report(self.store,value.reference,self.user)
@@ -204,7 +229,7 @@ class ExternalComparisonGateV4Tests(ComparisonFixture):
         from app.domain.comparisons_v4 import ComparisonScopeV4
         pointer=self.confirmation();self.activate(pointer)
         target=compare.target_scope('us2026-stranger-fear')
-        for change in ({'survey_version':'old-1-5-comfort'},{'scale_minimum':1},{'direction':'higher_comfort'},
+        for change in ({'survey_version':'old-1-5-comfort'},{'policy_version':'survey-policy-20261002-s1.1'},{'scale_minimum':1},{'direction':'higher_comfort'},
                        {'question_text_hash':'0'*64},{'domain':'가르치는 방식'},{'missing_policy':'partial_mean'}):
             with self.subTest(change=change):
                 value=compare.external_for_report(self.store,'us2026-stranger-fear',target.model_copy(update=change),self.user)

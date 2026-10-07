@@ -9,7 +9,7 @@ from pydantic import Field,field_validator
 
 from . import analysis
 from .domain.catalog_v3 import SurveyCatalogV3
-from .domain.catalog_v4 import RESOURCES,validate_source_references_v4
+from .domain.catalog_v4 import RESOURCES,RUNTIME_SURVEY_POLICY_VERSION,SURVEY_POLICY_VERSION,validate_source_references_v4
 from .domain.comparisons_v4 import (CohortDomainV4,CohortMemberV4,CohortPublicDomainV4,CohortPublicV4,CohortReferenceV4,
     CohortSelectionV4,CohortSnapshotV4,ComparisonScopeV4,ExternalGateV4,ExternalValuesV4,ResearchConfirmationV4,
     ResearchReferenceV4,ResearchReviewV4,TechnicalActivationV4)
@@ -19,7 +19,7 @@ from .input_models import Model
 from .input_models_v4 import ManifestV4
 from .intake import selected_session
 from .storage import encode,now,uid
-from .survey_v4 import survey_scores_v4
+from .survey_v4 import load_survey_policy_v4,survey_scores_v4
 
 COHORT_ACTION="comparison.s1.snapshot"
 RESEARCH_ACTION="comparison.research"
@@ -106,8 +106,10 @@ def _account(db,user,*,admin=False):
     return row
 
 
-def assets():
-    return {name:hashlib.sha256((RESOURCES/name).read_bytes()).hexdigest() for name in SURVEY_ASSETS}
+def assets(policy_version=RUNTIME_SURVEY_POLICY_VERSION):
+    load_survey_policy_v4(policy_version)
+    names = SURVEY_ASSETS if policy_version == SURVEY_POLICY_VERSION else (SURVEY_ASSETS[0], "rules/survey-policy-20261007.json")
+    return {name:hashlib.sha256((RESOURCES/name).read_bytes()).hexdigest() for name in names}
 
 
 def _sources():
@@ -156,7 +158,7 @@ def target_scope(source_id):
     source,_=_source(source_id)
     catalog=SurveyCatalogV3.model_validate_json((RESOURCES/SURVEY_ASSETS[0]).read_bytes())
     questions=[{"id":item.item_id,"text":item.text,"allowed_values":item.allowed_values} for item in catalog.items if item.item_id in source["question_ids"]]
-    return ComparisonScopeV4(survey_version="survey-20260929-v3",policy_version="survey-policy-20261002-s1.1",domain=source["domain"],
+    return ComparisonScopeV4(survey_version="survey-20260929-v3",policy_version=RUNTIME_SURVEY_POLICY_VERSION,domain=source["domain"],
         question_ids=tuple(source["question_ids"]),question_text_hash=analysis.digest(questions),scale_minimum=source["scale_minimum"],
         scale_maximum=source["scale_maximum"],direction=source["direction"],aggregation=source["aggregation"],missing_policy=source["missing_policy"])
 
@@ -186,7 +188,7 @@ def _write(store,kind,doc):
     return FileV4(ref=ref,hash=hashlib.sha256(data).hexdigest())
 
 
-def _member(store,db,selection,*,current=True):
+def _member(store,db,selection,*,current=True,policy_version=RUNTIME_SURVEY_POLICY_VERSION):
     case=store.case(db,selection.case_id,expected=selection.expected_revision if current else None)
     live=store.manifest(case)
     if not isinstance(live,ManifestV4):raise HTTPException(409,"S1 설문 입력만 자체 집단에 포함할 수 있습니다.")
@@ -200,12 +202,14 @@ def _member(store,db,selection,*,current=True):
     if session.survey_version!="survey-20260929-v3":raise HTTPException(422,"다른 원문·척도 설문을 자체 집단에 혼합할 수 없습니다.")
     catalog=SurveyCatalogV3.model_validate_json((RESOURCES/SURVEY_ASSETS[0]).read_bytes())
     return CohortMemberV4(case_id=selection.case_id,session_id=selection.session_id,input_revision=frozen.input_revision,
-        input=selection.input,survey=survey_scores_v4(session,catalog)),case
+        input=selection.input,survey=survey_scores_v4(session,catalog,policy_version=policy_version)),case
 
 
 def aggregate(members):
     if not members or len({member.case_id for member in members})!=len(members):raise ValueError("explicit distinct-case cohort required")
-    if any((member.survey.survey_version,member.survey.policy_version)!=("survey-20260929-v3","survey-policy-20261002-s1.1") for member in members):
+    policy = members[0].survey.policy_version
+    load_survey_policy_v4(policy)
+    if any((member.survey.survey_version,member.survey.policy_version)!=("survey-20260929-v3",policy) for member in members):
         raise ValueError("mixed survey edition or aggregation policy")
     definitions=members[0].survey.domains
     result=[]
@@ -231,10 +235,10 @@ def _validate_snapshot(store,db,pointer):
     doc=_read(store,pointer,CohortSnapshotV4)
     if (doc.snapshot_id,doc.revision)!=(pointer.snapshot_id,pointer.revision):raise HTTPException(409,"비교 참조가 다릅니다.")
     if _record(db,"comparison.deleted",doc.snapshot_id):raise HTTPException(403,"삭제된 대상이 포함된 집단입니다.")
-    if doc.asset_hashes!=assets():raise HTTPException(409,"다른 설문 집계 정책의 집단입니다.")
+    if doc.asset_hashes!=assets(doc.survey_policy):raise HTTPException(409,"다른 설문 집계 정책의 집단입니다.")
     outdated=[]
     for member in doc.members:
-        current,row=_member(store,db,CohortSelectionV4(case_id=member.case_id,session_id=member.session_id,expected_revision=member.input_revision,input=member.input),current=False)
+        current,row=_member(store,db,CohortSelectionV4(case_id=member.case_id,session_id=member.session_id,expected_revision=member.input_revision,input=member.input),current=False,policy_version=doc.survey_policy)
         if current!=member:raise HTTPException(409,"집단의 고정 설문 산출이 원자료와 다릅니다.")
         if (row["manifest_ref"],row["manifest_hash"])!=(member.input.manifest_ref,member.input.manifest_hash):outdated.append(member.case_id)
     if aggregate(doc.members)!=doc.domains:raise HTTPException(409,"집단 평균·유효 n이 고정 원자료와 다릅니다.")
@@ -254,7 +258,7 @@ def create(store,value:CohortCreateV4,user):
             return view(store,previous["snapshot_id"],user)
         members=tuple(_member(store,db,selection)[0] for selection in value.members)
     doc=CohortSnapshotV4(snapshot_id=uid(),title=value.title,actor=user.username,recorded_at=now(),reason=value.reason,
-        asset_hashes=assets(),members=members,domains=aggregate(members))
+        survey_policy=RUNTIME_SURVEY_POLICY_VERSION,asset_hashes=assets(),members=members,domains=aggregate(members))
     file=_write(store,"cohorts",doc)
     pointer=CohortReferenceV4(snapshot_id=doc.snapshot_id,ref=file.ref,hash=file.hash)
     with store.connect(write=True) as db:
@@ -313,7 +317,7 @@ def for_report(store,pointer,user):
     value=view(store,pointer.snapshot_id,user)
     if value.reference!=pointer:raise HTTPException(409,"명시한 비교 snapshot의 고정 참조가 다릅니다.")
     doc=value.document
-    return CohortPublicV4(reference=pointer,title=doc.title,selection_count=len(doc.members),selection_note=doc.identity_limitation,
+    return CohortPublicV4(reference=pointer,title=doc.title,survey_policy=doc.survey_policy,selection_count=len(doc.members),selection_note=doc.identity_limitation,
         domains=tuple(CohortPublicDomainV4(domain=row.domain,question_ids=row.question_ids,scale_minimum=row.scale_minimum,
             scale_maximum=row.scale_maximum,mean=row.mean,n=row.n,excluded_count=len(row.excluded),exclusion_reasons=dict(Counter(row.excluded.values()))) for row in doc.domains))
 
