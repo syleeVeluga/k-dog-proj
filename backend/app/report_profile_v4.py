@@ -39,7 +39,7 @@ def assets(survey_policy=RUNTIME_SURVEY_POLICY_VERSION):
     return content, hashes
 
 
-def build(final, final_ref, *, batch=None, common_events=(), survey_policy=RUNTIME_SURVEY_POLICY_VERSION):
+def build(final, final_ref, *, batch=None, common_events=(), survey_policy=RUNTIME_SURVEY_POLICY_VERSION, presentation_version=None):
     final = FinalResultV4.model_validate(final)
     final_ref = FinalReferenceV4.model_validate(final_ref)
     if final.final_id != final_ref.final_id or finals.domains_for(final.basic_document, final.opinion_document, final.attachment_assessment) != final.domains:
@@ -167,7 +167,7 @@ def build(final, final_ref, *, batch=None, common_events=(), survey_policy=RUNTI
         walk_claims = [claim("card:walking",templates["walking_missing"],("policy:walking",))]
     cards.append(ReportCardV4(key="walking",title="함께걷기",status="available" if valid_walk else "insufficient",claims=keep(*walk_claims)))
 
-    chosen, scene_review = scenes.select(final, common_events)
+    chosen, scene_review = scenes.select(final, common_events) if presentation_version is None else ((), ())
     selected_scenes = []
     for index, item in enumerate(chosen):
         selected_scenes.append(SceneV4(scene_id="scene-"+analysis.digest(item.event_id)[:16],common_event_id=item.event_id,domain=item.domain,
@@ -238,14 +238,15 @@ def build(final, final_ref, *, batch=None, common_events=(), survey_policy=RUNTI
                 reference_start_seconds=interval.start_sec-offset if interval.start_sec is not None and offset is not None else None,
                 reference_end_seconds=interval.end_sec-offset if interval.end_sec is not None and offset is not None else None,reason=interval.reason))
     return ReportProfileV4(profile_id="profile-"+source_hash[:24],case_id=final.case_id,session_id=final.session_id,source=source,source_hash=source_hash,
-        status=status,timeline=tuple(timeline),cards=tuple(cards),facts=tuple(facts.values()),scenes=tuple(selected_scenes),scene_notice=templates["no_scenes"] if not selected_scenes else None,
+        status=status,timeline=tuple(timeline),cards=tuple(cards),facts=tuple(facts.values()),scenes=tuple(selected_scenes),scene_notice=templates["no_scenes"] if not selected_scenes and presentation_version is None else None,
+        presentation_version=presentation_version,
         scene_review=scene_review,comparisons=tuple(comparisons),details=tuple(details),summary=summary,actions=tuple(actions),
         actions_notice=templates["actions_missing"] if not actions else None,validation_issues=tuple(issues))
 
 
 def validate_profile(profile, final, final_ref, *, batch=None, common_events=()):
     profile = ReportProfileV4.model_validate(profile)
-    expected = build(final, final_ref, batch=batch, common_events=common_events, survey_policy=profile.source.survey.policy_version)
+    expected = build(final, final_ref, batch=batch, common_events=common_events, survey_policy=profile.source.survey.policy_version, presentation_version=profile.presentation_version)
     if profile.narrative is not None:
         from .report_narrative_v4 import validate
         # External comparison is a separately validated explicit output selection.
@@ -257,7 +258,7 @@ def validate_profile(profile, final, final_ref, *, batch=None, common_events=())
     return profile
 
 
-def from_final(store, case_id, session_id, final_id, user, viewer_sheet_id=None):
+def from_final(store, case_id, session_id, final_id, user, viewer_sheet_id=None, *, presentation_version=None):
     shown = finals.view(store,case_id,session_id,final_id,user,viewer_sheet_id)
     final = FinalResultV4.model_validate_json(encode(shown["document"]))
     pointer = FinalReferenceV4.model_validate_json(encode(shown["reference"]))
@@ -279,7 +280,7 @@ def from_final(store, case_id, session_id, final_id, user, viewer_sheet_id=None)
             for step in db.execute("SELECT * FROM steps WHERE run_id=? AND stage='score_v4' AND status='succeeded'",(doc.ai_run_id,)):
                 common.extend(scenes.events_from_ai(snapshot,stages[step["branch_key"]],analysis.step_payload(store,row,step),step["output_ref"],step["output_hash"]))
     identities = sheets._source_identities(store,doc.source)
-    result = build(final,pointer,batch=batch,common_events=tuple(common))
+    result = build(final,pointer,batch=batch,common_events=tuple(common),presentation_version=presentation_version)
     with store.connect() as db:
         from .opinions_v4 import selected_basic
         selected_basic(store,db,case_id,session_id,final.basic,user,viewer_sheet_id)

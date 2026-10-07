@@ -36,7 +36,7 @@ class ReportStageV4(ContractV4):
 
 
 class ReportConfigV4(ContractV4):
-    version: Literal["report-run-20261002-s1.1-1", "report-run-20261007-rp03"] = REPORT_RUN_VERSION
+    version: Literal["report-run-20261002-s1.1-1", "report-run-20261007-rp03", "report-run-20261007-rp04"] = REPORT_RUN_VERSION
     stages: tuple[ReportStageV4, ...]
     max_attempts: Annotated[int, Field(ge=1, le=3)] = 3
     max_schema_repairs: Annotated[int, Field(ge=0, le=1)] = 0
@@ -51,7 +51,7 @@ class ReportConfigV4(ContractV4):
     def stage_order(self) -> Self:
         if tuple(item.stage for item in self.stages) != REPORT_STAGES:
             raise ValueError("report stages must preserve validation before publication")
-        generated = self.version == "report-run-20261007-rp03"
+        generated = self.version != REPORT_RUN_VERSION
         if sum(item.provider_call for item in self.stages) != int(generated) or bool(self.max_ai_calls) != generated or (self.provider_text_status == "generated_professor_test_pending") != generated:
             raise ValueError("report version and provider budget/status differ")
         return self
