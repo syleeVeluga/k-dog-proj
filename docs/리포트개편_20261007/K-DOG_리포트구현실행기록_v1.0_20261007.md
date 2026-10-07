@@ -1,6 +1,6 @@
 # K-DOG 리포트 개편 구현 실행 기록
 
-버전: v1.0 · 2026-10-07 · 최초 작업 기준: `main / aa3f3ac` · 상태: RP01~RP04 원격·로컬 병합 완료, RP05 기술 검증·수용 수정 완료
+버전: v1.0 · 2026-10-07 · 최초 작업 기준: `main / aa3f3ac` · 상태: RP01~RP05 기술 검증·원격/로컬 병합 완료, 실제 공급자·교수 검토·RP06 확정표 적용 대기
 
 상위: [수용안 적용 계획](K-DOG_리포트수용안적용계획_v1.0_20261007.md). 이 대장은 제품 구현과 원격·로컬 병합의 실제 근거를 기록한다. 교수 검토·실제 공급자·외부 기준표 수령을 합성 자동 검증과 구별한다.
 
@@ -12,8 +12,8 @@
 | [RP02](K-DOG_PR-RP02_AI애착판단_v1.0_20261007.md) | 완료, [수용 3건](K-DOG_PR-RP02_ColdReview_v1.0_20261007.md) 반영 | [PR #55](https://github.com/syleeVeluga/k-dog-proj/pull/55), `35637f9` 원격·로컬 일치 | 교수 적절성 검토는 기술 합성 검증과 별도 |
 | [RP03](K-DOG_PR-RP03_AI리포트문장_v1.0_20261007.md) | 완료, [수용 2건](K-DOG_PR-RP03_ColdReview_v1.0_20261007.md) 반영 | [PR #56](https://github.com/syleeVeluga/k-dog-proj/pull/56), `66984cf` 원격·로컬 일치 | 교수 문장 품질은 실제 검토 대기 |
 | [RP04](K-DOG_PR-RP04_장면제거와출력개편_v1.0_20261007.md) | 완료, [수용 1건](K-DOG_PR-RP04_ColdReview_v1.0_20261007.md) 반영 | [PR #57](https://github.com/syleeVeluga/k-dog-proj/pull/57), `15c4065` 원격·로컬 일치 | 실제 공급자/전문 품질은 별도 |
-| [RP05](K-DOG_PR-RP05_통합검증과교수검토_v1.0_20261007.md) | 기술 검증 완료, [수용 2건](K-DOG_PR-RP05_ColdReview_v1.0_20261007.md) 반영 | PR 생성 준비 | 실제 공급자·교수 검토 대기 |
-| [RP06](K-DOG_PR-RP06_외부비교기준표적용_v1.0_20261007.md) | 조건부 대기 | 미실행 | 교수 확정 두 기준표는 계획상 미수령; 자료 위치를 사용자에게 확인 중 |
+| [RP05](K-DOG_PR-RP05_통합검증과교수검토_v1.0_20261007.md) | 기술 검증 완료, [수용 2건](K-DOG_PR-RP05_ColdReview_v1.0_20261007.md) 반영 | [PR #58](https://github.com/syleeVeluga/k-dog-proj/pull/58), `edeb63b` 원격·로컬 일치 | 실제 공급자·교수 검토 대기 |
+| [RP06](K-DOG_PR-RP06_외부비교기준표적용_v1.0_20261007.md) | 수령 전 합성 검증·[독립 review](K-DOG_PR-RP06_ColdReview_v1.0_20261007.md) 완료, 발견 0건 | 수령 전 범위 PR 준비 | 교수 확정 두 기준표 미수령; 실제 적용 미실행 |
 
 ### RP01 실행
 
@@ -109,6 +109,16 @@ RP05 구현 commit `c17e150`. 전체 backend 명령은 646개, 682.571초에 643
 독립 cold review 두 P2를 수용했다. PDF를 최초 발급본으로 바꿔 반환해도 통과하던 검증을 실제 텍스트의 완료 원문·D39·최종 유형 및 bytes 차이 검사로 보완했고 변조가 예상대로 실패했다(47.028초). 독립 정상 종단 1개, 60.535초 및 실제 두 쌍 리허설 1개, 31.831초에 통과했으며 추가 미해결 발견은 없다. S1 추출 8개 source verified·SRC02/SRC03 hash 일치, 실제 공급자 호출/운영 데이터 초기화 0회를 유지한다.
 
 RP05 PDF 검증의 dev-only `pypdf==6.19.0` 추가는 [cold review의 공식 버전·API 근거](K-DOG_PR-RP05_ColdReview_v1.0_20261007.md)에 기록했다. 제품 의존성과 기존 고정판을 바꾸지 않았다. RP-T12 교수 검토와 RP06 두 기준표 적용은 미수령·미실행이다.
+
+### RP05 병합·RP06 수령 전 실행
+
+RP05 최종 head `ad5193285ae9d606312f52a533cc147346c3459d`의 checks/statuses 없음 및 `CLEAN`/`MERGEABLE`을 확인했다. CI 통과로 표시하지 않는다. `--match-head-commit`으로 2026-10-07 15:48:54 UTC [PR #58](https://github.com/syleeVeluga/k-dog-proj/pull/58)을 병합했다. merge commit `edeb63beb3f37ca295621b7a3c8b26153ffbbf2a`로 로컬 `main`과 `origin/main` 일치를 확인했다. 문서 18개·committed 상대 링크 284개 및 `git diff --check`를 확인했다.
+
+RP06은 실제 확정표 미수령 상태다. 기존 S13/S17의 조건부 확인·활성화·snapshot을 새 문장/디자인에 연결한 수령 전 합성 회귀만 추가했다. `tests.test_external_report_acceptance_v4 tests.test_external_comparisons_v4 tests.test_external_exports_v4 tests.test_comparisons_v4` 39개, 41.145초에 통과했다. actual provider 호출 0회·새 참고 수치/규칙/운영 활성화 0건이다. 교수 확정표의 API/HTML/PDF/CSV/XLSX 기대값 대조는 미실행이다.
+
+RP06 추가 renderer/실행 27개, 68.976초 및 frontend build/S1 E2E 9개, 1.0분에 통과했다. 실제 브라우저 비교 PDF는 이 합성 사례에서 6쪽이며 pypdf 6.19.0으로 0 평균·참고 평균·유효 연구 표본 텍스트를 확인했다. 고정 6쪽 기준이나 실제 교수표 수치 대조로 표시하지 않는다.
+
+RP06 독립 cold review는 신규 2개, 10.265초에 통과했고 actionable 발견은 0건이다. 새 참고 수치나 실제 승인 자산을 추가하지 않았다. 비교 PDF 6쪽의 전체 PNG 검수도 완료했다. 이 단계의 기술 PR은 수령 전 범위에 한정한다. 실제 공급자·RP-T12 교수 검토, 두 확정 기준표의 전사/기대값 검증/적용·운영 활성화는 미실행이다.
 
 ## 2 라이브러리·프레임워크 확인
 

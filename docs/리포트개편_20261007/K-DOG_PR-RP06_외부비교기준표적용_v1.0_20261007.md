@@ -1,6 +1,6 @@
 # PR-RP06 교수 확정 기준표에 따른 외부 비교 적용
 
-버전: v1.0 · 2026-10-07 · 상태: 조건부 계획·기준표 미수령·미구현 · 선행: RP05
+버전: v1.0 · 2026-10-07 · 상태: 수령 전 기술 검증·독립 검토 완료, 실제 확정표 적용은 미수령 대기 · 선행: RP05 기술 검증·원격/로컬 병합 완료, 실제 교수 검토 대기
 
 상위: [수용안 적용 계획](K-DOG_리포트수용안적용계획_v1.0_20261007.md). 연결: A04/A06, D06/P06, R19, S13/S17, O09, RP-T13/14.
 
@@ -63,5 +63,26 @@ RAG·임베딩·벡터 DB·파인튜닝·논문 전문을 AI에 전달하는 기
 - RP-T13/14: 표 미수령·일부 확정·범위 밖·문항/척도/방향/결측 차이·0/null·잘못된 표본·철회/정정 사례를 확인한다.
 - 교수 확정 표의 기대값과 API/HTML/PDF/CSV/XLSX 결과·출처·표본수·판본이 일치해야 한다.
 - 외부 자료가 없거나 제외된 경우에도 본인 결과·확정 자체 집단·HTML/PDF는 정상 동작한다.
-- 기존 `tests.test_external_comparisons_v4`, `tests.test_external_exports_v4`, `tests.test_comparisons_v4`, `tests.test_report_render_v4`, `tests.test_report_runs_v4`를 backend unittest로 실행한다. frontend build 후 S1 환경의 `tests/external-v4.spec.ts`, `tests/comparisons-v4.spec.ts`, `tests/exports-v4.spec.ts`, `tests/report-v4.spec.ts`를 검증한다. 현재는 미실행이다.
+- 기존 `tests.test_external_comparisons_v4`, `tests.test_external_exports_v4`, `tests.test_comparisons_v4`, `tests.test_report_render_v4`, `tests.test_report_runs_v4`를 backend unittest로 실행한다. frontend build 후 S1 환경의 `tests/external-v4.spec.ts`, `tests/comparisons-v4.spec.ts`, `tests/exports-v4.spec.ts`, `tests/report-v4.spec.ts`를 검증한다. 수령 전 기술 검증 결과는 아래와 [실행 기록](K-DOG_리포트구현실행기록_v1.0_20261007.md)에 구별해 기록한다.
 - 합성 테스트 통과, 두 기준표 수령/확정, 실제 데이터 적용 확인, 운영 활성화를 각각 기록한다. 일부 범위만 완료되면 그 지표만 명시한다.
+
+## 2026-10-08 수령 전 기술 검증
+
+RP05 [PR #58](https://github.com/syleeVeluga/k-dog-proj/pull/58)을 원격 병합하고 merge commit `edeb63b`로 로컬 `main`/`origin/main` 일치를 확인했다. 해당 기반에서 수령 전 합성 회귀만 추가했다. 실제 교수표를 전사한 기능 구현과 구분한다.
+
+- 새 [조건부 발급 회귀](../../backend/tests/test_external_report_acceptance_v4.py)는 기존 연구 확인·활성화·snapshot 계약을 임시 합성 저장소에만 적용한다. 실제 교수 승인 파일이나 임의의 새 참고 평균을 추가하지 않았다.
+- 새 RP03 문장→RP04 사진 없는 출력에 기존 조건부 snapshot의 정확한 대상/원입력 hash·문항 s10/s11·RP01 정책을 연결한다. 본인 유효 0 평균·응답 문항 수 2개와 외부 참고 평균·유효 연구 표본을 구별한다. HTML뿐 아니라 실제 PDF 텍스트도 확인한다.
+- 발급 후 철회는 제공을 차단하되 보관 bytes를 보존한다. 문장 생성 중 철회가 발생하면 정상 발급을 하지 않는다. 공급자 응답은 합성이고 실제 호출은 0회다.
+- 신규·기존 외부 비교/CSV·XLSX/자체 집단 39개, 41.145초 및 renderer/실행 27개, 68.976초에 통과했다. frontend build 및 S1 외부 비교/자체 집단/내보내기/리포트 E2E 9개, 1.0분에 통과했다. 브라우저의 실제 비교 PDF 6쪽에서 0 평균·참고 평균·유효 연구 표본 텍스트를 확인했다. 6쪽은 이 사례 결과이며 고정 요구가 아니다. 교수의 실제 표 기대값 검증으로 확대하지 않는다.
+
+| 수령·적용 구분 | 실제 상태 |
+| --- | --- |
+| 수령 전 새 발급 경로·기존 조건부 보호 | 합성 검증·독립 cold review 완료, 재현 가능한 발견 0건 |
+| 문항별 대조표 | 지정 요구사항 폴더와 계획/기록에서 확보하지 못함 |
+| 지표별 산출·출력 기준표 | 지정 요구사항 폴더와 계획/기록에서 확보하지 못함 |
+| 교수표의 수치·조건 전사 및 실제 적용 검증 | 미실행. 실제 두 표와 확인 판본/범위가 필요 |
+| 실제 외부 비교 운영 활성화 | 미실행 |
+
+지정 로컬 `docs/요구사항_20261003/`에는 이메일·SRC02 DOCX·SRC03 XLSX가 확인됐으며 SRC02/SRC03은 원본 목록 hash와 일치한다. 이 자료나 종전 논문 hash는 새 두 기준표의 수령/확정을 대신하지 않는다. 기준표 위치와 교수 검토 기록을 확인 중이며 미수령을 승인으로 간주하지 않는다.
+
+독립 [cold review](K-DOG_PR-RP06_ColdReview_v1.0_20261007.md)에서 신규 2개, 10.265초에 통과했고 추가 actionable 발견은 없었다. 브라우저 비교 PDF 6쪽도 전체 PNG 시각 검수했다. 수령 전 기술 범위의 완료 및 병합을 RP06 전체 완료로 표시하지 않는다.
