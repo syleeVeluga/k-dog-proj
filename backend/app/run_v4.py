@@ -218,7 +218,7 @@ def view(store, run_id, user):
             "status": row["status"], "updated_at": row["updated_at"], "outdated": row["input_revision"] != case["input_revision"] or row["session_id"] != case["selected_session_id"],
             "failure_code": row["failure_code"], "result_available": bool(row["result_ref"]), "steps": steps,
             "planned_provider_calls": sum(stage.provider_call for stage in config.stages), "reserved_calls": sum(step["call_reserved"] for step in steps),
-            "max_ai_calls": config.max_ai_calls, "judgement_status": "policy_pending_D04"}
+            "max_ai_calls": config.max_ai_calls, "judgement_status": "implemented_professor_test_pending" if any(stage.stage == "attachment_v4" for stage in config.stages) else "policy_pending_D04"}
 
 
 def action(store, run_id, value, user, *, retry=False):

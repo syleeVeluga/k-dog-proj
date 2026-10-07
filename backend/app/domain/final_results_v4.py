@@ -6,6 +6,7 @@ from .catalog_v4 import ContractV4, Hash, ItemCode, Text
 from .contracts_v4 import ATTACHMENT_TYPES, OWNER_TYPES, EvidenceV4
 from .media_v4 import MediaKey
 from .results_v4 import BasicResultV4, ResultReferenceV4
+from .attachment_v4 import AttachmentAssessmentV4, AttachmentReferenceV4
 
 DomainKeyV4 = Literal["attachment", "education_attitude", "people_response", "nonsocial_response", "environment", "tendency"]
 DOMAIN_LABELS = {"attachment": "애착", "education_attitude": "교육태도", "people_response": "사람 반응",
@@ -82,8 +83,8 @@ class FinalDomainV4(ContractV4):
     domain: DomainKeyV4
     label: Text | None = None
     text: Text | None = None
-    source: Literal["completed_opinion", "manual_selection", "basic"]
-    status: Literal["selected", "draft", "observation_text", "facts_available", "missing", "policy_pending"]
+    source: Literal["completed_opinion", "completed_opinion_inference", "manual_selection", "basic"]
+    status: Literal["selected", "draft", "held", "observation_text", "facts_available", "missing", "policy_pending"]
     reason: Text
     evidence_codes: tuple[ItemCode, ...] = ()
     counter_codes: tuple[ItemCode, ...] = ()
@@ -122,7 +123,9 @@ class FinalResultV4(ContractV4):
     domains: tuple[FinalDomainV4, ...]
     priority_help: Text | None = None
     independent_ai: bool = False
-    interpretation_policy: Literal["D04_pending"] = "D04_pending"
+    interpretation_policy: Literal["D04_pending", "attachment-20261007-rp02"] = "D04_pending"
+    attachment_inference: AttachmentReferenceV4 | None = Field(default=None, exclude_if=lambda value: value is None)
+    attachment_assessment: AttachmentAssessmentV4 | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def pinned_identity(self) -> Self:
@@ -133,6 +136,10 @@ class FinalResultV4(ContractV4):
             raise ValueError("final results preserve exactly six opinion domains")
         if (self.opinion is None) != (self.opinion_document is None):
             raise ValueError("opinion reference and source snapshot must be paired")
+        if (self.attachment_inference is None) != (self.attachment_assessment is None):
+            raise ValueError("opinion inference reference and snapshot must be paired")
+        if self.attachment_assessment and (not self.opinion_document or self.attachment_assessment.source != "completed_opinion_inference"):
+            raise ValueError("completed opinion inference requires the opinion source")
         if self.opinion_document:
             doc = self.opinion_document
             if (doc.case_id, doc.session_id, doc.opinion_id, doc.revision, doc.basic) != (self.case_id, self.session_id, self.opinion.opinion_id, self.opinion.revision, self.basic):

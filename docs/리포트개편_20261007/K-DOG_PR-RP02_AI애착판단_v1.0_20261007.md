@@ -1,10 +1,10 @@
 # PR-RP02 근거 기반 AI 애착 판단
 
-버전: v1.0 · 2026-10-07 · 상태: 계획·미구현 · 선행: RP01
+버전: v1.0 · 2026-10-07 · 상태: 구현·합성 검증·독립 cold review 및 수용 수정 완료 · 선행: RP01 원격·로컬 병합 완료
 
 상위: [수용안 적용 계획](K-DOG_리포트수용안적용계획_v1.0_20261007.md). 연결: A03, D04/P04, R04/R05, T11~13/T24/T32, RP-T04/05/07.
 
-브랜치 제안: `veluga/rp02-attachment-judgement` · PR 제목: `feat: generate evidence-linked attachment judgements`
+실행 브랜치: `veluga/rp02-attachment-ai` · PR 제목: `feat: generate evidence-linked attachment judgements`
 
 ## 문제와 목표
 
@@ -45,7 +45,17 @@
 - 원관찰/계산 성공 뒤 판단 timeout·잘못된 응답을 주입해 애착 보류와 유효 기본 결과 보존을 확인한다. 반대로 삭제/권한 철회/hash 변경에서는 부분 채택도 차단되는지 검사한다.
 - 유형 없는 완료 의견의 해석·수정·철회·명시 재실행에서 원채점 재호출과 과거 기본 결과 변경이 없고, 의견 revision이 다른 해석을 재사용하지 않는지 확인한다.
 
-구현 후 backend에서 `uv run --locked python -X utf8 -m unittest tests.test_attachment_ai_v4 tests.test_judgements_v4 tests.test_final_results_v4 tests.test_opinions_v4 tests.test_scoring_ai_v4 tests.test_ai_api_v4 tests.test_gemini_v4 tests.test_settings_v4 -v`를 수행한다. `test_attachment_ai_v4`는 신설 예정이다. frontend에서는 build 후 S1 환경의 `tests/judgements-v4.spec.ts`, `tests/opinions-v4.spec.ts`, `tests/scoring-ai-v4.spec.ts`를 실행한다. 현재는 미실행이다.
+위 backend 시험에 `test_run_v4`, 리포트 내용·검증·발급, export와 packaging을 추가한 확대 회귀 171개가 258.994초에 통과했다. 실제 공개 권한 절차를 거친 합성 공급자→기본 결과→최종본→리포트 근거 연결 추가 시험 1개도 21.674초에 통과했다. frontend build 및 S1의 `tests/judgements-v4.spec.ts`, `tests/opinions-v4.spec.ts`, `tests/scoring-ai-v4.spec.ts` 6개는 38.3초에 통과했고, 새 완료 의견 실행 UI 시험 1개는 7.5초에 통과했다. 실제 공급자 호출은 0회이며 전문적 적절성은 교수 테스트 대기이다.
+
+## 실제 구현과 검증 인계
+
+- 새 지침 `attachment-20261007-rp02`와 실행 설정 `ai-scoring-20261007-rp02`를 고정했다. 지침 hash는 JSON 내용의 canonical SHA-256이다. 과거 S1 원본·결과의 없는 선택 필드는 직렬화에 추가하지 않는다.
+- 관찰·계산 뒤 `attachment_v4`를 실행하고, 입력 hash·네 허용 유형·실제 근거 ID·반대 근거 검토·실험 조건을 검사한다. 근거 없이는 외부 호출 없이 보류한다. 공급자 오류는 제한된 재시도 후 애착 보류 및 `partial_failed`로 격리한다.
+- 유형 없는 완료 의견은 `attachment_v4` kind의 별도 실행/API와 UI에서 고정 기본·의견 revision/hash를 명시한다. 원채점 재호출·기본 결과 변경·GET 중 외부 호출 없이, 성공한 산출물 참조를 새 최종본에 연결한다. 의견 변경·철회·명시 유형은 재사용을 거절한다.
+- 원점수·계산·완료 의견 원문을 보존하고, 독립 AI와 완료 의견의 AI 후속 해석을 구별한다. 최종 애착 유형·사유·원관찰 근거가 리포트 카드의 같은 사실에 연결된다.
+- 별도 의견 실행도 호출 예약·시도·수리·비용 계량·점유·동의·계정·공개 권한·부모 및 원영상 hash 검사를 재사용한다. 실제 출력 품질·처리 시간·교수 검토를 합성 시험으로 대신하지 않는다.
+
+[독립 cold review](K-DOG_PR-RP02_ColdReview_v1.0_20261007.md)의 세 발견을 수용해 중복 요청 회복·live 수신/변환 계보·실제 최종 판단 출처를 수정했다. 관련 backend 66개(123.283초), frontend build·E2E 7개(44.4초), 재실행 유실 보완 E2E 1개(8.1초)가 통과했다. 원격·로컬 병합은 [구현 실행 기록](K-DOG_리포트구현실행기록_v1.0_20261007.md)에 이어 기록한다.
 
 ## 인계
 

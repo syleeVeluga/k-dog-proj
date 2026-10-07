@@ -98,6 +98,11 @@ def read_result(store, ref, digest):
         validate_source_references_v4(doc.rule_snapshot)
         if doc.rule_snapshot.get("version") != doc.rule_version:
             raise ValueError("rule snapshot version")
+        if doc.attachment_assessment:
+            from . import attachment_ai_v4
+            decision = attachment_ai_v4.validate(doc.attachment_assessment, doc.input_document, doc.input, doc.calculations.model_dump(mode="json"))
+            if doc.attachment_assessment.source != "independent_ai" or doc.input_document.sheet.rater_kind != "ai" or decision not in doc.automatic_decisions:
+                raise ValueError("attachment source and automatic decision differ")
         return doc
     except (OSError, ValueError) as exc:
         raise HTTPException(409, "S1 기본 결과 또는 고정 원자료 파일이 손상되었습니다.") from exc

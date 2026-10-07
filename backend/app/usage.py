@@ -76,7 +76,7 @@ def summarize(store, *, event_id=None, prices=None):
         records = []
         config = json.loads(run["config_snapshot_json"])
         for step in by_run[run["run_id"]]:
-            if step["stage"] not in ("ledger", "observe", "review_video", "evaluate", "report", "score_v3", "judge_v3", "score_v4"):
+            if step["stage"] not in ("ledger", "observe", "review_video", "evaluate", "report", "score_v3", "judge_v3", "score_v4", "attachment_v4"):
                 continue
             if json.loads(step["usage_json"]).get("program_merge"):
                 continue
@@ -91,7 +91,7 @@ def summarize(store, *, event_id=None, prices=None):
             selected = config if step["stage"] in ("ledger", "observe", "review_video") else (
                 config.get("report", {}) if step["stage"] == "report" else
                 config.get("evaluation", {}).get(step["branch_key"], {}))
-            if run["kind"] in ("scoring_v3", "s1"):
+            if run["kind"] in ("scoring_v3", "s1", "attachment_v4"):
                 selected = next((group for group in config.get("stages", []) if (group["stage"], group["key"]) == (step["stage"], step["branch_key"])), {})
             provider = usage.get("provider", selected.get("provider", "gemini" if step["stage"] in ("ledger", "observe", "review_video") else "unknown"))
             model = usage.get("model", selected.get("model", "unknown"))

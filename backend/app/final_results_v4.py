@@ -10,6 +10,7 @@ from . import judgements_v4 as judgements, opinions_v4 as opinions, sheets_v4 as
 from .domain.final_results_v4 import (DOMAIN_LABELS, FinalDomainV4, FinalReferenceV4, FinalResultV4,
                                       OpinionReferenceV4)
 from .domain.results_v4 import ResultReferenceV4
+from .domain.attachment_v4 import AttachmentReferenceV4
 from .input_models import Model
 from .storage import encode, now, uid
 
@@ -19,11 +20,12 @@ class AssembleFinalV4(Model):
     opinion: OpinionReferenceV4 | None = None
     viewer_sheet_id: str | None = None
     reason: str
+    attachment_inference: AttachmentReferenceV4 | None = None
 
-    @field_validator("basic", "opinion", mode="before")
+    @field_validator("basic", "opinion", "attachment_inference", mode="before")
     @classmethod
     def contracts(cls, value, info):
-        model = ResultReferenceV4 if info.field_name == "basic" else OpinionReferenceV4
+        model = {"basic": ResultReferenceV4, "opinion": OpinionReferenceV4, "attachment_inference": AttachmentReferenceV4}[info.field_name]
         return model.model_validate_json(encode(value)) if isinstance(value, dict) else value
 
     @field_validator("reason")
@@ -60,7 +62,7 @@ class FinalSummaryV4(Model):
         return model.model_validate_json(encode(value)) if isinstance(value, dict) else value
 
 
-def domains_for(basic, opinion):
+def domains_for(basic, opinion, attachment_assessment=None):
     automatic = {item.key: item for item in basic.automatic_decisions}
     manual = {item.key: item for item in basic.manual_decisions}
     effective = {item.key: item for item in basic.decisions}
@@ -75,6 +77,14 @@ def domains_for(basic, opinion):
         item = entries.get(domain)
         if item and item.text.strip():
             choice, issue = opinions.selection(item, basic, opinion.evaluator)
+            if domain == "attachment" and item.label is None and attachment_assessment:
+                from . import attachment_ai_v4
+                choice = attachment_ai_v4.validate(attachment_assessment, basic.input_document, basic.input, basic.calculations.model_dump(mode="json"), opinion)
+                result.append(FinalDomainV4(domain=domain, label=choice.label, text=item.text,
+                    source="completed_opinion_inference", status="selected" if choice.label else "held", reason=choice.reason,
+                    evidence_codes=choice.evidence_codes, counter_codes=choice.counter_codes, counter_note=choice.counter_note,
+                    original_label=original, opinion_revision=opinion.revision))
+                continue
             result.append(FinalDomainV4(domain=domain, label=choice.label if choice else None, text=item.text,
                 source="completed_opinion", status="selected" if choice else "policy_pending" if key else "observation_text",
                 reason="완료된 해당 영역 의견과 명시한 유효 유형 적용" if choice else
@@ -96,7 +106,8 @@ def domains_for(basic, opinion):
                 counter_note=choice.counter_note, original_label=original))
         elif key:
             value = effective[key]
-            result.append(FinalDomainV4(domain=domain, label=value.label, source="basic", status="draft" if value.label else "policy_pending" if key == "attachment_type" else "missing",
+            ai_attachment = key == "attachment_type" and basic.attachment_assessment is not None
+            result.append(FinalDomainV4(domain=domain, label=value.label, source="basic", status=("selected" if value.label else "held") if ai_attachment else "draft" if value.label else "policy_pending" if key == "attachment_type" else "missing",
                 reason=value.reason, evidence_codes=value.evidence_codes, counter_codes=value.counter_codes,
                 counter_note=value.counter_note, original_label=original))
         else:
@@ -120,7 +131,11 @@ def read_document(store, ref, digest):
             raise ValueError("basic snapshot")
         if doc.opinion and opinions.read_document(store, doc.opinion.ref, doc.opinion.hash) != doc.opinion_document:
             raise ValueError("opinion snapshot")
-        if domains_for(doc.basic_document, doc.opinion_document) != doc.domains:
+        if doc.attachment_inference:
+            from . import attachment_runs_v4
+            if attachment_runs_v4.read_result(store, doc.attachment_inference, doc.basic_document, doc.opinion, doc.opinion_document) != doc.attachment_assessment:
+                raise ValueError("opinion inference snapshot")
+        if domains_for(doc.basic_document, doc.opinion_document, doc.attachment_assessment) != doc.domains:
             raise ValueError("domain priority")
         return doc
     except (OSError, ValueError) as exc:
@@ -154,7 +169,14 @@ def assemble(store, case_id, session_id, value: AssembleFinalV4, user):
             disclosures.require(db, case_id, session_id, user, disclosures.target("opinion", value.opinion), opinion.actor)
         if opinion and opinion.basic != value.basic:
             raise HTTPException(409, "의견과 행사 기본 입력이 다릅니다. 명시적으로 재개방·연결하세요.")
-    domains = domains_for(basic, opinion)
+    assessment = None
+    if value.attachment_inference:
+        from . import attachment_runs_v4
+        if not opinion:
+            raise HTTPException(409, "완료 의견의 고정 참조가 필요합니다.")
+        attachment_runs_v4.eligible(opinion)
+        assessment = attachment_runs_v4.read_result(store, value.attachment_inference, basic, value.opinion, opinion)
+    domains = domains_for(basic, opinion, assessment)
     identities = sheets._source_identities(store, basic.input_document.source)
     priority = opinion.priority_help.strip() if opinion and opinion.state == "complete" else ""
     data = {"final_id": uid(), "case_id": case_id, "session_id": session_id, "actor": user.username, "recorded_at": now(),
@@ -163,6 +185,10 @@ def assemble(store, case_id, session_id, value: AssembleFinalV4, user):
         "opinion_document": opinion.model_dump(mode="json") if opinion else None, "domains": [item.model_dump(mode="json") for item in domains],
         "priority_help": priority or None,
         "independent_ai": basic.input_document.sheet.rater_kind == "ai" and all(item.source == "basic" for item in domains) and not priority}
+    if basic.attachment_assessment or assessment:
+        data["interpretation_policy"] = "attachment-20261007-rp02"
+    if assessment:
+        data.update(attachment_inference=value.attachment_inference.model_dump(mode="json"), attachment_assessment=assessment.model_dump(mode="json"))
     link = write_document(store, data)
     with store.connect(write=True) as db:
         current = opinions.context(store, db, case_id, session_id, user)

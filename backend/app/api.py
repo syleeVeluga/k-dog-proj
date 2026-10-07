@@ -37,7 +37,7 @@ from app.domain.catalog_v4 import BehaviorCatalogV4, load_catalog_v4
 from app.domain.sheets_v4 import SheetDocumentV4
 from app import judgements_v4
 from app import run_v4, scoring_ai_v4, settings_v4
-from app import opinions_v4, final_results_v4, disclosures_v4
+from app import opinions_v4, final_results_v4, disclosures_v4, attachment_runs_v4
 from app import report_runs_v4, comparisons_v4
 from app import external_comparisons_v4
 from app import validation_data_v4, exports_v4
@@ -644,6 +644,18 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.get("/api/cases/{case_id}/sessions/{session_id}/opinions-s1/metadata", response_model=opinions_v4.OpinionMetadataV4)
     def opinions_s1_metadata(case_id: Key, session_id: Key, user=Depends(reader)):
         return opinions_v4.metadata(store, case_id, session_id, user)
+
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/opinions-s1/attachment-runs", response_model=attachment_runs_v4.AttachmentRunViewV4, status_code=201)
+    def attachment_opinion_start(case_id: Key, session_id: Key, value: attachment_runs_v4.AttachmentStartV4, user=Depends(reader)):
+        return attachment_runs_v4.enqueue(store, case_id, session_id, value, user)
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/opinions-s1/attachment-runs/{run_id}", response_model=attachment_runs_v4.AttachmentRunViewV4)
+    def attachment_opinion_view(case_id: Key, session_id: Key, run_id: Key, viewer_sheet_id: Key | None = None, user=Depends(reader)):
+        return attachment_runs_v4.view(store, case_id, session_id, run_id, user, viewer_sheet_id)
+
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/opinions-s1/attachment-runs/{run_id}/stop", response_model=attachment_runs_v4.AttachmentRunViewV4)
+    def attachment_opinion_stop(case_id: Key, session_id: Key, run_id: Key, value: ActionV4, viewer_sheet_id: Key | None = None, user=Depends(reader)):
+        return attachment_runs_v4.stop(store, case_id, session_id, run_id, value, user, viewer_sheet_id)
 
     @app.post("/api/cases/{case_id}/sessions/{session_id}/opinions-s1/reveal", response_model=disclosures_v4.InterpretationRevealResultV4)
     def opinions_s1_reveal(case_id: Key, session_id: Key, value: disclosures_v4.InterpretationRevealV4, user=Depends(reader)):

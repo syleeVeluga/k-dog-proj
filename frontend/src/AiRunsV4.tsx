@@ -4,8 +4,8 @@ import type { Case } from './types';
 import type { PreprocessStatusV4 } from './preprocessTypesV4';
 import type { AiBasicResultV4, AiReadinessV4, AiRunV4 } from './aiTypesV4';
 
-const states: Record<string, string> = { queued: '대기', running: '실행 중', retry_wait: '재시도 대기', succeeded: '성공', partial: '부분 완료', failed: '실패', stopped: '중지', settings_required: '설정 확인 필요', complete: '완료', held: '판정보류', draft: '초안', calculated: '계산됨', missing: '근거 부족', policy_pending: '규칙 확인 대기', invalid: '조건 무효', condition_unknown: '조건 확인 필요' };
-const stages: Record<string, string> = { score_v4: '관찰 원자료', calculate_v4: '앱 계산', publish_v4: '게시' };
+const states: Record<string, string> = { queued: '대기', running: '실행 중', retry_wait: '재시도 대기', succeeded: '성공', partial: '부분 완료', partial_failed: '부분 완료 · 실패 있음', failed: '실패', stopped: '중지', settings_required: '설정 확인 필요', complete: '완료', held: '판정보류', draft: '초안', calculated: '계산됨', missing: '근거 부족', policy_pending: '규칙 확인 대기', invalid: '조건 무효', condition_unknown: '조건 확인 필요' };
+const stages: Record<string, string> = { score_v4: '관찰 원자료', calculate_v4: '앱 계산', attachment_v4: '근거 기반 애착 판단', publish_v4: '게시' };
 const timers: Record<string, string> = { upload_seconds: '업로드', processing_seconds: '공급자 처리 대기', inference_seconds: '추론', repair_seconds: '스키마 수리', cleanup_seconds: '원격 파일 정리', calculation_seconds: '계산', publish_seconds: '게시', stage_seconds: '전체 단계' };
 const active = new Set(['queued', 'running', 'retry_wait']);
 const number = (value: number | null) => value === null ? '미확인' : Number(value.toFixed(3)).toLocaleString();
@@ -56,7 +56,7 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
   return <section className="panel" aria-label="S1 AI 실행" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <h2>S1 AI 관찰 원자료 실행</h2>
     <p>입력 {item.input_revision}판 · 활성 설정 {ready?.active_version === 'inactive' ? '없음' : ready?.active_version ?? '확인 중'} · 기본 예정 공급자 호출 {ready?.planned_provider_calls ?? '—'}회</p>
-    <p>숫자 83개·관찰 메모 3개의 원자료를 요청하고 자동 4개는 앱이 계산합니다. D04 상세 유형 해석은 보류합니다.</p>
+    <p>숫자 83개·관찰 메모 3개의 원자료를 요청하고 자동 4개는 앱이 계산합니다. 관찰·계산 뒤 근거 기반 AI 애착 판단을 별도로 수행합니다. 실제 적절성은 교수 테스트 대기입니다.</p>
     <p className="fine">실제 공급자 정확도·시간·가격은 S16 측정 대기입니다. 메뉴 조회는 실행을 만들지 않으며, 실행 중 상태만 2초마다 갱신합니다.</p>
     {error && <p role="alert" className="error">{error}</p>}
     <button disabled={busy || loading} onClick={() => { void reload(true); }}>S1 실행 상태 새로고침</button>
@@ -75,7 +75,7 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
     {runs.map(run => <article className="panel" key={run.run_id} aria-label={`S1 실행 ${run.run_id}`}>
       <h3>{states[run.status] ?? run.status}{run.outdated ? ' · 이전 입력 기준' : ''}</h3>
       <p>{run.run_id} · 입력 {run.input_revision}판 · {new Date(run.updated_at).toLocaleString()}</p>
-      <p>기본 계획 {run.planned_provider_calls}회 · 예약 {run.reserved_calls}회 / 상한 {run.max_ai_calls}회 · D04 상세 해석 보류</p>
+      <p>기본 계획 {run.planned_provider_calls}회 · 예약 {run.reserved_calls}회 / 상한 {run.max_ai_calls}회 · {run.judgement_status === 'implemented_professor_test_pending' ? '애착 판단 구현 · 교수 테스트 대기' : '이전 애착 판단 정책 보류'}</p>
       {run.failure_code && <p role="status">실행 사유: {run.failure_code}</p>}
       {run.steps.some(step => step.billing_uncertain) && <p className="warning">응답 또는 정산이 확인되지 않은 예약 호출이 있습니다. 과금 여부 미확인 상태를 유지합니다.</p>}
       {run.result_available && <p>원자료와 기본 계산이 게시되었습니다. 독립 제출 뒤 명시 공개된 시트를 열 때 AI 열람 이력이 기록됩니다. 실행 상태에는 점수·판정을 표시하지 않습니다.</p>}
@@ -94,10 +94,11 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
 
 export function AiRevealedResultsV4({ results }: { results: AiBasicResultV4[] }) {
   return <section className="panel" aria-label="공개한 S1 AI 기본 결과" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-    <h3>명시 공개한 AI 기본 결과 · 읽기 전용</h3><p>AI 열람 이력이 기록된 결과입니다. 독립 사람 원자료와 자동 계산은 보존되며, D04 상세 유형 해석은 계속 보류합니다.</p>
+    <h3>명시 공개한 AI 기본 결과 · 읽기 전용</h3><p>AI 열람 이력이 기록된 결과입니다. 독립 사람 원자료와 자동 계산은 보존되며, 유형과 근거·반대 근거·보류 사유를 확인하세요.</p>
     {!results.length && <p>공개한 원자료와 일치하는 기본 결과가 없습니다.</p>}
     {results.map(result => <article key={result.result_id}>
       <h4>AI 결과 {result.revision}판 · 원자료 {result.input.revision}판</h4><p>계산 판본 {result.rule_version} · 작성 {new Date(result.recorded_at).toLocaleString()}</p>
+      {result.attachment_assessment && <details><summary>AI 애착 판단의 고정 출처</summary><p>독립 AI 판단 · 모델 {result.attachment_assessment.model} · 지침 {result.attachment_assessment.response.instruction_version}</p><p>지지 근거 ID: {result.attachment_assessment.response.evidence_refs.join(', ') || '없음'} · 반대 근거 ID: {result.attachment_assessment.response.counter_evidence_refs.join(', ') || '없음'}</p><p>입력 SHA-256: {result.attachment_assessment.response.input_hash}<br />지침 내용 SHA-256: {result.attachment_assessment.response.instruction_hash}</p></details>}
       {result.decisions.map(decision => { const automatic = result.automatic_decisions.find(value => value.key === decision.key); return <section key={decision.key}>
         <h4>{decision.key === 'owner_type' ? '보호자 교육태도' : '반려견·보호자 관계'} · {decision.label ?? '판정보류'}</h4><p>{states[decision.status] ?? decision.status} · {decision.reason}</p>
         <p>자동 판정: {automatic?.label ?? '판정보류'} · {automatic?.reason}</p><p>사용 항목: {decision.evidence_codes.join(', ') || '없음'} · 반대 근거 항목: {decision.counter_codes.join(', ') || '없음'}</p>

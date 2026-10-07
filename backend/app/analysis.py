@@ -55,6 +55,9 @@ def step_payload(store, row, step, *, recover=False):
 
 
 def check_access(store, db, row):
+    if row["kind"] == "attachment_v4":
+        from app import attachment_runs_v4
+        return attachment_runs_v4.check_access(store, db, row)
     if row["kind"] == "report_v4":
         from app import report_runs_v4
         return report_runs_v4.check_access(store, db, row)
