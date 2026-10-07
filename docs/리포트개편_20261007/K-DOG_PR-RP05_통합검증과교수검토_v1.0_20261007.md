@@ -49,4 +49,6 @@ backend에서 `uv run --locked python -X utf8 -m unittest discover -s tests -v`,
 
 frontend build 통과, S1 전체 E2E는 46개 통과·외부 비교 기존 시험 1개 실패(4.2분)였다. 실제 문장 공급자 대신 합성 응답을 연결하고 새 HTML 구조·비고정 쪽수로 갱신해 해당 1개가 30.1초에 통과했다. 나머지 동일 시험을 합산해 새 전체 실행 결과로 표시하지 않는다. 원본 파생 8개 자산 source verified, SRC02/SRC03 hash 일치 및 독립 [cold review 수용 2건](K-DOG_PR-RP05_ColdReview_v1.0_20261007.md)의 재검토를 완료했다.
 
+원격 [PR #58](https://github.com/syleeVeluga/k-dog-proj/pull/58)을 2026-10-07 15:48:54 UTC 병합했다. merge commit `edeb63b`로 로컬 `main`과 `origin/main` 일치를 확인했다.
+
 실제 공급자용 동의된 사례/예산 및 교수 검토 기록은 미수령·미실행이다. 현재 상태는 ‘기술 검증 완료·교수 검토 대기’다. 전문적 품질이나 RP-T12를 완료로 처리하지 않는다. 배포·실운영 활성·고객 자료 발송은 실행하지 않는다.
