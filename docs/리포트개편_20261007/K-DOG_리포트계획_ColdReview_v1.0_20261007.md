@@ -36,4 +36,6 @@ CR01 근거는 [설문 결과 계약](../../backend/app/survey_v4.py), [비교 �
 - A01~A06 및 RP-T01~14 담당, RP01→RP02→RP03→RP04→RP05→조건부 RP06의 선행 관계 검토.
 - 문서 공백 검사와 `git diff --check` 통과. 원격 PR의 최종 상태는 병합 시 별도로 확인한다.
 
+계획·수용 수정 commit은 `9292b22e3b22f85316a6f04b0455868d5a9d6e10`이며 [PR #53](https://github.com/syleeVeluga/k-dog-proj/pull/53)에서 병합한다. 이 head의 원격 검사 조회는 checks/statuses가 비어 있었고 GitHub는 `CLEAN`/`MERGEABLE`을 반환했다. Copilot 자동 리뷰는 요청자의 할당량 제한으로 실행되지 않았으므로 자동 리뷰 통과로 기록하지 않는다. 위 문서 cold review·수용 수정·로컬 검증과 원격 자동 리뷰의 미실행을 구분한다. 이 기록의 최종 head와 병합 상태는 PR 및 완료 응답에서 확인한다.
+
 제품 코드 변경이 없으므로 backend/frontend 제품 시험은 실행하지 않는다. 실제 AI 호출·교수 검토·외부 비교표 수령·운영 배포·고객 발송도 수행하지 않는다. 원격 병합은 검증한 최종 PR head와 병합 가능 상태를 확인한 뒤 수행하고 로컬 `main`을 같은 원격 결과로 동기화한다.
