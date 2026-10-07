@@ -1,10 +1,12 @@
 """Synthetic RP01–RP04 flow; provider responses and physical probe are fixtures."""
 import tempfile
 import unittest
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 
 from fastapi import HTTPException
+from pypdf import PdfReader
 
 from app import final_results_v4 as finals, judgements_v4 as judgements, maintenance
 from app import opinions_v4 as opinions, report_runs_v4 as reports, sheets_v4 as sheets
@@ -118,6 +120,11 @@ class ReportAcceptanceV4Tests(unittest.TestCase):
         self.assertNotIn("오늘의 장면들".encode(), html)
         self.assertTrue(pdf.startswith(b"%PDF-"))
         self.assertGreater(len(pdf), 10000)
+        self.assertNotEqual(pdf, first_pdf)
+        pdf_text = "".join(page.extract_text() for page in PdfReader(BytesIO(pdf)).pages)
+        compact_text = "".join(pdf_text.split())
+        for text in (original, help_text, ATTACHMENT_TYPES[1]):
+            self.assertIn("".join(text.split()), compact_text)
         self.assertEqual(reports.download(store, case_id, session_id, first_id, "pdf", user, viewer["sheet_id"])[0], first_pdf)
         self.assertTrue(reports.view(store, first_id, user, viewer["sheet_id"])["outdated"])
         reused_id, reused = issue(final, run_id)

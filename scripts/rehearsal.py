@@ -84,7 +84,17 @@ def rehearse(data_dir: Path, pairs: int, seconds: float, event: str):
     clients = [TestClient(app, base_url="http://127.0.0.1:8000", headers=HEADERS) for _ in range(4)]
     stages = {}
     report = {"spec": "20261002", "pairs": pairs, "event_id": event, "reference_seconds": seconds,
-              "logical_clients": 3, "physical_pcs_verified": False, "external_ai_calls": 0}
+              "logical_clients": 3, "physical_pcs_verified": False, "external_ai_calls": 0, "synthetic_narrative_calls": 0}
+    class SyntheticNarrativeProvider:
+        def request_v4(self, files, config, context, schema, guard):
+            guard()
+            if files:
+                raise RehearsalError("합성 문장 리허설에 영상 입력을 사용할 수 없습니다.")
+            report["synthetic_narrative_calls"] += 1
+            claim = {"text": "합성 리허설 출력으로 실제 행동 해석이 아닙니다.", "fact_ids": ["policy:scope"]}
+            observed = next((fact["fact_id"] for fact in context["facts"] if fact["kind"] in ("observation", "survey") and fact["value"] is not None), None)
+            return {**context["identity"], "cards": [{"key": card["key"], "claims": [claim]} for card in context["cards"]],
+                "details": [], "summary": [claim], "actions": [{**claim, "fact_ids": [observed]}] if observed and context["action_capacity"] else []}, {}
     def call(method, path, *, client=None, binary=False, **kwargs):
         response = getattr(client or clients[0], method)(path, **kwargs)
         if response.status_code >= 400:
@@ -158,14 +168,14 @@ def rehearse(data_dir: Path, pairs: int, seconds: float, event: str):
                     final = call("post", base + "/final-results-s1", json={"basic": {"result_id": basic["result_id"], "revision": basic["revision"], "ref": basic["manifest_ref"], "hash": basic["manifest_hash"]}, "reason": "합성 명시 최종 선택"})
                 with timed(stages, "report_publish"):
                     run = call("post", base + "/report-runs-s1", json={"expected_revision": item["input_revision"], "request_id": "rehearsal-report", "final": final["reference"]})
-                    Worker(store).once()
+                    Worker(store, observer=SyntheticNarrativeProvider()).once()
                     run = call("get", "/api/report-runs-s1/" + run["run_id"])
                     if run["status"] != "succeeded":
                         raise RehearsalError(f"합성 보고서 발급 실패: {run['status']}")
                     output = base + "/report-runs-s1/" + run["run_id"] + "/files/"
                     for kind in ("html", "pdf"):
                         data = call("get", output + kind, binary=True)
-                        if (kind == "pdf" and not data.startswith(b"%PDF-")) or (kind == "html" and b"data-section" not in data):
+                        if (kind == "pdf" and not data.startswith(b"%PDF-")) or (kind == "html" and b"<section>" not in data):
                             raise RehearsalError("발급 파일 형식이 다릅니다.")
                     manifest = call("get", output + "manifest")
                     if manifest["profile"]["source"]["final"] != final["reference"]:
@@ -180,7 +190,7 @@ def rehearse(data_dir: Path, pairs: int, seconds: float, event: str):
     report["stages_sec"] = stages
     report["data_dir_bytes"] = sum(path.stat().st_size for path in data_dir.rglob("*") if path.is_file())
     report["free_bytes_after"] = status(store)["free_bytes"]
-    report["scope"] = "S1 합성 HTTP/실제 FFmpeg/Worker/HTML/PDF 통합. 3개 논리 클라이언트 수신이며 실제 LAN·PC·대용량·AI 채점·정확도 실측은 제외."
+    report["scope"] = "S1 합성 HTTP/실제 FFmpeg/Worker/HTML/PDF 통합. 문장 공급자는 합성 응답이며 외부 호출 0회다. 3개 논리 클라이언트 수신이며 실제 LAN·PC·대용량·AI 채점·정확도 실측은 제외."
     return report
 
 
