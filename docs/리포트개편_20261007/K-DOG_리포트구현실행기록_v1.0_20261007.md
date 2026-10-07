@@ -80,8 +80,6 @@
 
 구현 commit `9f166afffd7e426e74ab928b4d964e7f2939f3f2`와 수용 수정·문서 commit `3bd7a80037b26b45447554e40257059122cb68e9`를 push하고 [PR #56](https://github.com/syleeVeluga/k-dog-proj/pull/56)을 이 채팅에 연결했다. 수정 head의 원격 checks/statuses는 비어 있고 `CLEAN`/`MERGEABLE`이었다. CI 통과로 표시하지 않는다. 이 기록을 포함한 최종 head를 확인해 `--match-head-commit`으로 병합하고 원격·로컬 일치 결과를 후속 단계에서 기록한다.
 
-## 2 라이브러리·프레임워크 확인
-
 ### RP03 병합·RP04 실행
 
 RP03 최종 head `c0dabfa773a9f66f3943146f47859562027b2d5b`의 checks/statuses 없음 및 `CLEAN`/`MERGEABLE`을 확인해 `--match-head-commit`으로 2026-10-07 15:02:33 UTC 병합했다. merge commit `66984cf5dd682c193dffff4c65f7cba9576df07b`로 로컬 `main`과 `origin/main`이 일치했고 RP04 `veluga/rp04-report-design`을 시작했다. RP04 검증은 2026-10-08 KST에 이어 수행했다.
@@ -97,6 +95,8 @@ RP03 최종 head `c0dabfa773a9f66f3943146f47859562027b2d5b`의 checks/statuses �
 초기 실패는 새 선택 인자를 받지 않는 시험 wrapper, 비어 있는 합성 총평, 정의되지 않은 관찰 창·memo/발성 입력 metadata의 QA fixture 범위를 구별해 수정했다. 제품의 누락 관찰을 0으로 채우거나 청취 metadata를 추정하지 않았다. 시각 검수에서 발견한 출처 단락·짧은 카드/그래프의 쪽 경계를 보완했다. actual provider 0회·교수 품질 미검증 경계를 유지하며 기술 회귀 수를 합산하지 않는다.
 
 RP04 의존성 확인: 2026-10-07~08. ReportLab 최신/선택 5.0.1 ([PyPI](https://pypi.org/project/reportlab/), [5.0 변경](https://docs.reportlab.com/releases/notes/whats-new-50/), [표 API](https://docs.reportlab.com/reportlab/userguide/ch7_tables/)); Python ≥3.9,<4와 기존 Python 3.14.2 호환. Pillow 최신/선택 12.3.0 ([PyPI](https://pypi.org/project/pillow/), [릴리스](https://pillow.readthedocs.io/en/stable/releasenotes/12.3.0.html))는 QA contact sheet에만 사용했다. 제품 manifest/lockfile의 기존 판을 유지했다. Poppler 최신 26.10.0/선택 번들 26.07.0 ([공식 릴리스](https://poppler.freedesktop.org/))는 번들 read-only `pdfinfo`/`pdftoppm` 도구를 사용했다. 번들에 `pdftotext`가 없어 그 명령의 실패를 확인 후 pypdf 텍스트 추출로 대체했다. pypdf 최신 6.19.0/선택 번들 6.10.0 ([PyPI](https://pypi.org/project/pypdf/), [선택판 API](https://pypdf.readthedocs.io/en/6.10.0/user/extract-text.html))는 Python ≥3.9와 호환하는 번들 Python의 일회성 QA에만 사용했다. 무관한 앱 의존성 갱신·신규 설치는 없다.
+
+## 2 라이브러리·프레임워크 확인
 
 ### 확인한 버전과 공식 근거
 
@@ -114,4 +114,3 @@ RP02에서도 2026-10-07 공식 [Gemini 3.8 Flash 안정 모델](https://ai.goog
 | openpyxl | 3.1.5 / 3.1.5 | Python ≥3.8 충족. 기존 `load_workbook` 읽기로 CSV/XLSX 정책 열 검증. [PyPI](https://pypi.org/project/openpyxl/), [공식 API](https://openpyxl.readthedocs.io/en/stable/) |
 
 RP02 이후 공급자 API·새 사용 라이브러리의 확인은 해당 단계 기록에 추가한다. 교수 전문 기준을 라이브러리/API 문서로 대체하지 않는다.
-
