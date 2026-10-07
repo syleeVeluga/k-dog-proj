@@ -30,6 +30,7 @@ class RehearsalTests(unittest.TestCase):
             self.assertEqual(report["logical_clients"], 3)
             self.assertFalse(report["physical_pcs_verified"])
             self.assertEqual(report["external_ai_calls"], 0)
+            self.assertEqual(report["synthetic_narrative_calls"], 2)
             self.assertGreater(report["clip_bytes"], 0)
             self.assertEqual(set(report["stages_sec"]), {"synthetic_media", "forms_import", "concurrent_upload", "video_link", "recording", "preprocess", "independent_sheet_and_calculation", "report_publish"})
             self.assertGreaterEqual(report["total_sec"], sum(report["stages_sec"].values()) - 0.02)

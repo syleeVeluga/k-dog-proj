@@ -148,13 +148,23 @@ test('S17 합성 확인만으로 범위를 검증하며 명시 외부 비교의 
       `import pathlib,sys
 from app.storage import Store
 from app.worker import Worker
+from tests.test_report_narrative_v4 import generated
 root=pathlib.Path(sys.argv[1]).resolve()
 assert root.name=='data' and root.parent.name.startswith('kdog-browser-')
 store=Store(root)
 with store.connect() as db:
     rows=db.execute("SELECT run_id,kind FROM runs WHERE status IN ('queued','running')").fetchall()
     assert [(r['run_id'],r['kind']) for r in rows]==[(sys.argv[2],'report_v4')]
-assert Worker(store).once()`,
+class SyntheticNarrativeProvider:
+    def request_v4(self, files, config, context, schema, guard):
+        guard()
+        assert files == []
+        return generated(context), {}
+assert Worker(store, observer=SyntheticNarrativeProvider()).once()
+with store.connect() as db:
+    run=db.execute("SELECT status FROM runs WHERE run_id=?", (sys.argv[2],)).fetchone()
+    assert run['status']=='succeeded'
+    assert db.execute("SELECT SUM(call_reserved) FROM steps WHERE run_id=?", (sys.argv[2],)).fetchone()[0]==1`,
       dataRoot, job.run_id], { cwd: path.resolve('../backend'), env, timeout: 90000, encoding: 'utf8' });
     await report.getByRole('button', { name: '리포트 상태 새로고침', exact: true }).click();
     await report.getByRole('button', { name: '발급 요약·HTML·PDF 열기', exact: true }).click();
@@ -171,13 +181,13 @@ assert Worker(store).once()`,
       rendered.on('request', value => { if (/^https?:/.test(value.url()) && !value.url().startsWith('http://127.0.0.1:8765/')) externalRequests.push(value.url()); });
       await rendered.setViewportSize({ width: 360, height: 800 });
       await rendered.goto(htmlPath + '?inline=true'); await rendered.evaluate(() => document.fonts.ready);
-      await expect(rendered.locator('[data-section]')).toHaveCount(6);
+      await expect(rendered.locator('main > section')).toHaveCount(6);
       await expect.poll(() => rendered.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      await rendered.locator('[data-section="3"]').screenshot({ path: info.outputPath('external-html-360.png') });
+      await rendered.locator('main > section').nth(1).screenshot({ path: info.outputPath('external-html-360.png') });
       await rendered.emulateMedia({ media: 'print' });
-      expect(await rendered.locator('.sheet').evaluateAll(elements => elements.every(element => element.scrollHeight <= element.clientHeight + 1 && getComputedStyle(element).overflow !== 'hidden'))).toBe(true);
+      expect(await rendered.locator('main > section').evaluateAll(elements => elements.length === 6 && elements.every(element => getComputedStyle(element).overflow !== 'hidden' && getComputedStyle(element).breakAfter !== 'page'))).toBe(true);
       const printed = await rendered.pdf({ path: info.outputPath('external-browser-print.pdf'), printBackground: true, preferCSSPageSize: true });
-      expect(printed.toString('latin1').match(/\/Type \/Page\b/g)?.length ?? 0).toBeGreaterThanOrEqual(6);
+      expect(printed.toString('latin1').match(/\/Type \/Page\b/g)?.length ?? 0).toBeGreaterThan(0);
       expect(externalRequests).toEqual([]);
     } finally { await rendered.close(); }
     await operator.setViewportSize({ width: 360, height: 800 });
