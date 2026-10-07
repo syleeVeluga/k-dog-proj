@@ -11,8 +11,8 @@
 | [RP01](K-DOG_PR-RP01_설문응답정책_v1.0_20261007.md) | 완료, [수용 4건](K-DOG_PR-RP01_ColdReview_v1.0_20261007.md) 반영 | [PR #54](https://github.com/syleeVeluga/k-dog-proj/pull/54), `edc0d475` 원격·로컬 일치 | 구글폼 설정 실물 확인은 의뢰자 담당 |
 | [RP02](K-DOG_PR-RP02_AI애착판단_v1.0_20261007.md) | 완료, [수용 3건](K-DOG_PR-RP02_ColdReview_v1.0_20261007.md) 반영 | [PR #55](https://github.com/syleeVeluga/k-dog-proj/pull/55), `35637f9` 원격·로컬 일치 | 교수 적절성 검토는 기술 합성 검증과 별도 |
 | [RP03](K-DOG_PR-RP03_AI리포트문장_v1.0_20261007.md) | 완료, [수용 2건](K-DOG_PR-RP03_ColdReview_v1.0_20261007.md) 반영 | [PR #56](https://github.com/syleeVeluga/k-dog-proj/pull/56), `66984cf` 원격·로컬 일치 | 교수 문장 품질은 실제 검토 대기 |
-| [RP04](K-DOG_PR-RP04_장면제거와출력개편_v1.0_20261007.md) | 완료, [수용 1건](K-DOG_PR-RP04_ColdReview_v1.0_20261007.md) 반영 | PR 생성 준비 | 실제 공급자/전문 품질은 별도 |
-| [RP05](K-DOG_PR-RP05_통합검증과교수검토_v1.0_20261007.md) | 미착수 | 미실행 | 통합 기술 검증과 실제 교수 검토 분리 |
+| [RP04](K-DOG_PR-RP04_장면제거와출력개편_v1.0_20261007.md) | 완료, [수용 1건](K-DOG_PR-RP04_ColdReview_v1.0_20261007.md) 반영 | [PR #57](https://github.com/syleeVeluga/k-dog-proj/pull/57), `15c4065` 원격·로컬 일치 | 실제 공급자/전문 품질은 별도 |
+| [RP05](K-DOG_PR-RP05_통합검증과교수검토_v1.0_20261007.md) | 종단 합성 검증 통과, 전체 회귀 진행 | 미실행 | 통합 기술 검증과 실제 교수 검토 분리 |
 | [RP06](K-DOG_PR-RP06_외부비교기준표적용_v1.0_20261007.md) | 조건부 대기 | 미실행 | 교수 확정 두 기준표는 계획상 미수령; 자료 위치를 사용자에게 확인 중 |
 
 ### RP01 실행
@@ -97,6 +97,12 @@ RP03 최종 head `c0dabfa773a9f66f3943146f47859562027b2d5b`의 checks/statuses �
 RP04 의존성 확인: 2026-10-07~08. ReportLab 최신/선택 5.0.1 ([PyPI](https://pypi.org/project/reportlab/), [5.0 변경](https://docs.reportlab.com/releases/notes/whats-new-50/), [표 API](https://docs.reportlab.com/reportlab/userguide/ch7_tables/)); Python ≥3.9,<4와 기존 Python 3.14.2 호환. Pillow 최신/선택 12.3.0 ([PyPI](https://pypi.org/project/pillow/), [릴리스](https://pillow.readthedocs.io/en/stable/releasenotes/12.3.0.html))는 QA contact sheet에만 사용했다. 제품 manifest/lockfile의 기존 판을 유지했다. Poppler 최신 26.10.0/선택 번들 26.07.0 ([공식 릴리스](https://poppler.freedesktop.org/))는 번들 read-only `pdfinfo`/`pdftoppm` 도구를 사용했다. 번들에 `pdftotext`가 없어 그 명령의 실패를 확인 후 pypdf 텍스트 추출로 대체했다. pypdf 최신 6.19.0/선택 번들 6.10.0 ([PyPI](https://pypi.org/project/pypdf/), [선택판 API](https://pypdf.readthedocs.io/en/6.10.0/user/extract-text.html))는 Python ≥3.9와 호환하는 번들 Python의 일회성 QA에만 사용했다. 무관한 앱 의존성 갱신·신규 설치는 없다.
 
 RP04 독립 cold review 1건을 수용했다. `_outdated`가 실행 판본·내용 hash·템플릿 hash를 함께 비교하도록 수정하고 관련 디자인/실행/API 27개, 76.291초에 통과했다. 독립 재검토에서 기존 RP03 판본만 최신일 때는 `False`, RP04 판본에서는 `True`이며 과거 PDF bytes 보존을 확인했다(1개, 3.998초). 초기 독립 경계 검증 7개, 24.143초와 완료 의견 두 개의 긴 원문 끝 표식 확인은 별도 기록이다.
+
+### RP04 병합·RP05 실행
+
+RP04 최종 head `ee89e98a7368f40903dd202128116469fbab653c`는 checks/statuses가 없고 `CLEAN`/`MERGEABLE`이었다. CI 통과로 표시하지 않는다. `--match-head-commit`으로 2026-10-07 15:28:20 UTC [PR #57](https://github.com/syleeVeluga/k-dog-proj/pull/57)을 병합했다. merge commit `15c4065f2a80fbe7e5437a78f966d842f26ab338`로 로컬 `main`과 `origin/main`이 일치했고 RP05 브랜치를 시작했다.
+
+RP05 신규 종단 시험은 합성 설문을 채점 전 입력 manifest에 고정하고 실제 AI 원관찰/계산·애착 실행 43개 예약→독립 제출·grant/reveal→최종본→텍스트 생성→실제 HTML/PDF로 이어진다. 명시 완료 의견과 D39를 적용한 새 발급, 기존 AI 발급 bytes 보존, 명시 재사용 무호출, 백업/복원·삭제까지 연결했다. 원본 미디어/전처리 파일·공급자 응답 및 물리 probe는 합성이며 실제 공급자 실행이 아니다. `tests.test_report_acceptance_v4` 1개, 51.733초에 통과했다. 초기 실패는 import 위치·사람 유형의 반대근거 검토 누락·검증 필드명 오류인 시험 fixture 문제였고 각각 기존 계약에 맞게 수정했다.
 
 ## 2 라이브러리·프레임워크 확인
 
