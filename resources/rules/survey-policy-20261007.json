@@ -1,0 +1,99 @@
+{
+  "schema_version": "4.0",
+  "version": "survey-policy-20261007-rp01",
+  "survey_version": "survey-20260929-v3",
+  "source": {
+    "schema_version": "4.0",
+    "source_id": "SRC02",
+    "filename": "K-DOG_개발기준_통합명세_20261002.docx",
+    "sha256": "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a",
+    "location": "10.1절 설문과 산식 표 및 확정 기준/추가 제안 문단; 부록 D"
+  },
+  "groups": [
+    {
+      "question_ids": [
+        "s01",
+        "s02",
+        "s03",
+        "s04",
+        "s05",
+        "s06"
+      ],
+      "aggregation": "mean",
+      "partial_status": "insufficient_responses"
+    },
+    {
+      "question_ids": [
+        "s07",
+        "s08",
+        "s09"
+      ],
+      "aggregation": "mean",
+      "partial_status": "insufficient_responses"
+    },
+    {
+      "question_ids": [
+        "s10",
+        "s11"
+      ],
+      "aggregation": "mean",
+      "partial_status": "insufficient_responses"
+    },
+    {
+      "question_ids": [
+        "s12",
+        "s13",
+        "s14"
+      ],
+      "aggregation": "mean",
+      "partial_status": "insufficient_responses"
+    },
+    {
+      "question_ids": [
+        "s15",
+        "s16",
+        "s17",
+        "s18",
+        "s19",
+        "s20",
+        "s21"
+      ],
+      "aggregation": "mean",
+      "partial_status": "insufficient_responses"
+    },
+    {
+      "question_ids": [
+        "s22",
+        "s23"
+      ],
+      "aggregation": "mean",
+      "partial_status": "insufficient_responses"
+    },
+    {
+      "question_ids": [
+        "s24"
+      ],
+      "aggregation": "single_raw",
+      "partial_status": "missing"
+    },
+    {
+      "question_ids": [
+        "s25"
+      ],
+      "aggregation": "single_raw",
+      "partial_status": "missing"
+    },
+    {
+      "question_ids": [
+        "s26",
+        "s27",
+        "s28"
+      ],
+      "aggregation": "reverse_mean",
+      "partial_status": "insufficient_responses"
+    }
+  ],
+  "registration_completion": "unconfirmed",
+  "external_comparison": "pending_D06",
+  "decision_reference": "docs/리포트개편_20261007/K-DOG_리포트수용안적용계획_v1.0_20261007.md §2 A01 — 2026-10-07 회신 적용"
+}

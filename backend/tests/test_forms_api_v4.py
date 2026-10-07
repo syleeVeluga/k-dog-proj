@@ -43,7 +43,7 @@ class FormsApiV4Tests(AppCase):
         result = self.client.get(f"/api/cases/{case_id}/survey/result")
         self.assertEqual(result.status_code, 200, result.text)
         result = result.json()
-        self.assertEqual(result["policy_version"], "survey-policy-20261002-s1.1")
+        self.assertEqual(result["policy_version"], "survey-policy-20261007-rp01")
         fear = [d for d in result["domains"] if d["question_ids"][0] in ("s10", "s12")]
         self.assertEqual([d["mean"] for d in fear], [1, 1])
         self.assertEqual([q["converted"] for q in result["items"][-3:]], [5, 3, 1])

@@ -9,7 +9,7 @@ from ..survey_v4 import SurveyResultV4
 
 POLICY_VERSION = "comparison-20261002-s1.1-1"
 SurveyEdition = Literal["survey-20260929-v3"]
-SurveyPolicy = Literal["survey-policy-20261002-s1.1"]
+SurveyPolicy = Literal["survey-policy-20261002-s1.1", "survey-policy-20261007-rp01"]
 Finite = Annotated[float,Field(allow_inf_nan=False)]
 Count = Annotated[int,Field(ge=0)]
 Revision = Annotated[int,Field(ge=1)]
@@ -78,6 +78,9 @@ class CohortSnapshotV4(ContractV4):
     def distinct(self) -> Self:
         if len({member.case_id for member in self.members})!=len(self.members):
             raise ValueError("one case may contribute only one explicitly selected session")
+        if any((member.survey.survey_version, member.survey.policy_version) !=
+               (self.survey_version, self.survey_policy) for member in self.members):
+            raise ValueError("mixed survey edition or aggregation policy")
         return self
 
 

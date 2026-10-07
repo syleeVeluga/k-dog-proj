@@ -44,7 +44,8 @@ export function Survey({ cases, selected, select, filters, catalog, writable, ru
         {'policy_version' in result ? <p className="fine">S1 집계: {result.calculation_status === 'complete' ? '8영역·25번 산출' : result.calculation_status === 'partial' ? '완전응답 영역만 산출' : '산출값 없음'} · 외부 비교: {result.external_comparison_reason}</p>
           : <p className="fine">집계: {result.status === 'calculated' ? '8영역 계산 가능' : '완전응답 영역만 계산'} · 비교: {result.comparison_status === 'pending_policy' ? 'Q10 대상 자격 미확정' : '두려움 응답 부족'}</p>}
         <div className="score-grid">{result.domains.map(domain => <div className="score-card" key={domain.domain}><strong>{domain.domain}</strong>
-          <p>응답 {domain.answered_count}/{domain.target_count} · {domain.mean === null ? domain.reason : 'aggregation' in domain && domain.aggregation === 'single_raw' ? `원값 ${domain.mean}` : `평균 ${domain.mean.toFixed(2)} (분모 ${domain.denominator})`}</p></div>)}
+          <p>응답 {domain.answered_count}/{domain.target_count} · {domain.mean === null ? domain.reason : 'aggregation' in domain && domain.aggregation === 'single_raw' ? `원값 ${domain.mean}` : `평균 ${domain.mean.toFixed(2)} (분모 ${domain.denominator})`}</p>
+          {'missing_question_ids' in domain && domain.missing_question_ids.length > 0 && <small>보완 문항: {domain.missing_question_ids.map(id => `Q${id.slice(1)}`).join(', ')}</small>}</div>)}
           <div className="score-card"><strong>25번 단독 응답</strong><p>{result.standalone.raw ?? `미응답 (${result.standalone.blank_reason ?? '사유 미상'})`}</p></div></div>
         <p className="fine">22·23번 불안 평균과 24번 재회 반응은 각각 표시합니다. 영상 애착 유형은 설문으로 정하지 않습니다.</p>
         {'policy_version' in result && <p className="fine">26~28번 역채점: {result.items.filter(q => q.reverse_scored).map(q => `${q.item_id} 원응답 ${q.raw ?? '빈칸'} → 변환 ${q.converted ?? '미산출'}`).join(' · ')}</p>}

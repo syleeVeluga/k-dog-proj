@@ -255,9 +255,10 @@ def verify_files(store, snapshot):
 
 def verify_assets(configuration):
     from .report_render_v4 import ASSETS, assets
-    names = (*ASSETS, *("resources/"+name for name in profiles.ASSETS))
+    survey_policy = profiles.RUNTIME_SURVEY_POLICY_VERSION if "rules/survey-policy-20261007.json" in configuration.content_hashes else profiles.SURVEY_POLICY_VERSION
+    names = (*ASSETS, *("resources/"+name for name in profiles.asset_names(survey_policy)))
     stamps = {name: analysis.file_stamp(REPO_ROOT/name) for name in names}
-    if configuration.template_hashes != assets() or configuration.content_hashes != profiles.assets()[1]:
+    if configuration.template_hashes != assets() or configuration.content_hashes != profiles.assets(survey_policy)[1]:
         raise HTTPException(409, "실행 중 문장·선택 기준 또는 출력 템플릿이 변경되었습니다.")
     check_asset_stamps(stamps)
     return stamps
@@ -630,7 +631,7 @@ def _outdated(store, db, row, snapshot, case):
     configuration = ReportConfigV4.model_validate_json(row["config_snapshot_json"])
     try:
         verify_assets(configuration)
-        assets_changed = False
+        assets_changed = configuration.content_hashes != profiles.assets()[1]
     except (HTTPException, OSError, ValueError):
         assets_changed = True
     return (case["input_revision"] != snapshot.input_revision or case["selected_session_id"] != snapshot.session_id

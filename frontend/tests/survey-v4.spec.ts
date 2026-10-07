@@ -24,7 +24,8 @@ test('S1 설문은 확정 결측·역채점·등록 상태와 외부 승인 대�
   await expect(page.getByText('수치 응답 26/28', { exact: false })).toContainText('등록 완료 기준 미확정');
   await expect(page.getByText(/S1 집계: 완전응답 영역만 산출/)).toContainText('D06');
   await expect(page.getByText('응답 1/2 · 확정 두려움 묶음 규칙: 하나라도 결측이면 해당 묶음 미산출', { exact: true })).toBeVisible();
-  await expect(page.getByText('응답 5/6 · D05 부분 결측 산출 정책 미확정: 부분평균과 0 대체를 적용하지 않음', { exact: true })).toBeVisible();
+  await expect(page.getByText('응답 5/6 · 전체 응답 필요: 누락 문항 보완 전 해당 묶음 미산출', { exact: true })).toBeVisible();
+  await expect(page.getByText('보완 문항: Q01', { exact: true })).toBeVisible();
   await expect(page.getByText('응답 3/3 · 평균 1.00 (분모 3)', { exact: true })).toBeVisible();
   await expect(page.getByText(/s26 원응답 1 → 변환 5/)).toBeVisible();
   await page.getByText('설문 원응답', { exact: false }).click();

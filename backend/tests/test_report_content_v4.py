@@ -104,3 +104,14 @@ class ReportContentV4Tests(unittest.TestCase):
         two=reports.build(final,pointer,batch=batch)
         self.assertEqual(one,two)
         self.assertEqual(reports.validate_profile(one,final,pointer,batch=batch),one)
+
+    def test_rp01_previous_s1_profile_keeps_pinned_survey_policy_and_asset_hashes(self):
+        final,pointer,batch=fixture({'개51':1})
+        old=reports.build(final,pointer,batch=batch,survey_policy='survey-policy-20261002-s1.1')
+        before=old.model_dump_json()
+        self.assertEqual(reports.validate_profile(old,final,pointer,batch=batch),old)
+        self.assertEqual(old.model_dump_json(),before)
+        new=reports.build(final,pointer,batch=batch)
+        self.assertEqual(new.source.survey.policy_version,'survey-policy-20261007-rp01')
+        self.assertIn('rules/survey-policy-20261007.json',new.source.asset_hashes)
+        self.assertIn('rules/survey-policy-v4.json',old.source.asset_hashes)

@@ -12,6 +12,8 @@ PROTOCOL_VERSION = "protocol-20261002-s1.1"
 SCORING_VERSION = "scoring-20261002-s1.1-app-1"
 SURVEY_VERSION = "survey-20260929-v3"
 SURVEY_POLICY_VERSION = "survey-policy-20261002-s1.1"
+RUNTIME_SURVEY_POLICY_VERSION = "survey-policy-20261007-rp01"
+SurveyPolicyVersion = Literal["survey-policy-20261002-s1.1", "survey-policy-20261007-rp01"]
 SOURCE_FILES = {
     "SRC02": ("K-DOG_개발기준_통합명세_20261002.docx",
               "4a1b3696246d55b34f6ca2b919c1599da4b15b47fa7a4e5ae624a2669a17493a"),

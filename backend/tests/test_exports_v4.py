@@ -3,6 +3,8 @@ import csv
 from io import BytesIO, StringIO
 import json
 from pathlib import Path
+import shutil
+import tempfile
 import unittest
 from unittest.mock import patch
 from zipfile import ZipFile
@@ -39,6 +41,71 @@ class ExportV4Tests(unittest.TestCase):
 
     def snapshot(self, export_id):
         with self.store.connect() as db:return exports._load(self.store,exports._record(db,export_id))
+
+    def cohort(self, previous=False):
+        from app import comparisons_v4 as compare
+        from app.survey_v4 import survey_scores_v4
+        old='survey-policy-20261002-s1.1'
+        assets=compare.assets
+        with self.store.connect() as db:
+            case=self.store.case(db,self.case_id)
+            selection={'case_id':self.case_id,'session_id':self.session_id,'expected_revision':case['input_revision'],
+                'input':{'manifest_ref':case['manifest_ref'],'manifest_hash':case['manifest_hash']}}
+        request=model(compare.CohortCreateV4,request_id='old-cohort' if previous else 'new-cohort',title='Synthetic survey group',reason='synthetic policy regression',
+            members=[selection])
+        if previous:
+            with patch.object(compare,'RUNTIME_SURVEY_POLICY_VERSION',old), \
+                 patch.object(compare,'survey_scores_v4',side_effect=lambda session,catalog,**kwargs: survey_scores_v4(session,catalog,policy_version=old)), \
+                 patch.object(compare,'assets',side_effect=lambda *args: assets(old)):
+                return compare.create(self.store,request,self.user)
+        return compare.create(self.store,request,self.user)
+
+    def test_rp01_exports_pin_actual_policy_and_csv_xlsx_policy_columns(self):
+        from app.domain.catalog_v4 import RUNTIME_SURVEY_POLICY_VERSION
+        cohort=self.cohort()
+        for format in ('csv_zip','xlsx'):
+            request=self.request.model_copy(update={'request_id':'policy-'+format,'format':format,'comparison':cohort.reference})
+            created=self.create(request)
+            snapshot=self.snapshot(created['export_id'])
+            name='rules/survey-policy-20261007.json'
+            self.assertEqual(snapshot.asset_hashes[name],exports.hashlib.sha256((exports.RESOURCES/name).read_bytes()).hexdigest())
+            data,_,_=exports.download(self.store,created['export_id'],self.user)
+            if format=='csv_zip':
+                output=self.csv_tables(data)
+                for table in ('survey_responses','survey_domains','comparisons'):
+                    self.assertTrue(output[table])
+                    self.assertTrue(all(row['policy_version']==RUNTIME_SURVEY_POLICY_VERSION for row in output[table]))
+            else:
+                workbook=load_workbook(BytesIO(data),read_only=True)
+                for table in ('survey_responses','survey_domains','comparisons'):
+                    rows=list(workbook[table].values)
+                    policy=rows[0].index('policy_version')
+                    self.assertTrue(all(row[policy]==RUNTIME_SURVEY_POLICY_VERSION for row in rows[1:]))
+                workbook.close()
+
+    def test_rp01_previous_cohort_cannot_join_new_export(self):
+        old=self.cohort(previous=True)
+        with self.assertRaisesRegex(HTTPException,'정책 판본'):
+            self.create(self.request.model_copy(update={'comparison':old.reference}))
+        with self.store.connect() as db:
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM changes WHERE action=?',(exports.ACTION,)).fetchone()[0],0)
+
+    def test_rp01_policy_change_after_render_cannot_adopt_export(self):
+        render=exports.render
+        with tempfile.TemporaryDirectory(prefix='kdog-rp01-export-assets-') as directory:
+            root=Path(directory)
+            for name in exports.ASSETS:
+                path=root/name;path.parent.mkdir(parents=True,exist_ok=True)
+                shutil.copyfile(exports.RESOURCES/name,path)
+            def changed(snapshot):
+                data=render(snapshot)
+                path=root/'rules/survey-policy-20261007.json'
+                path.write_bytes(path.read_bytes()+b'\n')
+                return data
+            with patch.object(exports,'RESOURCES',root),patch.object(exports,'render',side_effect=changed),self.assertRaises(HTTPException):
+                self.create()
+        with self.store.connect() as db:
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM changes WHERE action=?',(exports.ACTION,)).fetchone()[0],0)
 
     def test_csv_is_long_s1_only_with_exact_types_nulls_and_separate_results(self):
         created = self.create()

@@ -3,6 +3,7 @@ import hashlib
 import json
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+import shutil
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -269,6 +270,47 @@ class ReportRunV4Tests(unittest.TestCase):
         with patch.object(reports, "check_asset_stamps", side_effect=changed), self.assertRaises(HTTPException):
             self.enqueue()
         self.assertEqual(reports.list_runs(self.store, self.case_id, self.session_id, self.user), [])
+
+    def test_rp01_new_policy_file_is_stamped_and_late_change_is_rejected(self):
+        from app.report_render_v4 import ASSETS
+        configuration=reports.config()
+        names=(*ASSETS,*("resources/"+name for name in reports.profiles.asset_names()))
+        with tempfile.TemporaryDirectory(prefix='kdog-rp01-report-assets-') as directory:
+            root=Path(directory)
+            for name in names:
+                path=root/name;path.parent.mkdir(parents=True,exist_ok=True)
+                shutil.copyfile(reports.REPO_ROOT/name,path)
+            with patch.object(reports,'REPO_ROOT',root):
+                stamps=reports.verify_assets(configuration)
+                name='resources/rules/survey-policy-20261007.json'
+                self.assertIn(name,stamps)
+                path=root/name;path.write_bytes(path.read_bytes()+b'\n')
+                with self.assertRaises(HTTPException):
+                    reports.check_asset_stamps(stamps)
+
+    def test_rp01_previous_policy_report_keeps_bytes_and_requests_regeneration(self):
+        old='survey-policy-20261002-s1.1'
+        build,assets=reports.profiles.build,reports.profiles.assets
+        def previous(*args,**kwargs):
+            return build(*args,**{**kwargs,'survey_policy':old})
+        with patch.object(reports.profiles,'build',side_effect=previous), \
+             patch.object(reports.profiles,'assets',side_effect=lambda *args: assets(old)):
+            created=self.enqueue()
+            self.work()
+            before=reports.download(self.store,self.case_id,self.session_id,created['run_id'],'html',self.user)[0]
+            row=self.row(created['run_id'])
+            snapshot=reports.snapshot_for(row)
+            # This fixture changes consent after scoring. Isolate the policy
+            # transition from that unrelated input drift without altering files.
+            revision=snapshot.final_document.basic_document.input_document.source.input_revision
+            snapshot=snapshot.model_copy(update={'input_revision':revision})
+            case={**self.current(),'input_revision':revision}
+            with self.store.connect() as db:
+                self.assertFalse(reports._outdated(self.store,db,row,snapshot,case))
+        with self.store.connect() as db:
+            self.assertTrue(reports._outdated(self.store,db,row,snapshot,case))
+        after=reports.download(self.store,self.case_id,self.session_id,created['run_id'],'html',self.user)[0]
+        self.assertEqual(before,after)
 
     def test_blocking_content_stays_review_required_without_rendering(self):
         from app.domain.report_profile_v4 import ValidationIssueV4
