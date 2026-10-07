@@ -1,6 +1,6 @@
 # PR-RP01 설문 응답 정책 적용
 
-버전: v1.0 · 2026-10-07 · 상태: 계획·미구현 · 선행: 없음
+버전: v1.0 · 2026-10-07 · 상태: 구현·검증·독립 cold review 완료, 병합 기록은 아래 참조 · 선행: 없음
 
 상위: [수용안 적용 계획](K-DOG_리포트수용안적용계획_v1.0_20261007.md). 연결: A01, D05/P05 중 설문, R02/R07, T14/T25, RP-T01~03.
 
@@ -43,8 +43,21 @@
 - 기존 정책 S1 snapshot의 읽기·다운로드는 보존되며, 새 정책 집단의 생성·조회가 성공한다. 신구 정책을 섞은 집단은 거절하고 기존 외부 비교 범위와 새 정책 불일치는 계속 차단한다. 이 시험은 RP01에서 수행하고 RP05까지 미루지 않는다.
 - D05의 추가 관찰 무효 규칙, D03 관찰창과 외부 비교 기준표 대기는 해제하지 않는다.
 
-구현 후 backend에서 `uv run --locked python -X utf8 -m unittest tests.test_survey_v4 tests.test_forms_import_v4 tests.test_forms_api_v4 tests.test_comparisons_v4 tests.test_exports_v4 tests.test_report_content_v4 -v`를 수행한다. frontend에서는 `npm run build`, S1 환경(`$env:KDOG_TEST_INTAKE_SPEC='20261002'`)에서 `npx playwright test tests/survey-v4.spec.ts tests/importer-v4.spec.ts tests/comparisons-v4.spec.ts`를 수행한다. 현재는 실행하지 않았다.
+계획 당시 검증 명령은 backend의 `uv run --locked python -X utf8 -m unittest tests.test_survey_v4 tests.test_forms_import_v4 tests.test_forms_api_v4 tests.test_comparisons_v4 tests.test_exports_v4 tests.test_report_content_v4 -v`, frontend의 `npm run build`와 S1 환경(`$env:KDOG_TEST_INTAKE_SPEC='20261002'`)에서 `npx playwright test tests/survey-v4.spec.ts tests/importer-v4.spec.ts tests/comparisons-v4.spec.ts`였다. 실제 확대 검증·수용 수정 결과는 아래 기록을 따른다.
 
 ## 인계
 
 RP02/RP03에 새 설문 정책 버전·필드·결측 예제를 전달한다. 구글폼 필수 설정 확인과 앱 구현 검증은 별도로 기록한다. 코드·시험·UI 계약을 함께 변경하되 운영 데이터 초기화는 하지 않는다.
+
+## 2026-10-07 구현·검증 기록
+
+기준 `main / aa3f3ac`에서 `veluga/rp01-survey-policy`로 구현했다. 제품 구현 commit은 `d7e78725d803aa67a4578dffd40ea2049b410670`이다. [실행 기록](K-DOG_리포트구현실행기록_v1.0_20261007.md)과 [독립 cold review·수용 4건](K-DOG_PR-RP01_ColdReview_v1.0_20261007.md)에 검증과 최종 PR 상태를 연결한다.
+
+- 원본 추출 정책 `survey-policy-20261002-s1.1`과 해당 JSON은 보존했다. 새 실행의 정책은 `survey-policy-20261007-rp01`이고 [회신 적용 자산](../../resources/rules/survey-policy-20261007.json)에 A01 결정 위치를 고정했다.
+- 완전응답 산식·Q26~28의 `6-원응답`·유효 0·Q24/Q25의 단일 응답을 유지한다. 비공포 묶음의 누락은 `insufficient_responses`이며 해당 묶음의 분자/분모/평균은 null이다. API의 누락 ID와 UI 보완 문항 안내를 제공한다. 전체 미응답은 `missing`을 유지한다.
+- API·자체 집단·CSV/XLSX·리포트가 같은 공통 산출 함수를 사용한다. 신규 내보내기는 실제 새 정책 hash와 정책 식별 열을 고정한다. 신구 집단/외부 비교 정책 불일치는 신규 연결에서 거절한다.
+- 과거 S1 집단·profile·발급본·내보내기는 저장한 정책으로 읽고 bytes를 변경하지 않는다. 기존 발급본은 최신 정책으로 재생성이 필요함을 안내한다. 새 정책 파일도 리포트 게시 직전 stamp 검사 대상이다.
+
+초기 확대 backend 138개(147.810초), 수용 수정 후 관련 backend 74개(101.767초), 추가 재생성 안내 시험 1개(3.294초)가 통과했다. 중복 회귀 수치를 합산하지 않는다. frontend build와 지정 Playwright 5개(20.5초)가 통과했고 보완 문항 UI 추가 후 build·설문 시험 1개(7.3초)를 다시 통과했다. S1 원본 추출 검사 8개 자산이 통과했고 SRC02/SRC03 hash가 자료 목록과 일치했다. 문서·공백 검사는 실행 기록에 연결한다.
+
+라이브러리 최신/선택 버전·호환성·출처는 실행 기록 §2를 따른다. 패키지·lockfile 변경과 실제 공급자 호출은 없다. 구글폼 필수 설정은 의뢰자 담당이며 그 외 접수 완료 정책, D03·D05 추가 관찰 무효·D06 기준표와 교수 검토 대기는 이번 PR로 해소하지 않는다.
