@@ -14,7 +14,7 @@
 | AR04 | [x] | [x] | [x] | [x] 발견 없음 | [x] | [x] PR #78 |
 | AR05 | [x] | [x] | [x] | [x] P2 2건 | [x] | [x] PR #79 |
 | AR06 | [x] | [x] | [x] | [x] P3 1건 | [x] | [x] PR #80 |
-| AR07 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
+| AR07 | [x] | [x] | [x] | [x] P2·204 | [x] | [ ] 병합 대기 |
 
 PR 최종 head·merge SHA는 PR 메타데이터로 확인하고 병합 후 다음 단계에서 표와 개별 계획에 기록한다. 계획 검증 대장의 v1.0/v1.1 기록은 당시 문서 검증 이력으로 유지한다.
 
@@ -251,10 +251,55 @@ AR06 최종 head `bd9f403a5182079f0223ec3559f63abd1586ce6d`, merge `f63ac2a6fa2d
 2026-10-12, `veluga/ar07-integration-release`, 기준 AR06 merge `f63ac2a6fa2dfe56615e0827e01ee4e9a4130ef5`. AR-R01~R12 통합 인수. 새 의존성 없이 §4의 2026-10-11 공식 stable/선택판 확인·호환 근거와 잠금판을 유지했다. 실제 운영 자료 변경·초기화·삭제·유료 공급자 호출은 없다.
 
 - [잔존 조건 검토](K-DOG_AR07_잔존조건검토_v1.0_20261012.md)에 backend/frontend/scripts의 exhaustive Graft 검색·호출 관계·미색인 Windows 검색과 분류를 기록했다. AI/리포트 재시도의 원 생성자 활성 검사 두 곳을 실제 403으로 재현해 수정했다. 원 snapshot.requested_by는 보존하며 최신 retry 사건의 실제 actor로 Worker 검사·발급 기록을 수행한다. 원 생성자 비활성→다른 사용자 재시도 성공, 현재 retry actor 비활성→채택 중단 회귀 3개(6.687초) 통과.
-- 초기 backend 전체 718개(1098.517초): 710통과·6실패·2skip. 옛 공유 이력/생성자·삭제 flag 사용량·손상 클립 오류·외부 비교 미선택 상태의 기대를 현행 정책으로 갱신했다. 손상/유실 격리·중간 actor 비활성·pin 검사는 유지했다. 관련 27개(25.741초) 통과. 최종 전체는 실행 중이며 이 집중 성공을 전체 성공으로 합산하지 않는다.
-- 초기 E2E 전체 112개(8.6분): 102통과·10실패. 삭제 API·배정/역할·검토자 차단의 옛 기대, 공유 목록의 중복 선택자, 접힌 등록/백업 패널, 개발자 재로그인 전 남은 주소, 열람 버튼 없는 클립 대기 fixture를 수정했다. 영상 bytes/재생·명시 재사용·판본 충돌·미로그인/설정 경계 검증은 유지했다. 집중/최종 전체 결과는 아래 실제 완료 후 추가한다.
+- 초기 backend 전체 718개(1098.517초): 710통과·6실패·2skip. 옛 공유 이력/생성자·삭제 flag 사용량·손상 클립 오류·외부 비교 미선택 상태의 기대를 현행 정책으로 갱신했다. 손상/유실 격리·중간 actor 비활성·pin 검사는 유지했다. 관련 27개(25.741초) 통과. 당시 최종 전체는 실행 전이었으며 이 집중 성공을 전체 성공으로 합산하지 않는다. 실제 최종 전체 결과는 아래 완료 인수에 기록했다.
+- 초기 E2E 전체 112개(8.6분): 102통과·10실패. 삭제 API·배정/역할·검토자 차단의 옛 기대, 공유 목록의 중복 선택자, 접힌 등록/백업 패널, 개발자 재로그인 전 남은 주소, 열람 버튼 없는 클립 대기 fixture를 수정했다. 영상 bytes/재생·명시 재사용·판본 충돌·미로그인/설정 경계 검증은 유지했다. 집중/최종 전체 결과는 아래 완료 인수에 별도로 기록했다.
 - S1 `app.import_catalogs --spec 20261002 --check` 통과: source manifest와 현재 8개 catalog/rules/mapping 검증. G01/G04 점수 입력 workbook은 미수령으로 주소/산식 미확정·실점수 Excel import 비활성 유지. 역사 v3 원본 bundle 부재의 2skip는 S1 통과와 구분한다.
 - `npm run build` 통과. 기존 chunk 안내 유지. 현재 기준/확인사항/추적표/인수대장·리포트 공통정책·UIUX 안내에 2026-10-11 결정 우선과 이전 시험의 날짜/판본을 명시했다. DEVELOPMENT/PILOT/AGENTS의 공통 운영 안내는 AR06 변경을 유지한다.
-- 릴리스 allowlist에 현행 plans Markdown·합성 PNG를 포함했다. verify_release는 ordinary operator 설치·발행, 일반 설정403·개발자 공유 업무/설정, 같은 자료 경로 재설치·기존 비밀번호 보존을 검사한다. 실제 ZIP 설치 결과·hash·검토·PR/병합 근거는 완료 후 추가한다.
+- 릴리스 allowlist에 현행 plans Markdown·합성 PNG를 포함했다. verify_release는 ordinary operator 설치·발행, 일반 설정403·개발자 공유 업무/설정, 같은 자료 경로 재설치·기존 비밀번호 보존을 검사한다. 실제 ZIP 설치 결과·hash·검토 근거는 아래에 기록했다. 실제 병합 SHA는 병합 후 기록한다.
 
-독립 cold review·최종 전체/ZIP 검증은 준비 중이다. 실제 provider 품질·교수 판단·물리 3PC/깨끗한 OS는 기존 후속 대장의 미실측 항목이며 이번 합성 인수로 완료하지 않는다.
+초기 구현 당시 독립 cold review·최종 전체/ZIP 검증은 준비 중이었으며 아래에 실제 완료 결과를 기록했다. 실제 provider 품질·교수 판단·물리 3PC/깨끗한 OS는 기존 후속 대장의 미실측 항목이며 이번 합성 인수로 완료하지 않는다.
+
+### 수용 수정과 독립 재검토
+
+구현 head `26bbd80a0cc21d14e78fa92ef95f331a8a75211e`의 독립 cold review에서 P2 1건을 수용했다. 재시도 권한/발급 actor를 바꾼 뒤에도 실제 AI 게시·공급자 감사가 원 생성자로 남는 문제다. 채점·애착·리포트 문장의 실제 실행 actor와 `ai.publish`를 최신 retry 사건으로 식별했다. 원 snapshot.requested_by·시트/계산의 이미 고정된 출처/bytes는 재작성하지 않았다. 새 실제 42채점+1애착 호출·문장 호출·AI게시/발급의 actor를 검증하며 관련 35개(96.803초) 통과. 앞선 집중 명령은 없는 `tests.test_attachment_v4` 모듈명 입력 오류 1건을 포함했으므로 성공 실행으로 기록하지 않는다.
+
+독립 재검토는 새 종단/lease/token·중지·예산·과금 미확인 8개(36.718초)를 통과해 P2 해결·추가 actionable0을 확인했다. 최초 독립 검토의 retry3개(7.290초)·Worker3개(2.080초)와 구별한다.
+
+추가 통합 검증에서 정상 클립 열람 POST204를 공통 API가 JSON으로 읽어 플레이어를 열지 못하는 실제 오류를 재현해 수용 수정했다. 성공204만 빈 결과로 처리하며 기존 JSON/401/403 오류 처리는 유지한다. 실제 POST204→video metadata 재생·원본 MP4 bytes·명시 프레임·재사용·판본 충돌·reviewer 공유 재사용, 접수 초기 갱신/등록 3개(24.1초) 통과. 접수 fixture는 목록 count·busy 완료 후 접힌 패널 상태를 판단한다. 첫 갱신 E2E 전체112개 중110통과·2실패(9.4분)를 단일 성공으로 합산하지 않는다.
+
+독립 reviewer는 실제 `api.ts`를 불러온 합성8개로 기존 오류 재현·204/정상/손상 JSON·401 세션 만료·로그인 실패·개발자 설정403을 검증해 해결·추가 actionable0을 확인했다. 수정 제품 commit은 `14cebd8`이다.
+
+cold review 전 전체 backend721개(1209.958초)는719통과·역사v3 원본 부재2skip였다. 수용 수정 후 전체 backend와 전체 E2E는 아래 별도 새 실행으로 완료했다. 초기본 `26bbd80` 포터블·온라인 ZIP 설치는 통과했다. 새 수정판 ZIP은 별도 파일로 만들어 이전 검증본을 덮어쓰지 않았다. 현재 변경 Markdown/이미지의 Git index379개 링크 누락0·Graft build/check 최신·diff check 통과.
+
+합성 backup/restore 인수는 `test_full_legacy_matrix_scoring_report_cohort_export_clean_and_repeated_restore`에서 12상태 각각 원자료/S1점수/리포트/export 전체 reference hash·changes row를 backup snapshot과 대조한다. 2회 복원에서 PDF/export bytes 동일, 옛 flag/대장 보존·purge 없음·백업 후 사건 미병합을 검증했다. 유실 참조는 실패하며 고아파일도 보존하는 별도 회귀가 포함된다.
+
+
+### 수용 수정판 설치·배포 인수
+
+제품 commit `14cebd863b10b2a2453a28e4409283038898bbe6`의 두 ZIP을 새 경로에 생성하고 각각 실제 `scripts/verify_release.py`로 검사했다. `release.json`의 clean commit·현행 계획 Markdown 12개·S1 자산·파일 hash를 확인했으며 고객 원본·운영 DB·키·운영 로그를 포함하지 않았다. 초기 ZIP을 덮어쓰지 않았다. 아래 hash는 실제 검증한 수정판의 식별이며 이후 완료 문서만 반영한 최종 배포본 hash는 별도 릴리스 receipt로 제공한다.
+
+| 파일 | 크기 | SHA256 | 실제 결과 |
+| --- | --- | --- | --- |
+| `kdog-ar07-14cebd8-windows-x64.zip` | 75,213,777 bytes | `d8e409993fbcd83d14244d2cc1d731cf7b98768d1457a3af0feb5a38815ac90f` | 포터블 검증 통과 |
+| `kdog-ar07-14cebd8-online-windows-x64.zip` | 2,384,120 bytes | `8b05a9212d2466da9a3f38e225c0e983e1baae824038a466198dc32dce1d2232` | 온라인 검증 통과 |
+
+포터블은 PATH에 Python/uv/ffmpeg 없는 공백·한글 새 폴더, bundled runtime·손상/환경 우회 거절·HTTP 로그인/생성/재시작·supervisor 종료, sealed 발행→잘못된 키/변조 무변경→올바른 키 설치/계정/바로가기, 일반 업무 계정의 설정403·개발자 설정/공유 업무, 같은 자료 경로 재설치 후 기존 자료·비밀번호 보존을 실제 확인했다. 온라인도 새 venv·설치 전 실행 거절·손상 검사·잠금 의존성·venv Python/ffmpeg·HTTP 재시작/종료를 확인했다. 외부 AI 호출은 모두0이었다. 현재 Windows의 격리 새 폴더 인수이며 깨끗한 OS·두 번째 물리 PC 실측으로 표시하지 않는다.
+
+추가 전체 E2E112개에서110통과·layout390/768px 최초 조회 시각 대기5초의 2timeout(7.6분)이 발생했다. 같은 실제 조회 시각 정규식과 화면 조작 검증을 유지하고 최초 대기만30초로 수정했다. 집중 layout8개(18.7초) 통과, 독립 cold review에서 제품 성공 응답 이후 시각 표시·기존 검증 유지·추가 actionable0을 확인했다. 제품 코드는 이 대기 변경에 영향을 받지 않는다. 최종 전체 재실행 결과는 아래 완료 인수에 기록한다.
+
+
+### 최종 전체 인수 — 2026-10-12
+
+수용 수정판 제품 `14cebd8` 이후 변경은 최초 조회 시험 대기와 완료 문서뿐이다. 아래는 서로 다른 집중 실행을 합산하지 않은 실제 전체 실행 결과다.
+
+| 검증 | 최종 결과 |
+| --- | --- |
+| backend 전체 `uv run --locked python -X utf8 -m unittest discover -s tests -v` | 723개, 1195.231초: 721통과·역사 v3 원본 bundle 부재2skip, 실패0 |
+| frontend `npm run test:e2e` | 112개 전부 통과, 7.6분. 실제 영상 POST204/재생/공유 재사용·390/768px 최초조회·일반 업무·개발자 설정 경계 포함 |
+| S1 source `app.import_catalogs --spec 20261002 --check` | 통과. 현재 8자산 source/hash 검증, G01/G04 미수령 상태 유지 |
+| `npm run build` | 수용 수정 후 통과, 기존 chunk 안내 유지 |
+| 포터블/온라인 실제 ZIP 설치·실행 | 위 수정판 두 종류 모두 통과. 기존 자료·비밀번호 재설치 보존, 설정403·개발자 공유 업무, 외부 AI 호출0 |
+| 독립 cold review | P2 1건 수용·실제 provider/게시 actor 수정. 204 및 최초조회 fixture 검토 완료, 추가 actionable0. 설치/문서/hash 독립 대조도 추가 actionable0 |
+| 링크·차이·Graft | 변경 Markdown/이미지 Git index 링크384개·계획104개 누락0, diff check 통과·Graft 최신. 최종 문서 반영 후 재확인 |
+
+최종 검증 로그는 로컬 ignored `releases/ar01-validation/ar07-backend-after-review-full.log`, `ar07-e2e-final-readiness-full.log`, `ar07-source-check.log`, `ar07-build-after-review.log`, `ar07-release-verify-after-review.log`, `ar07-online-verify-after-review.log`에 보관한다. 참조 hash·원본 snapshot·lease/token·stop·과금 미확인·최대 예산·재사용·동시 판본·세션·설정 보호를 유지했다. 검증은 합성 자료/격리 경로이며 실제 운영 DB 교체나 현장 배포를 수행한 것으로 기록하지 않는다. 기존 후속 대장의 실제 provider·교수 판단·물리3PC/깨끗한OS와 미수령 산식은 별도 실측 범위다.
