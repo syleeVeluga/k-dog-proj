@@ -70,7 +70,7 @@ test.describe('화면 문구 점검', () => {
 
   test('교수/검토자 메뉴 전체에 개발 코드·UUID·해시가 기본 노출되지 않는다', async ({ page }) => {
     await login(page, 'reviewer');
-    const found = await walk(page, ['참가자 접수', '설문 현황', '촬영 기록 (8구간)', '전처리', '독립 채점']);
+    const found = await walk(page, ['참가자 접수', '설문 현황', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급']);
     expect(found).toEqual([]);
   });
 

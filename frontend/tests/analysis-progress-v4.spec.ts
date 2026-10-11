@@ -92,8 +92,10 @@ test('교수/검토자는 4단계 진행·내 시트만 보고 다른 평가자 
   await openMenu(page, '전처리');
   await page.getByRole('button', { name: 'V1 전처리 열기', exact: true }).click();
   expect(await page.locator('main').innerText()).not.toMatch(DEV_CODES);
-  // 리포트 열람은 현재 운영자·관리자만이다(교수 조회 Q03는 후속 결정). 메뉴도 경로도 열리지 않는다.
-  for (const hash of ['#/report', '#/report/export', '#/report/comparison']) {
+  // U08: 리포트 발급 화면은 교수에게도 열리고, 비교 조건·연구 내보내기는 운영자 전용으로 남는다.
+  await page.evaluate(() => { window.location.hash = '#/report'; });
+  await expect(page).toHaveURL(/#\/report$/);
+  for (const hash of ['#/report/export', '#/report/comparison']) {
     await page.evaluate(value => { window.location.hash = value; }, hash);
     await expect(page).toHaveURL(/#\/intake$/);
   }

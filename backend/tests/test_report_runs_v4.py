@@ -230,9 +230,37 @@ class ReportRunV4Tests(unittest.TestCase):
         with self.assertRaises(HTTPException):
             reports.download(self.store, self.case_id, self.session_id, run_id, "html", self.user)
         with self.store.connect(write=True) as db:
-            db.execute("UPDATE users SET role='reviewer' WHERE username=?", (self.user.username,))
+            db.execute("UPDATE users SET role='developer' WHERE username=?", (self.user.username,))
         with self.assertRaises(HTTPException):
             reports.view(self.store, run_id, self.user)
+
+    def test_u08_professor_creates_opens_report_and_open_is_audited_without_manager_powers(self):
+        from app import sheets_v4 as sheets
+        from tests.test_opinions_v4 import model as make
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE users SET role='reviewer' WHERE username=?", (self.user.username,))
+        professor = SimpleNamespace(username=self.user.username, role="reviewer")
+        run_id = reports.enqueue(self.store, self.case_id, self.session_id, self.request, professor)["run_id"]
+        self.work()
+        self.assertEqual(self.row(run_id)["status"], "succeeded")
+        self.assertEqual([row["run_id"] for row in reports.list_runs(self.store, self.case_id, self.session_id, professor)], [run_id])
+        reports.download(self.store, self.case_id, self.session_id, run_id, "manifest", professor)
+        reports.download(self.store, self.case_id, self.session_id, run_id, "html", professor, inline=True)
+        reports.download(self.store, self.case_id, self.session_id, run_id, "pdf", professor)
+        log = reports.access_log(self.store, self.case_id, self.session_id, run_id, professor)
+        name = professor.username
+        self.assertEqual([(row["actor"], row["action"], row["format"]) for row in log], [(name, "report.s1.create", None),
+            (name, "report.s1.issue", None), (name, "report.s1.open", "html"), (name, "report.s1.open", "pdf")])
+        # 다른 교수는 리포트 메뉴는 쓰지만 공개 이력 없이 다른 평가 원본을 볼 수 없다(독립성 규칙 유지).
+        with self.assertRaises(HTTPException) as caught:
+            reports.download(self.store, self.case_id, self.session_id, run_id, "html", self.helper.people["other"])
+        self.assertEqual(caught.exception.status_code, 403)
+        # 운영자 권한(배정)은 넓히지 않는다.
+        value = make(sheets.SheetAssignmentV4, expected_revision=self.current()["input_revision"], assigned_username="other",
+            rater_id="rater-other-u08", rater_name="합성 평가자", source_sheet_id=None, purpose="independent", batch_id=None)
+        with self.assertRaises(HTTPException) as caught:
+            sheets.assign(self.store, self.case_id, self.session_id, value, professor)
+        self.assertEqual(caught.exception.status_code, 403)
 
     def test_backup_restore_and_deleted_case_cleanup_preserve_or_purge_full_report(self):
         run_id = self.publish()

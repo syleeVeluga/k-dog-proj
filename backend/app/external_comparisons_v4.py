@@ -79,7 +79,7 @@ def _population(case, requirements):
 
 
 def _entries(store, target, source_ids, user, db):
-    comparisons._account(db, user)
+    comparisons._account(db, user, reader=True)
     member, case = comparisons._member(store, db, target, current=False)
     if not case["consent_confirmed"]:
         raise HTTPException(403, "외부 비교 대상의 동의 확인이 필요합니다.")
@@ -122,7 +122,7 @@ def for_output(store, pointer, user):
     pointer = ExternalReferenceV4.model_validate(pointer)
     doc = document(store, pointer)
     with store.connect() as db:
-        comparisons._account(db, user)
+        comparisons._account(db, user, reader=True)
         source_hash = comparisons._sources()[1]
         if doc.source_hash != source_hash or doc.survey_assets != comparisons.assets():
             raise HTTPException(409, "외부 비교 출처 또는 설문 정책 판본이 변경되어 제공을 보류합니다.")
@@ -147,7 +147,7 @@ def create(store, value, user):
     value = ExternalCreateV4.model_validate_json(value.model_dump_json())
     request_hash = analysis.digest({"request": value.model_dump(mode="json"), "actor": user.username})
     with store.connect() as db:
-        comparisons._account(db, user)
+        comparisons._account(db, user, reader=True)
         for row in db.execute("SELECT detail_json FROM changes WHERE action=? AND actor=?", (ACTION, user.username)):
             record = json.loads(row[0])
             if record["request_id"] == value.request_id:
@@ -161,7 +161,7 @@ def create(store, value, user):
     file = comparisons._write(store, "external", doc)
     pointer = ExternalReferenceV4(snapshot_id=doc.snapshot_id, revision=1, ref=file.ref, hash=file.hash)
     with store.connect(write=True) as db:
-        comparisons._account(db, user)
+        comparisons._account(db, user, reader=True)
         if (comparisons._read(store, pointer, ExternalSnapshotV4) != doc or comparisons._sources()[1] != doc.source_hash
                 or comparisons.assets() != doc.survey_assets or _entries(store, value.target, value.source_ids, user, db) != entries):
             raise HTTPException(409, "외부 비교 저장 중 근거 또는 조건이 변경되었습니다.")
@@ -179,7 +179,7 @@ def create(store, value, user):
 
 def view(store, snapshot_id, user):
     with store.connect() as db:
-        comparisons._account(db, user)
+        comparisons._account(db, user, reader=True)
         record = comparisons._record(db, ACTION, snapshot_id)
         if record is None or comparisons._record(db, DELETED, snapshot_id):
             raise HTTPException(404, "외부 비교 snapshot이 없습니다.")
@@ -204,7 +204,7 @@ def view(store, snapshot_id, user):
 
 def list_snapshots(store, user):
     with store.connect() as db:
-        comparisons._account(db, user)
+        comparisons._account(db, user, reader=True)
         ids = [row[0] for row in db.execute("SELECT target FROM changes WHERE action=? ORDER BY rowid DESC", (ACTION,))]
     result = []
     for snapshot_id in ids:

@@ -48,7 +48,7 @@ test('LNB는 그룹과 하위 메뉴로 묶이고 역할별로 다르게 보인�
   expect(await labels(page)).toEqual(['참가자 접수', '일괄 등록 (CSV·Excel)', '설문 현황', '영상 수신·연결', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급', '비교 조건', '연구 내보내기', '검수 자료']);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await login(page, 'reviewer');
-  expect(await labels(page)).toEqual(['참가자 접수', '설문 현황', '촬영 기록 (8구간)', '전처리', '독립 채점']);
+  expect(await labels(page)).toEqual(['참가자 접수', '설문 현황', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급']);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await login(page, 'admin');
   expect(await labels(page)).toEqual(['참가자 접수', '일괄 등록 (CSV·Excel)', '설문 현황', '영상 수신·연결', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급', '비교 조건', '연구 내보내기', '검수 자료', '직원 계정', '백업·복구']);

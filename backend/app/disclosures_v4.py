@@ -84,7 +84,7 @@ def reveal(store, case_id, session_id, value: InterpretationRevealV4, user):
     from . import opinions_v4 as opinions, sheets_v4 as sheets
     value = InterpretationRevealV4.model_validate_json(value.model_dump_json())
     with store.connect() as db:
-        case = opinions.context(store, db, case_id, session_id, user)
+        case = opinions.context(store, db, case_id, session_id, user, read=True)
         source = resolve(store, db, case_id, session_id, value.target)
         basic_row, basic = opinions.selected_basic(store, db, case_id, session_id, source.basic, user, value.viewer_sheet_id)
         viewer = sheets.row_for(store, db, value.viewer_sheet_id, expected=value.expected_viewer_revision)
@@ -110,7 +110,7 @@ def reveal(store, case_id, session_id, value: InterpretationRevealV4, user):
     identities = sheets._source_identities(store, doc.source)
     ref, digest = sheets.write_document(store, data)
     with store.connect(write=True) as db:
-        current_case = opinions.context(store, db, case_id, session_id, user)
+        current_case = opinions.context(store, db, case_id, session_id, user, read=True)
         current = sheets.row_for(store, db, value.viewer_sheet_id, expected=value.expected_viewer_revision)
         sheets.owner(db, current, user)
         if current_case["input_revision"] != case["input_revision"] or tuple(current) != tuple(viewer):

@@ -209,7 +209,7 @@ def list_results(store, case_id, session_id, user, viewer_sheet_id=None):
     from . import disclosures_v4 as disclosures
     result = []
     with store.connect() as db:
-        opinions.context(store, db, case_id, session_id, user)
+        opinions.context(store, db, case_id, session_id, user, read=True)
         for row in db.execute("SELECT detail_json FROM changes WHERE target=? AND action='final.s1.publish' ORDER BY rowid DESC", (case_id,)):
             value = json.loads(row["detail_json"])
             if value.get("session_id") != session_id:
@@ -225,7 +225,7 @@ def list_results(store, case_id, session_id, user, viewer_sheet_id=None):
 def view(store, case_id, session_id, final_id, user, viewer_sheet_id=None):
     from . import disclosures_v4 as disclosures
     with store.connect() as db:
-        opinions.context(store, db, case_id, session_id, user)
+        opinions.context(store, db, case_id, session_id, user, read=True)
         for row in db.execute("SELECT detail_json FROM changes WHERE target=? AND action='final.s1.publish' ORDER BY rowid DESC", (case_id,)):
             value = json.loads(row["detail_json"])
             if value.get("session_id") == session_id and value.get("final_id") == final_id:

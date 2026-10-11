@@ -65,8 +65,18 @@ class OpinionMetadataV4(Model):
         return model.model_validate_json(encode(value)) if isinstance(value, dict) else value
 
 
-def context(store, db, case_id, session_id, user):
-    sheets.manager(user, db)
+REPORT_ROLES = ("operator", "admin", "reviewer")
+
+
+def report_reader(user, db):
+    """Report-menu read scope: operators plus active professors (reviewer). Not a manager power."""
+    account = db.execute("SELECT role,active FROM users WHERE username=?", (user.username,)).fetchone()
+    if user.role not in REPORT_ROLES or not account or not account["active"] or account["role"] not in REPORT_ROLES:
+        raise HTTPException(403, "리포트 열람 권한이 없습니다.")
+
+
+def context(store, db, case_id, session_id, user, *, read=False):
+    report_reader(user, db) if read else sheets.manager(user, db)
     case, manifest = sheets._case(store, db, case_id)
     if not any(session.session_id == session_id for session in manifest.sessions):
         raise HTTPException(404, "해당 S1 회차가 없습니다.")
@@ -75,7 +85,7 @@ def context(store, db, case_id, session_id, user):
 
 def selected_basic(store, db, case_id, session_id, requested, user, viewer_sheet_id=None):
     """Explicit basic revision; neither manager role nor event UI bypasses disclosure."""
-    context(store, db, case_id, session_id, user)
+    context(store, db, case_id, session_id, user, read=True)
     row = db.execute("SELECT * FROM basic_results WHERE result_id=?", (requested.result_id,)).fetchone()
     if not row or (row["case_id"], row["session_id"]) != (case_id, session_id):
         raise HTTPException(404, "이 개체·회차의 기본 결과를 명시적으로 선택하세요.")

@@ -121,7 +121,9 @@ class CohortComparisonV4Tests(ComparisonFixture):
     def test_unknown_consent_and_review_role_are_rejected(self):
         self.edit(0,lambda manifest:setattr(manifest.consents,'analysis_feedback','unknown'))
         with self.assertRaises(HTTPException):self.create()
-        with self.assertRaises(HTTPException):compare.list_snapshots(self.store,self.reviewer)
+        # U08: 교수는 리포트 화면에서 고정 비교를 고를 수 있으나 집단 구성(후보·생성)은 운영자 전용이다.
+        compare.list_snapshots(self.store,self.reviewer)
+        with self.assertRaises(HTTPException):compare.candidates(self.store,self.reviewer)
 
     def test_deleted_member_blocks_full_snapshot_and_removes_shared_reference(self):
         value=self.create()

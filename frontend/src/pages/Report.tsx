@@ -14,7 +14,7 @@ type Props = { view: 'issue' | 'comparison' | 'export'; cases: Case[]; selected:
 export function Report({ view, cases, selected, select, filters, user, run, refresh, goTo }: Props) {
   const [comparisonRevision, setComparisonRevision] = useState(0);
   const staff = isStaff(user.role);
-  if (!staff) return <p role="status">리포트 운영 권한이 필요합니다.</p>;
+  if (!staff && view !== 'issue') return <p role="status">리포트 운영 권한이 필요합니다.</p>;
   if (view === 'comparison') return <section><h1>리포트 비교 조건</h1><p>자체 집단과 외부 비교 조건을 설정합니다. 설정은 이후 발급하는 리포트에 적용됩니다.</p>
     <ComparisonSettings user={user} onSaved={() => setComparisonRevision(value => value + 1)} /></section>;
   if (view === 'export') return <section><h1>연구 내보내기</h1><p>참가자를 고르면 그 참가자의 채점·판정·최종 결과·리포트 자료를 연구용 표로 내보냅니다. 참가자 선택이 필요합니다.</p>

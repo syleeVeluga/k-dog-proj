@@ -99,9 +99,10 @@ class ActivateExternalV4(Model):
         return ResearchReferenceV4.model_validate_json(encode(value)) if isinstance(value,dict) else value
 
 
-def _account(db,user,*,admin=False):
+def _account(db,user,*,admin=False,reader=False):
+    """reader: report-menu use (professors may pick pinned comparisons); cohort settings stay operator-only."""
     row=db.execute("SELECT active,role FROM users WHERE username=?",(user.username,)).fetchone()
-    if not row or not row["active"] or row["role"] not in (("admin",) if admin else ("operator","admin")):
+    if not row or not row["active"] or row["role"] not in (("admin",) if admin else ("operator","admin","reviewer") if reader else ("operator","admin")):
         raise HTTPException(403,"집단 비교 관리 권한이 없습니다.")
     return row
 
@@ -128,7 +129,7 @@ def public_sources(store=None, user=None):
         "domestic_status":value["domestic_status"],"domestic_reason":value["domestic_reason"]}
     if store is not None:
         with store.connect() as db:
-            _account(db,user)
+            _account(db,user,reader=True)
             for item in result["sources"]:
                 pointer=_record(db,RESEARCH_ACTION,item["source_id"])
                 activation=_record(db,ACTIVATION_ACTION,item["source_id"])
@@ -274,7 +275,7 @@ def create(store,value:CohortCreateV4,user):
 
 def view(store,snapshot_id,user):
     with store.connect() as db:
-        _account(db,user)
+        _account(db,user,reader=True)
         record=_record(db,COHORT_ACTION,snapshot_id)
         if not record:raise HTTPException(404,"집단 snapshot을 찾을 수 없습니다.")
         pointer=CohortReferenceV4.model_validate_json(encode(record["reference"]))
@@ -300,7 +301,7 @@ def candidates(store,user):
 
 def list_snapshots(store,user):
     with store.connect() as db:
-        _account(db,user)
+        _account(db,user,reader=True)
         ids=[row[0] for row in db.execute("SELECT target FROM changes WHERE action=? ORDER BY rowid DESC",(COHORT_ACTION,))]
     result=[]
     for snapshot_id in ids:
@@ -445,7 +446,7 @@ def external_for_report(store,source_id,target,user,*,population=None):
     target=ComparisonScopeV4.model_validate(target)
     source,digest=_source(source_id)
     with store.connect() as db:
-        _account(db,user)
+        _account(db,user,reader=True)
         latest=_record(db,RESEARCH_ACTION,source_id)
         activation=_record(db,ACTIVATION_ACTION,source_id)
         reference=ResearchReferenceV4.model_validate_json(encode(latest)) if latest else None
