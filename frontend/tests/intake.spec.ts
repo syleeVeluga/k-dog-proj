@@ -127,7 +127,7 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
   const savedRow = page.getByRole('row').filter({ has: page.getByRole('button', { name: '0001 상세 열기', exact: true }) });
   await expect(savedRow.getByText('28/28', { exact: true })).toBeVisible();
   await expect(savedRow.getByRole('cell', { name: '1', exact: true })).toBeVisible();
-  await expect(savedRow.getByRole('cell', { name: '2개', exact: true })).toBeVisible();
+  await expect(savedRow.getByRole('cell', { name: '2개 · 사용 가능 0 · 확인 대기 2', exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('desktop-list.png'), fullPage: true, animations: 'disabled' });
   await openMenu(page, '촬영 기록 (8구간)');
   await page.getByRole('button', { name: '0001 촬영 열기' }).click();

@@ -14,13 +14,14 @@ import { Report } from './pages/Report';
 import { ValidationData } from './ValidationData';
 import { Lnb, useMatch } from './Lnb';
 import { defaultRoute, hashOf, parseHash } from './navigation';
+import { videoCounts } from './progressText';
 import type { Route } from './navigation';
 import { formFields, roleNames, sessionOf } from './types';
 import type { Case, Catalog, Role, Run, User } from './types';
 import './style.css';
 
 // 화면 위치는 URL hash(#/intake 등)에 남는다. 메뉴 구조는 navigation.ts가 정한다.
-const fieldRoutes: Route[] = ['intake', 'survey', 'recording/inbox', 'recording/record', 'preprocess', 'scoring', 'report'];
+const fieldRoutes: Route[] = ['intake', 'survey', 'recording/inbox', 'recording/record', 'preprocess', 'scoring', 'report', 'report/export'];
 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -186,7 +187,7 @@ export function App() {
           const id = e.target.value; if (!mayLeave()) return;
           if (!writable) { setViewSession(id); return; }
           void run(async () => { const saved = await api<Case>(`/cases/${selected.case_id}/sessions`, 'POST', { expected_revision: selected.input_revision, session_id: id }); setSelected(saved); await reload(); });
-        }}>{selected.manifest.sessions.map((s, i) => <option key={s.session_id} value={s.session_id}>{i + 1}차 촬영 · 영상 {s.videos.length}개</option>)}</select></label>
+        }}>{selected.manifest.sessions.map((s, i) => <option key={s.session_id} value={s.session_id}>{i + 1}차 촬영 · 영상 {videoCounts(selected, i)}</option>)}</select></label>
         {writable && current?.selected_session_id !== selected.selected_session_id && <p role="status">다른 요청이 저장 대상 회차를 변경했습니다. 현재 화면의 회차를 확인하고 선택 세션에서 저장 대상을 다시 선택하세요.</p>}
         <div className={`context-tools${contextExpanded ? ' expanded' : ''}`}>
           <button className="context-toggle" aria-expanded={contextExpanded} aria-controls="context-extra" onClick={() => setContextExpanded(!contextExpanded)}>회차 안내·바로가기</button>
@@ -205,9 +206,9 @@ export function App() {
           : route === 'validation' ? <ValidationData user={user} />
           : route === 'admin/users' ? <Users run={run} />
           : route === 'admin/backup' ? <section><h1>자료 관리</h1><Recovery /></section>
-          : route === 'preprocess' ? <Preprocessing cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
-          : route === 'scoring' ? <Scoring cases={cases} selected={selected} select={setSelected} filters={filters} user={user} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
-          : route === 'report' || route === 'report/comparison' ? <Report view={route === 'report' ? 'issue' : 'comparison'} cases={cases} selected={selected} select={setSelected} filters={filters} user={user} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
+          : route === 'preprocess' ? <Preprocessing cases={cases} selected={selected} select={setSelected} filters={filters} user={user} writable={!!writable} run={run} goTo={go} refresh={async message => { await reload(); if (message) setNotice(message); }} />
+          : route === 'scoring' ? <Scoring cases={cases} selected={selected} select={setSelected} filters={filters} user={user} run={run} goTo={go} refresh={async message => { await reload(); if (message) setNotice(message); }} />
+          : route === 'report' || route === 'report/comparison' || route === 'report/export' ? <Report view={route === 'report' ? 'issue' : route === 'report/export' ? 'export' : 'comparison'} goTo={go} cases={cases} selected={selected} select={setSelected} filters={filters} user={user} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
           : route === 'survey' ? <Survey cases={cases} selected={selected} select={setSelected} filters={filters} catalog={catalog} writable={!!writable} goTo={go} />
           : route === 'recording/inbox' || route === 'recording/record' ? <Recording view={route === 'recording/inbox' ? 'inbox' : 'record'} user={user} cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} run={run} reload={reload} notify={setNotice} />
           : <Intake user={user} cases={cases} selected={selected} writable={!!writable} busy={busy} run={run} reload={reload}

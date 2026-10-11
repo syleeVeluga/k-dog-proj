@@ -32,7 +32,7 @@ from app.input_models import (
 from app.intake import FieldConflict, check_identity, create_case, new_session, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, install_id, now, uid
 from app import settings
-from app import forms_v4, uploads, capture_v4, preprocess_v4, sheets_v4
+from app import forms_v4, uploads, capture_v4, preprocess_v4, progress_v4, sheets_v4
 from app.domain.catalog_v4 import BehaviorCatalogV4, load_catalog_v4
 from app.domain.sheets_v4 import SheetDocumentV4
 from app import judgements_v4
@@ -320,6 +320,10 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                     if exc.status_code != 409:
                         raise
                     unavailable += 1
+            progress = progress_v4.build(store, db, [value for value in values if isinstance(value, CaseViewV4)], user)
+            for value in values:
+                if value.case_id in progress:
+                    value.progress = progress[value.case_id]
         response.headers["X-KDOG-Unavailable-Cases"] = str(unavailable)
         return values
 

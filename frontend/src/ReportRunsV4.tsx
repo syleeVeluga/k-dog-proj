@@ -108,7 +108,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
   if (!manager) return <p role="status">리포트 운영 권한이 필요합니다.</p>;
   return <section aria-label="S1 리포트 실행" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <h3>고정 최종본으로 리포트 생성</h3>
-    <p>확인된 프로그램 근거로 정상 발급합니다. 일부 관찰 부족은 사유를 표시하며, 문장은행 G02와 실제 AI 문장 측정 S16은 별도 확인 대기입니다.</p>
+    <p>확인된 프로그램 근거로 정상 발급합니다. 일부 관찰 부족은 사유를 표시합니다.</p>
     {error && <p role="alert" className="error">{error}</p>}
     <button disabled={busy || loading} onClick={() => void reload(true)}>리포트 상태 새로고침</button>
     <fieldset disabled={busy || loading}><legend>원본 선택과 명시 실행</legend>
@@ -127,18 +127,18 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       <button disabled={!selected || selected.requires_reveal || item.consents.analysis_feedback !== 'confirmed' || !!cohortId && !cohort} onClick={() => void work(start)}>선택한 최종본으로 리포트 생성</button>
       {request.current && <p role="status">응답 확인이 필요한 요청입니다. 동일 입력의 재요청은 같은 요청 ID를 사용합니다.</p>}
     </fieldset>
-    <p className="fine">고정 근거로 AI 설명·총평·실천을 생성합니다. 새 실행은 기본 한 번의 문장 요청과 제한된 재시도를 사용합니다. 생성 중 상태만 2초마다 갱신하며 다운로드·인쇄는 저장된 문장을 사용합니다. 실제 적절성은 교수 검토 대기입니다.</p>
+    <p className="fine">고정 근거로 AI 설명·총평·실천을 생성합니다. 새 실행은 기본 한 번의 문장 요청과 제한된 재시도를 사용합니다. 생성 중 상태만 2초마다 갱신하며 다운로드·인쇄는 저장된 문장을 사용합니다.</p>
     {!rows.length && <p>생성된 리포트 실행이 없습니다.</p>}
     {rows.map(row => <article className="panel" key={row.run_id} aria-label={`리포트 실행 ${row.run_id}`}><h3>{states[row.status] ?? row.status}{row.is_latest_issued ? ' · 최신 발급본' : row.publication_state === 'issued' ? ' · 이전 발급본' : ''}{row.outdated && ' · 이전 입력·기준'}</h3>
-      <p>{row.run_id} · 입력 {row.input_revision}판 · {new Date(row.updated_at).toLocaleString()}</p>
-      <p className="fine">고정 최종본 {row.final.final_id} · {row.final.hash}</p>
-      {row.failure_code && <p role="status">실행 사유: {row.failure_code}</p>}
+      <p>입력 {row.input_revision}판 · {new Date(row.updated_at).toLocaleString()}</p>
+      <details><summary>기술 정보 · 고정 최종본</summary><p className="fine">{row.failure_code && <>실행 사유 코드 {row.failure_code}<br /></>}실행 {row.run_id}<br />고정 최종본 {row.final.final_id} · {row.final.hash}</p></details>
+      {row.failure_code && <p role="status">리포트를 완성하지 못했습니다. 아래 「기술 정보」의 사유를 확인하고 필요하면 재시도하세요.</p>}
       {row.external_comparison_status === 'blocked' && <p role="status">외부 비교 제공 차단: {row.external_comparison_reason} · 당시 발급 이력과 파일은 보존됩니다.</p>}
-      {row.pending_reasons.includes('G02') && <p className="fine">문장은행 G02 확인 대기. 검증된 프로그램 설명의 정상 발급을 막지 않습니다.</p>}
+      {row.pending_reasons.includes('G02') && <p className="fine">일부 문장은 준비 중이며 정상 발급에는 영향이 없습니다.</p>}
       <div className="toolbar">{active.has(row.status) && <button disabled={busy || !reason.trim()} onClick={() => void work(async () => { await api(`/report-runs-s1/${row.run_id}/stop`, 'POST', { expected_updated_at: row.updated_at, reason: reason.trim() }); })}>이 리포트 실행 중지</button>}
         {['failed', 'stopped'].includes(row.status) && <button disabled={busy || !reason.trim()} onClick={() => void work(async () => { await api(`/report-runs-s1/${row.run_id}/retry`, 'POST', { expected_updated_at: row.updated_at, reason: reason.trim() }); })}>고정 입력으로 리포트 재시도</button>}
         {row.normal_publish_available && <button disabled={busy} onClick={() => void work(() => openOutput(row))}>발급 요약·HTML·PDF 열기</button>}</div>
-      <details><summary>단계·시도·시간·재사용</summary><div className="table-wrap"><table><thead><tr><th>단계</th><th>시도·상태</th><th>시간·호출</th></tr></thead><tbody>{row.steps.map((step, index) => <tr key={index}><td>{stages[step.stage] ?? step.stage}</td><td>{step.attempt}차 · {states[step.status] ?? step.status}{step.reused && <p>명시 재사용</p>}{step.code && <p>{step.code}</p>}</td><td>{Object.entries(step.timing).map(([name, value]) => <p key={name}>{name}: {value.toFixed(2)}초</p>)}{!Object.keys(step.timing).length && '시간 미측정'}<p>공급자 호출 예약 {step.provider_calls}회</p>{step.billing_uncertain && <p>과금 여부 미확인</p>}{Object.entries(step.token_meters ?? {}).map(([name, value]) => <p key={name}>{name}: {value.toLocaleString()} 토큰</p>)}<p>비용 {step.cost_usd == null ? '미확인' : `$${step.cost_usd}`}</p></td></tr>)}</tbody></table></div></details>
+      <details><summary>기술 정보 · 단계·시도·시간·재사용</summary><div className="table-wrap"><table><thead><tr><th>단계</th><th>시도·상태</th><th>시간·호출</th></tr></thead><tbody>{row.steps.map((step, index) => <tr key={index}><td>{stages[step.stage] ?? step.stage}</td><td>{step.attempt}차 · {states[step.status] ?? step.status}{step.reused && <p>명시 재사용</p>}{step.code && <p>{step.code}</p>}</td><td>{Object.entries(step.timing).map(([name, value]) => <p key={name}>{name}: {value.toFixed(2)}초</p>)}{!Object.keys(step.timing).length && '시간 미측정'}<p>공급자 호출 예약 {step.provider_calls}회</p>{step.billing_uncertain && <p>과금 여부 미확인</p>}{Object.entries(step.token_meters ?? {}).map(([name, value]) => <p key={name}>{name}: {value.toLocaleString()} 토큰</p>)}<p>비용 {step.cost_usd == null ? '미확인' : `$${step.cost_usd}`}</p></td></tr>)}</tbody></table></div></details>
     </article>)}
     {opened && <section className="panel" aria-label="권한 확인된 리포트 발급본"><div className="section-title"><h3>{opened.header.dog_name} · 발급 결과</h3><button onClick={clearOutput}>발급본 닫기</button></div>
       <p>{new Date(opened.created_at).toLocaleString()} · 입력 {opened.input_revision}판 · {rows.find(value => value.run_id === opened.run_id)?.outdated ? '이전 입력·기준' : '고정 입력'} · {opened.run_id}</p>
@@ -149,7 +149,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       <div className="toolbar"><button disabled={busy} onClick={() => void work(() => download('html'))}>HTML 저장</button><button disabled={busy} onClick={() => void work(() => download('pdf'))}>PDF 저장</button><button disabled={busy} onClick={() => void work(() => download('manifest'))}>출처 manifest 저장</button><a href={'/api' + filePath(opened.run_id, 'html', true)} target="_blank" rel="noopener noreferrer">HTML 새 창</a><button disabled={busy} onClick={() => void work(print)}>열린 리포트 인쇄</button></div>
       <p className="fine">다운로드·인쇄 시 동의와 공개 권한을 다시 확인합니다. 외부로 자동 발송하지 않습니다.</p>
       <iframe ref={frame} title="S1 관찰 리포트 미리보기" src={'/api' + filePath(opened.run_id, 'html', true)} sandbox="allow-same-origin allow-modals" style={{ width: '100%', height: 'min(80vh, 950px)', border: '1px solid #ccd8d2' }} />
-      <details><summary>불변 출력 출처</summary><p>입력 {opened.input_hash}</p><p>설정 {opened.config_hash}</p><p>최종본 {opened.final.hash}</p><p>HTML {opened.output.html.hash}</p><p>PDF {opened.output.pdf.hash}</p></details>
+      <details><summary>기술 정보 · 불변 출력 출처</summary><p>입력 {opened.input_hash}</p><p>설정 {opened.config_hash}</p><p>최종본 {opened.final.hash}</p><p>HTML {opened.output.html.hash}</p><p>PDF {opened.output.pdf.hash}</p></details>
     </section>}
   </section>;
 }

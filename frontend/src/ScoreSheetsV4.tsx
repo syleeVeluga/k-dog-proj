@@ -48,9 +48,9 @@ export function ScoreSheetsV4({ item, user, run, refresh, close }: { item: Case;
     await run(async () => { try { await action(); await reload(); } catch (reason) { setError(errorText(reason)); } finally { setBusy(false); } });
   }
   return <section className="scoring-s1 panel" aria-label="S1 평가 배정">
-    <div className="section-title"><h2>{item.dog_name} · S1 독립 채점</h2><button onClick={close}>닫기</button></div>
+    <div className="section-title"><h2>{item.dog_name} · 독립 채점</h2><button onClick={close}>닫기</button></div>
     <p>숫자 83개 · 메모 3개 · 자동 4개. 원값 0과 빈값을 구분하고 실제 관찰 근거를 기록합니다.</p>
-    <p role="status">S1 Excel 가져오기 비활성 — 실제 빈양식·검증용 원본 G01/G04 수령 후 확인이 필요합니다.</p>
+    {manager && <p role="status">Excel 가져오기는 준비 중인 기능입니다.</p>}
     {error && <p role="alert" className="error">{error}</p>}
     <AiRunsV4 key={`${item.case_id}:${item.selected_session_id}`} item={item} manager={manager} />
     {manager && <FinalResultsV4 key={`final:${item.case_id}:${item.selected_session_id}`} item={item} sheets={rows} refreshSheets={reload} />}

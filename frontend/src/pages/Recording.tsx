@@ -4,6 +4,7 @@ import { PreservedMediaRegistration } from '../PreservedMediaRegistration';
 import { UploadInbox } from '../UploadInbox';
 import { CaseFilters, matchesCase } from '../CaseFilters';
 import type { CaseFilterProps } from '../CaseFilters';
+import { videoCounts } from '../progressText';
 import { segmentState, sessionOf } from '../types';
 import type { Case, Run, User } from '../types';
 
@@ -36,7 +37,7 @@ export function Recording({ view, user, cases, selected, select, filters, writab
         return <tr key={c.case_id}><td data-label="순번"><strong className="mono">{c.sequence_no ?? '—'}</strong></td>
           <td data-label="참가자"><strong className="mono">{c.participant_id}</strong><small>{c.event_id}</small></td>
           <td data-label="반려견 / 보호자">{c.dog_name}<small>{c.guardian_name ? `${c.guardian_name} 님` : '보호자명 없음'}</small></td>
-          <td data-label="영상">{s.videos.length}개</td>
+          <td data-label="영상">{videoCounts(c)}</td>
           <td data-label="구간"><span className={state === 'confirmed' ? 'tag green' : 'tag'}>{({ none: '없음', draft: '초안', confirmed: '확정' })[state]}</span></td>
           <td data-label="작업"><button aria-label={`${c.participant_id} 촬영 열기`} onClick={() => { if (mayLeave()) select(c); }}>열기 ↗</button></td></tr>;
       })}</tbody></table>{!sorted.length && <div className="empty"><h2>표시할 참가자가 없습니다.</h2><p>검색·행사 필터 또는 접수 등록을 확인하세요.</p></div>}</div></>}

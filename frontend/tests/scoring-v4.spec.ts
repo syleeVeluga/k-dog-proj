@@ -36,7 +36,7 @@ test('S1 scoring preserves explicit zero, null states, source evidence, independ
     await page.getByRole('button', { name: 's1sheet 독립 채점 열기', exact: true }).click();
   }
   await login('operator'); await openScoring();
-  await expect(page.getByText(/S1 Excel 가져오기 비활성/)).toBeVisible();
+  await expect(page.getByText('Excel 가져오기는 준비 중인 기능입니다.', { exact: true })).toBeVisible();
   await page.getByText('평가자 배정', { exact: true }).click();
   await page.getByLabel('입력 계정', { exact: true }).selectOption('reviewer');
   await page.getByLabel('평가자 ID', { exact: true }).fill('s1-one'); await page.getByLabel('평가자 표시 이름', { exact: true }).fill('S1 전문가1');
@@ -48,6 +48,9 @@ test('S1 scoring preserves explicit zero, null states, source evidence, independ
   expect(second.source_hash).toBe(first.source_hash);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click(); await login('reviewer'); await openScoring();
   await expect(page.getByText('S1 전문가2', { exact: true })).toHaveCount(0);
+  // 교수/검토자 화면에는 개발 진행 코드와 비용·호출 수 문구, 운영자용 AI 설정이 보이지 않는다.
+  expect(await page.locator('main').innerText()).not.toMatch(/S16|G0[1-5]|D0[1-6]|공급자 호출|교수 테스트/);
+  await expect(page.getByText(/AI 초안: /)).toBeVisible();
   await expect(page.getByText('평가자 배정', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '내 시트 열기', exact: true }).click();
   const editor = page.getByLabel('내 S1 채점 시트', { exact: true });

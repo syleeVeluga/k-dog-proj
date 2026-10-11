@@ -15,6 +15,7 @@ from app.domain.recording_v4 import RecordingV4
 from app.domain.recording_v3 import RecordingV3
 from app.input_models import CaseView, Key, Manifest, Model, Session, StoredVideo
 from app.input_models_v3 import ConsentsV3, ManifestV3, SessionV3
+from app.progress_v4 import ProgressV4
 
 
 def parse_manifest(data: bytes) -> Manifest | ManifestV3 | ManifestV4:
@@ -103,6 +104,8 @@ class CaseViewV4(CaseView):
     manifest: ManifestV4
     consents: ConsentsV3
     scoring_status: Literal["reanalysis_required"] = "reanalysis_required"
+    # 목록 응답(GET /api/cases)에서만 채우는 읽기 전용 단계 요약이다. 저장 형식은 아니다.
+    progress: ProgressV4 | None = None
 
 
 def new_session_v4(session_id: str, note: str = "", survey_version: str = SURVEY_VERSION) -> SessionV4:

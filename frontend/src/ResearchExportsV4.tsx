@@ -102,7 +102,7 @@ export function ResearchExportsV4({ item, user }: { item: Case; user: User }) {
   const missingCohort = cohort && !cohorts.some(row => row.reference.hash === cohort.reference.hash);
   if (unavailable) return <section className="panel" aria-label="S1 연구 내보내기"><h2>연구 내보내기</h2><p role="alert">{error}</p></section>;
   return <section className="panel" aria-label="S1 연구 내보내기" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-    <h2>S1 연구 내보내기</h2><p>대상·회차·평가자·항목/창의 원자료, 자동 계산, 판정, 완료 의견과 최종 출력은 별도 표로 저장합니다. 숫자 0·음수·횟수와 결측(null)을 구분합니다. 직접 식별정보와 키는 제외하며, 유효하지 않은 비교 쌍은 사유와 함께 제외합니다.</p>
+    <h2>연구 내보내기</h2><p>대상·회차·평가자·항목/창의 원자료, 자동 계산, 판정, 완료 의견과 최종 출력은 별도 표로 저장합니다. 숫자 0·음수·횟수와 결측(null)을 구분합니다. 직접 식별정보와 키는 제외하며, 유효하지 않은 비교 쌍은 사유와 함께 제외합니다.</p>
     <p className="fine">같은 촬영의 여러 카메라는 표본 수를 늘리지 않습니다. 범주·횟수·유형을 하나의 정확도로 합치지 않습니다. 아래 선택은 새 S1 판본만 사용합니다. 접수의 동의 확인과 분석·피드백 동의를 모두 확인한 자료만 연구 파일에 포함됩니다.</p>
     {error && <p role="alert" className="error">{error}</p>}
     <fieldset disabled={busy}><legend>원자료 판본 고정</legend><button onClick={() => void work(reload)}>내보내기 후보 새로고침</button>
