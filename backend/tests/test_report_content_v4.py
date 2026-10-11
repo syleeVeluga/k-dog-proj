@@ -64,7 +64,7 @@ class ReportContentV4Tests(unittest.TestCase):
         self.assertFalse(noise.direct_video_task)
         self.assertEqual(noise.video_fact_ids,())
         self.assertIn('직접',noise.claims[-1].text)
-        self.assertEqual(value.external_comparison_status,'pending_D06')
+        self.assertEqual(value.external_comparison_status,'not_selected')
 
     def test_typeless_completed_opinion_does_not_infer_new_type(self):
         value = self.profile({'보23':-2},opinion={'domains':[{'domain':'education_attitude','text':'개의 반응을 기다린 장면을 살펴보았습니다.'}]})

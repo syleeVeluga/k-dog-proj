@@ -66,11 +66,18 @@ def snapshot_for(row):
     return snapshot
 
 
-def check_access(store, db, row):
+def execution_actor(db, run_id, original_actor, retry_action):
+    retry = db.execute("SELECT actor FROM changes WHERE target=? AND action=? ORDER BY rowid DESC LIMIT 1",
+                       (run_id, retry_action)).fetchone()
+    return retry["actor"] if retry else original_actor
+
+
+def check_access(store, db, row, *, actor=None):
     snapshot = snapshot_for(row)
     case = store.case(db, snapshot.case_id, expected=snapshot.input_revision)
     manifest = store.manifest(case)
-    account = db.execute("SELECT active,role FROM users WHERE username=?", (snapshot.requested_by,)).fetchone()
+    actor = actor or execution_actor(db, row["run_id"], snapshot.requested_by, "run_v4.retry")
+    account = db.execute("SELECT active,role FROM users WHERE username=?", (actor,)).fetchone()
     if not account or not account["active"]:
         raise HTTPException(403, "S1 실행 요청자의 권한이 변경되었습니다.")
     if not isinstance(manifest, ManifestV4):
@@ -229,7 +236,7 @@ def action(store, run_id, value, user, *, retry=False):
         if row["updated_at"] != value.expected_updated_at:
             raise HTTPException(409, "실행 상태가 변경되었습니다. 다시 조회하세요.")
         if retry:
-            check_access(store, db, row)
+            check_access(store, db, row, actor=user.username)
             if row["status"] not in ("failed", "stopped", "settings_required"):
                 raise HTTPException(409, "실패·중지 실행만 재시도할 수 있습니다. 부분 완료 재생성은 명시 재사용한 새 실행입니다.")
         elif row["status"] in TERMINAL:

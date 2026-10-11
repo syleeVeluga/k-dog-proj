@@ -498,7 +498,8 @@ class UsageTests(AppCase):
         self.assertEqual(summarize(self.store, prices=prices)["complete_meter_cost_estimate"], "0.0020")
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1")
-        self.assertEqual(summarize(self.store)["runs"], [])
+        self.assertEqual(summarize(self.store)["calls_reserved"], 5)
+        self.assertEqual(len(summarize(self.store)["runs"]), 1)
 
     def test_nested_meters_and_invalid_prices(self):
         self.assertEqual(token_meters({"input_tokens": 12, "input_tokens_details": {"cached_tokens": 4},

@@ -26,6 +26,7 @@ from .input_models import Model
 from .input_models_v4 import ManifestV4
 from .storage import REPO_ROOT, encode, now, uid
 from .usage import token_meters
+from .run_v4 import execution_actor
 
 KIND = "report_v4"
 TERMINAL = ("succeeded", "failed", "stopped", "review_required")
@@ -202,9 +203,9 @@ def snapshot_for(row):
     return snapshot
 
 
-def check_access(store, db, row):
+def check_access(store, db, row, *, actor=None):
     snapshot = snapshot_for(row)
-    user = _actor(db, snapshot.requested_by)
+    user = _actor(db, actor or execution_actor(db, row["run_id"], snapshot.requested_by, "report.s1.retry"))
     case, _, basic_row = _source_access(store, db, snapshot, user)
     source = sheets.row_for(store, db, snapshot.final_document.basic_document.input.sheet_id)
     if (case["input_revision"], case["manifest_ref"], case["manifest_hash"]) != (
@@ -689,7 +690,8 @@ def finish(worker, row, status, code, *, publication=None, stamps=None):
         db.execute("UPDATE runs SET status=?,failure_code=?,result_ref=?,result_hash=?,claim_token=NULL,lease_expires_at=NULL,updated_at=? WHERE run_id=?",
             (status, code, publication.ref if publication else None, publication.hash if publication else None, now(), row["run_id"]))
         if publication:
-            worker.store.audit(db, snapshot_for(current).requested_by, row["run_id"], "report.s1.issue", {"ref": publication.ref, "hash": publication.hash})
+            worker.store.audit(db, execution_actor(db, row["run_id"], snapshot_for(current).requested_by, "report.s1.retry"),
+                               row["run_id"], "report.s1.issue", {"ref": publication.ref, "hash": publication.hash})
 
 
 def row_for(store, db, run_id):
@@ -778,7 +780,7 @@ def action(store, run_id, value: ReportActionV4, user, *, retry=False):
         if row["updated_at"] != value.expected_updated_at:
             raise HTTPException(409, "리포트 실행 상태가 변경되었습니다.")
         if retry:
-            check_access(store, db, row)
+            check_access(store, db, row, actor=user.username)
             if row["status"] not in ("failed", "stopped"):
                 raise HTTPException(409, "실패·중지 실행만 고정 입력으로 재시도할 수 있습니다.")
         elif row["status"] in TERMINAL:

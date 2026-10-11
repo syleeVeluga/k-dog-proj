@@ -72,7 +72,8 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   await panel.getByRole('combobox', { name: '클립 제작 방식', exact: true }).selectOption('ai');
   const preview = panel.getByRole('article', { name: '전처리 클립 미리보기', exact: true });
   await expect(preview.getByText(/AI용: 1초마다 실제 프레임 최대 1장 · 4프레임/)).toBeVisible();
-  await expect.poll(() => preview.locator('video').evaluate((video: HTMLVideoElement) => video.readyState)).toBeGreaterThanOrEqual(1);
+  await preview.getByRole('button', { name: '영상 열기', exact: true }).click();
+  await expect.poll(() => preview.locator('video').evaluate((video: HTMLVideoElement) => video.readyState), { timeout: 15000 }).toBeGreaterThanOrEqual(1);
   await preview.getByLabel('확인할 실제 프레임 번호', { exact: true }).fill('3');
   await expect(preview.getByText(/클립 2초 → 원본 2초 → 기준 영상 2초/)).toBeVisible();
   const clipResponse = await page.request.get(await preview.locator('video').getAttribute('src') ?? '');
@@ -126,10 +127,12 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   await openMenu(page, '전처리');
   await page.getByRole('button', { name: 's1preprocess 전처리 열기' }).click();
   await expect(panel.getByRole('heading', { name: '저장된 결과 · 완성', exact: true })).toBeVisible();
-  await expect(fresh).toHaveCount(0);
-  await expect(panel.getByRole('combobox', { name: '대표 오디오 선택', exact: true })).toBeDisabled();
-  const denied = await page.request.post(endpoint, { headers, data: { request_id: 'reviewer-denied', expected_revision: completed.input_revision } });
-  expect(denied.status()).toBe(403);
+  await expect(fresh).toBeEnabled();
+  await expect(panel.getByRole('combobox', { name: '대표 오디오 선택', exact: true })).toBeEnabled();
+  const latestPointer = (await (await page.request.get(endpoint)).json()).result_pointer;
+  const shared = await page.request.post(endpoint, { headers, data: { ...completed.request, request_id: 'reviewer-shared', expected_revision: completed.input_revision, reuse: latestPointer } });
+  expect(shared.status(), await shared.text()).toBe(200);
+  expect((await shared.json()).reuse_manifest).toBeTruthy();
   // 촬영 기록 화면의 「사용 가능」은 전처리 결과에서 실제 클립(완성·일부)이 만들어진 영상만 센다.
   const made = new Set((completed.clips as { video_id: string; status: string }[]).filter(clip => ['complete', 'partial'].includes(clip.status)).map(clip => clip.video_id)).size;
   await page.setViewportSize({ width: 1440, height: 900 });

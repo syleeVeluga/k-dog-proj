@@ -189,7 +189,10 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
   await page.getByRole('button', { name: 's1rec 촬영 열기' }).click();
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toBeDisabled();
   await expect(panel.getByRole('button', { name: '촬영 기록 확정', exact: true })).toHaveCount(0);
-  expect((await page.request.put(endpoint, { headers, data: { expected_revision: item.input_revision, recording: record } })).status()).toBe(403);
+  await panel.getByRole('button', { name: '확정본 수정 시작', exact: true }).click();
+  await expect(panel.getByLabel('퇴장 끝', { exact: true })).toBeEnabled();
+  const current = await (await page.request.get(`/api/cases/${item.case_id}`)).json();
+  expect((await page.request.put(endpoint, { headers, data: { expected_revision: current.input_revision, recording: { ...record, confirmed: false } } })).status()).toBe(200);
   expect(videos).toHaveLength(2);
   expect(errors).toEqual([]);
 });

@@ -13,7 +13,7 @@
 | AR03 | [x] | [x] | [x] | [x] | [x] | [x] PR #77 |
 | AR04 | [x] | [x] | [x] | [x] 발견 없음 | [x] | [x] PR #78 |
 | AR05 | [x] | [x] | [x] | [x] P2 2건 | [x] | [x] PR #79 |
-| AR06 | [x] | [x] | [x] | [x] P3 1건 | [x] | [ ] |
+| AR06 | [x] | [x] | [x] | [x] P3 1건 | [x] | [x] PR #80 |
 | AR07 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
 
 PR 최종 head·merge SHA는 PR 메타데이터로 확인하고 병합 후 다음 단계에서 표와 개별 계획에 기록한다. 계획 검증 대장의 v1.0/v1.1 기록은 당시 문서 검증 이력으로 유지한다.
@@ -243,3 +243,18 @@ AR04 동의/삭제/보관 및 AR05 리포트/내보내기 소유 조건은 해�
 ![공유 제출본과 보존 판본 — 합성 360px](images/ar06-shared-sheet-360.png)
 
 구현 head `fc51c2c442f978f2cdaca34f7ad2a8121cf259be`에 대해 `ar01_cold_review`가 읽기 전용으로 독립 검토했다. 접수 안내의 살아 있는 reviewer 전용 분기 1건(P3)을 수용해 모든 업무 계정에 등록/일괄 등록 안내를 표시했다. 수정 확인 후 신규 actionable0. 독립 회귀 22개(15.296초)+의견/충돌/보존본 3개(2.113초) 통과. viewer ID 호환 인수·isStaff 상수/메뉴 alias는 현재 접근 차이가 없으므로 결함으로 세지 않았다. 수용 후 build 통과·intake/scenario 5개(16.9초) 통과·Graft build 최신·diff check 통과·계획 Git index 링크99개 누락0.
+
+AR06 최종 head `bd9f403a5182079f0223ec3559f63abd1586ce6d`, merge `f63ac2a6fa2dfe56615e0827e01ee4e9a4130ef5` (2026-10-11 17:10:58 UTC).
+
+## 10 AR07 통합검증과릴리스
+
+2026-10-12, `veluga/ar07-integration-release`, 기준 AR06 merge `f63ac2a6fa2dfe56615e0827e01ee4e9a4130ef5`. AR-R01~R12 통합 인수. 새 의존성 없이 §4의 2026-10-11 공식 stable/선택판 확인·호환 근거와 잠금판을 유지했다. 실제 운영 자료 변경·초기화·삭제·유료 공급자 호출은 없다.
+
+- [잔존 조건 검토](K-DOG_AR07_잔존조건검토_v1.0_20261012.md)에 backend/frontend/scripts의 exhaustive Graft 검색·호출 관계·미색인 Windows 검색과 분류를 기록했다. AI/리포트 재시도의 원 생성자 활성 검사 두 곳을 실제 403으로 재현해 수정했다. 원 snapshot.requested_by는 보존하며 최신 retry 사건의 실제 actor로 Worker 검사·발급 기록을 수행한다. 원 생성자 비활성→다른 사용자 재시도 성공, 현재 retry actor 비활성→채택 중단 회귀 3개(6.687초) 통과.
+- 초기 backend 전체 718개(1098.517초): 710통과·6실패·2skip. 옛 공유 이력/생성자·삭제 flag 사용량·손상 클립 오류·외부 비교 미선택 상태의 기대를 현행 정책으로 갱신했다. 손상/유실 격리·중간 actor 비활성·pin 검사는 유지했다. 관련 27개(25.741초) 통과. 최종 전체는 실행 중이며 이 집중 성공을 전체 성공으로 합산하지 않는다.
+- 초기 E2E 전체 112개(8.6분): 102통과·10실패. 삭제 API·배정/역할·검토자 차단의 옛 기대, 공유 목록의 중복 선택자, 접힌 등록/백업 패널, 개발자 재로그인 전 남은 주소, 열람 버튼 없는 클립 대기 fixture를 수정했다. 영상 bytes/재생·명시 재사용·판본 충돌·미로그인/설정 경계 검증은 유지했다. 집중/최종 전체 결과는 아래 실제 완료 후 추가한다.
+- S1 `app.import_catalogs --spec 20261002 --check` 통과: source manifest와 현재 8개 catalog/rules/mapping 검증. G01/G04 점수 입력 workbook은 미수령으로 주소/산식 미확정·실점수 Excel import 비활성 유지. 역사 v3 원본 bundle 부재의 2skip는 S1 통과와 구분한다.
+- `npm run build` 통과. 기존 chunk 안내 유지. 현재 기준/확인사항/추적표/인수대장·리포트 공통정책·UIUX 안내에 2026-10-11 결정 우선과 이전 시험의 날짜/판본을 명시했다. DEVELOPMENT/PILOT/AGENTS의 공통 운영 안내는 AR06 변경을 유지한다.
+- 릴리스 allowlist에 현행 plans Markdown·합성 PNG를 포함했다. verify_release는 ordinary operator 설치·발행, 일반 설정403·개발자 공유 업무/설정, 같은 자료 경로 재설치·기존 비밀번호 보존을 검사한다. 실제 ZIP 설치 결과·hash·검토·PR/병합 근거는 완료 후 추가한다.
+
+독립 cold review·최종 전체/ZIP 검증은 준비 중이다. 실제 provider 품질·교수 판단·물리 3PC/깨끗한 OS는 기존 후속 대장의 미실측 항목이며 이번 합성 인수로 완료하지 않는다.

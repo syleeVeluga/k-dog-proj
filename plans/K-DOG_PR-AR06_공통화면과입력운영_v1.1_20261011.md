@@ -1,6 +1,6 @@
 # PR-AR06 공통 화면과 입력 운영
 
-버전: v1.1 · 2026-10-11 · 상태: 구현·검증·독립 cold review·P3 수용 수정 완료, [PR #80](https://github.com/syleeVeluga/k-dog-proj/pull/80) 병합 대기 (2026-10-12)
+버전: v1.1 · 2026-10-11 · 상태: 구현·검증·독립 cold review·P3 수용 수정 완료, [PR #80](https://github.com/syleeVeluga/k-dog-proj/pull/80) 병합 완료 (2026-10-12)
 
 상위 계획: [업무 권한 단순화 계획](K-DOG_업무권한단순화계획_v1.1_20261011.md)
 
@@ -175,6 +175,6 @@ CSV/Excel 변환 실패는 저장된 원본과 preview/receipt를 유지하고 �
 - [x] 설치·운영·개발 안내와 AGENTS 현행 정책 갱신
 - [x] 대상 backend/build/E2E·미저장 충돌·원평가자/보존 판본 회귀
 - [x] 독립 cold review·수용 수정·최종 재검증
-- [ ] 병합 (통합 전체 검증·ZIP 설치는 AR07)
+- [x] 병합: 최종 head `bd9f403a5182079f0223ec3559f63abd1586ce6d`, merge `f63ac2a6fa2dfe56615e0827e01ee4e9a4130ef5` (2026-10-11 17:10:58 UTC). 통합 전체 검증·ZIP 설치는 AR07
 
 실제 명령·통과/초기 실패·수정 근거는 [구현 실행 기록 §9](K-DOG_업무권한구현실행기록_v1.0_20261011.md#9-ar06-구현검증독립-cold-review)에 기록한다. 합성 시험만 수행하며 운영 자료 전환·유료 공급자 호출·중간 배포는 없다.

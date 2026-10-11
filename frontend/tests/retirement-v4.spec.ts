@@ -24,6 +24,7 @@ test('S1 imports use the pinned Forms workflow and old endpoints cannot save', a
   const blocked = await page.request.post('/api/imports/commit', { headers: { 'X-KDOG-Request': '1' }, data: { rows: [] } });
   expect(blocked.status()).toBe(404);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+  await page.goto('/');
   await page.getByLabel('계정', { exact: true }).fill('developer');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
