@@ -1,6 +1,6 @@
 # K-DOG PR-AR07 통합 검증과 배포
 
-버전: v1.1 · 2026-10-11 · 상태: 구현·전체 검증·독립 cold review·수용 수정·문서 완료 / 병합 대기 (2026-10-12) · 선행: AR01~AR06
+버전: v1.1 · 2026-10-11 · 상태: 전 절차 완료 / [PR #81](https://github.com/syleeVeluga/k-dog-proj/pull/81) 병합 완료 (2026-10-12) · 선행: AR01~AR06
 상위: [업무 권한 단순화 계획](K-DOG_업무권한단순화계획_v1.1_20261011.md). 조사 기준 `main / 7d0904e` (U08·U09 병합). 실제 착수 시 최신 호출 관계를 다시 확인한다.
 
 ## 1 목표와 통합 범위
@@ -50,6 +50,6 @@ graft find_all로 role/manager/owner/assigned_username/score_grants/viewer_sheet
 - [x] 실제 포터블/온라인 ZIP 설치·sealed 발행·일반 설정403·개발자 업무·재설치 보존.
 - [x] 독립 cold review P2 수용·204 수정·조회 대기 검토·설치/hash/문서 대조, 추가 actionable0.
 - [x] 현행 기준·운영·추적/인수·리포트/UIUX 정책·실행 기록 갱신, 링크/차이/그래프 확인.
-- [ ] 최종 PR head·mergeable 확인 및 실제 병합 SHA 기록.
+- [x] 최종 PR head·mergeable 확인 및 실제 병합 SHA 기록: head `982c2d8`, merge `2bba6e6` (2026-10-11 18:04:05 UTC).
 
 실제 결과·수정 이력·검증판 ZIP hash는 [실행 기록 §10](K-DOG_업무권한구현실행기록_v1.0_20261011.md#10-ar07-통합검증과릴리스)에서 확인한다. Windows 격리 경로 설치까지 인수했으며 실제 운영 DB 전환·유료 호출·물리3PC는 이번 실행 범위로 표시하지 않는다.
