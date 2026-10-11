@@ -50,6 +50,8 @@ S1 고객 원본은 로컬 전용 `docs/요구사항_20261003/`이다. [원본 �
 
 ## 전처리와 실행
 
+UI 없는 INSV 판독·MP4 재포장/압축 실험은 [독립 변환 도구](../tools/insv_converter/README.md)를 사용한다. 스티칭·제품 직접 분석 지원과 구별하며 결과는 저장소 밖에 저장한다.
+
 실제 8구간·사건·카메라 offset을 확정하고 명시 요청으로 실행한다. S1은 공통시각과 각 영상 시각, 원본/변환본/AI용 클립을 구분하며 AI용 1fps 실제 프레임 PTS와 hash를 고정한다. INSV 수신은 보관이며 직접 분석 지원 선언이 아니다. 규칙은 `resources/rules/preprocess-v4.json`이다.
 
 ```powershell

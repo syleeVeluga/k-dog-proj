@@ -18,6 +18,8 @@ __pycache__/
 !.env.example
 
 # Local assessment videos
+*.[iI][nN][sS][vV]
+*.[lL][rR][vV]
 /docs/검증용 영상_*/
 *.[mM][pP]4
 *.[mM][oO][vV]
