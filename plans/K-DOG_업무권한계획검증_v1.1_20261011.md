@@ -54,6 +54,6 @@ PR 7개의 순서/선행이 순환하지 않는지, 각 문서의 목적·상세
 | 범위·제품 상태 | plans 문서만 변경, U08/U09 제품 재수정 없음, AR01~AR07 구현 미착수 |
 | 공백·잔존 지침 | working/staged diff check 통과. U08 제외·옛 기준은 v1.0 당시 이력에만 남음 |
 | 독립 cold review | cold_plan_review가 v1.1 10개 문서와 기준 코드 재검토. actionable 0건, 추가 수용 수정 없음. v1.0 호환/최초 독립본 보존 계약 유지 확인 |
-| 문서 PR | 검증/리뷰 종료 후 생성·최종 head/병합 확인. 앱 구현 PR은 이번 작업에 포함하지 않음 |
+| 문서 PR | [문서 PR #74](https://github.com/syleeVeluga/k-dog-proj/pull/74). 생성 후 head f1a47a0·base 7d0904e·CLEAN/MERGEABLE·checks 없음·plans 문서만 포함 확인. 이 메타데이터 갱신을 포함한 최종 head로 병합하며 최종 head/merge SHA는 PR 메타데이터와 완료 응답을 따른다. 앱 구현 PR은 이번 작업에 포함하지 않음 |
 
 같은 기준에서 backend_scope와 ui_data_scope가 제품 파일을 읽기 전용 조사했고, 기록 확장·U08 제외·계정관리 확장의 불필요한 범위를 초안에 제거했다. 독립 reviewer가 이 개정 후 실제 호출 경로와 문서 계약을 확인했다. 최종 상태/메타데이터 갱신 후 같은 링크/index/diff 검사를 반복한다. 이 검사는 Markdown 계획 검증이며 제품 backend/E2E/ZIP 통과를 뜻하지 않는다.
