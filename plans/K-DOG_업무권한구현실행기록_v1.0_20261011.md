@@ -77,7 +77,7 @@ FastAPI 최신판의 breaking-change 항목은 이번 정책 PR에서 자동 교
 
 ## 5 AR02 구현·검증 — 수용 수정·독립 재검토 완료
 
-기준 merge `af91032`, 브랜치 `veluga/ar02-minimal-activity-records`. 새 DB/의존성 없이 `changes`/`Store.audit`를 재사용한다. 의존성은 §4의 같은 날짜 공식 버전 검증과 잠금 환경을 유지한다.
+기준 merge `af91032`, 브랜치 `veluga/ar02-minimal-activity-records`, [PR #76](https://github.com/syleeVeluga/k-dog-proj/pull/76), 구현 head `1500a1d`. 새 DB/의존성 없이 `changes`/`Store.audit`를 재사용한다. 의존성은 §4의 같은 날짜 공식 버전 검증과 잠금 환경을 유지한다.
 
 - 주요 참가자·촬영·시트 현재/보존본·기본 결과·의견·최종·검수 참고·비교집단·외부 비교·export 상세는 명시 `purpose=open`만 기록한다. 목록·자동 상세 갱신·기록 조회는 기록하지 않는다.
 - 원본 영상/전처리 클립은 「영상 열기」에서 서버의 파일 연결·해시 검증 후 1건을 남긴다. 재생 preload/seek/Range는 기록하지 않으며 다시 여는 동작은 별도 제공 사실로 남긴다. 원본 파일/export 다운로드는 실제 actor·대상·형식을 기록한다.
