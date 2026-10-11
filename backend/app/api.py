@@ -884,6 +884,19 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             raise HTTPException(422, "파일과 열 연결 형식을 확인하세요.") from None
         return forms_v4.preview(store, source, value.config, user.username)
 
+    @app.get("/api/forms/presets", response_model=list[forms_v4.FormsPresetViewV4])
+    def forms_presets(user=Depends(writer)):
+        return forms_v4.list_presets(store, user.username, user.role)
+
+    @app.post("/api/forms/presets", response_model=forms_v4.FormsPresetViewV4, status_code=201)
+    def forms_preset_save(value: forms_v4.FormsPresetEditV4, user=Depends(writer)):
+        return forms_v4.save_preset(store, value, user.username, user.role)
+
+    @app.delete("/api/forms/presets/{preset_id}")
+    def forms_preset_delete(preset_id: str, user=Depends(writer)):
+        forms_v4.delete_preset(store, preset_id, user.username, user.role)
+        return {"deleted": preset_id}
+
     @app.post("/api/forms/commit", response_model=forms_v4.FormsCommitResultV4)
     def forms_commit(value: forms_v4.FormsCommitRequestV4, user=Depends(writer)):
         return forms_v4.commit(store, value, user.username)

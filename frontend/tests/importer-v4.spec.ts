@@ -28,7 +28,9 @@ test(`Forms ${format} 원라벨 검증·일괄 등록·재시도·명시적 연�
   await form.getByText('28문항과 빈칸 사유 연결', { exact: true }).click();
   await form.getByRole('button', { name: 'Forms 등록 미리보기', exact: true }).click();
   await expect(form.getByRole('heading', { name: '원행 1개 · 오류 1개' })).toBeVisible();
-  await expect(form.getByRole('button', { name: 'Forms 전체 확정', exact: true })).toBeDisabled();
+  // 오류 1행은 제외하고 정상 1행만 등록할 수 있다. 조용히 숨기지 않고 버튼에 건수를 쓴다.
+  await expect(form.getByRole('button', { name: '정상 1행 등록 · 오류 1행 제외', exact: true })).toBeEnabled();
+  await expect(form.getByRole('button', { name: 'Forms 전체 확정', exact: true })).toHaveCount(0);
   await form.getByLabel('폼 라벨 s10', { exact: true }).fill('없음=0');
   const previewResponse = page.waitForResponse(response => response.url().endsWith('/api/forms/preview'));
   await form.getByRole('button', { name: 'Forms 등록 미리보기', exact: true }).click();
