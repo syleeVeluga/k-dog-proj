@@ -67,6 +67,7 @@ def execute(args):
     attempt = output_dir / f"{args.mode}-{uuid.uuid4().hex}"
     attempt.mkdir(parents=True)
     report_path = attempt / "report.json"
+    target = attempt / "output.mp4"
     report = {"schema": "k-dog-media-experiment-1", "created_at": datetime.now(timezone.utc).isoformat(),
               "status": "running", "mode": args.mode, "layout": args.layout,
               "stitching_performed": False, "s1_analysis_suitability": "unverified",
@@ -89,7 +90,6 @@ def execute(args):
             arguments += ["-t", str(seconds)]
         arguments += ["-map", "0:v", "-map", "0:a?"]
         report["settings"]["effective_seconds"] = seconds
-        target = attempt / "output.mp4"
         if args.mode == "inspect":
             arguments += ["-f", "null", "-"]
         elif args.mode == "remux":
@@ -124,7 +124,15 @@ def execute(args):
     except KeyboardInterrupt:
         report["status"] = "failed"
         report["error"] = "사용자가 실행을 중단했습니다."
+    except Exception as exc:
+        report["status"] = "failed"
+        report["error"] = f"{type(exc).__name__}: {exc}"
     finally:
+        if report["status"] != "passed":
+            report["status"] = "failed"
+            if target.exists():
+                target.unlink()
+                report["partial_output_removed"] = str(target)
         with report_path.open("x", encoding="utf-8") as destination:
             json.dump(report, destination, ensure_ascii=False, indent=2)
         print(f"{report['status']}: {report_path}", flush=True)

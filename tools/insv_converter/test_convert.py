@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 import convert
 
@@ -81,6 +82,29 @@ class ConverterTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(report["status"], "failed")
         self.assertIsNone(report["output"])
+
+    def test_unexpected_exception_is_recorded_as_failed(self):
+        with mock.patch.object(convert, "probe", side_effect=TypeError("synthetic")):
+            code, report = self.experiment("inspect")
+        self.assertEqual(code, 1)
+        self.assertEqual(report["status"], "failed")
+        self.assertIn("TypeError", report["error"])
+
+    def test_interrupt_removes_partial_output(self):
+        real_run = convert.run
+
+        def interrupted(arguments):
+            if arguments[-1].endswith("output.mp4"):
+                Path(arguments[-1]).write_bytes(b"partial")
+                raise KeyboardInterrupt
+            return real_run(arguments)
+
+        with mock.patch.object(convert, "run", side_effect=interrupted):
+            code, report = self.experiment("remux")
+        self.assertEqual(code, 1)
+        self.assertEqual(report["status"], "failed")
+        self.assertFalse(Path(report["partial_output_removed"]).exists())
+        self.assertEqual(convert.digest(self.source), self.original_hash)
 
     def test_repeat_execution_preserves_prior_artifacts(self):
         _, first = self.experiment("remux")
