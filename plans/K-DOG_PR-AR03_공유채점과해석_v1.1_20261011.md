@@ -1,19 +1,19 @@
 # K-DOG PR-AR03 공유 채점과 해석
 
-버전: v1.0 · 2026-10-11 · 상태: 상세 계획 / 제품 구현 미착수 · 선행: AR01·AR02
-상위: [업무 권한 단순화 계획](K-DOG_업무권한단순화계획_v1.0_20261011.md). 조사 기준 `d6dd58a`; 진행 중인 로컬 U08 수정은 제외한다. 실제 착수 시 최신 병합 코드의 호출 관계를 다시 확인한다.
+버전: v1.1 · 2026-10-11 · 상태: 상세 계획 / 제품 구현 미착수 · 선행: AR01·AR02
+상위: [업무 권한 단순화 계획](K-DOG_업무권한단순화계획_v1.1_20261011.md). 조사 기준 `main / 7d0904e` (U08·U09 병합). 실제 착수 시 최신 호출 관계를 다시 확인한다.
 
 ## 1 목표·현재 근거
 
-[owner/manager](../backend/app/sheets_v4.py#L26-L38), [목록 필터](../backend/app/sheets_v4.py#L223-L264), [revise/grant](../backend/app/sheets_v4.py#L495-L613), [opinions.selected_basic](../backend/app/opinions_v4.py#L76-L105), [disclosures.require/reveal](../backend/app/disclosures_v4.py#L59-L131), [judgements](../backend/app/judgements_v4.py), [final_results](../backend/app/final_results_v4.py), [attachment_runs](../backend/app/attachment_runs_v4.py)를 함께 바꾼다. 관리자가 목록만 보고 본문을 못 보는 구조도 제거한다.
+[owner/manager](../backend/app/sheets_v4.py#L26-L38), [목록 필터](../backend/app/sheets_v4.py#L223-L264), [revise/grant](../backend/app/sheets_v4.py#L495-L613), [opinions.selected_basic](../backend/app/opinions_v4.py#L100-L122), [disclosures.require/reveal](../backend/app/disclosures_v4.py#L59-L131), [judgements](../backend/app/judgements_v4.py), [final_results](../backend/app/final_results_v4.py), [attachment_runs](../backend/app/attachment_runs_v4.py)를 함께 바꾼다. U08의 `report_reader/context(read=True)`는 교수 읽기를 넓혔지만 본인 제출 시트·명시 공개·편집 제한은 남아 있다.
 
 ## 2 상세 변경
 
 1. 본인 assigned_username·active 배정 여부·현재 소유 계정 role은 조회/수정/기본 결과 선택 조건에서 제거한다. 배정 없이 사용자가 채점 생성/시작할 수 있다. 평가자 정보는 원본 출처로 선택/표시할 수 있으나 업무 권한이 아니다.
 2. 모든 시트의 현재/보존 판본을 조회하고 편집한다. 제출본 수정은 자동으로 새 draft revision을 만들어 저장하는 기존 revision 흐름으로 구현한다. 원본과 initial_submission은 보존한다. 승인·재개방 요청/manager-only endpoint는 제거하거나 공통 수정 동작으로 통합한다.
 3. 타 평가/AI/기본 결과/의견/최종/리포트 해석을 제출 여부와 무관하게 바로 열 수 있다. score_grants·viewer_sheet_id·명시 reveal을 접근 조건에서 제거하고 과거 자료에서의 출처/노출 기록으로만 읽는다.
-4. 타인 결과를 보기 위해 본인 시트를 먼저 생성하거나 제출해야 하는 조건을 없앤다. 실제 username+case/session+고정 입력/영상 hash+보았던 결과 revision을 감사 기록으로 보존하고 나중에 시트를 생성/저장할 때 해당 노출을 반영한다.
-5. 노출 전후를 알 수 없는 과거 기록은 독립성 미확인으로 남긴다. 타 결과/AI를 본 뒤 작성한 점수·다른 사용자가 수정한 독립본은 최초 독립 제출본과 구별한다. 열람은 독립 정답을 오염시키는 사실이지 접근 금지 사유가 아니다.
+4. 타인 결과를 보기 위해 본인 시트를 먼저 생성하거나 제출해야 하는 조건을 없앤다. 명시 결과 열기는 AR02의 actor·시각·대상·필요한 판본 연결 1건으로 남긴다. 별도 공개 확인·노출 event 플랫폼·모든 영상 hash를 붙이는 추론 시스템은 만들지 않는다.
+5. 최초 독립 제출본·기존 노출 이력·후속 수정 판본의 분석 의미를 유지한다. 원평가자의 사전 타 결과/AI 열람을 기록으로 확인한 경우 그 사실을 제공하되, 자료를 읽기만 했다는 이유로 시트 revision·purpose·initial_submission을 자동 변경하지 않는다. 제3자의 후행 열람으로 최초 독립본을 소급 바꾸지 않는다. 알 수 없는 과거 사실을 새 로그로 만들어 채우지 않는다.
 6. original rater_id/rater_kind와 실제 저장 actor를 분리한다. AI 생성 원본 bytes는 그대로 두고 AI 결과의 사람 수정도 편집 기능으로 제공하되 새 수동 수정 판본/출처를 남겨 AI 최초 출력으로 오인하지 않게 한다. 해당 판본의 계산/최종/내보내기 연결을 함께 검증한다.
 7. opinions save/reopen/withdraw, judgement 선택, final assemble, attachment 실행은 모든 업무 계정이 수행한다. 의견 withdrawn은 의견 판본의 사용 중단 사실로 보존하되 참가자 철회나 접근 차단으로 해석하지 않는다. 과거 의견도 읽고 새 의견으로 편집/재작성할 수 있다.
 8. 같은 대상·회차·고정 입력/근거·원칙에 맞는 결과 선택, observation 범위, 필수 값/결측 검증, optimistic revision 충돌은 유지한다. 다른 사람의 시트라는 이유의 403은 없어야 한다.
