@@ -29,7 +29,7 @@ from app.input_models import (
     ImportColumns, Key, Login, Message,
     Revision, SessionEdit, SessionMetadata, StoredVideo, UserCreate, UserEdit, UserView,
 )
-from app.intake import create_case, new_session, save_survey, selected_session, template
+from app.intake import FieldConflict, check_identity, create_case, new_session, save_survey, selected_session, template
 from app.storage import REPO_ROOT, Store, install_id, now, uid
 from app import settings
 from app import forms_v4, uploads, capture_v4, preprocess_v4, sheets_v4
@@ -126,6 +126,10 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.exception_handler(sqlite3.IntegrityError)
     async def conflict(request, exc):
         return JSONResponse({"detail": "중복 ID 또는 연결 충돌입니다. 입력을 확인하세요."}, status_code=409)
+
+    @app.exception_handler(FieldConflict)
+    async def field_conflict(request, exc):
+        return JSONResponse({"detail": exc.detail, "field": exc.field, "existing": exc.existing}, status_code=409)
 
     @app.exception_handler(OSError)
     async def storage_error(request, exc):
@@ -334,6 +338,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def edit_case(case_id: Key, value: CaseEditV3, user=Depends(writer)):
         with store.connect(write=True) as db:
             row = store.case(db, case_id, expected=value.expected_revision)
+            check_identity(db, row["event_id"], value.participant_id, value.sequence_no, exclude_case_id=case_id)
             manifest = store.manifest(row)
             manifest.participant_id = value.participant_id
             if value.consents is not None:

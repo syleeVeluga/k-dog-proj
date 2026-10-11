@@ -210,7 +210,7 @@ export function App() {
           : route === 'report' || route === 'report/comparison' ? <Report view={route === 'report' ? 'issue' : 'comparison'} cases={cases} selected={selected} select={setSelected} filters={filters} user={user} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
           : route === 'survey' ? <Survey cases={cases} selected={selected} select={setSelected} filters={filters} catalog={catalog} writable={!!writable} goTo={go} />
           : route === 'recording/inbox' || route === 'recording/record' ? <Recording view={route === 'recording/inbox' ? 'inbox' : 'record'} cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} run={run} reload={reload} notify={setNotice} />
-          : <Intake user={user} cases={cases} selected={selected} writable={!!writable} run={run} reload={reload}
+          : <Intake user={user} cases={cases} selected={selected} writable={!!writable} busy={busy} run={run} reload={reload}
               select={setSelected} filters={filters} status={connectionError || `3초마다 자동 갱신 · 마지막 조회 ${updatedAt}`} notify={setNotice} goTo={go} />}
       </fieldset>
       <footer>K-DOG · 현장 평가 자료 관리<span>접수 · 설문 · 촬영 · 채점 · 리포트</span></footer>

@@ -34,7 +34,7 @@ test('신규 접수 입력은 이동 취소와 저장 오류 뒤에도 유지된
   await expect(page.getByRole('alert')).toContainText('이미 등록된');
   await expect(page.getByLabel('반려견 이름', { exact: true })).toHaveValue('입력보호견');
   await page.unroute('**/api/cases');
-  await page.getByRole('button', { name: '참가자 저장', exact: true }).click();
+  await page.getByRole('button', { name: '저장하고 상세 열기', exact: true }).click();
   await expect(page.getByRole('heading', { name: '입력보호견', exact: true })).toBeVisible();
   await openMenu(page, '설문 현황');
   await expect(page.getByRole('heading', { name: '설문', exact: true })).toBeVisible();

@@ -14,7 +14,7 @@ for (const width of [360, 390, 768, 1440]) {
     await page.getByLabel('행사 ID', { exact: true }).fill('UIUX-LAYOUT');
     await page.getByLabel('참가자 ID', { exact: true }).fill(`L${width}`);
     await page.getByLabel('반려견 이름', { exact: true }).fill('레이아웃 합성견');
-    await page.getByRole('button', { name: '참가자 저장', exact: true }).click();
+    await page.getByRole('button', { name: '저장하고 상세 열기', exact: true }).click();
     const notice = page.getByRole('status').filter({ hasText: '참가자를 등록했습니다.' });
     await expect(notice).toBeInViewport({ ratio: 1 });
     const navigation = page.getByRole('navigation', { name: '주 메뉴' });
