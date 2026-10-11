@@ -184,7 +184,7 @@ AR04 동의/삭제/보관 및 AR05 리포트/내보내기 소유 조건은 해�
 
 ## 8 AR05 구현·검증·독립 cold review
 
-2026-10-12, `veluga/ar05-shared-outputs`, 기준 AR04 merge `8d7d8d76494c70ad16c2075e4ebd630444e22f08`. AR-R03·AR-R05·AR-R09·AR-R10. 신규 의존성 없이 §4 공식 확인·기존 잠금판을 유지한다. 독립 리뷰 진행 중이며 병합 전이다.
+2026-10-12, `veluga/ar05-shared-outputs`, 기준 AR04 merge `8d7d8d76494c70ad16c2075e4ebd630444e22f08`, [PR #79](https://github.com/syleeVeluga/k-dog-proj/pull/79), 구현 head `a8691bc942b31c2233fc45ef988ff707da833777`. AR-R03·AR-R05·AR-R09·AR-R10. 신규 의존성 없이 §4 공식 확인·기존 잠금판을 유지한다. 독립 재검토 완료·병합 전이다.
 
 - 검수 원자료·CSV/XLSX·리포트·집단·기준을 모든 활성 계정에 공유한다. 원 생성자 비활성·grant 없음·미제출 초안은 접근을 막지 않는다. 리포트는 실제 고정 원자료/기본 결과를 검증한다. 수정/재생성은 새 판본이며 기존 파일 bytes/hash와 실제 생성/열람 actor를 보존한다.
 - Forms preset 삭제와 receipt 조회/재수신/취소는 공통 업무다. creator/request ID의 생성 중복 식별과 실제 claim/session/token/연결된 원본 보호는 유지한다. 같은 request ID의 다른 생성자 수신물은 별개 upload ID로 제공한다.
