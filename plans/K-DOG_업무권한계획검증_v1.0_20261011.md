@@ -16,15 +16,17 @@
 | 검사 | 실제 결과 |
 | --- | --- |
 | 상대 문서/코드 링크 작업 파일 검사 | 문서 10개·상대 링크 82개, 누락 0 |
-| staged/committed tree 상대 링크 | Git index의 상대 링크 82개, 누락 0; commit 뒤 같은 방법으로 재확인 예정 |
+| staged/committed tree 상대 링크 | Git index 및 문서 commit 24b6053의 상대 링크 82개, 누락 0 |
 | 개별 PR 7개·선행 DAG·AR-R01~R12 연결 | 개별 문서 7개 목적/변경/검증/인수/복구 확인, 위상 순서 AR01→AR02→AR03/AR04→AR05→AR06→AR07, 순환 0; R01~R12 담당 연결 검토 |
 | 계획의 기존 시험 모듈·frontend 명령 대상 | 기존 Python 시험 모듈 25개·E2E 파일 10개 모두 존재. test_activity_v4는 AR02 미래 신규 생성 항목으로 명시 |
 | 계획/제품/실측 완료 경계 | 전 문서에서 제품 구현 미착수·미실행 명시 |
 | git diff --check | staged diff 검사 통과. 최초 EOF 빈 줄 7개 수정 후 재검증 |
 | 독립 cold review 및 수용 건 수정 | P2 2건 수용 수정, 독립 재검토에서 두 건 해결·새 actionable 잔여 0. [별도 기록](K-DOG_업무권한계획ColdReview_v1.0_20261011.md) |
-| 원격 PR·최종 head·병합 | 문서 PR 생성/병합 후 기록 |
+| 원격 PR·최종 head·병합 | [문서 PR #72](https://github.com/syleeVeluga/k-dog-proj/pull/72). 생성 후 head 24b6053·base f2b79d9·CLEAN/MERGEABLE·checks 없음 확인. 이 기록의 commit을 포함한 최종 head를 재확인하여 병합하며 최종 head/merge SHA와 병합 시각은 PR 메타데이터 및 작업 완료 응답을 따른다 |
 
 계획 검증·cold review·수용 수정·최종 재검증을 완료했다. 초기 index 검사기의 Git 한글 경로 인용 처리를 core.quotepath=false로 바로잡아 누락 0을 확인했다. 최종 staged 문서 10개·상대 링크 82개 누락 0·plans 외 변경 0·diff check 통과를 확인했다. 앱 단위/전체 backend/E2E/ZIP 검증은 AR01~AR07 구현 시 수행할 미래 항목이다.
+
+PR에 plans 10개만 포함되는 것을 원격 파일 목록으로 확인했다. 원격 CI/check가 없으므로 CI 통과로 표시하지 않는다. GitHub 연결 도구의 PR 생성 403은 로컬 GitHub CLI로 생성하여 해결했다. 기존 로컬 U08 작업 브랜치를 전환·커밋·병합하지 않고 문서 전용 worktree에서 수행했다.
 
 ## 3 검증 방법과 범위
 
