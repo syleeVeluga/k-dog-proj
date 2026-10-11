@@ -44,6 +44,7 @@ export function Survey({ cases, selected, select, filters, catalog, writable, go
         <p className="fine">수치 응답 {result.answered_count}/28 · 명시 빈칸 사유 {result.blank_reason_count}개 · {'policy_version' in result ? '등록 완료 기준 미확정' : '등록 완료 기준 미확정'}</p>
         {'policy_version' in result ? <p className="fine">집계: {result.calculation_status === 'complete' ? '8영역·25번 산출' : result.calculation_status === 'partial' ? '완전응답 영역만 산출' : '산출값 없음'} · 외부 비교: 준비 중(원문 확인 전)</p>
           : <p className="fine">집계: {result.status === 'calculated' ? '8영역 계산 가능' : '완전응답 영역만 계산'} · 비교: {result.comparison_status === 'pending_policy' ? '비교 대상 자격 미확정' : '두려움 응답 부족'}</p>}
+        {'policy_version' in result && <details><summary>외부 비교 · 자세히</summary><p>{result.external_comparison_reason}</p></details>}
         <div className="score-grid">{result.domains.map(domain => <div className="score-card" key={domain.domain}><strong>{domain.domain}</strong>
           <p>응답 {domain.answered_count}/{domain.target_count} · {domain.mean === null ? domain.reason : 'aggregation' in domain && domain.aggregation === 'single_raw' ? `원값 ${domain.mean}` : `평균 ${domain.mean.toFixed(2)} (분모 ${domain.denominator})`}</p>
           {'missing_question_ids' in domain && domain.missing_question_ids.length > 0 && <small>보완 문항: {domain.missing_question_ids.map(id => `Q${id.slice(1)}`).join(', ')}</small>}</div>)}
