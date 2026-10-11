@@ -235,33 +235,41 @@ class ReportRunV4Tests(unittest.TestCase):
             reports.view(self.store, run_id, self.user)
 
     def test_u08_professor_creates_opens_report_and_open_is_audited_without_manager_powers(self):
+        """U08 decision 「바로 열람, 채점 중엔 차단」: operator issues; a professor without any sheet opens directly, logged."""
         from app import sheets_v4 as sheets
         from tests.test_opinions_v4 import model as make
-        with self.store.connect(write=True) as db:
-            db.execute("UPDATE users SET role='reviewer' WHERE username=?", (self.user.username,))
-        professor = SimpleNamespace(username=self.user.username, role="reviewer")
-        run_id = reports.enqueue(self.store, self.case_id, self.session_id, self.request, professor)["run_id"]
-        self.work()
-        self.assertEqual(self.row(run_id)["status"], "succeeded")
+        run_id = self.publish()
+        professor = self.helper.people["reviewer"]
         self.assertEqual([row["run_id"] for row in reports.list_runs(self.store, self.case_id, self.session_id, professor)], [run_id])
-        reports.download(self.store, self.case_id, self.session_id, run_id, "manifest", professor)
+        reports.download(self.store, self.case_id, self.session_id, run_id, "manifest", professor)  # 화면 갱신 재조회: 기록 안 함
+        reports.download(self.store, self.case_id, self.session_id, run_id, "manifest", professor, purpose="open")
         reports.download(self.store, self.case_id, self.session_id, run_id, "html", professor, inline=True)
         reports.download(self.store, self.case_id, self.session_id, run_id, "pdf", professor)
         log = reports.access_log(self.store, self.case_id, self.session_id, run_id, professor)
-        name = professor.username
-        self.assertEqual([(row["actor"], row["action"], row["format"]) for row in log], [(name, "report.s1.create", None),
-            (name, "report.s1.issue", None), (name, "report.s1.open", "html"), (name, "report.s1.open", "pdf")])
-        # 다른 교수는 리포트 메뉴는 쓰지만 공개 이력 없이 다른 평가 원본을 볼 수 없다(독립성 규칙 유지).
+        operator = self.user.username
+        self.assertEqual([(row["actor"], row["action"], row["format"]) for row in log], [(operator, "report.s1.create", None),
+            (operator, "report.s1.issue", None), ("reviewer", "report.s1.open", "manifest"), ("reviewer", "report.s1.open", "html"),
+            ("reviewer", "report.s1.open", "pdf")])
+        # 교수의 중지·재시도도 교수 이름으로 남는다.
+        queued = reports.enqueue(self.store, self.case_id, self.session_id, model(reports.ReportStartV4,
+            expected_revision=self.current()["input_revision"], request_id=uid(), final=self.final["reference"]), self.user)["run_id"]
+        reason = "synthetic professor action"
+        reports.action(self.store, queued, reports.ReportActionV4(expected_updated_at=self.row(queued)["updated_at"], reason=reason), professor)
+        reports.action(self.store, queued, reports.ReportActionV4(expected_updated_at=self.row(queued)["updated_at"], reason=reason), professor, retry=True)
+        self.assertEqual([(row["actor"], row["action"]) for row in reports.access_log(self.store, self.case_id, self.session_id, queued, professor)][-2:],
+            [("reviewer", "report.s1.stop"), ("reviewer", "report.s1.retry")])
+        # 독립 채점 중(미제출 시트)인 교수는 열 수 없다.
+        self.helper.assign("other")
         with self.assertRaises(HTTPException) as caught:
             reports.download(self.store, self.case_id, self.session_id, run_id, "html", self.helper.people["other"])
         self.assertEqual(caught.exception.status_code, 403)
+        self.assertIn("독립 채점을 제출하기 전", caught.exception.detail)
         # 운영자 권한(배정)은 넓히지 않는다.
         value = make(sheets.SheetAssignmentV4, expected_revision=self.current()["input_revision"], assigned_username="other",
             rater_id="rater-other-u08", rater_name="합성 평가자", source_sheet_id=None, purpose="independent", batch_id=None)
         with self.assertRaises(HTTPException) as caught:
             sheets.assign(self.store, self.case_id, self.session_id, value, professor)
         self.assertEqual(caught.exception.status_code, 403)
-
     def test_backup_restore_and_deleted_case_cleanup_preserve_or_purge_full_report(self):
         run_id = self.publish()
         root = Path(self.helper.temp.name)

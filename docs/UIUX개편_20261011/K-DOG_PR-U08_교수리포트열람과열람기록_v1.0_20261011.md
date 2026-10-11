@@ -21,8 +21,9 @@ U06에서 교수/검토자(`reviewer`)에게 리포트 「조회만」 여는 �
 - 2026-10-11 사용자 결정(원문): 「권한은 체계는 불필요 그냥 누가 열거나 수정했는지 기록정도만 있어도 문제 없음」
 - 해석: 교수용 별도 공개 절차·권한 체계를 만들지 않는다. 교수에게 운영자와 같은 리포트 메뉴 기능을 열고, 누가 열고 바꿨는지 기록과 화면 표시만 더한다.
 - `sheets_v4.manager`를 바꾸지 않는다(배정·공개·재개방 등 운영 권한까지 열리므로). 대신 리포트 범위 읽기 검사 `opinions_v4.report_reader`를 새로 두고 `context(..., read=True)`로 읽기 경로에만 쓴다.
-- 독립성·공개 규칙은 그대로다: `opinions_v4.selected_basic`의 본인 시트/공개 시트(`viewer_sheet_id`·grant) 검사와 `disclosures_v4.require`는 이미 운영자에게도 적용되며 바꾸지 않는다. 따라서 교수는 본인 원자료로 만든 결과이거나 본인 제출 시트로 공개 이력을 남긴 최종 해석만 리포트로 열 수 있다(운영자와 같은 조건).
-- 열람 기록은 HTML·PDF 본문에만 남긴다. manifest(발급 요약)는 화면이 상태 갱신마다 다시 읽으므로 기록하지 않는다(기록 폭증 방지). 화면의 「발급 요약·HTML·PDF 열기」는 미리보기 HTML을 읽으므로 열람 1건이 남는다.
+- (cold review 후 2026-10-11 추가 결정 「바로 열람, 채점 중엔 차단」) **발급본 열람(목록·HTML/PDF/manifest·중지·재시도)**: 활성 교수는 본인 시트·공개(grant)·해석 공개 절차 없이 바로 연다(`report_runs_v4._source_access(issued_open=True)` → `opinions_v4.pinned_basic`로 고정 판본 무결성만 확인, `selected_basic`의 본인/공개 시트 분기와 `disclosures_v4.require`는 교수에게 생략). 단 그 교수에게 같은 참가자·회차의 **미제출 독립(`independent`·`draft`·활성) 시트**가 있으면 403 「독립 채점을 제출하기 전에는 리포트를 열 수 없습니다」. 동의·고정 pin·hash 검사와 기록은 그대로. 운영자·관리자의 열람 규칙과 채점 시트·최종 결과의 독립성 규칙은 바꾸지 않는다.
+- **리포트 생성**은 기존 규칙을 유지한다: 생성은 최종 결과 조회(`final_results_v4.view`)·프로필 작성·`selected_basic`을 거치므로 교수도 운영자처럼 본인 원자료이거나 본인 제출 시트로 공개한 최종 해석으로만 만든다(생성 경로까지 완화하면 최종 결과 조회 규칙을 바꾸게 되어 범위 밖).
+- 열람 기록(`report.s1.open`): HTML·PDF는 항상, manifest(발급 요약)는 명시적으로 열거나 저장할 때(`purpose=open|save`: 「발급 요약·HTML·PDF 열기」 첫 조회·「출처 manifest 저장」)만 남긴다. 화면 갱신·인쇄 전 재조회는 기록하지 않는다(기록 폭증 방지).
 
 ## 코드 확인 (변경 전)
 
@@ -38,18 +39,18 @@ U06에서 교수/검토자(`reviewer`)에게 리포트 「조회만」 여는 �
 
 | 파일 | 변경 | 내용 |
 | --- | --- | --- |
-| `backend/app/opinions_v4.py` | 수정 | `REPORT_ROLES`·`report_reader` 신설, `context(..., read=False)`; `selected_basic`은 `read=True`. 의견 쓰기·조회는 계속 `manager` |
+| `backend/app/opinions_v4.py` | 수정 | `REPORT_ROLES`·`report_reader`·`pinned_basic`(고정 판본 무결성만, `selected_basic`에서 분리) 신설, `context(..., read=False)`; `selected_basic`은 `read=True`. 의견 쓰기·조회는 계속 `manager` |
 | `backend/app/final_results_v4.py` | 수정 | `list_results`·`view`는 `read=True`(작성 `assemble`은 운영자 유지) |
 | `backend/app/disclosures_v4.py` | 수정 | `reveal`은 `read=True`(본인 제출 시트 소유·제출 상태 검사는 그대로) |
-| `backend/app/report_runs_v4.py` | 수정 | `_actor`가 `REPORT_ROLES` 허용, `download(..., inline=)`이 HTML·PDF 열람을 `report.s1.open`으로 기록, `access_log`·`ReportAccessV4` 신설 |
+| `backend/app/report_runs_v4.py` | 수정 | `_actor`가 `REPORT_ROLES` 허용, 교수 발급본 열람·중지·재시도는 `issued_open`(공개 절차 생략, `_scoring_block`으로 채점 중 차단), `download(purpose=)`로 manifest 명시 열람 기록, `download(..., inline=)`이 HTML·PDF 열람을 `report.s1.open`으로 기록, `access_log`·`ReportAccessV4` 신설 |
 | `backend/app/comparisons_v4.py` | 수정 | `_account(reader=True)`: 스냅숏 목록·조회·출처 목록·외부 게이트만 교수 허용. 후보·생성·연구 확인·활성화는 그대로 |
 | `backend/app/external_comparisons_v4.py` | 수정 | 리포트 화면의 외부 비교 선택(목록·조회·생성·출력 확인)에 `reader=True`. 근거 업로드는 관리자 유지 |
 | `backend/app/api.py` | 수정 | `GET .../report-runs-s1/{run_id}/access` 추가, 파일 다운로드에 `inline` 전달, 리포트 화면이 쓰는 비교 조회(`/comparisons-s1/cohorts` 목록·조회, `sources`, `external-snapshots` 목록·조회·생성)를 `writer` → `reader`(후보·집단 생성·연구 확인·활성화·근거 업로드는 그대로) |
 | `frontend/src/navigation.ts` | 수정 | `리포트 발급` 메뉴 역할에 `reviewer` 추가(비교 조건·연구 내보내기는 운영자) |
 | `frontend/src/pages/Report.tsx` | 수정 | 발급 화면(`issue`)은 교수에게도 표시 |
 | `frontend/src/Prerequisites.tsx` | 수정 | 리포트 선행 조건 「분석·피드백 동의 확인」에 교수용 안내 문구(빈 문구 수정) |
-| `frontend/src/ReportRunsV4.tsx`, `reportTypesV4.ts` | 수정 | `manager` → 리포트 사용자(운영자·관리자·교수), 실행별 「열람·수정 기록」 접기(펼칠 때 조회) |
-| `backend/tests/test_report_runs_v4.py` | 수정 | 교수가 생성·발급·열람, 열람 기록, 다른 교수는 공개 없이 403, 교수의 배정 403. 역할 변경 차단 시험은 `developer`로 |
+| `frontend/src/ReportRunsV4.tsx`, `reportTypesV4.ts` | 수정 | `manager` → 리포트 사용자(운영자·관리자·교수), 실행별 「열람·수정 기록」 접기(펼칠 때·열람/저장/미리보기 로드 뒤 다시 조회), manifest `purpose=open/save`, 교수용 「채점 중 차단」 안내 |
+| `backend/tests/test_report_runs_v4.py` | 수정 | 운영자 발급 → 시트 없는 교수가 바로 열람(manifest open·HTML·PDF 기록, 갱신 재조회 미기록), 교수의 중지·재시도가 교수 이름으로 기록, 미제출 독립 시트가 있는 교수 403, 교수의 배정 403. 역할 변경 차단 시험은 `developer`로 |
 | `backend/tests/test_comparisons_v4.py`, `test_comparisons_api_v4.py` | 수정 | 교수는 스냅숏 목록 허용(함수·API), 후보 조회는 거절 |
 | `frontend/tests/report-v4.spec.ts` | 수정 | 공개 시험을 교수 흐름으로: 교수가 본인 제출 시트로 최종 해석 공개 → 리포트 생성 → 「열람·수정 기록」에 `reviewer · 생성 요청`, 교수의 배정 요청 403 |
 | `frontend/tests/scenario-professor.spec.ts`, `navigation.spec.ts`, `analysis-progress-v4.spec.ts`, `copy-guard.spec.ts` | 수정 | 교수 메뉴에 `리포트 발급` 추가, 교수의 리포트 화면 진입, 교수 메뉴 문구 점검에 리포트 발급 포함 |
@@ -85,6 +86,27 @@ U06에서 교수/검토자(`reviewer`)에게 리포트 「조회만」 여는 �
 
 ### 남은 사항
 
-- 교수는 운영자처럼 `selected_basic`의 공개 조건을 따른다. 다른 평가자의 원자료로 만든 최종 결과는 운영자의 공개 허용(grant)과 본인 제출 시트가 있어야 열린다. 교수 본인 시트가 없는 참가자는 리포트 화면에서 최종본을 고를 수 없다(운영자와 같은 규칙, 사용자 결정에 따라 별도 절차 없음).
+- 교수는 발급본은 바로 열지만, 리포트 **생성**은 운영자와 같은 공개 조건을 따른다(본인 시트가 없는 참가자는 최종본을 고를 수 없음). 운영자가 발급하고 교수는 열람하는 흐름이 기본이다.
+- (cold review 3) 참가자 삭제·비교 철회 정리(`purge_comparisons`·`purge_external`·삭제)는 해당 리포트 실행의 `changes` 기록(열람 기록 포함)도 지운다. 삭제 요구사항에 따른 것으로 유지한다.
+- (cold review 6) 교수는 리포트 화면에서 외부 비교 스냅숏을 **생성**할 수 있다(쓰기 권한). 리포트 입력 고정용이며 연구 확인·활성화·근거 업로드는 운영자·관리자 그대로다.
+- (cold review 7) 교수도 실행 목록과 「기술 정보」(단계 시간·호출 수·비용)를 본다. 사용자 결정(기록만)에 따라 그대로 둔다.
 - 선행 조건 체크리스트의 「최종 결과 확정」 항목은 교수에게 여전히 보이지 않는다(U06: 교수 진행 요약에 최종·리포트 진행을 주지 않음). 필요하면 후속으로 다룬다.
 - 열람 기록은 운영자 작업 기록 `changes`에 쌓이며 별도 보존 기간·내보내기는 두지 않았다.
+
+### cold review 반영 (2026-10-11)
+
+독립 리뷰어가 PR #71(`052fa18`)을 검토했고, 사용자가 정책을 「바로 열람, 채점 중엔 차단」으로 결정했다.
+
+| # | 심각도 | 내용 | 판단 | 반영 |
+| --- | --- | --- | --- | --- |
+| 1 | 높음 | 교수는 본인 시트·공개 이력이 없으면 운영자가 발급한 리포트를 열 수 없어 결정 취지(기록만)와 어긋남 | 수용(사용자 결정) | 발급본 열람·중지·재시도는 교수에게 공개 절차 생략, 미제출 독립 시트가 있으면 403. 생성은 기존 규칙 유지(결정 기록 참고) |
+| 2 | 중 | manifest 열기·저장이 기록되지 않음 | 수용 | `purpose=open/save`일 때만 기록, 갱신 재조회는 미기록 |
+| 3 | 중 | 참가자 삭제·비교 철회 정리 때 열람 기록도 지워짐 | 문서만 | 삭제 요구사항에 따라 유지, 남은 사항에 기록 |
+| 4 | 중 | 시험이 「운영자가 교수로 역할 변경」 형태라 실제 흐름과 다름 | 수용 | 운영자 발급 → 시트 없는 교수 열람·기록, 교수 중지·재시도 기록, 채점 중 교수 403, manifest 기록 시험 |
+| 5 | 중 | 문서 설명이 최종 동작과 다름 | 수용 | 결정 기록·파일별 변경·남은 사항 갱신 |
+| 6 | 낮음 | 교수가 외부 비교 스냅숏을 생성할 수 있음(쓰기) | 문서만 | 수용, 남은 사항에 쓰기 권한으로 명시 |
+| 7 | 낮음 | 교수에게 실행 목록·비용 기술 정보가 보임 | 문서만 | 「기록만」 결정에 따라 유지, 남은 사항에 기록 |
+| 8 | 낮음 | 열람 뒤 「열람·수정 기록」이 갱신되지 않음 | 수용 | 열기·저장·미리보기 로드 뒤 다시 조회 |
+| 9 | 낮음 | 교수가 채점 중 차단을 알 수 없음 | 수용 | 리포트 화면에 교수용 안내 문구 |
+
+재검증: backend 전체 690개 통과(skip 2), `npm run build` 통과, e2e 전체 105개 통과(PowerShell), `git diff --check`·`graft build` → `graft check` OK.

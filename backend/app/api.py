@@ -731,8 +731,8 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         return report_runs_v4.access_log(store, case_id, session_id, run_id, user)
 
     @app.get("/api/cases/{case_id}/sessions/{session_id}/report-runs-s1/{run_id}/files/{format}")
-    def report_s1_file(case_id: Key, session_id: Key, run_id: Key, format: Literal["html", "pdf", "manifest"], viewer_sheet_id: Key | None = None, inline: bool = False, user=Depends(reader)):
-        data, mime, filename = report_runs_v4.download(store, case_id, session_id, run_id, format, user, viewer_sheet_id, inline=inline)
+    def report_s1_file(case_id: Key, session_id: Key, run_id: Key, format: Literal["html", "pdf", "manifest"], viewer_sheet_id: Key | None = None, inline: bool = False, purpose: Literal["open", "save"] | None = None, user=Depends(reader)):
+        data, mime, filename = report_runs_v4.download(store, case_id, session_id, run_id, format, user, viewer_sheet_id, inline=inline, purpose=purpose)
         headers = {"Content-Disposition": f'{"inline" if inline and format in ("html", "pdf") else "attachment"}; filename="{filename}"'}
         if format == "html":
             headers["Content-Security-Policy"] = "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"

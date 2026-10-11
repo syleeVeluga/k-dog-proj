@@ -83,9 +83,8 @@ def context(store, db, case_id, session_id, user, *, read=False):
     return case
 
 
-def selected_basic(store, db, case_id, session_id, requested, user, viewer_sheet_id=None):
-    """Explicit basic revision; neither manager role nor event UI bypasses disclosure."""
-    context(store, db, case_id, session_id, user, read=True)
+def pinned_basic(store, db, case_id, session_id, requested):
+    """Exact basic revision integrity only (no viewer/disclosure check)."""
     row = db.execute("SELECT * FROM basic_results WHERE result_id=?", (requested.result_id,)).fetchone()
     if not row or (row["case_id"], row["session_id"]) != (case_id, session_id):
         raise HTTPException(404, "이 개체·회차의 기본 결과를 명시적으로 선택하세요.")
@@ -96,6 +95,13 @@ def selected_basic(store, db, case_id, session_id, requested, user, viewer_sheet
     basic = judgements.read_result(store, requested.ref, requested.hash)
     if not source["active"]:
         raise HTTPException(403, "기본 입력 배정이 취소되었습니다.")
+    return row, basic, source
+
+
+def selected_basic(store, db, case_id, session_id, requested, user, viewer_sheet_id=None):
+    """Explicit basic revision; neither manager role nor event UI bypasses disclosure."""
+    context(store, db, case_id, session_id, user, read=True)
+    row, basic, source = pinned_basic(store, db, case_id, session_id, requested)
     if source["assigned_username"] == user.username:
         sheets.owner(db, source, user)
     else:
