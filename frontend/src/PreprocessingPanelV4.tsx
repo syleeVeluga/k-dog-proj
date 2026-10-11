@@ -76,7 +76,7 @@ export function PreprocessingPanelV4({ item, writable, run, refresh }: {
   return <section className="panel" aria-label="S1 다중 카메라 전처리" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <div className="section-head"><h2>다중 카메라 전처리</h2><button type="button" disabled={busy || loading} onClick={() => { void run(async () => { await refresh(); await load(); }); }}>전처리 상태 새로고침</button></div>
     <p>촬영 기록의 실제 창을 카메라별 클립으로 만듭니다. 겹치는 클립은 함께 제작하고, 항목별 관찰창과 가림·손실 근거는 각각 유지합니다.</p>
-    <p className="fine">카메라 배치는 D01 확인 대기입니다. 오프셋이 확인되지 않은 카메라는 클립 제작에서 제외됩니다.</p>
+    <p className="fine">카메라 배치는 아직 확정 전입니다. 오프셋이 확인되지 않은 카메라는 클립 제작에서 제외됩니다.</p>
     {error && <p role="alert" className="error">{error}</p>}
     <p role="status">{busy ? '전처리 진행 중 · 완료 후 상태가 갱신됩니다.' : loading ? '전처리 상태 확인 중…' : status ? `${label(status.status)} · ${status.message}` : '전처리 상태를 확인하세요.'}</p>
     {stale && <p className="warning">이전 입력 기준 결과입니다. 결과 기준 {batch?.input_revision ?? '미확인'} / 최신 입력 {item.input_revision}. 새 입력으로 다시 제작해야 합니다.</p>}

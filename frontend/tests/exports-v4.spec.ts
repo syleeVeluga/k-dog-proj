@@ -25,7 +25,7 @@ async function fixture(request: APIRequestContext, participant: string) {
   const final = await request.post(base + '/final-results-s1', { headers, data: { basic: { result_id: basic.result_id, revision: basic.revision, ref: basic.manifest_ref, hash: basic.manifest_hash }, opinion: null, reason: '합성 최종본' } }); expect(final.status(), await final.text()).toBe(201);
   return { item, base, sheet: submitted, basic, final: await final.json(), observations };
 }
-async function openExport(page: Page, participant: string) { await openMenu(page, '독립 채점'); await page.getByRole('button', { name: `${participant} 독립 채점 열기`, exact: true }).click(); await page.getByText('연구 내보내기', { exact: true }).click(); return page.getByRole('region', { name: 'S1 연구 내보내기', exact: true }); }
+async function openExport(page: Page, participant: string) { await openMenu(page, '연구 내보내기'); await page.getByRole('button', { name: `${participant} 연구 내보내기 열기`, exact: true }).click(); return page.getByRole('region', { name: 'S1 연구 내보내기', exact: true }); }
 test.beforeEach(({ page }) => { page.setDefaultTimeout(15000); });
 
 test('S14 reference workbook preserves raw cells, formulas, unknown identity and idempotent reference-only registration', async ({ page }, info) => {

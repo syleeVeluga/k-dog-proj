@@ -53,35 +53,38 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
     await api(path + '/runs-s1', 'POST', { ...fields, request_id: request.current.request_id });
     request.current = null;
   }
+  // 교수/검토자에게는 AI 초안 상태 한 줄만 보인다. 설정·호출 수·비용 같은 운영 정보는 운영자·관리자에게만 「기술 정보」로 보인다.
+  const draft = runs.some(run => run.result_available && !run.outdated) ? '완료' : runs.some(run => active.has(run.status)) ? '실행 중' : '준비 안 됨';
+  if (!manager) return <section className="panel" aria-label="AI 초안 상태"><p role="status">AI 초안: {draft}</p></section>;
   return <section className="panel" aria-label="S1 AI 실행" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-    <h2>S1 AI 관찰 원자료 실행</h2>
-    <p>입력 {item.input_revision}판 · 활성 설정 {ready?.active_version === 'inactive' ? '없음' : ready?.active_version ?? '확인 중'} · 기본 예정 공급자 호출 {ready?.planned_provider_calls ?? '—'}회</p>
-    <p>숫자 83개·관찰 메모 3개의 원자료를 요청하고 자동 4개는 앱이 계산합니다. 관찰·계산 뒤 근거 기반 AI 애착 판단을 별도로 수행합니다. 실제 적절성은 교수 테스트 대기입니다.</p>
-    <p className="fine">실제 공급자 정확도·시간·가격은 S16 측정 대기입니다. 메뉴 조회는 실행을 만들지 않으며, 실행 중 상태만 2초마다 갱신합니다.</p>
+    <h2>AI 관찰 원자료 실행</h2><p role="status">AI 초안: {draft}</p>
+    <p>숫자 83개·관찰 메모 3개의 원자료를 요청하고 자동 4개는 앱이 계산합니다. 관찰·계산 뒤 근거 기반 AI 애착 판단을 별도로 수행합니다.</p>
+    <details><summary>기술 정보</summary><p>입력 {item.input_revision}판 · 활성 설정 {ready?.active_version === 'inactive' ? '없음' : ready?.active_version ?? '확인 중'} · 기본 예정 공급자 호출 {ready?.planned_provider_calls ?? '—'}회</p>
+      <p className="fine">실제 공급자의 정확도·시간·가격은 아직 측정하지 않았습니다. 메뉴 조회는 실행을 만들지 않으며, 실행 중 상태만 2초마다 갱신합니다.</p></details>
     {error && <p role="alert" className="error">{error}</p>}
-    <button disabled={busy || loading} onClick={() => { void reload(true); }}>S1 실행 상태 새로고침</button>
-    {!ready?.enabled && <p role="status">개발자가 관찰 원자료 범위를 확인한 S1 설정을 활성화해야 합니다.</p>}
+    <button disabled={busy || loading} onClick={() => { void reload(true); }}>AI 실행 상태 새로고침</button>
+    {!ready?.enabled && <p role="status">개발자가 AI 설정을 활성화해야 실행할 수 있습니다.</p>}
     {item.consents.analysis_feedback !== 'confirmed' && <p role="status">분석·피드백 동의를 확인해야 실행할 수 있습니다.</p>}
     {(!preprocess?.result_pointer || preprocess.outdated) && <p role="status">현재 입력 기준의 전처리 결과가 필요합니다.</p>}
     {preprocess?.status === 'partial' && <p>전처리가 일부만 완성되었습니다. 없는 카메라·클립의 항목은 관찰 부족 사유를 유지합니다.</p>}
     {manager && <fieldset disabled={busy || loading}><legend>명시 실행과 재사용</legend>
       <label>성공 항목군 재사용<select aria-label="성공 항목군 재사용" value={reuse} onChange={event => setReuse(event.target.value)}><option value="">재사용 없이 새 실행</option>{runs.filter(run => !run.outdated && run.steps.some(step => step.stage === 'score_v4' && step.status === 'succeeded')).map(run => <option key={run.run_id} value={run.run_id}>{run.run_id.slice(0, 8)} · {states[run.status] ?? run.status} · 성공 항목군 {run.steps.filter(step => step.stage === 'score_v4' && step.status === 'succeeded').length}개</option>)}</select></label>
       <p className="fine">재사용은 같은 원본·창·카메라·오프셋·모델·설정 해시를 다시 검증합니다. 부분 완료의 재생성도 새 실행으로 기록합니다.</p>
-      <button disabled={!allowed} onClick={() => void work(start)}>현재 입력으로 S1 AI 실행 생성</button>
+      <button disabled={!allowed} onClick={() => void work(start)}>현재 입력으로 AI 실행 생성</button>
       {request.current && <p role="status">응답 확인이 필요한 요청입니다. 같은 입력으로 다시 누르면 동일 요청 ID를 사용합니다.</p>}
       <label>실행 제어 사유<input value={reason} onChange={event => setReason(event.target.value)} maxLength={2000} placeholder="중지 또는 재시도 이유" /></label>
     </fieldset>}
-    {!runs.length && <p>생성된 S1 AI 실행이 없습니다.</p>}
+    {!runs.length && <p>생성된 AI 실행이 없습니다.</p>}
     {runs.map(run => <article className="panel" key={run.run_id} aria-label={`S1 실행 ${run.run_id}`}>
       <h3>{states[run.status] ?? run.status}{run.outdated ? ' · 이전 입력 기준' : ''}</h3>
-      <p>{run.run_id} · 입력 {run.input_revision}판 · {new Date(run.updated_at).toLocaleString()}</p>
-      <p>기본 계획 {run.planned_provider_calls}회 · 예약 {run.reserved_calls}회 / 상한 {run.max_ai_calls}회 · {run.judgement_status === 'implemented_professor_test_pending' ? '애착 판단 구현 · 교수 테스트 대기' : '이전 애착 판단 정책 보류'}</p>
+      <p>입력 {run.input_revision}판 · {new Date(run.updated_at).toLocaleString()}</p>
+      {run.judgement_status !== 'implemented_professor_test_pending' && <p>이전 애착 판단 정책으로 만든 실행입니다.</p>}
       {run.failure_code && <p role="status">실행 사유: {run.failure_code}</p>}
       {run.steps.some(step => step.billing_uncertain) && <p className="warning">응답 또는 정산이 확인되지 않은 예약 호출이 있습니다. 과금 여부 미확인 상태를 유지합니다.</p>}
       {run.result_available && <p>원자료와 기본 계산이 게시되었습니다. 독립 제출 뒤 명시 공개된 시트를 열 때 AI 열람 이력이 기록됩니다. 실행 상태에는 점수·판정을 표시하지 않습니다.</p>}
-      {manager && <div className="toolbar">{active.has(run.status) && <button disabled={busy || !reason.trim()} onClick={() => void work(() => api(`/runs-s1/${run.run_id}/stop`, 'POST', { expected_updated_at: run.updated_at, reason: reason.trim() }))}>이 S1 실행 중지</button>}
-        {['failed', 'stopped', 'settings_required'].includes(run.status) && <button disabled={busy || !reason.trim() || run.outdated} onClick={() => void work(() => api(`/runs-s1/${run.run_id}/retry`, 'POST', { expected_updated_at: run.updated_at, reason: reason.trim() }))}>고정 입력으로 S1 재시도</button>}</div>}
-      <details><summary>단계별 시간·호출·부분 실패</summary><p className="fine">시간은 기록된 단계 값입니다. 수리와 전체 단계는 다른 시간 항목과 겹칠 수 있으므로 합산하지 않습니다. 빈 계량은 0으로 추정하지 않습니다.</p>
+      {manager && <div className="toolbar">{active.has(run.status) && <button disabled={busy || !reason.trim()} onClick={() => void work(() => api(`/runs-s1/${run.run_id}/stop`, 'POST', { expected_updated_at: run.updated_at, reason: reason.trim() }))}>이 AI 실행 중지</button>}
+        {['failed', 'stopped', 'settings_required'].includes(run.status) && <button disabled={busy || !reason.trim() || run.outdated} onClick={() => void work(() => api(`/runs-s1/${run.run_id}/retry`, 'POST', { expected_updated_at: run.updated_at, reason: reason.trim() }))}>고정 입력으로 AI 재시도</button>}</div>}
+      <details><summary>기술 정보 · 단계별 시간·호출·부분 실패</summary><p className="fine">실행 {run.run_id} · 기본 계획 {run.planned_provider_calls}회 · 예약 {run.reserved_calls}회 / 상한 {run.max_ai_calls}회</p><p className="fine">시간은 기록된 단계 값입니다. 수리와 전체 단계는 다른 시간 항목과 겹칠 수 있으므로 합산하지 않습니다. 빈 계량은 0으로 추정하지 않습니다.</p>
         <div className="table-wrap"><table><thead><tr><th>단계·항목군</th><th>시도·상태</th><th>시간</th><th>호출·계량</th></tr></thead><tbody>{run.steps.map((step, index) => <tr key={`${step.stage}:${step.key}:${step.attempt}:${index}`}>
           <td>{stages[step.stage] ?? step.stage}<br />{step.key}</td><td>{step.attempt}차 · {states[step.status] ?? step.status}{step.code && <p>{step.code}</p>}{step.reused && <p>명시 재사용</p>}</td>
           <td>{Object.keys(step.timing).length ? Object.entries(step.timing).map(([key, value]) => <p key={key}>{timers[key] ?? key}: {number(value)}초</p>) : '시간 미측정'}</td>

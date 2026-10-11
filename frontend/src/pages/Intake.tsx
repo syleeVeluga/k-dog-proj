@@ -8,6 +8,7 @@ import { CaseDetail } from './CaseDetail';
 import { CaseFilters, matchesCase } from '../CaseFilters';
 import type { CaseFilterProps } from '../CaseFilters';
 import type { Route } from '../navigation';
+import { videoCounts } from '../progressText';
 import { SURVEY_TOTAL, segmentState, sessionOf, surveyHandled } from '../types';
 import type { Case, Run, User } from '../types';
 
@@ -96,7 +97,7 @@ export function Intake({ user, cases, selected, writable, busy, run, reload, sel
           <td data-label="참가자 / 행사"><strong className="mono">{c.participant_id}</strong><small>{c.event_id}</small></td>
           <td data-label="반려견 / 보호자">{c.dog_name}<small>{c.guardian_name ? `${c.guardian_name} 님` : '보호자명 없음'}{c.dog.breed ? ` · ${c.dog.breed}` : ''}</small></td>
           <td data-label="동의"><span className={c.consent_confirmed ? 'tag green' : 'tag'}>{c.consent_confirmed ? '확인' : '미확인'}</span></td>
-          <td data-label="설문"><span className={count === SURVEY_TOTAL ? 'tag green' : 'tag'}>{count}/{SURVEY_TOTAL}</span>{s.survey_version === 'survey-20260929-v3' && <small>빈칸 사유 {Object.keys(s.survey_blank_reasons ?? {}).length}개 · 완료 기준 미확정</small>}</td><td data-label="영상">{s.videos.length}개</td>
+          <td data-label="설문"><span className={count === SURVEY_TOTAL ? 'tag green' : 'tag'}>{count}/{SURVEY_TOTAL}</span>{s.survey_version === 'survey-20260929-v3' && <small>빈칸 사유 {Object.keys(s.survey_blank_reasons ?? {}).length}개 · 완료 기준 미확정</small>}</td><td data-label="영상">{videoCounts(c)}</td>
           <td data-label="구간">{({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(s)]}{c.scoring_status === 'reanalysis_required' && <small>채점 전</small>}</td>
           <td data-label="자료"><button aria-label={`${c.participant_id} 상세 열기`} onClick={e => { e.stopPropagation(); open(c); }}>열기</button></td></tr>;
       })}</tbody></table>{!visible.length && <div className="empty"><h2>{cases.length ? '조건에 맞는 참가자가 없습니다.' : '첫 참가자를 등록하세요.'}</h2><p>행사와 참가자 ID를 먼저 확인한 뒤 자료를 연결합니다.</p></div>}</div>

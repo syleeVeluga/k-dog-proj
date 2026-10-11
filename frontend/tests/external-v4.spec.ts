@@ -197,7 +197,7 @@ with store.connect() as db:
     const exportHistory = await operator.request.get('/api/exports-s1');
     expect(exportHistory.status(), await exportHistory.text()).toBe(200);
     expect((await exportHistory.json()).find((value: { export_id: string }) => value.export_id === priorExport.export_id)).toMatchObject({ status: 'blocked', reason: expect.any(String) });
-    await operator.getByText('연구 내보내기', { exact: true }).click();
+    await openMenu(operator, '연구 내보내기');
     const exporter = operator.getByRole('region', { name: 'S1 연구 내보내기', exact: true });
     await expect(exporter.getByRole('region', { name: '내가 생성한 연구 파일', exact: true }).getByText(new RegExp(`연구 파일 ${priorExport.export_id.slice(0, 8)} · 제공 차단:`))).toBeVisible();
     await expect(exporter.getByRole('button', { name: `연구 파일 다운로드 ${priorExport.export_id.slice(0, 8)}`, exact: true })).toHaveCount(0);

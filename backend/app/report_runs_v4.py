@@ -112,15 +112,16 @@ def config(comparison=None, external_comparison=None):
         template_hashes=assets(True), content_hashes=hashes, comparison_snapshot=comparison, external_comparison=external_comparison)
 
 
-def _actor(db, username):
+def _actor(db, username, *, read=False):
+    """발급·중지·재시도는 운영자·관리자만. 조회(read)는 교수/검토자에게도 열지만, 내용은 기존 열람 규칙(독립 채점 제출·공개 확인)을 그대로 거친다."""
     row = db.execute("SELECT active,role FROM users WHERE username=?", (username,)).fetchone()
-    if not row or not row["active"] or row["role"] not in ("operator", "admin"):
-        raise HTTPException(403, "활성 리포트 운영 권한이 필요합니다.")
+    if not row or not row["active"] or row["role"] not in (("operator", "admin", "reviewer") if read else ("operator", "admin")):
+        raise HTTPException(403, "활성 리포트 운영 권한이 필요합니다." if not read else "리포트를 조회할 권한이 없습니다.")
     return SimpleNamespace(username=username, role=row["role"])
 
 
-def _case(store, db, case_id, session_id, user):
-    _actor(db, user.username)
+def _case(store, db, case_id, session_id, user, *, read=False):
+    _actor(db, user.username, read=read)
     row = store.case(db, case_id)
     manifest = store.manifest(row)
     if not isinstance(manifest, ManifestV4) or manifest.consents.analysis_feedback != "confirmed":
@@ -135,20 +136,29 @@ def _opinion_pin(store, db, case_id, session_id):
     return FileV4(ref=link.ref, hash=link.hash) if link else None
 
 
-def _source_access(store, db, snapshot, user, viewer_sheet_id=None):
-    case, manifest = _case(store, db, snapshot.case_id, snapshot.session_id, user)
+def _integrity_user(db, snapshot, user, read):
+    """조회자가 교수/검토자일 때 비교 집단·외부 비교·영상 계보의 고정 출처 확인은 발급자 권한으로 한다.
+    이 확인은 조회자의 접근 권한이 아니라 발급본 입력이 그대로인지 보는 것이며, 열람 권한은 아래 공개 규칙이 따로 막는다."""
+    if read and user.role == "reviewer":
+        return _actor(db, snapshot.requested_by)
+    return user
+
+
+def _source_access(store, db, snapshot, user, viewer_sheet_id=None, *, read=False):
+    case, manifest = _case(store, db, snapshot.case_id, snapshot.session_id, user, read=read)
+    checker = _integrity_user(db, snapshot, user, read)
     basic_row, basic = opinions.selected_basic(store, db, snapshot.case_id, snapshot.session_id,
         snapshot.final_document.basic, user, viewer_sheet_id or snapshot.viewer_sheet_id)
     disclosures_v4.require(db, snapshot.case_id, snapshot.session_id, user,
         disclosures_v4.target("final", snapshot.final), snapshot.final_document.actor)
     if basic != snapshot.final_document.basic_document:
         raise HTTPException(409, "고정한 최종 기본 입력이 변경되었습니다.")
-    if _media_files(store, db, snapshot.final_document, user.username) != snapshot.media_sources:
+    if _media_files(store, db, snapshot.final_document, checker.username) != snapshot.media_sources:
         raise HTTPException(409, "리포트 원본·변환 부모의 고정 연결이 변경되었습니다.")
-    if snapshot.cohort and comparisons_v4.for_report(store, snapshot.cohort.reference, user) != snapshot.cohort:
+    if snapshot.cohort and comparisons_v4.for_report(store, snapshot.cohort.reference, checker) != snapshot.cohort:
         raise HTTPException(409, "고정한 자체 비교 집단의 출처가 변경되었습니다.")
     if snapshot.profile.external_comparison and external_comparisons_v4.for_output(store,
-            snapshot.profile.external_comparison.reference, user) != snapshot.profile.external_comparison:
+            snapshot.profile.external_comparison.reference, checker) != snapshot.profile.external_comparison:
         raise HTTPException(409, "고정한 외부 비교의 현재 제공 조건이 변경되었습니다.")
     return case, manifest, basic_row
 
@@ -701,7 +711,9 @@ def view(store, run_id, user, viewer_sheet_id=None):
     with store.connect() as db:
         row = row_for(store, db, run_id)
         snapshot = snapshot_for(row)
-        case, _ = _case(store, db, row["case_id"], row["session_id"], user)
+        case, _ = _case(store, db, row["case_id"], row["session_id"], user, read=True)
+        reviewer = user.role == "reviewer"
+        checker = _integrity_user(db, snapshot, user, True)
         latest = db.execute("SELECT run_id FROM runs WHERE case_id=? AND session_id=? AND kind=? AND status='succeeded' AND result_ref IS NOT NULL ORDER BY created_at DESC,run_id DESC LIMIT 1",
             (row["case_id"], row["session_id"], KIND)).fetchone()
         steps = []
@@ -717,7 +729,7 @@ def view(store, run_id, user, viewer_sheet_id=None):
         external=snapshot.profile.external_comparison
         if external:
             try:
-                if external_comparisons_v4.for_output(store,external.reference,user)!=external:
+                if external_comparisons_v4.for_output(store,external.reference,checker)!=external:
                     raise HTTPException(409,"외부 비교의 고정 승인 범위가 변경되었습니다.")
                 external_status="approved"
             except HTTPException as exc:
@@ -729,16 +741,17 @@ def view(store, run_id, user, viewer_sheet_id=None):
             "outdated": _outdated(store, db, row, snapshot, case), "result_available": available,
             "is_latest_issued": bool(latest and latest["run_id"] == run_id), "publication_state": "issued" if row["result_ref"] else None,
             "pending_reasons": ["G02"] if configuration.provider_text_status == "deferred_S16" else [], "normal_publish_available": row["status"] == "succeeded" and available,
-            "planned_provider_calls": sum(group.provider_call for group in configuration.stages), "max_ai_calls": configuration.max_ai_calls,
+            # 호출 수·단계별 시간·토큰·비용은 운영 정보라 교수/검토자에게는 주지 않는다.
+            "planned_provider_calls": 0 if reviewer else sum(group.provider_call for group in configuration.stages), "max_ai_calls": 0 if reviewer else configuration.max_ai_calls,
             "provider_text_status": configuration.provider_text_status,
-            "final": snapshot.final.model_dump(mode="json"), "steps": steps,
+            "final": snapshot.final.model_dump(mode="json"), "steps": [] if reviewer else steps,
             "external_comparison":external.reference.model_dump(mode="json") if external else None,
             "external_comparison_status":external_status,"external_comparison_reason":external_reason}
 
 
 def list_runs(store, case_id, session_id, user):
     with store.connect() as db:
-        _case(store, db, case_id, session_id, user)
+        _case(store, db, case_id, session_id, user, read=True)
         ids = [row[0] for row in db.execute("SELECT run_id FROM runs WHERE case_id=? AND session_id=? AND kind=? ORDER BY created_at DESC,run_id DESC", (case_id, session_id, KIND))]
     return [view(store, run_id, user) for run_id in ids]
 
@@ -800,7 +813,7 @@ def download(store, case_id, session_id, run_id, format, user, viewer_sheet_id=N
         if (row["case_id"], row["session_id"]) != (case_id, session_id):
             raise HTTPException(404, "이 대상·회차의 리포트가 아닙니다.")
         snapshot = snapshot_for(row)
-        _source_access(store, db, snapshot, user, viewer_sheet_id)
+        _source_access(store, db, snapshot, user, viewer_sheet_id, read=True)
         if row["status"] != "succeeded" or not row["result_ref"]:
             raise HTTPException(409, "검증을 마친 리포트 발급본이 아직 없습니다.")
     stamps = verify_files(store, snapshot)
@@ -823,7 +836,7 @@ def download(store, case_id, session_id, run_id, format, user, viewer_sheet_id=N
     data = raw if format == "manifest" else _read_file(store, getattr(publication.output, format), stamps)
     with store.connect() as db:
         current = row_for(store, db, run_id)
-        _source_access(store, db, snapshot, user, viewer_sheet_id)
+        _source_access(store, db, snapshot, user, viewer_sheet_id, read=True)
         if (current["result_ref"], current["result_hash"]) != (pointer.ref, pointer.hash):
             raise HTTPException(409, "다운로드 중 발급 참조가 변경되었습니다.")
         check_stamps(store, stamps)

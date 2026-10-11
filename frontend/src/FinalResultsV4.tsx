@@ -89,9 +89,9 @@ export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sh
   }
   if (unavailable) return <section className="panel" aria-label="S1 의견과 최종 결과"><p role="alert">{error}</p></section>;
   return <section className="panel" aria-label="S1 의견과 최종 결과" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-    <h2>S1 행사 의견과 최종 결과</h2>
+    <h2>행사 의견과 최종 결과</h2>
     <p>영역별 완료 의견 → 유효 수동 선택 → 고정 기본 결과 순서로 적용합니다. 원점수·자동 비율과 이전 최종본은 보존됩니다.</p>
-    <p className="fine">여섯 영역 모두 작성하거나 사람 판정을 확정해야만 최종본을 만들 수 있는 것은 아닙니다. 유형 없는 완료 애착 의견은 별도 AI 실행으로 해석할 수 있습니다. 실제 적절성은 교수 테스트 대기입니다.</p>
+    <p className="fine">여섯 영역 모두 작성하거나 사람 판정을 확정해야만 최종본을 만들 수 있는 것은 아닙니다. 유형 없는 완료 애착 의견은 별도 AI 실행으로 해석할 수 있습니다.</p>
     {error && <p role="alert" className="error">{error}</p>}
     <fieldset disabled={busy || editorBusy}><legend>고정 입력과 공개 맥락</legend>
       <label>해석 공개를 기록할 본인 제출 시트<select aria-label="해석 공개를 기록할 본인 제출 시트" value={viewer} onChange={event => { if (mayLeave()) { setViewer(event.target.value); setBasic(null); setOpinion(null); setSelectedFinal(null); setDirty(false); } }}><option value="">본인 결과만 사용</option>{own.map(sheet => <option key={sheet.sheet_id} value={sheet.sheet_id}>{sheet.rater_name} · r{sheet.revision} · {sheet.purpose === 'independent' ? '독립' : '공개 후 검수'}</option>)}</select></label>
@@ -195,7 +195,7 @@ function FinalSnapshot({ value }: { value: FinalViewV4 }) {
     <p>기본 r{doc.basic.revision} · 의견 {doc.opinion ? `r${doc.opinion.revision}` : '없음'} · {doc.independent_ai ? '독립 AI 기본 결과' : '선택한 입력과 의견을 적용한 행사 결과'}</p>
     {doc.opinion_document && <p>의견 평가자 {doc.opinion_document.evaluator || '미입력'} · 의견 작성 계정 {doc.opinion_document.actor} · {states[doc.opinion_document.state]}</p>}
     {doc.attachment_assessment && <p>완료 의견의 AI 후속 해석 · 모델 {doc.attachment_assessment.model} · 지침 {doc.attachment_assessment.response.instruction_version} · 의견 r{doc.opinion?.revision} 고정</p>}
-    <p>{doc.interpretation_policy === 'attachment-20261007-rp02' ? '애착 AI 판단의 실제 적절성은 교수 테스트 대기입니다.' : '이 보존본은 이전 애착 해석 정책을 사용합니다.'} 누락·보류 사유를 함께 보존합니다.</p>
+    <p>{doc.interpretation_policy === 'attachment-20261007-rp02' ? 'AI 애착 판단을 포함한 보존본입니다.' : '이 보존본은 이전 애착 해석 정책을 사용합니다.'} 누락·보류 사유를 함께 보존합니다.</p>
     {doc.domains.map(domain => <article key={domain.domain} aria-label={`${DOMAIN_NAMES_V4[domain.domain]} 최종 영역`}><h4>{DOMAIN_NAMES_V4[domain.domain]} · {domain.label ?? '유형 확정 없음'}</h4><p>{sources[domain.source]} · {states[domain.status] ?? domain.status} · {domain.reason}</p>{domain.text && <p style={{ whiteSpace: 'pre-wrap' }}>{domain.text}</p>}<p>원래 자동 유형: {domain.original_label ?? '보류'} · 사용 항목: {domain.evidence_codes.join(', ') || '없음'} · 반대 근거: {domain.counter_codes.join(', ') || '없음'}</p>{domain.counter_note && <p>반대 근거 검토: {domain.counter_note}</p>}
       {domain.source === 'completed_opinion' && doc.opinion_document?.domains.find(item => item.domain === domain.domain)?.scene_refs.map((scene, index) => <p key={index}>고정 장면: {sceneText(scene)}</p>)}
     </article>)}

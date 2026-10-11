@@ -51,7 +51,15 @@ export type Case = {
   deletion_requested: boolean;
   consents: Consents;
   scoring_status?: 'reanalysis_required';
+  progress?: Progress | null;
   manifest: { schema_version: string; sessions: Session[]; migration_note?: string | null };
+};
+// 서버가 목록 응답에만 채워 주는 읽기 전용 단계 요약. 교수/검토자에게는 다른 평가자 정보(sheets_*, assigned, final)가 비어 있다.
+export type Progress = {
+  stage: 'recording' | 'preprocess' | 'scoring' | 'final' | 'report' | 'complete';
+  recording: boolean; preprocess: 'none' | 'running' | 'done' | 'outdated' | 'failed'; scoring: 'none' | 'partial' | 'done';
+  sheets_total: number | null; sheets_submitted: number | null; my_sheet: 'none' | 'draft' | 'submitted'; assigned: string[];
+  final: boolean | null; report: boolean; videos_total: number; videos_usable: number;
 };
 export const sessionOf = (item: Case) => item.manifest.sessions.find(s => s.session_id === item.selected_session_id)!;
 export type SurveyItem = { item_id: string; number: number; text: string; domain?: 'A' | 'B' | 'C' | 'D' | 'E'; print_section?: 'A' | 'B' | 'C' | 'D' | 'E'; report_domain?: string; labels?: { value: number; text: string }[]; allows_not_applicable: boolean };

@@ -209,3 +209,15 @@ tr.clickable { cursor: pointer; }
 tr.clickable:hover td { background: #f7f8f4; }
 .registered { padding: 12px 16px; background: #edf3ec; color: #346538; border-radius: 4px; }
 .registered .plain { min-height: 0; padding: 0; color: #346538; text-decoration: underline; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.steps { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; padding: 0; list-style: none; }
+.step { display: flex; align-items: center; gap: 5px; color: #686d64; font-size: 12px; }
+.step .dot { width: 10px; height: 10px; border: 2px solid #bcbcba; border-radius: 50%; background: #fff; }
+.step.done .dot { border-color: #346538; background: #346538; }
+.step.current { color: #292c29; font-weight: 700; }
+.step.current .dot { border-color: #292c29; background: #f2eddf; }
+.prerequisites ul { margin: 0; padding: 0; list-style: none; }
+.prerequisites li { padding: 6px 0; }
+.prerequisites li.ok strong { color: #346538; }
+.prerequisites li.missing strong { color: #9f2f2d; }
+.progress-table td { white-space: normal; }

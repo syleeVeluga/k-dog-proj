@@ -45,13 +45,13 @@ test('LNB는 그룹과 하위 메뉴로 묶이고 역할별로 다르게 보인�
   for (const group of ['현장 운영', '분석·평가', '자료 관리']) await expect(menu(page).getByRole('group', { name: group, exact: true })).toBeVisible();
   await expect(menu(page).getByRole('group', { name: '촬영', exact: true })).toBeVisible();
   await expect(menu(page).getByRole('group', { name: '리포트', exact: true })).toBeVisible();
-  expect(await labels(page)).toEqual(['참가자 접수', '일괄 등록 (CSV·Excel)', '설문 현황', '영상 수신·연결', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급', '비교 조건', '검수 자료']);
+  expect(await labels(page)).toEqual(['참가자 접수', '일괄 등록 (CSV·Excel)', '설문 현황', '영상 수신·연결', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급', '비교 조건', '연구 내보내기', '검수 자료']);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await login(page, 'reviewer');
-  expect(await labels(page)).toEqual(['참가자 접수', '설문 현황', '촬영 기록 (8구간)', '전처리', '독립 채점']);
+  expect(await labels(page)).toEqual(['참가자 접수', '설문 현황', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 조회']);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await login(page, 'admin');
-  expect(await labels(page)).toEqual(['참가자 접수', '일괄 등록 (CSV·Excel)', '설문 현황', '영상 수신·연결', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급', '비교 조건', '검수 자료', '직원 계정', '백업·복구']);
+  expect(await labels(page)).toEqual(['참가자 접수', '일괄 등록 (CSV·Excel)', '설문 현황', '영상 수신·연결', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급', '비교 조건', '연구 내보내기', '검수 자료', '직원 계정', '백업·복구']);
   await menu(page).getByRole('button', { name: '백업·복구', exact: true }).click();
   await expect(page).toHaveURL(/#\/admin\/backup$/);
   await expect(page.getByRole('heading', { name: '자료 관리', exact: true })).toBeVisible();
