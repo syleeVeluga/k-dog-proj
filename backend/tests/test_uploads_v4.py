@@ -182,17 +182,17 @@ class UploadsV4Tests(unittest.TestCase):
             self.assertEqual(revoked.exception.status_code, 403)
             uploads.fail_receive(self.store, writer)
 
-    def test_unlinked_inventory_permissions_and_manual_cleanup_are_explicit(self):
+    def test_unlinked_inventory_receive_and_cancel_are_common_and_claims_remain_bound(self):
         receipt = self.received()
         self.assertEqual(uploads.list_receipts(self.store, "other")[0].upload_id, receipt.upload_id)
         self.assertEqual(uploads.list_receipts(self.store, "review")[0].upload_id, receipt.upload_id)
-        with self.assertRaises(HTTPException):
-            uploads.begin_receive(self.store, receipt.upload_id, receipt.request_id, "other")
-        with self.assertRaises(HTTPException):
-            uploads.abort_receipt(self.store, receipt.upload_id, "other")
-        self.assertEqual(uploads.abort_receipt(self.store, receipt.upload_id, "admin").failure_code, "cancelled")
+        writer = uploads.begin_receive(self.store, receipt.upload_id, receipt.request_id, "other")
+        self.assertEqual(writer.actor,"other")
+        self.assertIsNone(writer.token)  # Existing durable bytes are not received again.
+        self.assertEqual(uploads.abort_receipt(self.store, receipt.upload_id, "other").failure_code, "cancelled")
         with self.store.connect() as db:
             self.assertEqual(uploads.references(db), {})
+            self.assertEqual(db.execute("SELECT actor FROM changes WHERE action='upload.cancel' AND target=?",(receipt.upload_id,)).fetchone()[0],"other")
 
     def test_insv_and_received_conversion_keep_provenance_and_parent_access(self):
         case = self.case()

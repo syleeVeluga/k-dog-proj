@@ -188,21 +188,59 @@ class ExternalValuesV4(ContractV4):
         return self
 
 
+class ComparisonDefinitionInputV4(ContractV4):
+    source_id: Text
+    source_asset_hash: Hash
+    scope: ComparisonScopeV4
+    values: ExternalValuesV4
+    evidence: Annotated[tuple[FileV4, ...], Field(min_length=1)]
+    population_scope: Text
+    number_provenance: Text
+    enabled: bool = True
+    reason: Text
+
+    @model_validator(mode="after")
+    def valid_scale(self) -> Self:
+        if not self.scope.scale_minimum < self.scope.scale_maximum:
+            raise ValueError("comparison scale bounds must be ordered")
+        if not self.scope.scale_minimum <= self.values.mean <= self.scope.scale_maximum:
+            raise ValueError("comparison mean must lie within its original scale")
+        if any(not value.strip() for value in (self.population_scope, self.number_provenance, self.reason)):
+            raise ValueError("comparison definition requires its actual population and numerical provenance")
+        return self
+
+
+class ComparisonDefinitionV4(ComparisonDefinitionInputV4):
+    artifact_kind: Literal["comparison-definition"] = "comparison-definition"
+    definition_id: Text
+    revision: Revision
+    actor: Text
+    recorded_at: Text
+
+
+class DefinitionReferenceV4(FileV4):
+    definition_id: Text
+    revision: Revision
+
+
 class ExternalGateV4(ContractV4):
     source_id: Text
-    status: Literal["blocked","approved"]
+    status: Literal["blocked","ready","approved"]
     reason: Text
     scope: ComparisonScopeV4 | None = None
     confirmation: ResearchReferenceV4 | None = None
     activation_revision: Revision | None = None
+    definition: DefinitionReferenceV4 | ResearchReferenceV4 | None = Field(default=None, exclude_if=lambda value: value is None)
     values: ExternalValuesV4 | None = None
 
     @model_validator(mode="after")
     def no_blocked_numbers(self) -> Self:
-        if self.status=="blocked" and any(value is not None for value in (self.values,self.scope,self.confirmation,self.activation_revision)):
+        if self.status=="blocked" and any(value is not None for value in (self.values,self.scope,self.confirmation,self.activation_revision,self.definition)):
             raise ValueError("blocked external comparison exposes no values or approved scope")
         if self.status=="approved" and any(value is None for value in (self.values,self.scope,self.confirmation,self.activation_revision)):
             raise ValueError("approved comparison must pin both research and technical activation")
+        if self.status=="ready" and any(value is None for value in (self.values,self.scope,self.definition)):
+            raise ValueError("ready comparison must pin its actual definition, scope and values")
         return self
 
 
@@ -223,9 +261,9 @@ class ExternalEntryV4(ContractV4):
     population: dict[str, str] = {}
 
     @model_validator(mode="after")
-    def approved_only(self) -> Self:
-        if self.gate.status != "approved":
-            raise ValueError("an external output entry requires a complete approval pin")
+    def defined_values(self) -> Self:
+        if self.gate.status not in ("ready", "approved"):
+            raise ValueError("an external output entry requires a complete definition pin")
         return self
 
 

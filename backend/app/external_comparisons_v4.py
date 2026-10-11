@@ -1,4 +1,4 @@
-"""Explicit external comparison snapshots; approval is checked again on every use."""
+"""Explicit external comparison snapshots with immutable definition provenance."""
 import hashlib
 import json
 import os
@@ -8,7 +8,7 @@ from pydantic import Field, field_validator
 
 from . import analysis, comparisons_v4 as comparisons
 from .domain.comparisons_v4 import (CohortSelectionV4, ExternalEntryV4, ExternalPublicV4,
-    ExternalReferenceV4, ExternalSnapshotV4, ResearchReferenceV4)
+    ExternalReferenceV4, ExternalSnapshotV4)
 from .domain.preprocess_v4 import FileV4
 from .input_models import Model
 from .storage import encode, now, uid
@@ -43,6 +43,8 @@ class ExternalSummaryV4(Model):
     source_titles: list[str]
     status: str
     reason: str
+    new_selection_available: bool = False
+    new_selection_reason: str = ""
     recorded_at: str
 
 
@@ -83,20 +85,19 @@ def _entries(store, target, source_ids, user, db):
     entries = []
     for source_id in source_ids:
         source, _ = comparisons._source(source_id)
-        latest = comparisons._record(db, comparisons.RESEARCH_ACTION, source_id)
-        reference = ResearchReferenceV4.model_validate_json(encode(latest)) if latest else None
-        confirmation = comparisons.research_document(store, reference) if reference else None
-        population = _population(case, confirmation.scope.population_requirements if confirmation else {})
+        definition, _, _ = comparisons.current_definition(store, db, source_id)
+        population = _population(case, definition.scope.population_requirements if definition else {})
         gate = comparisons.external_for_report(store, source_id, comparisons.target_scope(source_id), user, population=population)
-        if gate.status != "approved":
+        if gate.status != "ready":
             raise HTTPException(409, gate.reason)
         domain = next((row for row in member.survey.domains if row.domain == gate.scope.domain), None)
         if (domain is None or domain.question_ids != gate.scope.question_ids or domain.status != "calculated"
                 or domain.mean is None or domain.answered_count != domain.target_count
                 or domain.aggregation != gate.scope.aggregation):
-            raise HTTPException(409, "승인 범위의 모든 설문 원응답이 확인된 경우에만 외부 비교할 수 있습니다.")
+            raise HTTPException(409, "기준 문항의 모든 설문 원응답이 확인된 경우에만 외부 비교할 수 있습니다.")
         entries.append(ExternalEntryV4(title=source["title"], literature=source["literature"], doi=source["doi"],
-            population_scope=source["population_scope"], number_provenance=source["number_provenance"],
+            population_scope=getattr(definition,"population_scope",source["population_scope"]),
+            number_provenance=getattr(definition,"number_provenance",source["number_provenance"]),
             gate=gate, local_mean=domain.mean, local_n=domain.answered_count, population=population))
     return tuple(entries)
 
@@ -113,7 +114,7 @@ def document(store, pointer):
     return doc
 
 
-def for_output(store, pointer, user):
+def for_output(store, pointer, user, *, new_selection=False):
     pointer = ExternalReferenceV4.model_validate(pointer)
     doc = document(store, pointer)
     with store.connect() as db:
@@ -121,9 +122,21 @@ def for_output(store, pointer, user):
         source_hash = comparisons._sources()[1]
         if doc.source_hash != source_hash or doc.survey_assets != comparisons.assets():
             raise HTTPException(409, "외부 비교 출처 또는 설문 정책 판본이 변경되어 제공을 보류합니다.")
-        actual = _entries(store, doc.target, [entry.gate.source_id for entry in doc.entries], user, db)
-        if actual != doc.entries:
-            raise HTTPException(409, "외부 비교의 연구 확인·활성화·대상 조건이 변경되어 제공을 보류합니다.")
+        if new_selection and _entries(store, doc.target, [entry.gate.source_id for entry in doc.entries], user, db) != doc.entries:
+            raise HTTPException(409, "새 계산에는 현재 사용 가능한 기준 판본을 선택하세요.")
+        member, _ = comparisons._member(store, db, doc.target, current=False)
+        for entry in doc.entries:
+            reference = entry.gate.definition or entry.gate.confirmation
+            definition = comparisons.definition_document(store, reference)
+            if definition.scope != entry.gate.scope:
+                raise HTTPException(409, "고정 기준의 문항·척도·대상 조건이 다릅니다.")
+            if hasattr(definition,"values") and definition.values != entry.gate.values:
+                raise HTTPException(409, "고정 기준 수치가 다릅니다.")
+            if entry.population != definition.scope.population_requirements:
+                raise HTTPException(409, "고정한 외부 비교 대상 조건이 기준과 다릅니다.")
+            domain = next((row for row in member.survey.domains if row.domain == entry.gate.scope.domain), None)
+            if domain is None or domain.mean != entry.local_mean or domain.answered_count != entry.local_n:
+                raise HTTPException(409, "고정한 외부 비교 설문 수치가 다릅니다.")
     return ExternalPublicV4(reference=pointer, target=doc.target, entries=doc.entries)
 
 
@@ -131,8 +144,9 @@ def files(store, pointer):
     doc = document(store, pointer)
     found = {pointer.ref: pointer.hash, doc.target.input.manifest_ref: doc.target.input.manifest_hash}
     for entry in doc.entries:
-        research = comparisons.research_document(store, entry.gate.confirmation)
-        found[entry.gate.confirmation.ref] = entry.gate.confirmation.hash
+        reference = entry.gate.definition or entry.gate.confirmation
+        research = comparisons.definition_document(store, reference)
+        found[reference.ref] = reference.hash
         for evidence in research.evidence:
             found[evidence.ref] = evidence.hash
     return tuple(FileV4(ref=ref, hash=digest) for ref, digest in sorted(found.items()))
@@ -181,20 +195,30 @@ def view(store, snapshot_id, user):
         store.case(db, record["case_id"])
         history = [json.loads(row[0]) for row in db.execute("SELECT detail_json FROM changes WHERE action=? AND target=? ORDER BY rowid", (IMPACT, snapshot_id))]
     pointer = ExternalReferenceV4.model_validate_json(encode(record["reference"]))
-    status, reason, doc = "approved", "선택한 승인 범위를 현재 제공할 수 있습니다.", None
+    status, reason, doc = "ready", "고정한 기준 정의와 수치를 제공할 수 있습니다.", None
     try:
         for_output(store, pointer, user)
         doc = document(store, pointer)
         final = for_output(store, pointer, user)
         if final.target != doc.target or final.entries != doc.entries:
-            raise HTTPException(409, "외부 비교를 읽는 중 승인 범위가 변경되었습니다.")
+            raise HTTPException(409, "외부 비교를 읽는 중 고정 기준이 변경되었습니다.")
     except HTTPException as exc:
         if exc.status_code in (401, 403):
             raise
         status, reason, doc = "blocked", str(exc.detail), None
+    selectable, selection_reason = False, reason
+    if doc is not None:
+        try:
+            for_output(store, pointer, user, new_selection=True)
+            selectable, selection_reason = True, "현재 기준으로 새 출력에 선택할 수 있습니다."
+        except HTTPException as exc:
+            if exc.status_code in (401, 403):
+                raise
+            selection_reason = str(exc.detail)
     return ExternalViewV4(reference=pointer, target=CohortSelectionV4.model_validate_json(encode(record["target"])),
         source_ids=record["source_ids"], source_titles=[comparisons._source(value)[0]["title"] for value in record["source_ids"]],
-        status=status, reason=reason, recorded_at=record["recorded_at"], document=doc, impact_history=history)
+        status=status, reason=reason, new_selection_available=selectable, new_selection_reason=selection_reason,
+        recorded_at=record["recorded_at"], document=doc, impact_history=history)
 
 
 def list_snapshots(store, user):
@@ -218,5 +242,6 @@ def record_impacts(store, db, source_id, actor, reason):
         record = json.loads(row["detail_json"])
         if source_id in record["source_ids"]:
             store.audit(db, actor, row["target"], IMPACT, {"source_id": source_id, "reason": reason, "recorded_at": now(),
+                "definition": comparisons._record(db, comparisons.DEFINITION_ACTION, source_id),
                 "research": comparisons._record(db, comparisons.RESEARCH_ACTION, source_id),
                 "activation": comparisons._record(db, comparisons.ACTIVATION_ACTION, source_id)})

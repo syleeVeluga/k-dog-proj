@@ -766,17 +766,13 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         value = external_comparisons_v4.view(store,snapshot_id,user)
         return activity_v4.opened(store, user, snapshot_id, "comparison.external.open", value, purpose)
 
-    @app.get("/api/comparisons-s1/research")
+    @app.get("/api/comparisons-s1/definitions")
     def comparison_s1_research(user=Depends(writer)):
-        return comparisons_v4.research_inventory(store, user)
+        return comparisons_v4.definition_inventory(store, user)
 
-    @app.post("/api/comparisons-s1/research")
-    def comparison_s1_confirm(value: comparisons_v4.ConfirmResearchV4, user=Depends(writer)):
-        return comparisons_v4.confirm_research(store, value, user)
-
-    @app.post("/api/comparisons-s1/activation")
-    def comparison_s1_activate(value: comparisons_v4.ActivateExternalV4, user=Depends(writer)):
-        return comparisons_v4.activate_external(store, value, user)
+    @app.post("/api/comparisons-s1/definitions")
+    def comparison_s1_definition(value: comparisons_v4.SaveDefinitionV4, user=Depends(writer)):
+        return comparisons_v4.save_definition(store, value, user)
 
     async def validation_file_s1(request, model=ValidationFileV4):
         data = bytearray()

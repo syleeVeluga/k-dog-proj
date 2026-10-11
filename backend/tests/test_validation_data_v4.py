@@ -80,8 +80,7 @@ class ValidationDataV4Tests(unittest.TestCase):
         with self.assertRaises(HTTPException):
             validation.register(self.store, self.data+b"changed", self.request, self.user)
         result = validation.register(self.store, self.data, self.request, self.user)
-        with self.assertRaises(HTTPException):
-            validation.view(self.store, result["reference"]["validation_id"], self.helper.people["admin"])
+        self.assertEqual(validation.view(self.store, result["reference"]["validation_id"], self.helper.people["admin"])["reference"], result["reference"])
         request = self.request.model_copy(update={"request_id":"different", "bindings":[self.request.bindings[0].model_copy(update={"session_id":"other"})]})
         with self.assertRaises(HTTPException):
             validation.preview(self.store, self.data, request, self.user)

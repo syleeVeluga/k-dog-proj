@@ -5,7 +5,6 @@ import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' }, password = 'Browser-test-only-42';
 const sourceId = 'us2026-stranger-fear';
-const checks = ['문헌 표·수치·유효 표본수', '문항 원문·수정 문항 동등성', '척도·점수 방향·산식', '결측 응답 처리', '번안·사용 조건', '비교 대상 범위'];
 async function login(page: Page, username: string) {
   await page.goto('/'); await page.getByLabel('계정', { exact: true }).fill(username); await page.getByLabel('비밀번호', { exact: true }).fill(password);
   await page.getByRole('button', { name: '로그인', exact: true }).click(); await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
@@ -34,83 +33,62 @@ async function fixture(request: APIRequestContext, participant: string) {
   return { item, base, final: await final.json(), sheet: submitted, observations };
 }
 
-test('S17 합성 확인만으로 범위를 검증하며 명시 외부 비교의 HTML/PDF·연구 출력을 철회한다', async ({ page, request, browser, baseURL }, info) => {
+test('AR05 common definition applies immediately and retirement preserves HTML/PDF and research files', async ({ page, request, browser, baseURL }, info) => {
   test.setTimeout(180000); page.setDefaultTimeout(15000);
   const data = await fixture(request, 'external-only-synthetic');
   const prior = await fixture(request, 'external-blocked-prior');
   const priorExportResponse = await request.post('/api/exports-s1', { headers, data: { request_id: 'external-blocked-prior-export', format: 'csv_zip', members: [{ case_id: prior.item.case_id, session_id: prior.item.selected_session_id, sheet: { sheet_id: prior.sheet.sheet_id, revision: prior.sheet.revision, ref: prior.sheet.manifest_ref, hash: prior.sheet.manifest_hash } }], reason: '새로운 정상 자료와 함께 남는 제공 차단 이력 검증' } });
   expect(priorExportResponse.status(), await priorExportResponse.text()).toBe(201);
   const priorExport = await priorExportResponse.json();
-  expect((await request.post(`/api/cases/${prior.item.case_id}/deletion`, { headers, data: { expected_revision: prior.item.input_revision } })).status()).toBe(200);
-  await login(page, 'admin');
+
+  await login(page, 'reviewer');
   const temporaryBackup = await page.request.post('/api/admin/backups', { headers });
   expect(temporaryBackup.status()).toBe(201);
   const dataRoot = path.join(path.dirname(path.dirname((await temporaryBackup.json()).path)), 'data');
   expect(path.basename(path.dirname(dataRoot))).toMatch(/^kdog-browser-/);
   await openMenu(page, '비교 조건');
-  await page.getByText('외부 비교 연구 확인·활성화 관리', { exact: true }).click();
-  const research = page.getByRole('region', { name: '외부 비교 연구 확인', exact: true });
+  await page.locator('summary').filter({ hasText: /^외부 비교 기준 정의$/ }).click();
+  const research = page.getByRole('region', { name: '외부 비교 기준 정의', exact: true });
   await research.getByLabel('연구 출처', { exact: true }).selectOption(sourceId);
-  for (const label of checks) await expect(research.getByLabel(`${label} 상태`, { exact: true })).toHaveValue('pending');
+  await expect(research.getByLabel('외부 평균', { exact: true })).toHaveValue('');
   const client = await browser.newContext();
   try {
     const operator = await client.newPage(); operator.setDefaultTimeout(15000); await login(operator, 'operator');
-    let inventoryReads = 0; operator.on('request', value => { if (value.url().endsWith('/comparisons-s1/research')) inventoryReads++; });
     await openMenu(operator, '비교 조건');
-    await operator.getByText('외부 비교 연구 확인·활성화 관리', { exact: true }).click();
-    await expect(operator.getByText('연구 확인자료 등록과 기술 활성화는 운영 관리자 계정에서 수행합니다.', { exact: true })).toBeVisible();
-    expect(inventoryReads).toBe(0);
-    expect((await operator.request.get('/api/comparisons-s1/research')).status()).toBe(403);
+    await operator.locator('summary').filter({ hasText: /^외부 비교 기준 정의$/ }).click();
+    expect((await operator.request.get('/api/comparisons-s1/definitions')).status()).toBe(200);
     const blockedSources = await (await operator.request.get('/api/comparisons-s1/sources')).json();
     expect(JSON.stringify(blockedSources)).not.toContain('reference_values');
     expect(JSON.stringify(blockedSources)).not.toContain('0.66');
-    await expect(operator.getByRole('region', { name: '자체 집단 비교', exact: true })).not.toContainText('0.66');
-
-    async function fillResearch(status: 'pending' | 'confirmed') {
-      const evidenceResponse = page.waitForResponse(value => value.url().includes('/comparisons-s1/evidence?'));
-      await research.getByLabel('확인 근거 파일', { exact: true }).setInputFiles({ name: 'synthetic-not-research-approval.txt', mimeType: 'text/plain', buffer: Buffer.from('SYNTHETIC BROWSER TEST ONLY. NOT A REAL RESEARCH APPROVAL.') });
-      expect((await evidenceResponse).status()).toBe(201);
-      await research.getByLabel('연구 확인자', { exact: true }).fill('합성 시험 확인자 · 실제 승인 아님');
-      await research.getByLabel('연구 확인일', { exact: true }).fill('2026-10-04');
-      for (const label of checks) {
-        await research.getByLabel(`${label} 상태`, { exact: true }).selectOption(status);
-        await research.getByLabel(`${label} 판단 근거`, { exact: true }).fill('SYNTHETIC ONLY; 실제 연구 승인 아님');
-        await research.getByLabel(`${label} 자료 위치`, { exact: true }).fill('합성 시험 1쪽');
-      }
-      await research.getByLabel('연구 확인 기록 사유', { exact: true }).fill('합성 여섯 조건 기록 · 실제 승인 아님');
-    }
-    await fillResearch('pending');
-    await research.getByRole('button', { name: '새 연구 확인 판본 보존', exact: true }).click();
-    await expect(research.getByRole('status')).toContainText('연구 확인자료를 보존했습니다');
-    await research.getByLabel('활성화·철회 사유', { exact: true }).fill('대기 기록의 활성화 차단 시험');
-    const deniedActivation = page.waitForResponse(value => value.url().endsWith('/comparisons-s1/activation'));
-    await research.getByRole('button', { name: '최신 연구 확인 범위 활성화', exact: true }).click();
-    expect((await deniedActivation).status()).toBe(422);
-    await expect(research.getByRole('alert')).toContainText('연구 확인이 미완료');
-    for (const label of checks) await research.getByLabel(`${label} 상태`, { exact: true }).selectOption('confirmed');
-    await research.getByLabel('연구 확인 기록 사유', { exact: true }).fill('합성 여섯 조건 확인 · 실제 승인 아님');
-    const latest = await (await page.request.get('/api/comparisons-s1/research')).json();
-    const { artifact_kind, confirmation_id, revision, actor, recorded_at, ...otherDraft } = latest.documents[sourceId];
-    const remote = await page.request.post('/api/comparisons-s1/research', { headers, data: { expected_revision: revision, document: { ...otherDraft, reason: '다른 관리자의 합성 대기 기록' } } });
+    const evidenceResponse = page.waitForResponse(value => value.url().includes('/comparisons-s1/evidence?'));
+    await research.getByLabel('기준 근거 파일', { exact: true }).setInputFiles({ name: 'synthetic-definition.txt', mimeType: 'text/plain', buffer: Buffer.from('SYNTHETIC BROWSER TEST DATA ONLY') });
+    expect((await evidenceResponse).status()).toBe(201);
+    for (const [label, value] of [['외부 평균', '0.66'], ['외부 표준편차', '0.91'], ['외부 유효 표본 n', '42926'], ['외부 전체 표본 n', '43517']]) await research.getByLabel(label, { exact: true }).fill(value);
+    await research.getByLabel('비교 대상 범위', { exact: true }).fill('SYNTHETIC POPULATION ONLY');
+    await research.getByLabel('수치 출처·표 위치', { exact: true }).fill('SYNTHETIC FIXTURE TABLE');
+    await research.getByLabel('기준 변경 기록', { exact: true }).fill('합성 기준 정의 저장·적용');
+    await research.getByRole('button', { name: '기준 정의 저장·적용', exact: true }).click();
+    await expect(research.getByRole('status')).toContainText('기준 정의를 저장하고 적용했습니다');
+    await research.getByLabel('외부 평균', { exact: true }).fill('0.67');
+    await research.getByLabel('기준 변경 기록', { exact: true }).fill('보존할 미저장 입력');
+    const latest = await (await operator.request.get('/api/comparisons-s1/definitions')).json();
+    const { artifact_kind, definition_id, revision, actor, recorded_at, ...remoteDocument } = latest.documents[sourceId];
+    const remote = await operator.request.post('/api/comparisons-s1/definitions', { headers, data: { expected_revision: revision, document: { ...remoteDocument, reason: '다른 업무 계정의 기준 판본' } } });
     expect(remote.status(), await remote.text()).toBe(200);
-    await research.getByRole('button', { name: '연구 확인·활성화 이력 새로고침', exact: true }).click();
-    await expect(research.getByText(/작성 기준 이후 연구 확인자료 또는 출처가 변경되었습니다/)).toBeVisible();
-    await expect(research.getByLabel(`${checks[0]} 상태`, { exact: true })).toHaveValue('confirmed');
-    const conflict = page.waitForResponse(value => value.url().endsWith('/comparisons-s1/research') && value.request().method() === 'POST');
-    await research.getByRole('button', { name: '새 연구 확인 판본 보존', exact: true }).click();
+    await research.getByRole('button', { name: '기준 정의 새로고침', exact: true }).click();
+    await expect(research.getByText(/작성 이후 기준이 변경됐습니다/)).toBeVisible();
+    const conflict = page.waitForResponse(value => value.url().endsWith('/comparisons-s1/definitions') && value.request().method() === 'POST');
+    await research.getByRole('button', { name: '기준 정의 저장·적용', exact: true }).click();
     expect((await conflict).status()).toBe(409);
-    await expect(research.getByLabel('연구 확인 기록 사유', { exact: true })).toHaveValue('합성 여섯 조건 확인 · 실제 승인 아님');
+    await expect(research.getByLabel('외부 평균', { exact: true })).toHaveValue('0.67');
     page.once('dialog', dialog => dialog.accept());
-    await research.getByRole('button', { name: '최신 확인자료 기준으로 새 작성', exact: true }).click();
-    await fillResearch('confirmed');
-    await research.getByRole('button', { name: '새 연구 확인 판본 보존', exact: true }).click();
-    await expect(research.getByRole('status')).toContainText('연구 확인자료를 보존했습니다');
-    await research.getByLabel('활성화·철회 사유', { exact: true }).fill('임시 시험 저장소에만 적용');
-    await research.getByRole('button', { name: '최신 연구 확인 범위 활성화', exact: true }).click();
-    await expect(research.getByRole('status')).toContainText('기술 활성화를 기록했습니다');
+    await research.getByRole('button', { name: '최신 기준으로 새 작성', exact: true }).click();
+    await research.getByLabel('기준 변경 기록', { exact: true }).fill('새 판본 그대로 적용');
+    await research.getByRole('button', { name: '기준 정의 저장·적용', exact: true }).click();
+    await expect(research.getByRole('status')).toContainText('기준 정의를 저장하고 적용했습니다');
     await page.setViewportSize({ width: 360, height: 800 });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await research.screenshot({ path: info.outputPath('external-admin-360.png') });
+    await research.screenshot({ path: info.outputPath('ar05-shared-definition-360.png'), animations: 'disabled' });
 
     await openMenu(operator, '리포트 발급');
     await operator.getByRole('button', { name: 'external-only-synthetic 리포트 열기', exact: true }).click();
@@ -196,12 +174,10 @@ with store.connect() as db:
     await openMenu(operator, '독립 채점');
     const exportHistory = await operator.request.get('/api/exports-s1');
     expect(exportHistory.status(), await exportHistory.text()).toBe(200);
-    expect((await exportHistory.json()).find((value: { export_id: string }) => value.export_id === priorExport.export_id)).toMatchObject({ status: 'blocked', reason: expect.any(String) });
+    expect((await exportHistory.json()).find((value: { export_id: string }) => value.export_id === priorExport.export_id)).toMatchObject({ status: 'ready' });
     await openMenu(operator, '연구 내보내기');
     const exporter = operator.getByRole('region', { name: '연구 내보내기', exact: true });
-    await expect(exporter.getByRole('region', { name: '내가 생성한 연구 파일', exact: true }).getByText(new RegExp(`연구 파일 ${priorExport.export_id.slice(0, 8)} · 제공 차단:`))).toBeVisible();
-    await expect(exporter.getByRole('button', { name: `연구 파일 다운로드 ${priorExport.export_id.slice(0, 8)}`, exact: true })).toHaveCount(0);
-    await exporter.getByLabel('기준 본인 시트', { exact: true }).selectOption(data.sheet.sheet_id);
+    await exporter.getByLabel('기준 시트', { exact: true }).selectOption(data.sheet.sheet_id);
     await exporter.getByLabel('내보낼 원자료 판본', { exact: true }).selectOption(data.sheet.manifest_ref);
     await exporter.getByLabel('최종 결과', { exact: true }).selectOption(data.final.reference.final_id);
     const exportPicker = exporter.getByRole('group', { name: '이 출력의 외부 비교', exact: true });
@@ -219,22 +195,23 @@ with store.connect() as db:
     const rows = JSON.parse(execFileSync('../backend/.venv/Scripts/python.exe', ['-X', 'utf8', '-c', "import csv,io,json,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); print(json.dumps(list(csv.DictReader(io.StringIO(z.read('comparisons.csv').decode('utf-8-sig')))),ensure_ascii=False))", filename], { encoding: 'utf8' }));
     expect(rows).toHaveLength(1); expect(rows[0]).toMatchObject({ source: 'external_reference', local_mean: '0.0', mean: '0.66', valid_n: '42926', total_n: '43517' });
 
-    await research.getByLabel('활성화·철회 사유', { exact: true }).fill('합성 철회 · 기존 파일 제공도 다시 검사');
-    await research.getByRole('button', { name: '이 출처 비활성화·철회', exact: true }).click();
-    await expect(research.getByRole('status')).toContainText('비활성화했습니다');
-    let leaked = false; operator.on('download', () => { leaked = true; });
+    await research.getByLabel('새 계산에 사용', { exact: true }).uncheck();
+    await research.getByLabel('기준 변경 기록', { exact: true }).fill('합성 기준 사용중단');
+    await research.getByRole('button', { name: '기준 정의 저장·적용', exact: true }).click();
+    await expect(research.getByRole('status')).toContainText('새 계산에서 사용 중단했습니다');
+    const savedDownload = operator.waitForEvent('download');
     await exporter.getByRole('button', { name: `연구 파일 다운로드 ${exportedRow.export_id.slice(0, 8)}`, exact: true }).click();
-    await expect(exporter.getByRole('alert')).toBeVisible(); expect(leaked).toBe(false);
-    await exporter.getByRole('button', { name: '내보내기 후보 새로고침', exact: true }).click();
-    await expect(exporter.getByText(new RegExp(`연구 파일 ${exportedRow.export_id.slice(0, 8)} · 제공 차단:`))).toBeVisible();
-    await expect(exporter.getByRole('button', { name: `연구 파일 다운로드 ${exportedRow.export_id.slice(0, 8)}`, exact: true })).toHaveCount(0);
-    await expect(exporter.getByRole('status').filter({ hasText: '연구 파일 준비 완료' })).toHaveCount(0);
-    expect((await operator.request.get(htmlPath)).ok()).toBe(false);
+    await savedDownload;
+    expect((await operator.request.get(htmlPath)).ok()).toBe(true);
     await openMenu(operator, '리포트 발급');
-    await expect(report.getByText(/외부 비교 제공 차단:/)).toBeVisible();
-    await expect(report.getByRole('button', { name: '발급 요약·HTML·PDF 열기', exact: true })).toHaveCount(0);
-    await expect(report.getByRole('region', { name: '권한 확인된 리포트 발급본', exact: true })).toHaveCount(0);
+    await expect(report.getByRole('button', { name: '발급 요약·HTML·PDF 열기', exact: true })).toBeVisible();
     const currentSnapshot = await (await operator.request.get(`/api/comparisons-s1/external-snapshots/${snapshot.reference.snapshot_id}`)).json();
-    expect(currentSnapshot.status).toBe('blocked'); expect(currentSnapshot.document).toBeNull();
+    expect(currentSnapshot.status).toBe('ready'); expect(currentSnapshot.document).toEqual(snapshot.document);
+    expect(currentSnapshot.new_selection_available).toBe(false);
+    await report.getByLabel('리포트에 고정할 최종본', { exact: true }).selectOption(data.final.reference.final_id);
+    await picker.getByRole('button', { name: '외부 비교 조건 새로고침', exact: true }).click();
+    await expect(picker.locator(`option[value="${snapshot.reference.snapshot_id}"]`)).toBeDisabled();
+    const denied = await operator.request.post('/api/comparisons-s1/external-snapshots', { headers, data: { ...requests[0], request_id: 'ar05-retired-new' } });
+    expect(denied.status()).toBe(409);
   } finally { await client.close(); }
 });

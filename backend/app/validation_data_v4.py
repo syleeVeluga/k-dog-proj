@@ -194,8 +194,6 @@ def document(store, pointer):
 
 def _readable(store, db, doc, user):
     _account(db, user)
-    if doc.actor != user.username:
-        raise HTTPException(403, "본인이 등록한 참고 원본만 열 수 있습니다.")
     _bindings(store, db, doc.bindings)
 
 
@@ -255,7 +253,7 @@ def view(store, validation_id, user):
 def list_records(store, user):
     with store.connect() as db:
         _account(db, user)
-        ids = [row[0] for row in db.execute("SELECT DISTINCT target FROM changes WHERE actor=? AND action=?", (user.username, ACTION))]
+        ids = [row[0] for row in db.execute("SELECT DISTINCT target FROM changes WHERE action=?", (ACTION,))]
     result = []
     for record_id in ids:
         try:

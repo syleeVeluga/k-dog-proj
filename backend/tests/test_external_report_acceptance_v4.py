@@ -27,9 +27,7 @@ class ExternalNewReportPreflightTests(unittest.TestCase):
         self.calls = []
 
     def withdraw(self):
-        comparisons.activate_external(self.support.store, comparisons.ActivateExternalV4(source_id=support.SOURCE,
-            expected_revision=1, confirmation=self.support.research, enabled=False, reason="SYNTHETIC WITHDRAWAL"),
-            SimpleNamespace(username="admin"))
+        support.retire(self.support.store,self.support.research)
 
     def work(self, withdraw=False):
         class Provider:
@@ -71,12 +69,11 @@ class ExternalNewReportPreflightTests(unittest.TestCase):
         self.assertEqual(len(self.calls), 1)
         self.withdraw()
         for kind in ("manifest", "html", "pdf"):
-            with self.assertRaises(HTTPException):
-                reports.download(self.support.store, self.fixture.case_id, self.fixture.session_id, run_id, kind, self.support.user)
+            self.assertTrue(reports.download(self.support.store, self.fixture.case_id, self.fixture.session_id, run_id, kind, self.support.user)[0])
         self.assertEqual(self.support.store.path(self.fixture.row(run_id)["result_ref"]).read_bytes(), raw)
         self.assertEqual(self.support.store.path(publication.output.html.ref).read_bytes(), html)
         self.assertEqual(self.support.store.path(publication.output.pdf.ref).read_bytes(), pdf)
-        self.assertEqual(reports.view(self.support.store, run_id, self.support.user)["external_comparison_status"], "blocked")
+        self.assertEqual(reports.view(self.support.store, run_id, self.support.user)["external_comparison_status"], "ready")
 
     def test_withdrawal_during_narrative_call_cannot_publish_new_comparison(self):
         job = self.fixture.enqueue()

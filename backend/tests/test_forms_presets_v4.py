@@ -41,22 +41,17 @@ class FormsPresetsV4Tests(AppCase):
                     self.preset("x", answer_labels={"s01": {"가": 9}}), self.preset("   ")):
             self.assertEqual(self.client.post("/api/forms/presets", json=bad).status_code, 422, bad)
 
-    def test_only_the_author_or_an_admin_can_delete(self):
-        saved = self.client.post("/api/forms/presets", json=self.preset()).json()
-        with self.store.connect(write=True) as db:
-            create_user(db, UserCreate(username="operator2", password=PASSWORD, role="operator"))
-        second = self.client_for()
-        self.assertEqual(second.post("/api/auth/login", json={"username": "operator2", "password": PASSWORD}).status_code, 200)
-        self.assertFalse(second.get("/api/forms/presets").json()[0]["can_delete"])
-        self.assertEqual(second.delete(f"/api/forms/presets/{saved['preset_id']}").status_code, 403)
-        self.assertEqual(self.client_for("reviewer").delete(f"/api/forms/presets/{saved['preset_id']}").status_code, 403)
-        admin = self.client_for("admin")
-        self.assertTrue(admin.get("/api/forms/presets").json()[0]["can_delete"])
-        self.assertEqual(admin.delete(f"/api/forms/presets/{saved['preset_id']}").status_code, 200)
-        self.assertEqual(self.client.delete(f"/api/forms/presets/{saved['preset_id']}").status_code, 404)
-        own = self.client.post("/api/forms/presets", json=self.preset("내 설정")).json()
-        self.assertEqual(self.client.delete(f"/api/forms/presets/{own['preset_id']}").status_code, 200)
-        self.assertEqual(self.client.get("/api/forms/presets").json(), [])
+    def test_every_business_account_can_delete_and_actual_actor_is_recorded(self):
+        for role in ("operator", "reviewer", "admin", "developer"):
+            with self.subTest(role=role):
+                saved = self.client.post("/api/forms/presets", json=self.preset("공통 " + role)).json()
+                client = self.client_for(role)
+                self.assertTrue(next(row for row in client.get("/api/forms/presets").json() if row["preset_id"] == saved["preset_id"])["can_delete"])
+                self.assertEqual(client.delete(f"/api/forms/presets/{saved['preset_id']}").status_code, 200)
+                with self.store.connect() as db:
+                    self.assertEqual(db.execute("SELECT actor FROM changes WHERE action='forms.preset.delete' AND target=?",(saved["preset_id"],)).fetchone()[0], role)
+                self.assertEqual(client.delete(f"/api/forms/presets/{saved['preset_id']}").status_code, 404)
+                self.login("operator")
 
     def test_presets_survive_backup_and_restore(self):
         saved = self.client.post("/api/forms/presets", json=self.preset()).json()

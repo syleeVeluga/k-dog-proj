@@ -735,12 +735,13 @@ class FormsPresetViewV4(Model):
 def _preset_view(row, actor: str, role: str) -> FormsPresetViewV4:
     return FormsPresetViewV4(preset_id=row["preset_id"], name=row["name"],
         mapping=FormsPresetMappingV4.model_validate_json(row["mapping_json"]), created_by=row["created_by"],
-        created_at=row["created_at"], can_delete=role == "admin" or row["created_by"] == actor)
+        created_at=row["created_at"], can_delete=True)
 
 
 def list_presets(store, actor: str, role: str) -> list[FormsPresetViewV4]:
     views = []
     with store.connect() as db:
+        _writer(db, actor)
         for row in db.execute("SELECT * FROM forms_mapping_presets ORDER BY name COLLATE NOCASE").fetchall():
             try:
                 views.append(_preset_view(row, actor, role))
@@ -770,7 +771,5 @@ def delete_preset(store, preset_id: str, actor: str, role: str) -> None:
         row = db.execute("SELECT * FROM forms_mapping_presets WHERE preset_id=?", (preset_id,)).fetchone()
         if not row:
             raise HTTPException(404, "열 연결 설정을 찾을 수 없습니다.")
-        if role != "admin" and row["created_by"] != actor:
-            raise HTTPException(403, "만든 사람 또는 관리자만 삭제할 수 있습니다.")
         db.execute("DELETE FROM forms_mapping_presets WHERE preset_id=?", (preset_id,))
         store.audit(db, actor, preset_id, "forms.preset.delete", {"name": row["name"]})

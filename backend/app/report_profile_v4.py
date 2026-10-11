@@ -239,7 +239,7 @@ def build(final, final_ref, *, batch=None, common_events=(), survey_policy=RUNTI
                 reference_end_seconds=interval.end_sec-offset if interval.end_sec is not None and offset is not None else None,reason=interval.reason))
     return ReportProfileV4(profile_id="profile-"+source_hash[:24],case_id=final.case_id,session_id=final.session_id,source=source,source_hash=source_hash,
         status=status,timeline=tuple(timeline),cards=tuple(cards),facts=tuple(facts.values()),scenes=tuple(selected_scenes),scene_notice=templates["no_scenes"] if not selected_scenes and presentation_version is None else None,
-        presentation_version=presentation_version,
+        presentation_version=presentation_version,external_comparison_status="not_selected",
         scene_review=scene_review,comparisons=tuple(comparisons),details=tuple(details),summary=summary,actions=tuple(actions),
         actions_notice=templates["actions_missing"] if not actions else None,validation_issues=tuple(issues))
 

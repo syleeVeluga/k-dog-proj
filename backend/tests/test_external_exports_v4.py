@@ -36,8 +36,7 @@ class ExternalExportTests(unittest.TestCase):
             return exports._load(self.store,exports._record(db,export_id))
 
     def withdraw(self):
-        comparisons.activate_external(self.store, comparisons.ActivateExternalV4(source_id=external_fixture.SOURCE, expected_revision=1,
-            confirmation=self.helper.research, enabled=False, reason="SYNTHETIC WITHDRAWAL"), SimpleNamespace(username="admin"))
+        external_fixture.retire(self.store,self.helper.research)
 
     def test_csv_and_xlsx_pin_approved_scope_numbers_and_pseudonymous_target(self):
         created = exports.create(self.store,self.request,self.user)
@@ -52,9 +51,9 @@ class ExternalExportTests(unittest.TestCase):
         row=rows[0]
         self.assertEqual((row["source"],row["participant"],row["session"]),("external_reference","P001","S001"))
         self.assertEqual((float(row["local_mean"]),float(row["mean"]),float(row["standard_deviation"])),(0,.66,.91))
-        self.assertEqual((row["valid_n"],row["total_n"],row["research_revision"],row["activation_revision"]),("42926","43517","1","1"))
+        self.assertEqual((row["valid_n"],row["total_n"],row["definition_revision"]),("42926","43517","1"))
         self.assertEqual((row["local_n_label"],row["external_valid_n_label"]),("유효 응답 문항","외부 유효 표본"))
-        self.assertEqual(row["research_sha256"],self.helper.research.hash)
+        self.assertEqual(row["definition_sha256"],self.helper.research.hash)
         self.assertNotIn(self.fixture.case_id,encode(row));self.assertNotIn(self.reference.ref,encode(row))
         xlsx=exports.create(self.store,self.request.model_copy(update={"request_id":"external-xlsx","format":"xlsx"}),self.user)
         data,_,_=exports.download(self.store,xlsx["export_id"],self.user)
@@ -86,7 +85,7 @@ class ExternalExportTests(unittest.TestCase):
             data=real(snapshot);self.withdraw();return data
         with patch.object(exports,"render",side_effect=withdraw_during_render),self.assertRaises(HTTPException):
             exports.create(self.store,self.request.model_copy(update={"request_id":"late"}),self.user)
-        with self.assertRaises(HTTPException):exports.download(self.store,created["export_id"],self.user)
+        self.assertEqual(exports.download(self.store,created["export_id"],self.user)[0],before)
         self.assertEqual(self.store.path(self.load(created["export_id"]).output.ref).read_bytes(),before)
         with self.store.connect() as db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action=?",(exports.ACTION,)).fetchone()[0],1)

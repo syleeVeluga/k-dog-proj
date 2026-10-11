@@ -78,7 +78,7 @@ export function UploadInbox({ cases, selected, user, run, refresh }: { cases: Ca
   }
 
   return <section className="panel" aria-label="영상 수신 보관함"><div className="section-title"><h2>영상 수신 보관함</h2><button onClick={() => void run(load)}>보관함 새로고침</button></div>
-    <p className="fine">파일을 먼저 수신하고 참가자·회차·카메라에 연결합니다. 수신 완료 파일은 연결 충돌 후에도 남으며 연결만 다시 시도합니다. 운영자·관리자가 현장 보관함을 공유하고 작성자·관리자가 미연결 수신물을 정리합니다.</p>
+    <p className="fine">파일을 먼저 수신하고 참가자·회차·카메라에 연결합니다. 수신 완료 파일은 연결 충돌 후에도 남으며 연결만 다시 시도합니다. 모든 업무 계정이 현장 보관함을 공유하고 미연결 수신물을 정리합니다.</p>
     <fieldset disabled={busy}><legend>{selected ? `${selected.participant_id} · 현재 회차에 수신` : '참가자 미등록 영상도 먼저 수신'}</legend>
       <div className="form-grid"><label>수신 파일<input aria-label="수신 파일" type="file" multiple accept=".mp4,.mov,.m4v,.avi,.mkv,.webm,.insv" onChange={e => {
         const chosen = Array.from(e.target.files ?? []).map(file => ({ file, id: crypto.randomUUID(), status: '대기', error: '' }));
@@ -122,7 +122,7 @@ function ReceiptCard({ receipt, cases, selected, user, run, changed }: { receipt
   const choices = cases.filter(c => c.manifest.schema_version === 'intake-4.0').filter(c => c.case_id === caseId
     || [c.sequence_no ?? '', c.participant_id, c.dog_name, c.event_id].join(' ').toLowerCase().includes(search.trim().toLowerCase()));
   const block = !target ? '연결할 참가자를 고르세요.' : !cameraId ? '카메라 ID를 입력하세요.' : !CAMERA_ID.test(cameraId) ? '카메라 ID는 CAM1처럼 영문·숫자·밑줄·하이픈만 쓸 수 있습니다.' : '';
-  const canCancel = receipt.creator === user.username || user.role === 'admin';
+  const canCancel = true;
   async function link() {
     setError('');
     try {
