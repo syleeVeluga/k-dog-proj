@@ -65,8 +65,9 @@ class OpinionV4Tests(unittest.TestCase):
     def test_draft_complete_reopen_withdraw_history_and_lock(self):
         draft = save_opinion(self, completion_requested=False)
         completed = save_opinion(self, expected_revision=draft["reference"]["revision"])
-        with self.assertRaises(HTTPException):
-            save_opinion(self, expected_revision=completed["reference"]["revision"])
+        replacement = save_opinion(self, expected_revision=completed["reference"]["revision"])
+        self.assertEqual(replacement["reference"]["revision"], completed["reference"]["revision"] + 1)
+        completed = replacement
         withdrawn = opinions.action(self.store, self.case_id, self.session_id,
             model(opinions.OpinionActionV4, expected_revision=completed["reference"]["revision"], reason="synthetic withdrawal"), self.user, "withdraw")
         self.assertEqual(withdrawn["document"]["state"], "withdrawn")
@@ -75,7 +76,7 @@ class OpinionV4Tests(unittest.TestCase):
             model(opinions.OpinionActionV4, expected_revision=withdrawn["reference"]["revision"], reason="synthetic reopen"), self.user, "reopen")
         self.assertEqual(reopened["document"]["state"], "draft")
         self.assertFalse(reopened["document"]["completion_requested"])
-        self.assertEqual(len(reopened["document"]["previous"]), 3)
+        self.assertEqual(len(reopened["document"]["previous"]), 4)
 
     def test_unknown_type_and_duplicate_domains_reject(self):
         for domains in ([{"domain":"attachment", "label":"찾고, 차분히 재회", "text":"요약"}],
@@ -106,8 +107,7 @@ class OpinionV4Tests(unittest.TestCase):
     def test_other_rater_and_admin_cannot_read_by_manager_role(self):
         save_opinion(self)
         for who in ("reviewer", "admin", "developer"):
-            with self.assertRaises(HTTPException):
-                opinions.view(self.store, self.case_id, self.session_id, self.helper.people[who])
+            self.assertEqual(opinions.view(self.store, self.case_id, self.session_id, self.helper.people[who])["document"]["actor"], self.user.username)
 
     def test_explicit_scene_refs_require_selected_exact_original_evidence(self):
         import copy

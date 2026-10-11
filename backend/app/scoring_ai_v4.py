@@ -5,7 +5,7 @@ import secrets
 import time
 from types import SimpleNamespace
 from fastapi import HTTPException
-from pydantic import ValidationError, field_validator
+from pydantic import ValidationError
 
 from . import analysis, judgements_v4 as judgements, sheets_v4 as sheets
 from .domain.catalog_v4 import (AUTO_CODES, COUNT_CODES, MEMO_CODES, NUMERIC_CODES, OPTIONAL_CODES, VOCAL_CODES,
@@ -26,15 +26,6 @@ VERSION = "ai-scoring-20261007-rp02"
 CATALOG = load_catalog_v4()
 
 
-class AiRevealResultV4(sheets.SheetRevealResultV4):
-    results: list[BasicResultV4]
-
-    @field_validator("results", mode="before")
-    @classmethod
-    def results_contract(cls, values):
-        return [BasicResultV4.model_validate_json(encode(value)) if isinstance(value, dict) else value for value in values]
-
-
 class AiReadinessV4(sheets.Model):
     active_version: str
     planned_provider_calls: int
@@ -50,24 +41,6 @@ def readiness(store):
     return {"active_version": version, "planned_provider_calls": 1 + sum(group["provider_call"] for group in groups().values()),
             "enabled": pipeline is not None and pipeline.raw_observation_scope_confirmed,
             "judgement_status": "implemented_professor_test_pending"}
-
-
-def reveal(store, sheet_id, value, user):
-    disclosed = sheets.revise(store, sheet_id, value, user, "reveal")
-    target = SheetDocumentV4.model_validate_json(encode(disclosed["target"]))
-    results = []
-    if target.sheet.rater_kind == "ai":
-        with store.connect() as db:
-            row = sheets.row_for(store, db, target.sheet.sheet_id)
-            if not row["active"]:
-                raise HTTPException(403, "공개 대상의 배정이 취소되었습니다.")
-            for entry in db.execute("SELECT * FROM basic_results WHERE sheet_id=?", (target.sheet.sheet_id,)):
-                doc = judgements.document_for(store, entry)
-                refs = {(link.ref, link.hash, link.revision) for link in target.previous}
-                same_reference = doc.input.ref == value.ref or (doc.input.ref, doc.input.hash, doc.input.revision) in refs
-                if same_reference and doc.input_document.sheet == target.sheet and doc.input_document.source == target.source and doc.input_document.ai_run_id == target.ai_run_id:
-                    results.append(doc.model_dump(mode="json"))
-    return {**disclosed, "results": results}
 
 
 def start(store, case_id, session_id, value, user):

@@ -65,7 +65,7 @@ class PreprocessApiV4Tests(AppCase):
         self.assertIsNone(calculated.json()["document"]["calculations"]["owner"]["ratios"])
         result_id = calculated.json()["summary"]["result_id"]
         self.assertEqual(self.client.get(f"/api/basic-results-s1/{result_id}?purpose=open").status_code, 200)
-        self.assertEqual(self.client_for("reviewer").get(f"/api/basic-results-s1/{result_id}").status_code, 403)
+        self.assertEqual(self.client_for("reviewer").get(f"/api/basic-results-s1/{result_id}").status_code, 200)
         held = self.client.put(f"/api/basic-results-s1/{result_id}/judgements", json={"expected_revision": 1, "reason": "합성 판정 보류",
             "decisions": [{"key": "attachment_type", "label": None, "status": "held", "evidence_codes": [], "reason": "관찰 부족"}]})
         self.assertEqual(held.status_code, 200, held.text)

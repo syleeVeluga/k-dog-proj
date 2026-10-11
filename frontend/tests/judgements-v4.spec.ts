@@ -50,7 +50,7 @@ test('S1 basic calculation preserves input, automatic decisions, manual evidence
   const sourceBefore = await (await page.request.get(sheetPath)).json();
   await openMenu(page, '독립 채점');
   await page.getByRole('button', { name: 's1judgement 독립 채점 열기', exact: true }).click();
-  await page.getByRole('button', { name: '내 시트 열기', exact: true }).click();
+  await page.getByRole('button', { name: '시트 열기', exact: true }).click();
   const panel = page.getByRole('region', { name: '기본 결과 계산', exact: true });
   const calculate = panel.getByRole('button', { name: '제출 원자료로 계산', exact: true });
   await panel.getByRole('combobox', { name: '입장·퇴장 같은 물건 확인', exact: true }).selectOption('yes');
@@ -129,7 +129,7 @@ test('S1 basic calculation preserves input, automatic decisions, manual evidence
   const preserved = await (await page.request.get(resultPath + '/revisions/1')).json();
   expect(preserved.document).toEqual(initial.document);
   expect((await (await page.request.get(sheetPath)).json()).document).toEqual(sourceBefore.document);
-  expect((await request.get(resultPath)).status()).toBe(403);
+  expect((await request.get(resultPath)).status()).toBe(200);
   await panel.getByText('장면 평균·합계와 고정 출처', { exact: true }).click();
   await panel.screenshot({ path: testInfo.outputPath('judgements-s1.png'), animations: 'disabled' });
   await page.setViewportSize({ width: 360, height: 800 });

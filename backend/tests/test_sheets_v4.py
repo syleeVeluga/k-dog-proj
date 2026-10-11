@@ -85,12 +85,18 @@ class SheetsV4Tests(unittest.TestCase):
         return sheets.view(self.store, row["sheet_id"], self.people[who])
 
     def grant(self, viewer, target):
-        return sheets.grant(self.store, viewer["sheet_id"], model(sheets.SheetGrantV4, expected_revision=viewer["revision"],
-                            target_sheet_id=target["sheet_id"], target_revision=target["revision"], reason="합성 명시 공개"), self.people["operator"])
+        with self.store.connect(write=True) as db:
+            doc = sheets.revision(self.store, target["sheet_id"], target["revision"], self.people["operator"])
+            digest = self.store.path(target["manifest_ref"]).read_bytes()
+            db.execute("INSERT OR IGNORE INTO score_grants VALUES (?,?,?,?,?,?,?)", (viewer["sheet_id"], target["sheet_id"],
+                target["manifest_ref"], hashlib.sha256(digest).hexdigest(), doc.revision, "operator", "historical synthetic grant"))
+        return viewer
 
     def reveal(self, viewer, target, who="reviewer"):
-        return sheets.revise(self.store, viewer["sheet_id"], model(sheets.SheetRevealV4, expected_revision=viewer["revision"], ref=target["manifest_ref"]),
-                             self.people[who], "reveal")
+        from app.activity_v4 import opened
+        doc = sheets.revision(self.store, target["sheet_id"], target["revision"], self.people[who])
+        opened(self.store, self.people[who], target["sheet_id"], "sheet.open", doc, "open", revision=doc.revision)
+        return {"viewer": viewer, "target": doc.model_dump(mode="json")}
 
     def test_empty_s1_ownership_frozen_input_and_required_optional_separation(self):
         one = self.assign()
@@ -101,9 +107,7 @@ class SheetsV4Tests(unittest.TestCase):
         self.assertEqual(len(result["missing_required_codes"]), 84)
         self.assertNotIn("바54", result["missing_required_codes"])
         for who in ("other", "operator", "admin", "developer"):
-            with self.assertRaises(HTTPException) as caught:
-                self.view(one, who)
-            self.assertEqual(caught.exception.status_code, 403)
+            self.assertEqual(self.view(one, who)["document"]["sheet"]["sheet_id"], one["sheet_id"])
         for who in ("reviewer", "developer"):
             self.assertEqual(len(sheets.list_sheets(self.store, self.case_id, self.session_id, self.people[who])), 2)
         with self.store.connect(write=True) as db:
@@ -171,10 +175,9 @@ class SheetsV4Tests(unittest.TestCase):
         submitted = self.submit(row)
         original = self.store.path(submitted["manifest_ref"]).read_bytes()
         self.assertEqual(len(self.view(submitted)["document"]["sheet"]["observations"]), 86)
-        with self.assertRaises(HTTPException):
-            self.save(submitted, [])
-        reason = model(sheets.SheetReasonV4, expected_revision=submitted["revision"], reason="근거 정정")
-        opened = sheets.revise(self.store, row["sheet_id"], reason, self.people["reviewer"], "reopen")
+        opened = self.save(submitted, [], "other")
+        self.assertEqual(opened["state"], "draft")
+        self.assertEqual(opened["purpose"], "review")
         updated = self.save(opened, [self.observe(value=1)])
         with self.assertRaises(HTTPException) as caught:
             self.save(opened, [self.observe(value=2)])
@@ -183,21 +186,17 @@ class SheetsV4Tests(unittest.TestCase):
         self.assertEqual(self.view(updated)["document"]["initial_submission"]["ref"], submitted["manifest_ref"])
         self.assertEqual(sheets.revision(self.store, row["sheet_id"], submitted["revision"], self.people["reviewer"]).state, "submitted")
 
-    def test_grant_is_not_exposure_reveal_preserves_independent_original(self):
-        first = self.assign()
-        second = self.assign("other", source=first["sheet_id"])
-        first, second = self.submit(first), self.submit(second, "other")
-        with self.assertRaises(HTTPException):
-            self.reveal(first, second)
-        self.grant(first, second)
-        self.assertEqual(self.view(first)["document"]["exposures"], [])
-        disclosed = self.reveal(first, second)
-        self.assertEqual(disclosed["viewer"]["purpose"], "review")
-        self.assertEqual(disclosed["target"]["sheet"]["rater_id"], "rater-other")
-        original = sheets.revision(self.store, first["sheet_id"], first["revision"], self.people["reviewer"])
-        self.assertEqual(original.purpose, "independent")
-        self.assertEqual(original.exposures, ())
-        self.assertEqual(len(self.view(disclosed["viewer"])["document"]["exposures"]), 1)
+    def test_explicit_open_preserves_independent_original_and_future_edit_is_review(self):
+        first = self.submit(self.assign())
+        second = self.submit(self.assign("other", source=first["sheet_id"]), "other")
+        original = self.store.path(first["manifest_ref"]).read_bytes()
+        self.reveal(first, second)
+        self.assertEqual(self.view(first)["effective_purpose"], "independent")
+        changed = self.save(first, [self.observe(value=1)])
+        self.assertEqual(changed["purpose"], "review")
+        self.assertEqual(len(self.view(changed)["activity_exposures"]), 1)
+        self.assertEqual(self.store.path(first["manifest_ref"]).read_bytes(), original)
+        self.assertEqual(self.view(changed)["document"]["initial_submission"]["ref"], first["manifest_ref"])
 
     def test_duplicate_assignment_and_new_batch_do_not_reset_independence(self):
         original = self.assign()
@@ -236,16 +235,15 @@ class SheetsV4Tests(unittest.TestCase):
                 self.save(row, [self.observe()])
         self.assertEqual(caught.exception.status_code, 409)
 
-    def test_revoked_target_cannot_be_revealed_even_with_existing_grant(self):
-        first = self.assign()
-        second = self.assign("other", source=first["sheet_id"])
-        first, second = self.submit(first), self.submit(second, "other")
-        self.grant(first, second)
-        sheets.revise(self.store, second["sheet_id"], model(sheets.SheetActiveV4, expected_revision=second["revision"], reason="배정 취소", active=False),
-                      self.people["operator"], "assignment")
-        with self.assertRaises(HTTPException) as caught:
-            self.reveal(first, second)
-        self.assertEqual(caught.exception.status_code, 403)
+    def test_inactive_original_owner_and_cancelled_assignment_do_not_block_common_access(self):
+        first = self.submit(self.assign())
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE score_sheets SET active=0 WHERE sheet_id=?", (first["sheet_id"],))
+            db.execute("UPDATE users SET active=0 WHERE username='reviewer'")
+        self.assertEqual(self.view(first, "other")["document"]["state"], "submitted")
+        changed = self.save(first, [self.observe()], "other")
+        self.assertEqual(self.view(changed, "other")["document"]["actor"], "other")
+        self.assertEqual(self.view(changed, "other")["document"]["sheet"]["rater_id"], "rater-reviewer")
 
     def test_hash_damage_and_deletion_prevent_reads_and_writes(self):
         row = self.assign()
@@ -277,12 +275,42 @@ class SheetsV4Tests(unittest.TestCase):
             db.execute("INSERT OR IGNORE INTO users(username,role,password_hash,active) VALUES(?,?,?,0)", (AI_ACCOUNT, "developer", "service-only"))
             db.execute("INSERT INTO score_sheets VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (model_doc.sheet.sheet_id, self.case_id, self.session_id,
                        AI_ACCOUNT, "ai-model", model_doc.rater_name, model_doc.source_hash, "independent", "submitted", 1, 1, ref, digest))
-        with self.assertRaises(HTTPException):
-            sheets.revise(self.store, model_doc.sheet.sheet_id, model(sheets.SheetReasonV4, expected_revision=1, reason="AI 정정"), self.people["operator"], "reopen")
-        target = {"sheet_id": model_doc.sheet.sheet_id, "revision": 1, "manifest_ref": ref}
-        self.grant(human, target)
-        revealed = self.reveal(human, target)
-        self.assertTrue(self.view(revealed["viewer"])["document"]["sheet"]["ai_exposed"])
+        original = self.store.path(ref).read_bytes()
+        human_draft = self.assign("other", source=human["sheet_id"])
+        ai_target = {"sheet_id": model_doc.sheet.sheet_id, "revision": 1, "manifest_ref": ref}
+        draft_bytes = self.store.path(human_draft["manifest_ref"]).read_bytes()
+        self.reveal(human_draft, ai_target, "other")
+        exposed_view = self.view(human_draft, "other")
+        self.assertTrue(exposed_view["effective_ai_exposed"])
+        self.assertFalse(exposed_view["document"]["sheet"]["ai_exposed"])
+        self.assertEqual(self.store.path(human_draft["manifest_ref"]).read_bytes(), draft_bytes)
+        exposed_submit = self.submit(human_draft, "other")
+        self.assertTrue(self.view(exposed_submit, "other")["document"]["sheet"]["ai_exposed"])
+        from app import judgements_v4
+        exposed_basic = judgements_v4.create(self.store, exposed_submit["sheet_id"], model(judgements_v4.CalculateV4,
+            input={"sheet_id": exposed_submit["sheet_id"], "revision": exposed_submit["revision"], "ref": exposed_submit["manifest_ref"], "hash": exposed_submit["manifest_hash"]}), self.people["operator"])
+        self.assertTrue(exposed_basic["document"]["evaluation_context"]["ai_exposed"])
+        self.assertEqual(self.store.path(ref).read_bytes(), original)
+        changed = sheets.revise(self.store, model_doc.sheet.sheet_id,
+            model(sheets.SheetEditV4, expected_revision=1, observations=[self.observe(value=1)]), self.people["operator"], "save")
+        shown = self.view(changed, "operator")["document"]
+        self.assertTrue(shown["manual_modified"])
+        self.assertEqual(shown["actor"], "operator")
+        self.assertEqual(shown["sheet"]["rater_kind"], "ai")
+        self.assertEqual(shown["sheet"]["rater_id"], "ai-model")
+        self.assertEqual(self.store.path(ref).read_bytes(), original)
+        self.assertEqual(shown["initial_submission"]["ref"], ref)
+        from app import judgements_v4, final_results_v4
+        submitted = self.submit(changed, "operator")
+        basic = judgements_v4.create(self.store, changed["sheet_id"], model(judgements_v4.CalculateV4,
+            input={"sheet_id": submitted["sheet_id"], "revision": submitted["revision"], "ref": submitted["manifest_ref"], "hash": submitted["manifest_hash"]}), self.people["other"])
+        summary = basic["summary"]
+        final = final_results_v4.assemble(self.store, self.case_id, self.session_id, model(final_results_v4.AssembleFinalV4,
+            basic={"result_id": summary["result_id"], "revision": summary["revision"], "ref": summary["manifest_ref"], "hash": summary["manifest_hash"]}, reason="synthetic manual AI final"), self.people["developer"])
+        self.assertFalse(final["document"]["independent_ai"])
+        self.assertTrue(final["document"]["basic_document"]["input_document"]["manual_modified"])
+        self.assertEqual(self.store.path(ref).read_bytes(), original)
+
 
     def test_fake_camera_hash_unsynchronized_and_outside_window_evidence_rejected(self):
         row = self.assign()
@@ -334,7 +362,7 @@ class SheetsV4Tests(unittest.TestCase):
         self.assertEqual(caught.exception.status_code, 409)
         current = self.save(independent, [self.observe()])
         self.assertEqual(current["purpose"], "review")
-        self.assertEqual(len(self.view(current)["document"]["exposures"]), 1)
+        self.assertEqual(len(self.view(current)["activity_exposures"]), 1)
 
     def test_media_change_after_validation_is_not_adopted(self):
         row = self.assign()
@@ -358,8 +386,7 @@ class SheetsV4Tests(unittest.TestCase):
         saved = sheets.view(restored, row["sheet_id"], self.people["reviewer"])
         self.assertEqual(saved["document"]["state"], "submitted")
         self.assertEqual(hashlib.sha256(restored.path(row["manifest_ref"]).read_bytes()).hexdigest(), row["manifest_hash"])
-        with self.assertRaises(HTTPException):
-            sheets.view(restored, row["sheet_id"], self.people["other"])
+        self.assertEqual(sheets.view(restored, row["sheet_id"], self.people["other"])["document"], saved["document"])
 
 
 if __name__ == "__main__":

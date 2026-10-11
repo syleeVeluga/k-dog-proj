@@ -119,8 +119,7 @@ class JudgementsV4Tests(unittest.TestCase):
 
     def test_owner_and_account_permissions_freshly_checked(self):
         result=self.create()
-        with self.assertRaises(HTTPException) as caught:results.view(self.store,result["summary"]["result_id"],self.helper.people["other"])
-        self.assertEqual(caught.exception.status_code,403)
+        self.assertEqual(results.view(self.store,result["summary"]["result_id"],self.helper.people["other"])["summary"], result["summary"])
         with self.store.connect(write=True) as db:db.execute("UPDATE users SET active=0 WHERE username=?",(self.user.username,))
         with self.assertRaises(HTTPException) as caught:results.view(self.store,result["summary"]["result_id"],self.user)
         self.assertEqual(caught.exception.status_code,403)
@@ -161,6 +160,13 @@ class JudgementsV4Tests(unittest.TestCase):
         with self.store.connect(write=True) as db:db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?",(self.helper.case_id,))
         for operation in (lambda:results.view(self.store,result["summary"]["result_id"],self.user),lambda:self.edit(result)):
             with self.assertRaises(HTTPException):operation()
+
+    def test_historical_independent_input_does_not_inherit_later_shared_edit(self):
+        initial = self.create()
+        self.helper.save(self.sheet, [self.helper.observe(value=1)], "other")
+        again = results.create(self.store, self.sheet["sheet_id"], model(results.CalculateV4, input=initial["summary"]["input"]), self.user)
+        self.assertEqual(again["document"]["input_document"]["purpose"], "independent")
+        self.assertEqual(again["document"]["evaluation_context"]["purpose"], "independent")
 
     def test_revision_conflict_preserves_first_successful_edit(self):
         first=self.create();second=self.edit(first)

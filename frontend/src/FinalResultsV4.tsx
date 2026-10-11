@@ -4,7 +4,7 @@ import { mayLeave, useEditBase } from './Editing';
 import type { Case } from './types';
 import type { AttachmentRunV4 } from './attachmentTypesV4';
 import type { BasicResultViewV4 } from './BasicResultsV4';
-import type { EvidenceV4, InterpretationReferenceV4, SheetSummaryV4 } from './ScoringTypesV4';
+import type { EvidenceV4, SheetSummaryV4 } from './ScoringTypesV4';
 import { DOMAIN_NAMES_V4, type BasicReferenceV4, type BasicSummaryV4, type DomainKeyV4, type DomainOpinionV4, type FinalSummaryV4, type FinalViewV4, type OpinionMetadataV4, type OpinionViewV4 } from './finalTypesV4';
 
 const states: Record<string, string> = { draft: '작성 중', complete: '완료', withdrawn: '철회', selected: '유형 선택 적용', observation_text: '관찰 의견', facts_available: '원관찰 있음', missing: '근거 부족', policy_pending: '규칙 확인 대기' };
@@ -18,20 +18,20 @@ const sameBasic = (left: BasicReferenceV4 | null | undefined, right: BasicRefere
 const sceneKey = (scene: EvidenceV4) => JSON.stringify(scene);
 const sceneText = (scene: EvidenceV4) => `${scene.camera_id} · ${scene.window_id} · ${scene.start_seconds}~${scene.end_seconds}초 · 실제 관찰 ${scene.observed_seconds}초 · ${scene.note}`;
 
-export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sheets: SheetSummaryV4[]; refreshSheets: () => Promise<void> }) {
+export function FinalResultsV4({ item, sheets }: { item: Case; sheets: SheetSummaryV4[] }) {
   const path = `/cases/${item.case_id}/sessions/${item.selected_session_id}`;
-  const [viewer, setViewer] = useState(''), [metadata, setMetadata] = useState<OpinionMetadataV4 | null>(null);
+  const viewer = '';
+  const [metadata, setMetadata] = useState<OpinionMetadataV4 | null>(null);
   const [opinion, setOpinion] = useState<OpinionViewV4 | null>(null), [finals, setFinals] = useState<FinalSummaryV4[]>([]), [candidates, setCandidates] = useState<BasicSummaryV4[]>([]);
   const [basic, setBasic] = useState<BasicResultViewV4 | null>(null), [selectedFinal, setSelectedFinal] = useState<FinalViewV4 | null>(null);
   const [attachmentRun, setAttachmentRun] = useState<AttachmentRunV4 | null>(null);
   const [error, setError] = useState(''), [opinionError, setOpinionError] = useState(''), [busy, setBusy] = useState(false), [unavailable, setUnavailable] = useState(false);
-  const [revealReason, setRevealReason] = useState(''), [assembleReason, setAssembleReason] = useState(''), [dirty, setDirty] = useState(false), [editorBusy, setEditorBusy] = useState(false);
+  const [assembleReason, setAssembleReason] = useState(''), [dirty, setDirty] = useState(false), [editorBusy, setEditorBusy] = useState(false);
+  const opinionOpened = useRef(false);
   const alive = useRef(true), pending = useRef(false), sequence = useRef(0);
   const attachmentRequest = useRef<{ fingerprint: string; request_id: string } | null>(null);
   const context = useRef(''); context.current = `${path}:${viewer}`;
   const query = viewer ? `?viewer_sheet_id=${encodeURIComponent(viewer)}` : '';
-  const own = sheets.filter(sheet => sheet.own && sheet.active && sheet.rater_kind === 'human' && sheet.state === 'submitted');
-  const viewerRow = own.find(sheet => sheet.sheet_id === viewer);
   const selectedBasic = basic ? basicRef(basic) : null;
   useEffect(() => { setAttachmentRun(null); }, [path, viewer, basic?.summary.manifest_hash, metadata?.reference?.hash]);
   async function reload() {
@@ -41,7 +41,7 @@ export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sh
     setMetadata(meta); setFinals(list); setCandidates(available); setUnavailable(false); setOpinionError('');
     if (meta.requires_reveal) setOpinion(null);
     else {
-      try { const value = await api<OpinionViewV4>(path + '/opinions-s1' + query); if (alive.current && current === sequence.current && scope === context.current) setOpinion(value); }
+      try { const open = !opinionOpened.current && !!meta.reference; if (open) opinionOpened.current = true; const value = await api<OpinionViewV4>(path + '/opinions-s1' + query + (open ? '?purpose=open' : '')); if (alive.current && current === sequence.current && scope === context.current) setOpinion(value); }
       catch (reason) { if (alive.current && current === sequence.current && scope === context.current) { setOpinion(null); setOpinionError(message(reason)); } }
     }
     if (!alive.current || current !== sequence.current || scope !== context.current) return;
@@ -79,36 +79,21 @@ export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sh
     const value = await api<AttachmentRunV4>(path + '/opinions-s1/attachment-runs', 'POST', { ...fields, request_id: attachmentRequest.current.request_id });
     if (alive.current && scope === context.current) setAttachmentRun(value);
   }
-  async function reveal(target: InterpretationReferenceV4) {
-    if (!viewerRow || !revealReason.trim() || !mayLeave()) return;
-    const scope = context.current;
-    await api(path + (target.kind === 'opinion' ? '/opinions-s1/reveal' : `/final-results-s1/${target.document_id}/reveal`), 'POST', { target, viewer_sheet_id: viewerRow.sheet_id, expected_viewer_revision: viewerRow.revision, reason: revealReason.trim() });
-    if (!alive.current || scope !== context.current) return;
-    await refreshSheets(); await reload();
-    if (target.kind === 'final' && alive.current && scope === context.current) { const value = await api<FinalViewV4>(path + `/final-results-s1/${target.document_id}` + query); if (alive.current && scope === context.current) setSelectedFinal(value); }
-  }
   if (unavailable) return <section className="panel" aria-label="의견과 최종 결과"><p role="alert">{error}</p></section>;
   return <section className="panel" aria-label="의견과 최종 결과" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <h2>행사 의견과 최종 결과</h2>
     <p>영역별 완료 의견 → 유효 수동 선택 → 고정 기본 결과 순서로 적용합니다. 원점수·자동 비율과 이전 최종본은 보존됩니다.</p>
     <p className="fine">여섯 영역 모두 작성하거나 사람 판정을 확정해야만 최종본을 만들 수 있는 것은 아닙니다. 유형 없는 완료 애착 의견은 별도 AI 실행으로 해석할 수 있습니다.</p>
     {error && <p role="alert" className="error">{error}</p>}
-    <fieldset disabled={busy || editorBusy}><legend>고정 입력과 공개 맥락</legend>
-      <label>해석 공개를 기록할 본인 제출 시트<select aria-label="해석 공개를 기록할 본인 제출 시트" value={viewer} onChange={event => { if (mayLeave()) { setViewer(event.target.value); setBasic(null); setOpinion(null); setSelectedFinal(null); setDirty(false); } }}><option value="">본인 결과만 사용</option>{own.map(sheet => <option key={sheet.sheet_id} value={sheet.sheet_id}>{sheet.rater_name} · r{sheet.revision} · {sheet.purpose === 'independent' ? '독립' : '공개 후 검수'}</option>)}</select></label>
+    <fieldset disabled={busy || editorBusy}><legend>고정 입력 선택</legend>
       <button onClick={() => void work(reload)}>의견·최종 목록 새로고침</button>
       <label>행사에 사용할 고정 기본 결과<select aria-label="행사에 사용할 고정 기본 결과" value={basic ? `${basic.summary.result_id}:${basic.summary.revision}` : ''} onChange={event => { if (!mayLeave()) return; const row = candidates.find(value => `${value.result_id}:${value.revision}` === event.target.value); if (row) void work(() => selectBasic(row)); else { setBasic(null); setDirty(false); } }}><option value="">기본 결과를 명시적으로 선택하세요</option>{candidates.map(row => { const source = sheets.find(sheet => sheet.sheet_id === row.input.sheet_id); return <option key={`${row.result_id}:${row.revision}`} value={`${row.result_id}:${row.revision}`}>{source?.rater_name ?? row.input.sheet_id.slice(0, 8)} · {source?.rater_kind === 'ai' ? 'AI' : '사람'} · 원자료 r{row.input.revision} · 계산 r{row.revision}</option>; })}</select></label>
-      <p className="fine">본인 결과와 실제 공개가 허용된 고정 원본만 후보에 표시합니다. 다른 평가자·AI 원자료는 본인 시트에서 먼저 명시 공개해야 합니다.</p>
+      <p className="fine">모든 사람·AI 결과의 현재/보존 판본을 선택합니다. 같은 대상·회차의 정확한 입력 연결은 유지합니다.</p>
       {basic && <p>{basic.document.input_document.rater_name} · {basic.document.input_document.sheet.rater_kind === 'ai' ? 'AI' : '사람'} · 선택한 기본 결과 r{basic.summary.revision} · 입력 r{basic.document.input.revision}<br />SHA-256: {basic.summary.manifest_hash}</p>}
     </fieldset>
     <section aria-label="현재 행사 의견"><h3>현재 행사 의견</h3>
       {metadata?.reference ? <p>의견 r{metadata.reference.revision} · {states[metadata.state ?? ''] ?? metadata.state} · 작성 계정 {metadata.actor}</p> : <p>저장된 행사 의견이 없습니다.</p>}
-      {metadata?.requires_reveal && <p>다른 작성자의 해석입니다. 명시 공개 전 내용은 표시하지 않습니다.</p>}
       {opinionError && <p role="status">{opinionError}</p>}
-      {(metadata?.requires_reveal || finals.some(value => value.requires_reveal)) && <fieldset disabled={busy || dirty}><legend>해석의 명시 공개</legend><p>열람 시 본인 제출 시트에 노출 이력을 남깁니다. 독립 제출본은 보존하고 이후 기록은 검수로 구분합니다.</p>
-        <label>해석 공개 사유<input maxLength={2000} value={revealReason} onChange={event => setRevealReason(event.target.value)} /></label>
-        {!viewerRow && <p>같은 고정 입력의 본인 제출 시트를 선택하세요.</p>}
-        {metadata?.requires_reveal && metadata.reference && <button disabled={!viewerRow || !revealReason.trim()} onClick={() => void work(() => reveal({ kind: 'opinion', document_id: metadata.reference!.opinion_id, revision: metadata.reference!.revision, ref: metadata.reference!.ref, hash: metadata.reference!.hash }))}>현재 의견을 명시 공개하고 노출 기록</button>}
-      </fieldset>}
       {opinion?.document && !basic && <><p>평가자 {opinion.document.evaluator || '미입력'} · 실제 완료 {opinion.document.state === 'complete' ? '충족' : '미충족'}</p><p>연결된 기본 결과를 선택하면 의견과 근거를 확인·편집할 수 있습니다.</p><button disabled={busy || !candidates.some(row => row.result_id === opinion.document!.basic.result_id && row.revision === opinion.document!.basic.revision)} onClick={() => { const row = candidates.find(row => row.result_id === opinion.document!.basic.result_id && row.revision === opinion.document!.basic.revision); if (row) void work(() => selectBasic(row)); }}>현재 의견의 고정 기본 결과 선택</button></>}
       {basic && opinion && !metadata?.requires_reveal && <OpinionEditor key={basic.summary.manifest_ref} basic={basic} latest={opinion} path={path} viewer={viewer} blocked={busy} saved={async () => { await reload(); }} invalidated={() => { setOpinion(null); setBasic(null); setSelectedFinal(null); }} onDirty={setDirty} onBusy={setEditorBusy} />}
     </section>
@@ -129,7 +114,7 @@ export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sh
     </fieldset>
     <h3>보존 최종본</h3>{!finals.length && <p>생성된 최종본이 없습니다.</p>}
     <ul>{finals.map(row => <li key={row.reference.final_id}><p>{new Date(row.recorded_at).toLocaleString()} · {row.actor} · 기본 r{row.basic.revision} · 의견 {row.opinion ? `r${row.opinion.revision}` : '없음'}</p>
-      {row.requires_reveal ? <button disabled={busy || dirty || !viewerRow || !revealReason.trim()} onClick={() => void work(() => reveal({ kind: 'final', document_id: row.reference.final_id, revision: null, ref: row.reference.ref, hash: row.reference.hash }))}>이 최종본을 명시 공개하고 노출 기록</button> : <button disabled={busy} onClick={() => void work(async () => { const value = await api<FinalViewV4>(path + `/final-results-s1/${row.reference.final_id}` + query + (query ? "&" : "?") + "purpose=open"); if (alive.current) setSelectedFinal(value); })}>최종본 {row.reference.final_id.slice(0, 8)} 읽기</button>}
+      <button disabled={busy} onClick={() => void work(async () => { const value = await api<FinalViewV4>(path + `/final-results-s1/${row.reference.final_id}?purpose=open`); if (alive.current) setSelectedFinal(value); })}>최종본 {row.reference.final_id.slice(0, 8)} 읽기</button>
     </li>)}</ul>
     {selectedFinal && <FinalSnapshot value={selectedFinal} />}
   </section>;

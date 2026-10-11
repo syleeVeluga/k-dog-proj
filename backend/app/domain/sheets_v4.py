@@ -54,6 +54,16 @@ class SheetInputV4(ContractV4):
         return self
 
 
+class ResultOpenV4(ContractV4):
+    change_id: MediaKey
+    actor: MediaKey
+    recorded_at: Text
+    target: Text
+    action: Literal["sheet.open", "basic.open", "opinion.open", "final.open"]
+    ai_exposed: bool = False
+    revision: Annotated[int, Field(ge=1)] | None = None
+
+
 class SheetDocumentV4(ContractV4):
     revision: Annotated[int, Field(ge=1)]
     state: Literal["draft", "submitted"]
@@ -72,6 +82,8 @@ class SheetDocumentV4(ContractV4):
     initial_submission: SheetReferenceV4 | None = None
     exposures: tuple[SheetReferenceV4, ...] = ()
     interpretation_exposures: tuple[InterpretationExposureV4, ...] = ()
+    activity_exposures: tuple[ResultOpenV4, ...] = ()
+    manual_modified: bool = False
     ai_run_id: MediaKey | None = None
     ai_failures: dict[str, str] = Field(default_factory=dict)
 
@@ -88,7 +100,7 @@ class SheetDocumentV4(ContractV4):
         unique(tuple(item.exposure_id for item in self.interpretation_exposures), "interpretation exposure")
         if any((item.case_id, item.session_id) != (self.sheet.case_id, self.sheet.session_id) for item in self.interpretation_exposures):
             raise ValueError("interpretation exposure belongs to another case or session")
-        if (self.exposures or self.interpretation_exposures) and self.purpose == "independent":
+        if (self.exposures or self.interpretation_exposures or self.activity_exposures or self.manual_modified) and self.purpose == "independent":
             raise ValueError("exposed revisions cannot be classified as independent")
         if self.initial_submission and self.initial_submission not in self.previous:
             raise ValueError("initial submission must identify a preserved revision")

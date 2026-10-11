@@ -89,7 +89,7 @@ function ResultEditor({ resultId, blocked }: { resultId: string; blocked: boolea
   }
   if (!view) return <p role="status">{error || '기본 결과 조회 중'}</p>;
   const doc = view.document, owner = doc.calculations.owner;
-  const readonly = blocked || busy || historical || doc.input_document.sheet.rater_kind !== 'human';
+  const readonly = blocked || busy || historical;
   return <div>
     <h4>결과 {doc.revision}판 · 원자료 {doc.input.revision}판</h4>
     <p>{doc.input_document.rater_name} · {doc.evaluation_context.purpose} · AI 결과 열람 {doc.evaluation_context.ai_exposed ? '있음' : '없음'}</p>

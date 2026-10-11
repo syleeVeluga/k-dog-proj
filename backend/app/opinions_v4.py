@@ -93,32 +93,15 @@ def pinned_basic(store, db, case_id, session_id, requested):
     if requested not in [ResultReferenceV4.model_validate_json(encode(judgements.reference(row))), *current.previous]:
         raise HTTPException(409, "선택한 기본 결과 revision/ref/hash가 기록과 다릅니다.")
     basic = judgements.read_result(store, requested.ref, requested.hash)
-    if not source["active"]:
-        raise HTTPException(403, "기본 입력 배정이 취소되었습니다.")
     return row, basic, source
 
 
 def selected_basic(store, db, case_id, session_id, requested, user, viewer_sheet_id=None):
-    """Explicit basic revision; neither manager role nor event UI bypasses disclosure."""
+    """Common access with exact case/session/revision/ref/hash validation."""
     context(store, db, case_id, session_id, user, read=True)
-    row, basic, source = pinned_basic(store, db, case_id, session_id, requested)
-    if source["assigned_username"] == user.username:
-        sheets.owner(db, source, user)
-    else:
-        if not viewer_sheet_id:
-            raise HTTPException(403, "타 평가 원본은 본인의 공개 확인 시트를 통해 선택하세요.")
-        viewer = sheets.row_for(store, db, viewer_sheet_id)
-        sheets.owner(db, viewer, user)
-        doc = sheets.document_for(store, viewer)
-        inherited, _ = sheets.related_exposure(store, db, viewer, doc)
-        exposed = {link.ref: link.model_dump(mode="json") for link in doc.exposures}
-        exposed.update(inherited)
-        link = exposed.get(basic.input.ref)
-        grant = db.execute("SELECT * FROM score_grants WHERE viewer_sheet_id=? AND ref=?", (viewer_sheet_id, basic.input.ref)).fetchone()
-        if (doc.state != "submitted" or doc.source_hash != basic.input_document.source_hash or link != basic.input.model_dump(mode="json")
-                or not grant or grant["hash"] != basic.input.hash or grant["target_sheet_id"] != basic.input.sheet_id):
-            raise HTTPException(403, "선택한 원본 revision에 대한 실제 공개 이력과 현재 공개 배정이 필요합니다.")
+    row, basic, _ = pinned_basic(store, db, case_id, session_id, requested)
     return row, basic
+
 
 
 def basic_candidates(store, case_id, session_id, user, viewer_sheet_id=None):
@@ -284,8 +267,6 @@ def save(store, case_id, session_id, value: OpinionWriteV4, user):
         prior = read_document(store, link.ref, link.hash) if link else None
         if prior:
             disclosures.require(db, case_id, session_id, user, disclosures.target("opinion", link), prior.actor)
-        if prior and prior.state != "draft":
-            raise HTTPException(409, "완료·철회 의견은 먼저 재개방하세요.")
         basic_row, basic = selected_basic(store, db, case_id, session_id, value.basic, user, value.viewer_sheet_id)
     try:
         validate_domains(value.domains, basic)

@@ -37,7 +37,7 @@ from app.domain.catalog_v4 import BehaviorCatalogV4, load_catalog_v4
 from app.domain.sheets_v4 import SheetDocumentV4
 from app import judgements_v4
 from app import run_v4, scoring_ai_v4, settings_v4
-from app import opinions_v4, final_results_v4, disclosures_v4, attachment_runs_v4
+from app import opinions_v4, final_results_v4, attachment_runs_v4
 from app import report_runs_v4, comparisons_v4
 from app import external_comparisons_v4
 from app import validation_data_v4, exports_v4, activity_v4
@@ -208,9 +208,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def ai_retry_s1(run_id: Key, value: ActionV4, user=Depends(writer)):
         return run_v4.action(store, run_id, value, user, retry=True)
 
-    @app.post("/api/score-sheets-s1/{sheet_id}/reveal-ai-s1", response_model=scoring_ai_v4.AiRevealResultV4)
-    def ai_reveal_s1(sheet_id: Key, value: sheets_v4.SheetRevealV4, user=Depends(reader)):
-        return scoring_ai_v4.reveal(store, sheet_id, value, user)
 
 
     @app.put("/api/developer/keys/{provider}", response_model=settings.KeyState)
@@ -623,22 +620,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def scoring_s1_submit(sheet_id: Key, value: sheets_v4.SheetReasonV4, user=Depends(reader)):
         return sheets_v4.revise(store, sheet_id, value, user, "submit")
 
-    @app.post("/api/score-sheets-s1/{sheet_id}/reopen", response_model=sheets_v4.SheetSummaryV4)
-    def scoring_s1_reopen(sheet_id: Key, value: sheets_v4.SheetReasonV4, user=Depends(writer)):
-        return sheets_v4.revise(store, sheet_id, value, user, "reopen")
-
-    @app.post("/api/score-sheets-s1/{sheet_id}/assignment", response_model=sheets_v4.SheetSummaryV4)
-    def scoring_s1_active(sheet_id: Key, value: sheets_v4.SheetActiveV4, user=Depends(writer)):
-        return sheets_v4.revise(store, sheet_id, value, user, "assignment")
-
-    @app.post("/api/score-sheets-s1/{sheet_id}/grants", response_model=sheets_v4.SheetSummaryV4)
-    def scoring_s1_grant(sheet_id: Key, value: sheets_v4.SheetGrantV4, user=Depends(writer)):
-        return sheets_v4.grant(store, sheet_id, value, user)
-
-    @app.post("/api/score-sheets-s1/{sheet_id}/reveal", response_model=sheets_v4.SheetRevealResultV4)
-    def scoring_s1_reveal(sheet_id: Key, value: sheets_v4.SheetRevealV4, user=Depends(reader)):
-        return sheets_v4.revise(store, sheet_id, value, user, "reveal")
-
     @app.get("/api/import/s1-workbook/status")
     def s1_workbook_status(user=Depends(writer)):
         return sheets_v4.workbook_preflight()
@@ -690,12 +671,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def attachment_opinion_stop(case_id: Key, session_id: Key, run_id: Key, value: ActionV4, viewer_sheet_id: Key | None = None, user=Depends(reader)):
         return attachment_runs_v4.stop(store, case_id, session_id, run_id, value, user, viewer_sheet_id)
 
-    @app.post("/api/cases/{case_id}/sessions/{session_id}/opinions-s1/reveal", response_model=disclosures_v4.InterpretationRevealResultV4)
-    def opinions_s1_reveal(case_id: Key, session_id: Key, value: disclosures_v4.InterpretationRevealV4, user=Depends(reader)):
-        if value.target.kind != "opinion":
-            raise HTTPException(422, "의견 판본만 열람할 수 있습니다.")
-        return disclosures_v4.reveal(store, case_id, session_id, value, user)
-
     @app.post("/api/cases/{case_id}/sessions/{session_id}/opinions-s1/reopen", response_model=opinions_v4.OpinionViewV4)
     def opinions_s1_reopen(case_id: Key, session_id: Key, value: opinions_v4.OpinionActionV4, user=Depends(reader)):
         return opinions_v4.action(store, case_id, session_id, value, user, "reopen")
@@ -725,12 +700,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def final_s1_result(case_id: Key, session_id: Key, final_id: Key, viewer_sheet_id: Key | None = None, purpose: Literal["open"] | None = None, user=Depends(reader)):
         value = final_results_v4.view(store, case_id, session_id, final_id, user, viewer_sheet_id)
         return activity_v4.opened(store, user, final_id, "final.open", value, purpose, case_id=case_id, session_id=session_id)
-
-    @app.post("/api/cases/{case_id}/sessions/{session_id}/final-results-s1/{final_id}/reveal", response_model=disclosures_v4.InterpretationRevealResultV4)
-    def final_s1_reveal(case_id: Key, session_id: Key, final_id: Key, value: disclosures_v4.InterpretationRevealV4, user=Depends(reader)):
-        if value.target.kind != "final" or value.target.document_id != final_id:
-            raise HTTPException(422, "선택한 최종 판본과 열람 대상이 다릅니다.")
-        return disclosures_v4.reveal(store, case_id, session_id, value, user)
 
     @app.get("/api/cases/{case_id}/sessions/{session_id}/report-runs-s1", response_model=list[report_runs_v4.ReportRunViewV4])
     def report_s1_runs(case_id: Key, session_id: Key, user=Depends(reader)):

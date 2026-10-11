@@ -27,13 +27,10 @@ class OpinionsApiV4Tests(unittest.TestCase):
         f = self.fixture
         meta = self.client.get(self.path+'/opinions-s1/metadata')
         self.assertEqual(meta.status_code,200,meta.text)
-        self.assertTrue(meta.json()['requires_reveal'])
-        self.assertEqual(self.client.get(self.path+'/opinions-s1').status_code,403)
+        self.assertFalse(meta.json()['requires_reveal'])
+        self.assertEqual(self.client.get(self.path+'/opinions-s1').status_code,200)
         original = self.store.path(f.sheet['manifest_ref']).read_bytes()
-        request = f.request().model_dump(mode='json')
-        revealed = self.client.post(self.path+'/opinions-s1/reveal',json=request)
-        self.assertEqual(revealed.status_code,200,revealed.text)
-        self.assertEqual(revealed.json()['viewer']['purpose'],'review')
+        self.assertEqual(self.client.post(self.path+'/opinions-s1/reveal',json={}).status_code,404)
         self.assertEqual(self.store.path(f.sheet['manifest_ref']).read_bytes(),original)
         opinion = self.client.get(self.path+'/opinions-s1?purpose=open')
         self.assertEqual(opinion.status_code,200,opinion.text)
@@ -44,9 +41,6 @@ class OpinionsApiV4Tests(unittest.TestCase):
         history = self.client.get(f'/api/cases/{f.case_id}/activity').json()['items']
         self.assertEqual(sum(row['action'] == 'opinion.open' for row in history), 1)
         self.assertEqual(sum(row['action'] == 'final.open' for row in history), 1)
-        bad = {**request,"target":{**request['target'],"kind":"final","revision":None}}
-        self.assertEqual(self.client.post(self.path+'/final-results-s1/wrong/reveal',json=bad).status_code,422)
-
     def test_candidates_require_actual_raw_reveal_and_current_grant(self):
         f = self.fixture
         row = f.admin_sheet
@@ -58,10 +52,10 @@ class OpinionsApiV4Tests(unittest.TestCase):
             response = self.client.get(url,params=query)
             self.assertEqual(response.status_code,200,response.text)
             return {entry['result_id'] for entry in response.json()}
-        self.assertNotIn(result_id,ids())
+        self.assertIn(result_id,ids())
         f.helper.grant(f.sheet,row)
-        self.assertNotIn(result_id,ids())
-        self.assertEqual(self.client.get(url+f'/{result_id}/1',params=query).status_code,403)
+        self.assertIn(result_id,ids())
+        self.assertEqual(self.client.get(url+f'/{result_id}/1',params=query).status_code,200)
         f.helper.reveal(f.sheet,row,'operator')
         self.assertIn(result_id,ids())
         view = self.client.get(url+f'/{result_id}/1',params={**query, 'purpose':'open'})
@@ -69,5 +63,5 @@ class OpinionsApiV4Tests(unittest.TestCase):
         self.assertEqual(view.json()['summary'],basic['summary'])
         with self.store.connect(write=True) as db:
             db.execute('DELETE FROM score_grants WHERE viewer_sheet_id=?',(f.sheet['sheet_id'],))
-        self.assertNotIn(result_id,ids())
-        self.assertEqual(self.client.get(url+f'/{result_id}/1',params=query).status_code,403)
+        self.assertIn(result_id,ids())
+        self.assertEqual(self.client.get(url+f'/{result_id}/1',params=query).status_code,200)
