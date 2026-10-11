@@ -1,4 +1,4 @@
-"""S1 assigned sheets, immutable revisions and explicit disclosure; Excel stays gated."""
+"""Shared S1 scoring with immutable revisions and preserved original submissions."""
 
 import hashlib
 import json
@@ -13,7 +13,7 @@ from .domain.catalog_v4 import (ITEM_CODES, OPTIONAL_CODES, RESOURCES, VOCAL_COD
 from .domain.contracts_v4 import LinkedMemoV4, ObservationV4, ScoreSheetV4, WalkPhaseV4
 from .domain.media_v4 import MediaKey
 from .domain.disclosures_v4 import InterpretationExposureV4
-from .domain.sheets_v4 import AI_ACCOUNT, BatchPointerV4, SheetDocumentV4, SheetInputV4, SheetReferenceV4
+from .domain.sheets_v4 import AI_ACCOUNT, BatchPointerV4, ResultOpenV4, SheetDocumentV4, SheetInputV4, SheetReferenceV4
 from .domain.validation_v4 import validate_sheet_v4
 from .intake import selected_session
 from .input_models import Model
@@ -31,9 +31,7 @@ def manager(user, db=None):
 
 
 def owner(db, row, user):
-    account = db.execute("SELECT role,active FROM users WHERE username=?", (user.username,)).fetchone()
-    if not account or not account["active"] or row["assigned_username"] != user.username or not row["active"]:
-        raise HTTPException(403, "활성 상태로 본인에게 배정된 시트만 조회·입력할 수 있습니다.")
+    manager(user, db)
 
 
 def reference(row):
@@ -45,9 +43,9 @@ class SheetRevisionV4(ContractV4):
 
 
 class SheetAssignmentV4(SheetRevisionV4):
-    assigned_username: MediaKey
-    rater_id: Annotated[str, Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")]
-    rater_name: Reason
+    assigned_username: MediaKey | None = None
+    rater_id: Annotated[str, Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")] | None = None
+    rater_name: Reason | None = None
     purpose: Literal["independent", "review", "consensus"] = "independent"
     source_sheet_id: MediaKey | None = None
     batch_id: MediaKey | None = None
@@ -69,19 +67,6 @@ class SheetEditV4(SheetRevisionV4):
 
 class SheetReasonV4(SheetRevisionV4):
     reason: Reason
-
-
-class SheetActiveV4(SheetReasonV4):
-    active: bool
-
-
-class SheetGrantV4(SheetReasonV4):
-    target_sheet_id: MediaKey
-    target_revision: Annotated[int, Field(ge=1)]
-
-
-class SheetRevealV4(SheetRevisionV4):
-    ref: Text
 
 
 class SheetSummaryV4(Model):
@@ -111,7 +96,9 @@ class SheetViewV4(Model):
     missing_required_codes: list[str]
     policy_pending_codes: list[str]
     effective_purpose: Literal["independent", "review", "consensus"]
+    effective_ai_exposed: bool
     interpretation_exposures: list[InterpretationExposureV4]
+    activity_exposures: list[ResultOpenV4]
 
     @field_validator("document", mode="before")
     @classmethod
@@ -123,19 +110,18 @@ class SheetViewV4(Model):
     def grant_contracts(cls, value):
         return [SheetReferenceV4.model_validate_json(encode(item)) if isinstance(item, dict) else item for item in value]
 
+    @field_validator("activity_exposures", mode="before")
+    @classmethod
+    def activity_contracts(cls, value):
+        return [ResultOpenV4.model_validate_json(encode(item)) if isinstance(item, dict) else item for item in value]
+
     @field_validator("interpretation_exposures", mode="before")
     @classmethod
     def interpretation_contracts(cls, value):
         return [InterpretationExposureV4.model_validate_json(encode(item)) if isinstance(item, dict) else item for item in value]
 
 
-class SheetRevealResultV4(Model):
-    viewer: SheetSummaryV4
-    target: SheetDocumentV4
-
-    @field_validator("target", mode="before")
-    @classmethod
-    def target_contract(cls, value):
+def target_contract(cls, value):
         return SheetDocumentV4.model_validate_json(encode(value)) if isinstance(value, dict) else value
 
 
@@ -204,9 +190,9 @@ def read_document(store, ref, digest):
 def document_for(store, row):
     doc = read_document(store, row["manifest_ref"], row["manifest_hash"])
     identity = (doc.sheet.sheet_id, doc.sheet.case_id, doc.sheet.session_id, doc.assigned_username, doc.sheet.rater_id,
-                doc.rater_name, doc.source_hash, doc.purpose, doc.state, doc.active, doc.revision)
+                doc.rater_name, doc.source_hash, doc.purpose, doc.state, doc.revision)
     if identity != tuple(row[key] for key in ("sheet_id", "case_id", "session_id", "assigned_username", "rater_id", "rater_name",
-                                           "source_hash", "purpose", "state", "active", "revision")):
+                                           "source_hash", "purpose", "state", "revision")):
         raise HTTPException(409, "S1 채점 파일과 배정 참조가 다릅니다.")
     return doc
 
@@ -242,10 +228,13 @@ def view(store, sheet_id, user):
                   for item in db.execute("SELECT * FROM score_grants WHERE viewer_sheet_id=?", (sheet_id,))]
         case, _ = _case(store, db, row["case_id"])
         interpreted = interpretation_exposure(store, db, row, doc)
+        opened = activity_exposure(store, db, doc)
         return {"summary": summary(row, user), "document": doc.model_dump(mode="json"), "grants": grants,
                 "outdated": doc.source.input_revision != case["input_revision"], "missing_required_codes": missing_required(doc),
                 "policy_pending_codes": [item.code for item in load_catalog_v4().items if item.policy_pending],
-                "effective_purpose": "review" if interpreted and doc.purpose == "independent" else doc.purpose,
+                "effective_purpose": "review" if (interpreted or opened) and doc.purpose == "independent" else doc.purpose,
+                "activity_exposures": opened,
+                "effective_ai_exposed": doc.sheet.ai_exposed or any(item["ai_exposed"] for item in opened),
                 "interpretation_exposures": [entry.model_dump(mode="json") for entry in interpreted.values()]}
 
 
@@ -316,30 +305,104 @@ def related_exposure(store, db, row, doc):
                       (row["case_id"], row["session_id"], row["sheet_id"], row["assigned_username"], row["rater_id"]))
     for other in rows:
         other_doc = document_for(store, other)
-        if same_filming(other_doc.source, doc.source):
+        if same_filming(other_doc.source, doc.source) and (doc.state == "draft" or other_doc.recorded_at <= doc.recorded_at):
             links.update({link.ref: link.model_dump(mode="json") for link in other_doc.exposures})
             ai_exposed = ai_exposed or other_doc.sheet.ai_exposed
     return links, ai_exposed
 
 
+def activity_exposure(store, db, doc, *, current=False):
+    records = {entry.change_id: entry.model_dump(mode="json") for entry in doc.activity_exposures}
+    cutoff = None if current or doc.state == "draft" else doc.recorded_at
+    boundary = None
+    if cutoff is not None:
+        for saved in db.execute("SELECT rowid,detail_json FROM changes WHERE target=? AND action='sheet.submit' ORDER BY rowid", (doc.sheet.case_id,)):
+            pointer = json.loads(saved["detail_json"])
+            if pointer.get("sheet_id") == doc.sheet.sheet_id and pointer.get("revision") == doc.revision:
+                boundary = saved["rowid"]
+                break
+    for event in db.execute("SELECT rowid,* FROM changes WHERE actor=? AND action IN ('sheet.open','basic.open','opinion.open','final.open') ORDER BY rowid", (doc.assigned_username,)):
+        if boundary is not None and event["rowid"] >= boundary or boundary is None and cutoff is not None and event["happened_at"] > cutoff:
+            continue
+        detail = json.loads(event["detail_json"])
+        target_sheet = None
+        opened_doc = None
+        if event["action"] == "sheet.open":
+            target_sheet = db.execute("SELECT * FROM score_sheets WHERE sheet_id=?", (event["target"],)).fetchone()
+        elif event["action"] == "basic.open":
+            from . import judgements_v4
+            basic_row = db.execute("SELECT * FROM basic_results WHERE result_id=?", (event["target"],)).fetchone()
+            if basic_row is not None and (basic_row["case_id"], basic_row["session_id"]) == (doc.sheet.case_id, doc.sheet.session_id):
+                latest = judgements_v4.document_for(store, basic_row)
+                pointer = next((item for item in latest.previous if item.revision == detail.get("revision")), None)
+                opened_basic = latest if latest.revision == detail.get("revision") else judgements_v4.read_result(store, pointer.ref, pointer.hash) if pointer else None
+                if opened_basic is not None:
+                    opened_doc = opened_basic.input_document
+                    target_sheet = db.execute("SELECT * FROM score_sheets WHERE sheet_id=?", (opened_doc.sheet.sheet_id,)).fetchone()
+        else:
+            if (detail.get("case_id", event["target"]), detail.get("session_id")) != (doc.sheet.case_id, doc.sheet.session_id):
+                continue
+            action = "opinion.s1.save" if event["action"] == "opinion.open" else "final.s1.publish"
+            source_event = None
+            for publication in db.execute("SELECT actor,detail_json FROM changes WHERE target=? AND action=? ORDER BY rowid DESC", (doc.sheet.case_id, action)):
+                pointer = json.loads(publication["detail_json"])
+                if pointer.get("session_id") != doc.sheet.session_id:
+                    continue
+                if event["action"] == "opinion.open" and pointer.get("revision") != detail.get("revision"):
+                    continue
+                if event["action"] == "final.open" and pointer.get("final_id") != event["target"]:
+                    continue
+                source_event = publication
+                break
+            if source_event is None:
+                continue
+            from . import disclosures_v4, judgements_v4
+            pointer = json.loads(source_event["detail_json"])
+            source_doc = disclosures_v4.resolve(store, db, doc.sheet.case_id, doc.sheet.session_id,
+                disclosures_v4.target("opinion" if event["action"] == "opinion.open" else "final", pointer))
+            basic = source_doc.basic_document if event["action"] == "final.open" else judgements_v4.read_result(store, source_doc.basic.ref, source_doc.basic.hash)
+            if basic.input_document.assigned_username == doc.assigned_username and source_event["actor"] == doc.assigned_username:
+                continue
+            if not same_filming(basic.input_document.source, doc.source):
+                continue
+            opened_doc = basic.input_document
+        if target_sheet is not None:
+            if (target_sheet["case_id"], target_sheet["session_id"]) != (doc.sheet.case_id, doc.sheet.session_id):
+                continue
+            if opened_doc is None:
+                latest = document_for(store, target_sheet)
+                pointer = next((item for item in latest.previous if item.revision == detail.get("revision")), None)
+                opened_doc = latest if latest.revision == detail.get("revision") else read_document(store, pointer.ref, pointer.hash) if pointer else None
+            if opened_doc is None or opened_doc.assigned_username == doc.assigned_username or not same_filming(opened_doc.source, doc.source):
+                continue
+        elif event["action"] in ("sheet.open", "basic.open"):
+            continue
+        records[event["change_id"]] = {"change_id": event["change_id"], "actor": event["actor"], "recorded_at": event["happened_at"],
+            "target": event["target"], "action": event["action"], "revision": detail.get("revision"),
+            "ai_exposed": opened_doc is not None and opened_doc.sheet.rater_kind == "ai"}
+    return list(records.values())
+
+
 def interpretation_exposure(store, db, row, doc):
     from .disclosures_v4 import inherited
     records = {entry.exposure_id: entry for entry in doc.interpretation_exposures}
-    records.update(inherited(db, row["case_id"], row["session_id"], row["assigned_username"], row["rater_id"], doc.source))
+    records.update({key: entry for key, entry in inherited(db, row["case_id"], row["session_id"], row["assigned_username"], row["rater_id"], doc.source).items()
+                    if doc.state == "draft" or entry.recorded_at <= doc.recorded_at})
     return records
 
 
 def assign(store, case_id, session_id, value: SheetAssignmentV4, user):
     manager(user)
     value = SheetAssignmentV4.model_validate_json(value.model_dump_json())
+    value = value.model_copy(update={"assigned_username": value.assigned_username or user.username,
+        "rater_id": value.rater_id or user.username, "rater_name": value.rater_name or user.username})
     assets = asset_hashes()
     with store.connect() as db:
         manager(user, db)
         case, manifest = _case(store, db, case_id, value.expected_revision)
         session = selected_session(manifest, session_id)
-        account = db.execute("SELECT active,role FROM users WHERE username=?", (value.assigned_username,)).fetchone()
-        if not account or not account["active"] or value.assigned_username == AI_ACCOUNT:
-            raise HTTPException(422, "활성 사람 평가 계정을 선택하세요.")
+        if value.assigned_username == AI_ACCOUNT or not db.execute("SELECT 1 FROM users WHERE username=?", (value.assigned_username,)).fetchone():
+            raise HTTPException(422, "사람 채점의 원평가 계정 출처를 확인하세요.")
         if value.source_sheet_id:
             old = row_for(store, db, value.source_sheet_id)
             if (old["case_id"], old["session_id"]) != (case_id, session_id) or value.batch_id or value.preprocess:
@@ -370,20 +433,25 @@ def assign(store, case_id, session_id, value: SheetAssignmentV4, user):
     data = {"revision": 1, "state": "draft", "assigned_username": value.assigned_username, "rater_name": value.rater_name,
             "purpose": purpose, "origin": "human_web", "active": True, "actor": user.username, "recorded_at": now(),
             "interpretation_exposures": [entry.model_dump(mode="json") for entry in interpreted.values()],
-            "change_reason": "S1 명시 배정", "source": source_data, "source_hash": digest,
+            "change_reason": "S1 채점 시작", "source": source_data, "source_hash": digest,
             "sheet": {"sheet_id": sheet_id, "case_id": case_id, "session_id": session_id, "batch_id": source.batch_id,
                       "rater_id": value.rater_id, "rater_kind": "human", "input_revision": source.input_revision,
                       "input_sha256": source.input.manifest_hash, "observations": []}}
+    with store.connect() as db:
+        opened = activity_exposure(store, db, SheetDocumentV4.model_validate_json(encode(data)))
+    data["activity_exposures"] = opened
+    data["sheet"]["ai_exposed"] = any(item["ai_exposed"] for item in opened)
+    if opened and purpose == "independent":
+        purpose = data["purpose"] = "review"
     ref, file_hash = write_document(store, data)
     with store.connect(write=True) as db:
         manager(user, db)
         _case(store, db, case_id, value.expected_revision)
         _unchanged_sources(store, source, identities)
+        if activity_exposure(store, db, SheetDocumentV4.model_validate_json(encode(data))) != opened:
+            raise HTTPException(409, "채점 생성 중 결과 열람이 변경되었습니다.")
         if inherited(db, case_id, session_id, value.assigned_username, value.rater_id, source) != interpreted:
             raise HTTPException(409, "배정 중 같은 촬영의 해석을 열었습니다. 노출 이력을 다시 확인하세요.")
-        account = db.execute("SELECT active,role FROM users WHERE username=?", (value.assigned_username,)).fetchone()
-        if not account or not account["active"]:
-            raise HTTPException(409, "배정 계정 상태가 변경되었습니다.")
         for other in db.execute("SELECT * FROM score_sheets WHERE case_id=? AND session_id=?", (case_id, session_id)):
             if other["source_hash"] == digest and other["rater_id"] == value.rater_id and other["purpose"] == purpose:
                 raise HTTPException(409, "같은 평가자·입력·목적의 시트가 있습니다.")
@@ -491,34 +559,38 @@ def analysis_input(doc: SheetDocumentV4) -> ScoreSheetV4:
 
 
 def revise(store, sheet_id, value, user, action):
-    if action not in ("save", "submit", "reopen", "assignment", "reveal"):
+    if action not in ("save", "submit", "reopen"):
         raise HTTPException(422, "지원하지 않는 S1 채점 작업입니다.")
     with store.connect() as db:
         row = row_for(store, db, sheet_id, expected=value.expected_revision)
         case, _ = _case(store, db, row["case_id"])
         doc = document_for(store, row)
-        if action in ("reopen", "assignment"):
-            manager(user, db)
-        else:
-            owner(db, row, user)
-        if action in ("save", "submit", "reopen") and doc.sheet.rater_kind != "human":
-            raise HTTPException(403, "AI 원자료는 사람 저장으로 덮어쓰지 않습니다.")
-        if action in ("save", "submit") and doc.state != "draft" or action == "reopen" and doc.state != "submitted":
-            raise HTTPException(409, "현재 제출·잠금 상태에서 이 작업을 할 수 없습니다.")
+        owner(db, row, user)
+        if action == "submit" and doc.state != "draft" or action == "reopen" and doc.state != "submitted":
+            raise HTTPException(409, "현재 제출 상태에서 이 작업을 할 수 없습니다.")
         data = doc.model_dump(mode="json")
         data.update(revision=doc.revision + 1, actor=user.username, recorded_at=now(), change_reason=getattr(value, "reason", action),
                     previous=[*data["previous"], reference(row)])
         interpreted = interpretation_exposure(store, db, row, doc)
+        opened = activity_exposure(store, db, doc, current=True)
+        data["activity_exposures"] = opened
+        if opened or user.username != doc.assigned_username:
+            if doc.purpose == "independent":
+                data["purpose"] = "review"
+        if doc.sheet.rater_kind == "ai":
+            data["manual_modified"] = True
+            data["purpose"] = "review"
         data["interpretation_exposures"] = [entry.model_dump(mode="json") for entry in interpreted.values()]
         if interpreted and doc.purpose == "independent":
             data["purpose"] = "review"
         if action in ("save", "submit", "reopen"):
             inherited, exposed = related_exposure(store, db, row, doc)
             data["exposures"] = list({link["ref"]: link for link in [*data["exposures"], *inherited.values()]}.values())
-            data["sheet"]["ai_exposed"] = doc.sheet.ai_exposed or exposed
+            data["sheet"]["ai_exposed"] = doc.sheet.ai_exposed or exposed or any(item["ai_exposed"] for item in opened)
             if data["exposures"] and doc.purpose == "independent":
                 data["purpose"] = "review"
         if action == "save":
+            data["state"] = "draft"
             value = SheetEditV4.model_validate_json(value.model_dump_json())
             data["sheet"].update(observations=[item.model_dump(mode="json") for item in value.observations],
                                   walk_phases=[item.model_dump(mode="json") for item in value.walk_phases],
@@ -529,27 +601,7 @@ def revise(store, sheet_id, value, user, action):
             data["state"] = "submitted"
         elif action == "reopen":
             data["state"] = "draft"
-        elif action == "assignment":
-            data["active"] = value.active
-        elif action == "reveal":
-            if doc.state != "submitted":
-                raise HTTPException(409, "본인의 원자료를 먼저 제출해야 다른 완료본을 열 수 있습니다.")
-            granted = db.execute("SELECT * FROM score_grants WHERE viewer_sheet_id=? AND ref=?", (sheet_id, value.ref)).fetchone()
-            if not granted:
-                raise HTTPException(403, "운영자가 명시 공개한 완료본이 아닙니다.")
-            target_row = row_for(store, db, granted["target_sheet_id"])
-            if not target_row["active"]:
-                raise HTTPException(403, "공개 대상 배정이 취소되었습니다.")
-            target = read_document(store, granted["ref"], granted["hash"])
-            if target.source_hash != doc.source_hash or target.state != "submitted":
-                raise HTTPException(409, "공개 완료본의 입력이 다릅니다.")
-            link = {"sheet_id": granted["target_sheet_id"], "revision": granted["revision"], "ref": granted["ref"], "hash": granted["hash"]}
-            if not any(item["ref"] == link["ref"] for item in data["exposures"]):
-                data["exposures"].append(link)
-            if doc.purpose == "independent":
-                data["purpose"] = "review"
-            data["sheet"]["ai_exposed"] = doc.sheet.ai_exposed or target.sheet.rater_kind == "ai"
-        if doc.state == "submitted" and data["initial_submission"] is None and (action in ("reopen", "reveal") or data["purpose"] != doc.purpose):
+        if doc.state == "submitted" and data["initial_submission"] is None:
             data["initial_submission"] = reference(row)
     if doc.source.asset_hashes != asset_hashes():
         raise HTTPException(409, "S1 입력 계약 hash가 현재 계약과 다릅니다.")
@@ -570,45 +622,21 @@ def revise(store, sheet_id, value, user, action):
         current = row_for(store, db, sheet_id, expected=value.expected_revision)
         _case(store, db, row["case_id"], case["input_revision"])
         _unchanged_sources(store, doc.source, identities)
-        if action in ("reopen", "assignment"):
-            manager(user, db)
-        else:
-            owner(db, current, user)
+        owner(db, current, user)
         if interpretation_exposure(store, db, current, doc) != interpreted:
             raise HTTPException(409, "저장 중 같은 촬영의 해석을 열었습니다. 노출 이력을 다시 확인하세요.")
         if action in ("save", "submit", "reopen"):
             inherited, exposed = related_exposure(store, db, current, doc)
             if not inherited.keys() <= {link["ref"] for link in data["exposures"]} or exposed and not data["sheet"]["ai_exposed"]:
                 raise HTTPException(409, "같은 촬영의 다른 시트에서 결과를 열었습니다. 노출 이력을 다시 확인하세요.")
-        if action == "reveal":
-            grant_now = db.execute("SELECT * FROM score_grants WHERE viewer_sheet_id=? AND ref=?", (sheet_id, value.ref)).fetchone()
-            if not grant_now or tuple(grant_now) != tuple(granted) or not row_for(store, db, granted["target_sheet_id"])["active"]:
-                raise HTTPException(409, "공개 배정이 변경되었습니다.")
+        if activity_exposure(store, db, doc, current=True) != opened:
+            raise HTTPException(409, "저장 중 원평가자의 결과 열람이 변경되었습니다.")
         db.execute("UPDATE score_sheets SET purpose=?,state=?,active=?,revision=?,manifest_ref=?,manifest_hash=? WHERE sheet_id=?",
                    (data["purpose"], data["state"], data["active"], data["revision"], ref, digest, sheet_id))
         store.audit(db, user.username, row["case_id"], "sheet." + action, {"sheet_id": sheet_id, "ref": ref, "hash": digest,
                     "revision": data["revision"], "reason": data["change_reason"], "schema_version": "4.0"})
         result = summary(row_for(store, db, sheet_id), user)
-    return {"viewer": result, "target": target.model_dump(mode="json")} if action == "reveal" else result
-
-
-def grant(store, sheet_id, value: SheetGrantV4, user):
-    manager(user)
-    with store.connect(write=True) as db:
-        manager(user, db)
-        viewer = row_for(store, db, sheet_id, expected=value.expected_revision)
-        target = row_for(store, db, value.target_sheet_id, expected=value.target_revision)
-        if viewer["sheet_id"] == target["sheet_id"] or any(viewer[key] != target[key] for key in ("source_hash", "case_id", "session_id")):
-            raise HTTPException(422, "같은 입력의 다른 평가 완료본을 선택하세요.")
-        if any(row["state"] != "submitted" or not row["active"] for row in (viewer, target)):
-            raise HTTPException(409, "활성 배정의 원자료 두 개를 모두 제출하세요.")
-        document_for(store, viewer)
-        document_for(store, target)
-        db.execute("INSERT OR IGNORE INTO score_grants VALUES (?,?,?,?,?,?,?)", (sheet_id, target["sheet_id"], target["manifest_ref"],
-                   target["manifest_hash"], target["revision"], user.username, value.reason))
-        store.audit(db, user.username, viewer["case_id"], "sheet.grant", {"viewer_sheet_id": sheet_id, "target_sheet_id": target["sheet_id"],
-                    "ref": target["manifest_ref"], "hash": target["manifest_hash"], "reason": value.reason, "schema_version": "4.0"})
-        return summary(viewer, user)
+    return result
 
 
 def workbook_preflight(cells: dict[str, object] | None = None):

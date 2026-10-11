@@ -8,7 +8,7 @@ from .attachment_v4 import AttachmentAssessmentV4
 from .media_v4 import MediaKey
 from .disclosures_v4 import InterpretationExposureV4
 from .recording_v4 import SafeBaseResultV4
-from .sheets_v4 import SheetDocumentV4, SheetReferenceV4
+from .sheets_v4 import ResultOpenV4, SheetDocumentV4, SheetReferenceV4
 
 
 class MetricV4(ContractV4):
@@ -80,10 +80,11 @@ class EvaluationContextV4(ContractV4):
     ai_exposed: bool
     exposures: tuple[SheetReferenceV4, ...] = ()
     interpretation_exposures: tuple[InterpretationExposureV4, ...] = ()
+    activity_exposures: tuple[ResultOpenV4, ...] = ()
 
     @model_validator(mode="after")
     def exposure(self) -> Self:
-        if (self.exposures or self.interpretation_exposures or self.ai_exposed) and self.purpose == "independent":
+        if (self.exposures or self.interpretation_exposures or self.activity_exposures or self.ai_exposed) and self.purpose == "independent":
             raise ValueError("exposed results cannot claim independent evaluation")
         return self
 

@@ -5,7 +5,7 @@ import { openMenu } from './menu';
 const headers = { 'X-KDOG-Request': '1' };
 const password = 'Browser-test-only-42';
 
-test('S1 scoring preserves explicit zero, null states, source evidence, independent locks and exposure', async ({ page, request, browser, baseURL }, testInfo) => {
+test('S1 scoring preserves explicit zero, null states, source evidence, shared edits and original submissions', async ({ page, request, browser, baseURL }, testInfo) => {
   test.setTimeout(180000);
   page.setDefaultTimeout(15000);
   const errors: string[] = [];
@@ -35,25 +35,24 @@ test('S1 scoring preserves explicit zero, null states, source evidence, independ
     await openMenu(page, '독립 채점');
     await page.getByRole('button', { name: 's1sheet 독립 채점 열기', exact: true }).click();
   }
-  await login('operator'); await openScoring();
+  await login('reviewer'); await openScoring();
   await expect(page.getByText('Excel 가져오기는 준비 중인 기능입니다.', { exact: true })).toBeVisible();
-  await page.getByText('평가자 배정', { exact: true }).click();
-  await page.getByLabel('입력 계정', { exact: true }).selectOption('reviewer');
+  await page.locator('summary').filter({ hasText: /^채점 시작$/ }).click();
   await page.getByLabel('평가자 ID', { exact: true }).fill('s1-one'); await page.getByLabel('평가자 표시 이름', { exact: true }).fill('S1 전문가1');
   const assigned = page.waitForResponse(value => value.url().endsWith('/sheets-s1') && value.request().method() === 'POST');
-  await page.getByRole('button', { name: '시트 배정', exact: true }).click();
+  await page.getByRole('button', { name: '채점 시작', exact: true }).click();
   const assignResponse = await assigned; expect(assignResponse.status(), await assignResponse.text()).toBe(201);
   const first = await assignResponse.json();
   const second = await (await request.post(sessionPath + '/sheets-s1', { headers, data: { expected_revision: item.input_revision, assigned_username: 's1reviewer2', rater_id: 's1-two', rater_name: 'S1 전문가2', source_sheet_id: first.sheet_id } })).json();
   expect(second.source_hash).toBe(first.source_hash);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click(); await login('reviewer'); await openScoring();
-  await expect(page.getByText('S1 전문가2', { exact: true })).toHaveCount(0);
-  // 교수/검토자 화면에는 개발 진행 코드와 비용·호출 수 문구, 운영자용 AI 설정이 보이지 않는다.
+  await expect(page.getByText('S1 전문가2', { exact: true })).toBeVisible();
+  // 공통 화면은 내부 진행 코드를 표시하지 않는다.
   expect(await page.locator('main').innerText()).not.toMatch(/S16|G0[1-5]|D0[1-6]|공급자 호출|교수 테스트/);
   await expect(page.getByText(/AI 초안: /)).toBeVisible();
-  await expect(page.getByText('평가자 배정', { exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: '내 시트 열기', exact: true }).click();
-  const editor = page.getByLabel('내 채점 시트', { exact: true });
+  await expect(page.locator('summary').filter({ hasText: /^채점 시작$/ })).toBeVisible();
+  await page.getByRole('button', { name: '시트 열기', exact: true }).first().click();
+  const editor = page.getByLabel('채점 시트', { exact: true });
   await expect(editor.getByText('직접 입력 86행 중 0행 기록', { exact: false })).toBeVisible();
   await expect(editor.getByLabel('개26 자동 계산', { exact: true }).getByRole('textbox')).toHaveCount(0);
   await expect(editor.getByLabel('8구간 필터', { exact: true }).locator('option')).toHaveCount(9);
@@ -112,13 +111,13 @@ test('S1 scoring preserves explicit zero, null states, source evidence, independ
   expect(observations.find((value: { code: string }) => value.code === '개21').value).toBeNull();
   expect(view.document.sheet.walk_phases[0].proximity_exception).toBe('recheck'); expect(view.document.sheet.linked_memos[0].code).toBe('개59');
   expect(observations.some((value: { code: string }) => value.code === '개59')).toBe(false);
-  await expect(editor.getByRole('button', { name: '독립 원자료 제출·잠금', exact: true })).toBeDisabled();
+  await expect(editor.getByRole('button', { name: '독립 원자료 제출', exact: true })).toBeDisabled();
   const catalog = await (await request.get('/api/catalog/behavior-s1')).json();
   const all = catalog.items.filter((value: { usage: string; optional: boolean }) => value.usage !== 'automatic' && !value.optional).map((value: { code: string }) => observations.find((raw: { code: string }) => raw.code === value.code) ?? { code: value.code, value: null, status: 'unobserved', reason: '합성 시험 관찰 미실시' });
   expect(all).toHaveLength(84);
   expect((await page.request.put(`/api/score-sheets-s1/${first.sheet_id}`, { headers, data: { expected_revision: view.summary.revision, observations: all, walk_phases: view.document.sheet.walk_phases, linked_memos: view.document.sheet.linked_memos, reason: '필수 미실시 사유 합성 fixture' } })).status()).toBe(200);
-  await expect(editor.getByRole('button', { name: '독립 원자료 제출·잠금', exact: true })).toBeEnabled(); await editor.getByRole('button', { name: '독립 원자료 제출·잠금', exact: true }).click();
-  await expect(editor.getByText(/제출본 잠금/)).toBeVisible(); view = await (await page.request.get(`/api/score-sheets-s1/${first.sheet_id}`)).json();
+  await expect(editor.getByRole('button', { name: '독립 원자료 제출', exact: true })).toBeEnabled(); await editor.getByRole('button', { name: '독립 원자료 제출', exact: true }).click();
+  await expect(editor.getByText(/제출본 · 수정 저장/)).toBeVisible(); view = await (await page.request.get(`/api/score-sheets-s1/${first.sheet_id}`)).json();
   const independentRevision = view.summary.revision;
   expect(view.document.sheet.observations).toHaveLength(86);
   expect(view.document.sheet.observations.find((value: { code: string }) => value.code === '바54').value).toBeNull();
@@ -128,18 +127,15 @@ test('S1 scoring preserves explicit zero, null states, source evidence, independ
     await other.post(base + '/api/auth/login', { headers, data: { username: 's1reviewer2', password } });
     const secondSave = await (await other.put(`${base}/api/score-sheets-s1/${second.sheet_id}`, { headers, data: { expected_revision: second.revision, observations: all, reason: '두 번째 합성 독립 입력' } })).json();
     const secondSubmit = await (await other.post(`${base}/api/score-sheets-s1/${second.sheet_id}/submit`, { headers, data: { expected_revision: secondSave.revision, reason: '두 번째 합성 독립 제출' } })).json();
-    expect((await request.post(`/api/score-sheets-s1/${first.sheet_id}/grants`, { headers, data: { expected_revision: view.summary.revision, target_sheet_id: second.sheet_id, target_revision: secondSubmit.revision, reason: '두 독립 제출 뒤 명시 공개' } })).status()).toBe(200);
   } finally { await otherContext.close(); }
-  await editor.getByText('명시 공개된 완료본', { exact: true }).click(); await editor.getByRole('button', { name: /공개 완료본 r.*열고 노출 기록/ }).click();
-  await expect(editor.getByRole('heading', { name: 'S1 전문가1 · 공개 후 검수', exact: true })).toBeVisible();
-  view = await (await page.request.get(`/api/score-sheets-s1/${first.sheet_id}`)).json(); expect(view.document.exposures).toHaveLength(1); expect(view.document.initial_submission.revision).toBe(independentRevision);
-  expect((await page.request.get(`/api/score-sheets-s1/${second.sheet_id}`)).status()).toBe(403);
-  expect((await request.post(`/api/score-sheets-s1/${first.sheet_id}/reopen`, { headers, data: { expected_revision: view.summary.revision, reason: '공개 후 수정 시험' } })).status()).toBe(200);
+  expect((await page.request.get(`/api/score-sheets-s1/${second.sheet_id}?purpose=open`)).status()).toBe(200);
+  view = await (await page.request.get(`/api/score-sheets-s1/${first.sheet_id}`)).json();
+  expect(view.document.purpose).toBe('independent'); expect(view.document.initial_submission).toBeNull();
   const changedRow = await selectRow('바14'); await expect(changedRow.getByLabel('바14 원값', { exact: true })).toBeEnabled(); await changedRow.getByLabel('바14 원값', { exact: true }).fill('2');
   await editor.getByLabel('저장·정정 사유', { exact: true }).fill('동시 변경 합성 시험');
   const remote = await (await page.request.get(`/api/score-sheets-s1/${first.sheet_id}`)).json();
   expect((await page.request.put(`/api/score-sheets-s1/${first.sheet_id}`, { headers, data: { expected_revision: remote.summary.revision, observations: remote.document.sheet.observations.map((value: { code: string }) => value.code === '바14' ? { ...value, value: 1 } : value), reason: '다른 창 저장 합성 시험' } })).status()).toBe(200);
-  await expect(editor.getByText(/다른 변경이 저장되었습니다/)).toBeVisible(); await editor.getByRole('button', { name: '채점 초안 저장', exact: true }).click();
+  await expect(editor.getByText(/다른 변경이 저장되었습니다/)).toBeVisible(); await editor.getByRole('button', { name: '제출본 수정 저장', exact: true }).click();
   await expect(editor.getByRole('alert')).toContainText('다른 채점 변경'); await expect(changedRow.getByLabel('바14 원값', { exact: true })).toHaveValue('2');
   page.once('dialog', dialog => dialog.accept()); await editor.getByRole('button', { name: '미저장 입력 버리고 최신 조회', exact: true }).click();
   await expect(changedRow.getByLabel('바14 원값', { exact: true })).toHaveValue('1');

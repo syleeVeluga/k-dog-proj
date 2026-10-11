@@ -158,16 +158,18 @@ def pinned_sheet(store, row, requested):
     return doc
 
 
-def evaluation_context(store, db, row):
-    doc = sheets.document_for(store, row)
+def evaluation_context(store, db, row, doc=None):
+    doc = doc or sheets.document_for(store, row)
     inherited, ai_exposed = sheets.related_exposure(store, db, row, doc)
     links = {link.ref: link.model_dump(mode="json") for link in doc.exposures}
     links.update(inherited)
     exposed = doc.sheet.ai_exposed or ai_exposed
     interpretations = sheets.interpretation_exposure(store, db, row, doc)
-    return {"purpose": "review" if (links or exposed or interpretations) and doc.purpose == "independent" else doc.purpose,
+    opened = sheets.activity_exposure(store, db, doc)
+    exposed = exposed or any(item["ai_exposed"] for item in opened)
+    return {"purpose": "review" if (links or exposed or interpretations or opened) and doc.purpose == "independent" else doc.purpose,
             "ai_exposed": exposed, "exposures": sorted(links.values(), key=lambda link: link["ref"]),
-            "interpretation_exposures": [entry.model_dump(mode="json") for entry in interpretations.values()]}
+            "interpretation_exposures": [entry.model_dump(mode="json") for entry in interpretations.values()], "activity_exposures": opened}
 
 
 def write_result(store, data):
@@ -236,7 +238,7 @@ def create(store, sheet_id, value, user):
         row = sheets.row_for(store, db, sheet_id)
         sheets.owner(db, row, user)
         doc = pinned_sheet(store, row, value.input)
-        context = evaluation_context(store, db, row)
+        context = evaluation_context(store, db, row, doc)
     if doc.source.asset_hashes != sheets.asset_hashes():
         raise HTTPException(409, "고정 입력의 S1 자산 hash가 현재 계산 판본과 다릅니다.")
     identities = sheets._source_identities(store, doc.source)
@@ -262,7 +264,7 @@ def create(store, sheet_id, value, user):
         current = sheets.row_for(store, db, sheet_id)
         sheets.owner(db, current, user)
         pinned_sheet(store, current, value.input)
-        if evaluation_context(store, db, current) != context:
+        if evaluation_context(store, db, current, doc) != context:
             raise HTTPException(409, "계산 중 평가 노출 상태가 변경되었습니다.")
         sheets._unchanged_sources(store, doc.source, identities)
         db.execute("INSERT INTO basic_results VALUES (?,?,?,?,?,?,?)", (result_id, sheet_id, row["case_id"], row["session_id"], 1, ref, digest))
@@ -318,9 +320,7 @@ def revise(store, result_id, value, user):
     with store.connect() as db:
         row, source = result_row(store, db, result_id, user, value.expected_revision)
         doc = document_for(store, row)
-        context = evaluation_context(store, db, source)
-    if doc.input_document.sheet.rater_kind != "human":
-        raise HTTPException(403, "AI 원판정은 별도 검수에서 다룹니다.")
+        context = evaluation_context(store, db, source, doc.input_document)
     if len({item.key for item in value.decisions}) != len(value.decisions):
         raise HTTPException(422, "같은 판정을 중복 수정하지 마세요.")
     data = doc.model_dump(mode="json")
@@ -347,7 +347,7 @@ def revise(store, result_id, value, user):
     ref, digest = write_result(store, data)
     with store.connect(write=True) as db:
         _, current = result_row(store, db, result_id, user, value.expected_revision)
-        if evaluation_context(store, db, current) != context:
+        if evaluation_context(store, db, current, doc.input_document) != context:
             raise HTTPException(409, "판정 저장 중 노출 상태가 변경되었습니다.")
         document_for(store, row)
         db.execute("UPDATE basic_results SET revision=?,manifest_ref=?,manifest_hash=? WHERE result_id=?", (data["revision"], ref, digest, result_id))

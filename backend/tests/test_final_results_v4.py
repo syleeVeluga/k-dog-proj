@@ -113,19 +113,13 @@ class FinalResultV4Tests(unittest.TestCase):
         target_basic = basics.create(self.store, target["sheet_id"], model(basics.CalculateV4,
             input={"sheet_id":target["sheet_id"], "revision":target["revision"], "ref":target["manifest_ref"], "hash":target["manifest_hash"]}), self.helper.people["reviewer"])
         target_ref = result_reference(target_basic)
-        for anchor in (None, self.sheet["sheet_id"]):
-            with self.assertRaises(HTTPException):
-                assemble(self, basic=target_ref, viewer_sheet_id=anchor)
-        self.helper.grant(self.sheet, target)
-        with self.assertRaises(HTTPException):
-            assemble(self, basic=target_ref, viewer_sheet_id=self.sheet["sheet_id"])
-        self.helper.reveal(self.sheet, target, "operator")
-        value = assemble(self, basic=target_ref, viewer_sheet_id=self.sheet["sheet_id"])
+        value = assemble(self, basic=target_ref)
         self.assertEqual(value["document"]["basic"], target_ref | {"schema_version":"4.0"})
         with self.store.connect(write=True) as db:
-            db.execute("DELETE FROM score_grants WHERE viewer_sheet_id=?", (self.sheet["sheet_id"],))
-        with self.assertRaises(HTTPException):
-            finals.view(self.store, self.case_id, self.session_id, value["reference"]["final_id"], self.user, self.sheet["sheet_id"])
+            db.execute("UPDATE score_sheets SET active=0 WHERE sheet_id=?", (target["sheet_id"],))
+            db.execute("UPDATE users SET active=0 WHERE username='reviewer'")
+        for who in ("operator", "admin", "developer", "other"):
+            self.assertEqual(finals.view(self.store, self.case_id, self.session_id, value["reference"]["final_id"], self.helper.people[who])["reference"], {k: value["reference"][k] for k in ("final_id", "ref", "hash")})
 
     def test_backup_restore_and_deleted_case_cleanup_follow_both_snapshots(self):
         from app import maintenance

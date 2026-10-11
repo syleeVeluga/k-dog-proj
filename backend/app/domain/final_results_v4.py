@@ -144,6 +144,6 @@ class FinalResultV4(ContractV4):
             doc = self.opinion_document
             if (doc.case_id, doc.session_id, doc.opinion_id, doc.revision, doc.basic) != (self.case_id, self.session_id, self.opinion.opinion_id, self.opinion.revision, self.basic):
                 raise ValueError("opinion belongs to a different fixed basic result")
-        if self.independent_ai and (basic.input_document.sheet.rater_kind != "ai" or any(item.source != "basic" for item in self.domains)):
+        if self.independent_ai and (basic.input_document.sheet.rater_kind != "ai" or basic.input_document.manual_modified or basic.manual_decisions or any(item.source != "basic" for item in self.domains)):
             raise ValueError("human opinions or selections are not independent AI output")
         return self

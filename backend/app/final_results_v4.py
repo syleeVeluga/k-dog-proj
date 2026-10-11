@@ -184,7 +184,7 @@ def assemble(store, case_id, session_id, value: AssembleFinalV4, user):
         "opinion": value.opinion.model_dump(mode="json") if value.opinion else None,
         "opinion_document": opinion.model_dump(mode="json") if opinion else None, "domains": [item.model_dump(mode="json") for item in domains],
         "priority_help": priority or None,
-        "independent_ai": basic.input_document.sheet.rater_kind == "ai" and all(item.source == "basic" for item in domains) and not priority}
+        "independent_ai": basic.input_document.sheet.rater_kind == "ai" and not basic.input_document.manual_modified and basic.revision == 1 and not basic.manual_decisions and all(item.source == "basic" for item in domains) and not priority}
     if basic.attachment_assessment or assessment:
         data["interpretation_policy"] = "attachment-20261007-rp02"
     if assessment:

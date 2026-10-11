@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { accessLost, api } from './api';
 import { BasicResultsV4 } from './BasicResultsV4';
-import { AiRevealedResultsV4, AiRunsV4 } from './AiRunsV4';
+import { AiRunsV4 } from './AiRunsV4';
 import { FinalResultsV4 } from './FinalResultsV4';
-import type { AiBasicResultV4 } from './aiTypesV4';
 import { mayLeave, useEditBase, useUnsaved } from './Editing';
 import { formFields, type Case, type Run, type User } from './types';
 import type { BehaviorCatalogV4, BehaviorItemV4, EvidenceV4, LinkedMemoV4, ObservationV4, SheetDocumentV4, SheetSummaryV4, SheetViewV4, WalkPhaseV4 } from './ScoringTypesV4';
+import { ActivityLogV4 } from './ActivityLogV4';
 import './ScoreSheetsV4.css';
 
 const statuses = { observed: '관찰한 원값', unobserved: '미관찰', no_opportunity: '기회 없음 (NA)', not_performed: '미실시', invalid: '유효하지 않음', insufficient_observation: '관찰량 부족', policy_pending: '규칙 확인 대기' };
@@ -21,7 +21,6 @@ const errorText = (error: unknown) => error instanceof Error ? error.message : '
 export function ScoreSheetsV4({ item, user, run, refresh, close }: { item: Case; user: User; run: Run; refresh: (message?: string) => Promise<void>; close: () => void }) {
   const manager = true;
   const [rows, setRows] = useState<SheetSummaryV4[]>([]);
-  const [accounts, setAccounts] = useState<User[]>([]);
   const [catalog, setCatalog] = useState<BehaviorCatalogV4 | null>(null);
   const [sheetId, setSheetId] = useState('');
   const [error, setError] = useState('');
@@ -40,54 +39,37 @@ export function ScoreSheetsV4({ item, user, run, refresh, close }: { item: Case;
     }
     void poll();
     api<BehaviorCatalogV4>('/catalog/behavior-s1').then(value => { if (active) setCatalog(value); }).catch(reason => { if (active) setError(errorText(reason)); });
-    if (manager) api<User[]>('/scoring/accounts').then(value => { if (active) setAccounts(value); }).catch(reason => { if (active) setError(errorText(reason)); });
     return () => { active = false; clearTimeout(timer); };
   }, [path, manager]);
   async function work(action: () => Promise<unknown>) {
     setBusy(true); setError('');
     await run(async () => { try { await action(); await reload(); } catch (reason) { setError(errorText(reason)); } finally { setBusy(false); } });
   }
-  return <section className="scoring-s1 panel" aria-label="평가 배정">
-    <div className="section-title"><h2>{item.dog_name} · 독립 채점</h2><button onClick={close}>닫기</button></div>
+  return <section className="scoring-s1 panel" aria-label="공유 채점">
+    <div className="section-title"><h2>{item.dog_name} · 공유 채점</h2><button onClick={close}>닫기</button></div>
     <p>숫자 83개 · 메모 3개 · 자동 4개. 원값 0과 빈값을 구분하고 실제 관찰 근거를 기록합니다.</p>
     {manager && <p role="status">Excel 가져오기는 준비 중인 기능입니다.</p>}
     {error && <p role="alert" className="error">{error}</p>}
     <AiRunsV4 key={`${item.case_id}:${item.selected_session_id}`} item={item} manager={manager} />
-    {manager && <FinalResultsV4 key={`final:${item.case_id}:${item.selected_session_id}`} item={item} sheets={rows} refreshSheets={reload} />}
-    {manager && <details><summary>평가자 배정</summary><form onChange={() => { assignmentBase.current ??= item.input_revision; setAssignmentDirty(true); }} onSubmit={event => {
+    {manager && <FinalResultsV4 key={`final:${item.case_id}:${item.selected_session_id}`} item={item} sheets={rows} />}
+    {manager && <details><summary>채점 시작</summary><form onChange={() => { assignmentBase.current ??= item.input_revision; setAssignmentDirty(true); }} onSubmit={event => {
       event.preventDefault(); const values = formFields(event.currentTarget); const form = event.currentTarget;
-      void work(async () => { await api(path, 'POST', { ...values, expected_revision: assignmentBase.current ?? item.input_revision, source_sheet_id: values.source_sheet_id || null }); form.reset(); assignmentBase.current = null; setAssignmentDirty(false); });
+      void work(async () => { await api(path, 'POST', { ...values, expected_revision: assignmentBase.current ?? item.input_revision, rater_id: values.rater_id || null, rater_name: values.rater_name || null, source_sheet_id: values.source_sheet_id || null }); form.reset(); assignmentBase.current = null; setAssignmentDirty(false); });
     }}><fieldset disabled={busy} className="form-grid">
-      <label>입력 계정<select aria-label="입력 계정" name="assigned_username" required><option value="">활성 계정 선택</option>{accounts.map(account => <option key={account.username} value={account.username}>{account.username}</option>)}</select></label>
-      <label>평가자 ID<input name="rater_id" pattern="[A-Za-z0-9][A-Za-z0-9_-]*" required /></label><label>평가자 표시 이름<input name="rater_name" required /></label>
+      <label>평가자 ID<input name="rater_id" pattern="[A-Za-z0-9][A-Za-z0-9_-]*" defaultValue={user.username} /></label><label>평가자 표시 이름<input name="rater_name" defaultValue={user.username} /></label>
       <label>기록 목적<select aria-label="기록 목적" name="purpose"><option value="independent">독립 원자료</option><option value="review">검수 기록</option><option value="consensus">합의 기록</option></select></label>
       <label>촬영 입력 선택<select aria-label="촬영 입력 선택" name="source_sheet_id"><option value="">현재 확정 촬영 입력</option>{rows.map(row => <option key={row.sheet_id} value={row.sheet_id}>{row.rater_name}과 동일한 고정 입력</option>)}</select></label>
-      <button type="submit">시트 배정</button>
+      <button type="submit">채점 시작</button>
       <button type="button" onClick={() => void refresh()}>현재 접수 버전 새로고침</button>
-      {assignmentDirty && <button type="button" onClick={event => { if (window.confirm('배정 입력을 버리고 최신 접수 버전을 사용할까요?')) { event.currentTarget.form?.reset(); assignmentBase.current = null; setAssignmentDirty(false); } }}>배정 입력 버리고 다시 시작</button>}
+      {assignmentDirty && <button type="button" onClick={event => { if (window.confirm('채점 입력을 버리고 최신 접수 버전을 사용할까요?')) { event.currentTarget.form?.reset(); assignmentBase.current = null; setAssignmentDirty(false); } }}>채점 입력 버리고 다시 시작</button>}
     </fieldset><p className="fine">비교할 평가자는 동일한 고정 입력을 선택하세요. 새로운 batch나 재배정은 같은 촬영의 독립성을 초기화하지 않습니다.</p></form></details>}
-    {!rows.length && <p role="status">배정된 시트가 없습니다. 실제 촬영 기록을 확정한 뒤 평가자를 배정하세요.</p>}
-    <ul className="sheet-list">{rows.map(row => <li key={row.sheet_id}><strong>{row.rater_name}</strong> · {purposes[row.purpose]} · {row.state === 'submitted' ? '제출·잠금' : '초안'} · r{row.revision} · {row.active ? '배정 활성' : '배정 취소'}
-      {row.own && row.active && <button onClick={() => { if (mayLeave()) setSheetId(row.sheet_id); }}>내 시트 열기</button>}
-      {manager && <ManagerActions row={row} rows={rows} busy={busy} work={work} />}
+    {!rows.length && <p role="status">채점 시트가 없습니다. 실제 촬영 기록을 확정한 뒤 채점을 시작하세요.</p>}
+    <ul className="sheet-list">{rows.map(row => <li key={row.sheet_id}><strong>{row.rater_name}</strong> · {purposes[row.purpose]} · {row.state === 'submitted' ? '제출본' : '초안'} · r{row.revision}
+      {<button onClick={() => { if (mayLeave()) setSheetId(row.sheet_id); }}>시트 열기</button>}
       <details><summary>배정 출처</summary><p>평가자 {row.rater_id} · 계정 {row.assigned_username} · {row.rater_kind === 'ai' ? 'AI' : '사람'}</p><p>고정 입력 {row.source_hash}</p><p>시트 {row.sheet_id} · r{row.revision} · {row.manifest_hash}</p></details>
     </li>)}</ul>
     {sheetId && catalog && <SheetEditor key={sheetId} sheetId={sheetId} catalog={catalog} done={reload} />}
   </section>;
-}
-
-function ManagerActions({ row, rows, busy, work }: { row: SheetSummaryV4; rows: SheetSummaryV4[]; busy: boolean; work: (action: () => Promise<unknown>) => Promise<void> }) {
-  const [reason, setReason] = useState(''); const [target, setTarget] = useState('');
-  const path = `/score-sheets-s1/${row.sheet_id}`;
-  return <details><summary>{row.rater_name} 배정/공개 관리</summary><label>작업 사유<input value={reason} onChange={event => setReason(event.target.value)} /></label>
-    <div className="toolbar">
-      {row.state === 'submitted' && row.rater_kind === 'human' && <button disabled={busy || !reason.trim() || !row.active} onClick={() => void work(() => api(path + '/reopen', 'POST', { expected_revision: row.revision, reason }))}>이 시트 재개방</button>}
-      <button disabled={busy || !reason.trim()} onClick={() => void work(() => api(path + '/assignment', 'POST', { expected_revision: row.revision, reason, active: !row.active }))}>{row.active ? '배정 취소' : '배정 재활성'}</button>
-    </div>
-    <label>명시 공개할 다른 완료본<select aria-label="명시 공개할 다른 완료본" value={target} onChange={event => setTarget(event.target.value)}><option value="">완료 시트 선택</option>{rows.filter(other => other.sheet_id !== row.sheet_id && other.state === 'submitted' && other.active && other.source_hash === row.source_hash).map(other => <option key={other.sheet_id} value={other.sheet_id}>{other.rater_name} r{other.revision}</option>)}</select></label>
-    <button disabled={busy || !reason.trim() || !target || row.state !== 'submitted' || !row.active} onClick={() => void work(() => api(path + '/grants', 'POST', { expected_revision: row.revision, reason, target_sheet_id: target, target_revision: rows.find(other => other.sheet_id === target)?.revision }))}>선택한 완료본 공개 허용</button>
-    <p className="fine">공개 허용 후 실제 열람 때 노출을 기록합니다. 독립 제출 원본은 보존됩니다.</p>
-  </details>;
 }
 
 function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: BehaviorCatalogV4; done: () => Promise<void> }) {
@@ -97,9 +79,7 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
   const [memos, setMemos] = useState<LinkedMemoV4[]>([]);
   const [segment, setSegment] = useState(''); const [search, setSearch] = useState('');
   const [reason, setReason] = useState(''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
-  const [revealed, setRevealed] = useState<SheetDocumentV4 | null>(null); const [historical, setHistorical] = useState<SheetDocumentV4 | null>(null);
-  const [revealedResults, setRevealedResults] = useState<AiBasicResultV4[]>([]);
-  const revealedRef = useRef<string | null>(null);
+  const [historical, setHistorical] = useState<SheetDocumentV4 | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const edit = useEditBase(latest); const clean = useRef(true); clean.current = !edit.dirty;
   const path = `/score-sheets-s1/${sheetId}`;
@@ -108,16 +88,16 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
     let active = true; let first = true; let timer: ReturnType<typeof setTimeout>;
     async function poll() {
       const purpose = first ? '?purpose=open' : ''; first = false;
-      try { const value = await api<SheetViewV4>(path + purpose); if (active) { setLatest(value); setUnavailable(false); if (clean.current) adopt(value); if (revealedRef.current && !value.grants.some(grant => grant.ref === revealedRef.current)) { setRevealed(null); setRevealedResults([]); revealedRef.current = null; } } }
-      catch (failure) { if (active) { setError(errorText(failure)); if (accessLost(failure)) { setUnavailable(true); setRevealed(null); setRevealedResults([]); setHistorical(null); } } }
+      try { const value = await api<SheetViewV4>(path + purpose); if (active) { setLatest(value); setUnavailable(false); if (clean.current) adopt(value); } }
+      catch (failure) { if (active) { setError(errorText(failure)); if (accessLost(failure)) { setUnavailable(true); setHistorical(null); } } }
       if (active) timer = setTimeout(poll, 2000);
     }
     void poll(); return () => { active = false; clearTimeout(timer); };
   }, [path]);
   const view = edit.view;
-  if (!view || unavailable) return <p role="status">{error || '내 시트 조회 중…'}</p>;
+  if (!view || unavailable) return <p role="status">{error || '시트 조회 중…'}</p>;
   const doc = historical ?? view.document;
-  const writable = !historical && doc.sheet.rater_kind === 'human' && doc.state === 'draft' && doc.active && latest?.summary.active && latest.summary.state === 'draft';
+  const writable = !historical;
   const entries = historical ? doc.sheet.observations : observations;
   const walk = historical ? doc.sheet.walk_phases : phases;
   const linked = historical ? doc.sheet.linked_memos : memos;
@@ -126,7 +106,7 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
   async function work(action: () => Promise<unknown>) {
     setBusy(true); setError('');
     try { await action(); const saved = await api<SheetViewV4>(path); setLatest(saved); adopt(saved); edit.reset(); setReason(''); await done(); }
-    catch (failure) { setError(errorText(failure)); if (accessLost(failure)) { setUnavailable(true); setRevealed(null); setRevealedResults([]); } }
+    catch (failure) { setError(errorText(failure)); if (accessLost(failure)) { setUnavailable(true); } }
     finally { setBusy(false); }
   }
   function checkDraft() {
@@ -136,10 +116,10 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
     }
     if (!reason.trim()) throw new Error('저장·정정 사유를 기록하세요.');
   }
-  return <section className="scoring-editor" aria-label="내 채점 시트"><h2>{doc.rater_name} · {purposes[historical ? doc.purpose : view.effective_purpose ?? doc.purpose]}</h2>
+  return <section className="scoring-editor" aria-label="채점 시트"><h2>{doc.rater_name} · {purposes[historical ? doc.purpose : view.effective_purpose ?? doc.purpose]}</h2>
     {!!view.interpretation_exposures?.length && <div role="status"><p>다른 평가자의 의견·최종 해석을 열람했습니다. 이 촬영의 후속 기록은 공개 후 검수로 구분하며 최초 독립 제출본은 보존됩니다.</p><details><summary>해석 열람 기록</summary><ul>{view.interpretation_exposures.map(exposure => <li key={exposure.exposure_id}>{exposure.target.kind === 'opinion' ? '의견' : '최종 결과'} · {exposure.source_actor} · {exposure.recorded_at} · {exposure.reason}</li>)}</ul></details></div>}
     {error && <p role="alert" className="error">{error}</p>}
-    <p role="status">{doc.state === 'submitted' ? '제출본 잠금 · 원본은 보존됩니다.' : '초안 · 저장 후 제출합니다.'} · 다른 완료본 노출 {doc.exposures.length}개 · {doc.sheet.ai_exposed ? 'AI 결과 노출됨' : 'AI 결과 미노출'}</p>
+    <p role="status">{doc.state === 'submitted' ? '제출본 · 수정 저장하면 원본을 보존한 새 초안을 만듭니다.' : '초안 · 저장 후 제출합니다.'} · 다른 완료본 노출 {doc.exposures.length}개 · {(historical ? doc.sheet.ai_exposed : view.effective_ai_exposed ?? doc.sheet.ai_exposed) ? 'AI 결과 노출됨' : 'AI 결과 미노출'}</p>
     {view.outdated && <p role="status">접수·촬영 입력이 변경되었습니다. 배정 당시 고정한 영상과 실제 창을 사용합니다.</p>}
     {edit.dirty && latest && latest.summary.revision !== view.summary.revision && <p role="status">다른 변경이 저장되었습니다. 미저장 입력과 편집 시작 버전을 유지합니다.</p>}
     <p>직접 입력 86행 중 {entries.length}행 기록 · 필수 84행, 선택 바54·바55. 0은 관찰한 값이며 미기록·NA·관찰량 부족·규칙 대기와 다릅니다.</p>
@@ -160,13 +140,13 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
       </details>
     </fieldset>
     {writable && <><label>저장·정정 사유<input value={reason} onChange={event => { edit.change(); setReason(event.target.value); }} /></label><div className="toolbar">
-      <button disabled={busy || !edit.dirty} onClick={() => void work(() => { checkDraft(); return api(path, 'PUT', { expected_revision: view.summary.revision, observations, walk_phases: phases, linked_memos: memos, reason }); })}>채점 초안 저장</button>
-      <button disabled={busy || edit.dirty || view.missing_required_codes.length > 0} onClick={() => void work(() => api(path + '/submit', 'POST', { expected_revision: view.summary.revision, reason: `평가자 ${purposes[doc.purpose]} 제출` }))}>{purposes[doc.purpose]} 제출·잠금</button>
+      <button disabled={busy || !edit.dirty} onClick={() => void work(() => { checkDraft(); return api(path, 'PUT', { expected_revision: view.summary.revision, observations, walk_phases: phases, linked_memos: memos, reason }); })}>{doc.state === 'submitted' ? '제출본 수정 저장' : '채점 초안 저장'}</button>
+      <button disabled={busy || edit.dirty || doc.state !== 'draft' || view.missing_required_codes.length > 0} onClick={() => void work(() => api(path + '/submit', 'POST', { expected_revision: view.summary.revision, reason: `평가자 ${purposes[doc.purpose]} 제출` }))}>{purposes[doc.purpose]} 제출</button>
     </div></>}
     {edit.dirty && <button disabled={busy} onClick={() => { if (edit.discard() && latest) { adopt(latest); setReason(''); setError(''); } }}>미저장 입력 버리고 최신 조회</button>}
-    {!historical && view.grants.length > 0 && <details><summary>명시 공개된 완료본</summary><p>실제 열람하면 노출 이력을 기록하고 이후 입력은 검수 기록으로 구분합니다.</p>{view.grants.map(grant => <button key={grant.ref} disabled={busy || edit.dirty || doc.state !== 'submitted'} onClick={() => void work(async () => { const result = await api<{ target: SheetDocumentV4; results: AiBasicResultV4[] }>(path + '/reveal-ai-s1', 'POST', { expected_revision: view.summary.revision, ref: grant.ref }); revealedRef.current = grant.ref; setRevealed(result.target); setRevealedResults(result.results); })}>공개 완료본 r{grant.revision} 열고 노출 기록</button>)}</details>}
-    {!historical && revealed && <details open><summary>{revealed.rater_name} 공개 완료본 r{revealed.revision}</summary><ul>{revealed.sheet.observations.map(value => <li key={value.code}>{value.code} · {value.value ?? value.reason} · {statuses[value.status]}</li>)}</ul><details><summary>공개한 원관찰과 근거</summary><pre>{JSON.stringify(revealed.sheet, null, 2)}</pre></details></details>}
-    {!historical && revealed && <AiRevealedResultsV4 results={revealedResults} />}
+    {!!view.activity_exposures?.length && <p role="status">원평가자의 사전 결과 열람 {view.activity_exposures.length}건 · 후속 수정은 검수 기록으로 구분합니다.</p>}
+    {doc.manual_modified && <p role="status">AI 원본의 사람 수정 판본 · 최초 AI 출력은 이전 판본에 보존됩니다.</p>}
+    <ActivityLogV4 path={`/cases/${doc.sheet.case_id}/activity`} />
     <details><summary>고정 입력·revision/hash·노출 이력</summary><pre>{JSON.stringify({ sheet_id: sheetId, revision: doc.revision, source_hash: doc.source_hash, input: doc.source.input, batch: doc.source.batch_id, initial_submission: doc.initial_submission, exposures: doc.exposures, previous: doc.previous }, null, 2)}</pre></details>
     {!historical && <BasicResultsV4 sheetId={sheetId} input={{ sheet_id: sheetId, revision: view.summary.revision, ref: view.summary.manifest_ref, hash: view.summary.manifest_hash }} blocked={busy || edit.dirty || doc.state !== 'submitted'} />}
   </section>;

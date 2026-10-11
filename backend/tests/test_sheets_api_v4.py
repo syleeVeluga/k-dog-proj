@@ -41,8 +41,8 @@ class SheetsApiV4Tests(AppCase):
         own, other = self.assign("operator"), self.assign("reviewer")
         path = f"/api/score-sheets-s1/{own['sheet_id']}"
         self.assertEqual(len(self.client.get(self.base + "/sheets-s1").json()), 2)
-        self.assertEqual(self.client.get(f"/api/score-sheets-s1/{other['sheet_id']}").status_code, 403)
-        self.assertEqual(self.client_for("reviewer").get(path).status_code, 403)
+        self.assertEqual(self.client.get(f"/api/score-sheets-s1/{other['sheet_id']}").status_code, 200)
+        self.assertEqual(self.client_for("reviewer").get(path).status_code, 200)
         view = self.client.get(path)
         self.assertEqual(view.status_code, 200, view.text)
         self.assertEqual(view.json()["document"]["sheet"]["observations"], [])
@@ -55,9 +55,11 @@ class SheetsApiV4Tests(AppCase):
         submitted = self.client.post(path + "/submit", json={"expected_revision": 2, "reason": "합성 원자료 제출"})
         self.assertEqual(submitted.status_code, 200, submitted.text)
         self.assertEqual(submitted.json()["state"], "submitted")
-        self.assertEqual(self.client.put(path, json={"expected_revision": 3, "observations": observations}).status_code, 409)
-        reopened = self.client.post(path + "/reopen", json={"expected_revision": 3, "reason": "원기록 보존하고 재확인"})
+        reopened = self.client_for("reviewer").put(path, json={"expected_revision": 3, "observations": observations, "reason": "공유 제출본 수정"})
         self.assertEqual(reopened.status_code, 200, reopened.text)
+        self.assertEqual(reopened.json()["state"], "draft")
+        self.assertEqual(self.client.put(path, json={"expected_revision": 3, "observations": []}).status_code, 409)
+        self.assertEqual(self.client.post(path + "/reopen", json={"expected_revision": 4, "reason": "removed"}).status_code, 404)
         historical = self.client.get(path + "/revisions/3")
         self.assertEqual(historical.status_code, 200, historical.text)
         self.assertEqual(historical.json()["state"], "submitted")
@@ -68,7 +70,39 @@ class SheetsApiV4Tests(AppCase):
     def test_nonowners_cannot_bypass_assignment_through_history_or_mutations(self):
         sheet = self.assign("reviewer")
         path = f"/api/score-sheets-s1/{sheet['sheet_id']}"
-        self.assertEqual(self.client.get(path + "/revisions/1").status_code, 403)
-        self.assertEqual(self.client.put(path, json={"expected_revision": 1, "observations": []}).status_code, 403)
+        self.assertEqual(self.client.get(path + "/revisions/1").status_code, 200)
+        self.assertEqual(self.client.put(path, json={"expected_revision": 1, "observations": []}).status_code, 200)
         self.assertEqual(self.client_for("developer").get("/api/catalog/behavior-s1").status_code, 200)
         self.assertEqual(self.client_for().get(path).status_code, 401)
+
+    def test_assignment_free_a_create_b_submit_edit_c_open_d_final_with_actual_actors(self):
+        created = self.client.post(self.base + "/sheets-s1", json={"expected_revision": self.item["input_revision"]})
+        self.assertEqual(created.status_code, 201, created.text)
+        sheet = created.json()
+        self.assertEqual(sheet["assigned_username"], "operator")
+        unknown = self.client.post(self.base + "/sheets-s1", json={"expected_revision": self.item["input_revision"], "assigned_username": "missing-provenance"})
+        self.assertEqual(unknown.status_code, 422)
+        path = f"/api/score-sheets-s1/{sheet['sheet_id']}"
+        b, c, d = self.client_for("reviewer"), self.client_for("admin"), self.client_for("developer")
+        values = [{"code": item.code, "value": None, "status": "unobserved", "reason": "synthetic missing"}
+                  for item in load_catalog_v4().rated_items() if item.code not in OPTIONAL_CODES]
+        saved = b.put(path, json={"expected_revision": 1, "observations": values}).json()
+        submitted = b.post(path + "/submit", json={"expected_revision": saved["revision"], "reason": "synthetic shared submit"}).json()
+        initial = self.store.path(submitted["manifest_ref"]).read_bytes()
+        modified = b.put(path, json={"expected_revision": submitted["revision"], "observations": values, "reason": "synthetic shared correction"})
+        self.assertEqual(modified.status_code, 200, modified.text)
+        self.assertEqual(modified.json()["state"], "draft")
+        self.assertEqual(b.put(path, json={"expected_revision": submitted["revision"], "observations": values}).status_code, 409)
+        self.assertEqual(c.get(path + "?purpose=open").status_code, 200)
+        self.assertEqual(c.get(path + f"/revisions/{submitted['revision']}?purpose=open").status_code, 200)
+        calculated = d.post(path + "/basic-results-s1", json={"input": {"sheet_id": sheet["sheet_id"], "revision": submitted["revision"], "ref": submitted["manifest_ref"], "hash": submitted["manifest_hash"]}})
+        self.assertEqual(calculated.status_code, 201, calculated.text)
+        result = calculated.json()["summary"]
+        basic = {"result_id": result["result_id"], "revision": result["revision"], "ref": result["manifest_ref"], "hash": result["manifest_hash"]}
+        final = d.post(self.base + "/final-results-s1", json={"basic": basic, "opinion": None, "reason": "synthetic common final"})
+        self.assertEqual(final.status_code, 201, final.text)
+        self.assertEqual(final.json()["document"]["actor"], "developer")
+        self.assertEqual(final.json()["document"]["basic_document"]["input_document"]["sheet"]["rater_id"], "operator")
+        self.assertEqual(self.store.path(submitted["manifest_ref"]).read_bytes(), initial)
+        for client in (self.client, b, c, d):
+            self.assertEqual(client.get(self.base + "/final-results-s1/" + final.json()["reference"]["final_id"]).status_code, 200)

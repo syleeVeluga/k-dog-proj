@@ -7,6 +7,8 @@ from fastapi import HTTPException
 from app import disclosures_v4 as disclosure, final_results_v4 as finals, opinions_v4 as opinions, sheets_v4 as sheets
 from app import judgements_v4 as basics, maintenance
 from app.storage import Store
+from app.domain.results_v4 import ResultReferenceV4
+from app.storage import encode
 from tests.test_opinions_v4 import model, setup_case
 
 
@@ -23,131 +25,78 @@ class DisclosureV4Tests(unittest.TestCase):
             completion_requested=True, domains=[{"domain":"education_attitude", "text":"Other evaluator's synthetic interpretation"}],
             reason="synthetic interpretation"), self.admin)
 
-    def request(self, pointer=None, row=None):
-        row = row or self.sheet
-        return model(disclosure.InterpretationRevealV4, target=(pointer or disclosure.target("opinion", self.opinion["reference"])).model_dump(mode="json"),
-            viewer_sheet_id=row["sheet_id"], expected_viewer_revision=row["revision"], reason="explicit synthetic interpretation reveal")
+    def test_all_accounts_read_other_opinion_and_final_without_viewer(self):
+        final = finals.assemble(self.store, self.case_id, self.session_id,
+            model(finals.AssembleFinalV4, basic=self.basic_ref, opinion=self.opinion["reference"], reason="synthetic common final"), self.admin)
+        original = self.store.path(self.sheet["manifest_ref"]).read_bytes()
+        for user in self.helper.people.values():
+            self.assertFalse(opinions.metadata(self.store, self.case_id, self.session_id, user)["requires_reveal"])
+            self.assertEqual(opinions.view(self.store, self.case_id, self.session_id, user)["reference"], self.opinion["reference"])
+            self.assertEqual(finals.view(self.store, self.case_id, self.session_id, final["reference"]["final_id"], user)["reference"], {k: final["reference"][k] for k in ("final_id", "ref", "hash")})
+        self.assertEqual(self.store.path(self.sheet["manifest_ref"]).read_bytes(), original)
 
-    def reveal(self, request=None):
-        return disclosure.reveal(self.store, self.case_id, self.session_id, request or self.request(), self.user)
+    def test_explicit_opinion_read_preserves_first_submission_and_marks_only_later_edit(self):
+        from app.activity_v4 import opened
+        value = opinions.view(self.store, self.case_id, self.session_id, self.user)
+        opened(self.store, self.user, self.case_id, "opinion.open", value, "open", session_id=self.session_id, revision=value["reference"]["revision"])
+        self.assertEqual(sheets.view(self.store, self.sheet["sheet_id"], self.user)["effective_purpose"], "independent")
+        changed = self.helper.save(self.sheet, [self.helper.observe()], "operator")
+        view = sheets.view(self.store, changed["sheet_id"], self.user)
+        self.assertEqual(changed["purpose"], "review")
+        self.assertEqual(len(view["activity_exposures"]), 1)
+        self.assertEqual(sheets.revision(self.store, self.sheet["sheet_id"], self.sheet["revision"], self.admin).purpose, "independent")
 
-    def test_own_basic_does_not_bypass_other_opinion_disclosure_and_original_survives(self):
-        old = self.store.path(self.sheet["manifest_ref"]).read_bytes()
-        meta = opinions.metadata(self.store, self.case_id, self.session_id, self.user)
-        opinions.OpinionMetadataV4.model_validate(meta)
-        self.assertTrue(meta["requires_reveal"])
-        self.assertNotIn("domains", meta)
-        with self.assertRaises(HTTPException):
-            opinions.view(self.store, self.case_id, self.session_id, self.user)
-        with self.assertRaises(HTTPException):
-            finals.assemble(self.store, self.case_id, self.session_id, model(finals.AssembleFinalV4,
-                basic=self.basic_ref, opinion=self.opinion["reference"], reason="must reveal first"), self.user)
-        with self.assertRaises(HTTPException):
-            opinions.action(self.store, self.case_id, self.session_id, model(opinions.OpinionActionV4,
-                expected_revision=1, reason="cannot relabel another author through reopen"), self.user, "reopen")
-        result = self.reveal()
-        disclosure.InterpretationRevealResultV4.model_validate(result)
-        shown = opinions.view(self.store, self.case_id, self.session_id, self.user)
-        self.assertEqual(shown["document"]["actor"], "admin")
-        current = self.helper.view(result["viewer"], "operator")
-        sheets.SheetViewV4.model_validate(current)
-        self.assertEqual((current["document"]["purpose"], current["effective_purpose"]), ("review", "review"))
-        self.assertEqual(current["document"]["exposures"], [])
-        self.assertEqual(current["document"]["initial_submission"]["ref"], self.sheet["manifest_ref"])
-        self.assertEqual(current["document"]["interpretation_exposures"][0]["target"]["hash"], self.opinion["reference"]["hash"])
-        self.assertEqual(self.store.path(self.sheet["manifest_ref"]).read_bytes(), old)
-        self.assertEqual(sheets.read_document(self.store, self.sheet["manifest_ref"], self.sheet["manifest_hash"]).purpose, "independent")
-        with self.store.connect() as db:
-            context = basics.evaluation_context(self.store, db, sheets.row_for(self.store, db, self.sheet["sheet_id"]))
-        self.assertEqual(context["purpose"], "review")
-        self.assertEqual(len(context["interpretation_exposures"]), 1)
-
-    def test_final_content_requires_its_exact_reveal_and_supports_report_parent_guard(self):
-        final = finals.assemble(self.store, self.case_id, self.session_id, model(finals.AssembleFinalV4,
-            basic=self.basic_ref, opinion=self.opinion["reference"], viewer_sheet_id=self.admin_sheet["sheet_id"], reason="synthetic final"), self.admin)
-        listed = finals.list_results(self.store, self.case_id, self.session_id, self.user)
-        self.assertTrue(listed[0]["requires_reveal"])
-        self.assertNotIn("document", listed[0])
-        with self.assertRaises(HTTPException):
-            finals.view(self.store, self.case_id, self.session_id, final["reference"]["final_id"], self.user)
-        self.reveal(self.request(disclosure.target("final", final["reference"])))
-        viewed = finals.view(self.store, self.case_id, self.session_id, final["reference"]["final_id"], self.user)
-        self.assertEqual(viewed["document"], final["document"])
-        with self.assertRaises(HTTPException):
-            opinions.view(self.store, self.case_id, self.session_id, self.user)
-
-    def test_exact_hash_viewer_revision_and_submission_are_required(self):
-        pointer = disclosure.target("opinion", self.opinion["reference"]).model_copy(update={"hash":"0"*64})
-        with self.assertRaises(HTTPException):
-            self.reveal(self.request(pointer))
-        reopened = sheets.revise(self.store, self.sheet["sheet_id"], model(sheets.SheetReasonV4,
-            expected_revision=self.sheet["revision"], reason="synthetic reopen"), self.user, "reopen")
-        with self.assertRaises(HTTPException):
-            self.reveal()
-        with self.assertRaises(HTTPException):
-            self.reveal(self.request(row=reopened))
-        with self.store.connect() as db:
-            self.assertEqual(list(disclosure.records(db, self.case_id, self.session_id)), [])
-
-    def test_late_deletion_or_new_viewer_blob_damage_never_adopts(self):
+    def test_pre_submission_read_and_racing_read_are_not_blind(self):
+        from app.activity_v4 import opened
+        draft = self.helper.assign("other", source=self.sheet["sheet_id"])
+        value = opinions.view(self.store, self.case_id, self.session_id, self.helper.people["other"])
+        def open_opinion():
+            opened(self.store, self.helper.people["other"], self.case_id, "opinion.open", value, "open", session_id=self.session_id, revision=value["reference"]["revision"])
         write = sheets.write_document
-        def deleted(store, data):
+        triggered = False
+        def racing(store, data):
+            nonlocal triggered
             result = write(store, data)
-            with store.connect(write=True) as db:
-                db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (self.case_id,))
+            if data["sheet"]["sheet_id"] == draft["sheet_id"] and not triggered:
+                triggered = True
+                open_opinion()
             return result
-        with patch.object(sheets, "write_document", side_effect=deleted), self.assertRaises(HTTPException):
-            self.reveal()
+        with patch.object(sheets, "write_document", side_effect=racing), self.assertRaises(HTTPException) as caught:
+            self.helper.save(draft, [self.helper.observe()], "other")
+        self.assertEqual(caught.exception.status_code, 409)
+        submitted = self.helper.submit(draft, "other")
+        self.assertEqual(submitted["purpose"], "review")
+        self.assertEqual(len(sheets.view(self.store, draft["sheet_id"], self.admin)["activity_exposures"]), 1)
+
+    def test_exact_hash_damage_is_rejected_for_all_accounts(self):
+        wrong = {**self.basic_ref, "hash": "0" * 64}
+        with self.store.connect() as db, self.assertRaises(HTTPException) as caught:
+            opinions.selected_basic(self.store, db, self.case_id, self.session_id, ResultReferenceV4.model_validate_json(encode(wrong)), self.admin)
+        self.assertEqual(caught.exception.status_code, 409)
+        self.store.path(self.opinion["reference"]["ref"]).write_bytes(b"{}")
+        with self.assertRaises(HTTPException):
+            opinions.view(self.store, self.case_id, self.session_id, self.user)
+
+    def test_old_exposure_ledger_remains_read_only_history(self):
+        from app.domain.disclosures_v4 import InterpretationExposureV4
+        from app.storage import now, uid
+        exposure = InterpretationExposureV4(exposure_id=uid(), target=disclosure.target("opinion", self.opinion["reference"]),
+            case_id=self.case_id, session_id=self.session_id, source_actor="admin", viewer_username=self.user.username,
+            viewer_rater_id="rater-operator", basic_result_id=self.basic_ref["result_id"], basic_revision=self.basic_ref["revision"],
+            basic_ref=self.basic_ref["ref"], basic_hash=self.basic_ref["hash"], video_hashes=(self.helper.video_hash,), recorded_at=now(), reason="historical fixture")
         with self.store.connect(write=True) as db:
-            self.assertEqual(list(disclosure.records(db, self.case_id, self.session_id)), [])
-            db.execute("UPDATE cases SET deletion_requested=0 WHERE case_id=?", (self.case_id,))
-        def damaged(store, data):
-            result = write(store, data)
-            store.path(result[0]).write_bytes(b"{}")
-            return result
-        with patch.object(sheets, "write_document", side_effect=damaged), self.assertRaises(HTTPException):
-            self.reveal()
-        self.assertEqual(self.helper.view(self.sheet, "operator")["document"]["revision"], self.sheet["revision"])
+            self.store.audit(db, "operator", self.case_id, disclosure.ACTION, {"exposure": exposure.model_dump(mode="json")})
         with self.store.connect() as db:
-            self.assertEqual(list(disclosure.records(db, self.case_id, self.session_id)), [])
+            self.assertEqual(list(disclosure.records(db, self.case_id, self.session_id)), [exposure])
+            self.assertIn(exposure.exposure_id, disclosure.inherited(db, self.case_id, self.session_id, "operator", "rater-operator", sheets.document_for(self.store, sheets.row_for(self.store, db, self.sheet["sheet_id"])).source))
 
-    def test_future_batch_and_other_sheet_revisions_inherit_interpretation_exposure(self):
-        other = self.helper.assign("operator", purpose="consensus")
-        self.reveal()
-        before = self.helper.view(other, "operator")
-        self.assertEqual(len(before["interpretation_exposures"]), 1)
-        changed = self.helper.save(other, [], "operator")
-        self.assertEqual(len(self.helper.view(changed, "operator")["document"]["interpretation_exposures"]), 1)
-        fresh = self.helper.assign("operator", batch="synthetic-new-batch")
-        self.assertEqual(fresh["purpose"], "review")
-        self.assertEqual(len(self.helper.view(fresh, "operator")["document"]["interpretation_exposures"]), 1)
-
-    def test_disclosure_racing_another_sheet_save_requires_retry(self):
-        other = self.helper.assign("operator", purpose="consensus")
-        write = sheets.write_document
-        def reveal_during_write(store, data):
-            result = write(store, data)
-            if data["sheet"]["sheet_id"] == other["sheet_id"]:
-                self.reveal()
-            return result
-        with patch.object(sheets, "write_document", side_effect=reveal_during_write), self.assertRaises(HTTPException):
-            self.helper.save(other, [], "operator")
-        self.assertEqual(self.helper.view(other, "operator")["document"]["revision"], other["revision"])
-
-    def test_backup_restore_preserves_ledger_and_deleted_case_purges_it(self):
-        self.reveal()
-        root = Path(self.helper.temp.name)
-        maintenance.backup(self.store, root/"disclosure-backup", "operator")
-        maintenance.restore(self.store, root/"disclosure-backup", root/"disclosure-restored")
-        restored = Store(root/"disclosure-restored")
-        opinions.view(restored, self.case_id, self.session_id, self.user)
-        with restored.connect(write=True) as db:
-            self.assertEqual(len(list(disclosure.records(db, self.case_id, self.session_id))), 1)
-            db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (self.case_id,))
-        maintenance.clean(restored, purge_deleted=True)
-        with restored.connect() as db:
-            self.assertEqual(list(disclosure.records(db, self.case_id, self.session_id)), [])
-
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_self_assembled_final_of_other_rater_is_still_an_exposure(self):
+        from app.activity_v4 import opened
+        reader = self.helper.people["reviewer"]
+        draft = self.helper.assign("reviewer", source=self.sheet["sheet_id"])
+        final = finals.assemble(self.store, self.case_id, self.session_id,
+            model(finals.AssembleFinalV4, basic=self.basic_ref, opinion=self.opinion["reference"], reason="synthetic other source"), reader)
+        opened(self.store, reader, final["reference"]["final_id"], "final.open", final, "open", case_id=self.case_id, session_id=self.session_id)
+        view = sheets.view(self.store, draft["sheet_id"], reader)
+        self.assertEqual(view["effective_purpose"], "review")
+        self.assertEqual(len(view["activity_exposures"]), 1)

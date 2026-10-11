@@ -106,9 +106,5 @@ class ReportDisclosureV4Tests(unittest.TestCase):
         DisclosureV4Tests.setUp(self)
         final=finals.assemble(self.store,self.case_id,self.session_id,model(finals.AssembleFinalV4,
             basic=self.basic_ref,opinion=self.opinion['reference'],viewer_sheet_id=self.admin_sheet['sheet_id'],reason='synthetic final'),self.admin)
-        with self.assertRaises(HTTPException):reports.from_final(self.store,self.case_id,self.session_id,final['reference']['final_id'],self.user)
-        request=model(disclosure.InterpretationRevealV4,target=disclosure.target('final',final['reference']).model_dump(mode='json'),
-            viewer_sheet_id=self.sheet['sheet_id'],expected_viewer_revision=self.sheet['revision'],reason='synthetic explicit reveal')
-        disclosure.reveal(self.store,self.case_id,self.session_id,request,self.user)
         profile=reports.from_final(self.store,self.case_id,self.session_id,final['reference']['final_id'],self.user)
         self.assertEqual(profile.source.final.hash,final['reference']['hash'])

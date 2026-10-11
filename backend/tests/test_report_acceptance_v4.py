@@ -53,10 +53,6 @@ class ReportAcceptanceV4Tests(unittest.TestCase):
                 expected_revision=viewer["revision"], observations=rows, reason="synthetic independent input"), user, "save")
             viewer = sheets.revise(store, viewer["sheet_id"], model(sheets.SheetReasonV4,
                 expected_revision=viewer["revision"], reason="synthetic independent submit"), user, "submit")
-            sheets.grant(store, viewer["sheet_id"], model(sheets.SheetGrantV4, expected_revision=viewer["revision"],
-                target_sheet_id=basic.input.sheet_id, target_revision=basic.input.revision, reason="synthetic explicit grant"), user)
-            sheets.revise(store, viewer["sheet_id"], model(sheets.SheetRevealV4,
-                expected_revision=viewer["revision"], ref=basic.input.ref), user, "reveal")
         with store.connect() as db:
             basic_row = db.execute("SELECT * FROM basic_results WHERE result_id=?", (basic.result_id,)).fetchone()
             basic_ref = judgements.reference(basic_row)

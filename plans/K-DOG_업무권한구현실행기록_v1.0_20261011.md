@@ -9,8 +9,8 @@
 | 단계 | 구현 | 검증 | 독립 cold review | 수용 수정·재검증 | 문서 | 병합 |
 | --- | --- | --- | --- | --- | --- | --- |
 | AR01 | [x] | [x] | [x] | [x] | [x] | [x] PR #75 |
-| AR02 | [x] | [x] | [x] | [x] | [x] | 대기 |
-| AR03 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
+| AR02 | [x] | [x] | [x] | [x] | [x] | [x] PR #76 |
+| AR03 | [x] | [x] | [x] | [x] | [x] | 대기 |
 | AR04 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
 | AR05 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
 | AR06 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
@@ -77,7 +77,7 @@ FastAPI 최신판의 breaking-change 항목은 이번 정책 PR에서 자동 교
 
 ## 5 AR02 구현·검증 — 수용 수정·독립 재검토 완료
 
-기준 merge `af91032`, 브랜치 `veluga/ar02-minimal-activity-records`, [PR #76](https://github.com/syleeVeluga/k-dog-proj/pull/76), 구현 head `1500a1d`. 새 DB/의존성 없이 `changes`/`Store.audit`를 재사용한다. 의존성은 §4의 같은 날짜 공식 버전 검증과 잠금 환경을 유지한다.
+기준 merge `af91032`, 브랜치 `veluga/ar02-minimal-activity-records`, [PR #76](https://github.com/syleeVeluga/k-dog-proj/pull/76), 구현 head `1500a1d`, 최종 head `c1e8688769d4920164346f8ae5479a5d01b2fd2e`, merge `c8fb8918ead69e4cb50fe959f0eb115a5433f45c` (2026-10-11 14:54:54 UTC). 새 DB/의존성 없이 `changes`/`Store.audit`를 재사용한다. 의존성은 §4의 같은 날짜 공식 버전 검증과 잠금 환경을 유지한다.
 
 - 주요 참가자·촬영·시트 현재/보존본·기본 결과·의견·최종·검수 참고·비교집단·외부 비교·export 상세는 명시 `purpose=open`만 기록한다. 목록·자동 상세 갱신·기록 조회는 기록하지 않는다.
 - 원본 영상/전처리 클립은 「영상 열기」에서 서버의 파일 연결·해시 검증 후 1건을 남긴다. 재생 preload/seek/Range는 기록하지 않으며 다시 여는 동작은 별도 제공 사실로 남긴다. 원본 파일/export 다운로드는 실제 actor·대상·형식을 기록한다.
@@ -113,3 +113,43 @@ FastAPI 최신판의 breaking-change 항목은 이번 정책 PR에서 자동 교
 | 촬영 열람 판본 미기록·회차 미표시 | state가 실제 읽은 input_revision을 반환·open에 기록, 대상 확인에 회차/클립 표시 | 촬영 API 실제 revision/session 사건 일치 |
 
 기존 자동 폴링의 최초 열기 표식은 요청 전에 소비하여 최초 응답 유실 후 polling이 재열람 event를 만들지 않게 했다. 새 snapshot 경계는 읽기 페이지 계약이며 DB/사건 스키마/추출·합병을 도입하지 않는다. 독립 재검토에서 P2 3건 모두 해결·새 actionable 0건을 확인했다. 독립 합성 재현도 페이지 간 중복 change_id 0개·실제 촬영 r3 사건을 확인했고 diff check는 통과했다.
+
+## 6 AR03 공유 채점과 해석
+
+기준 `main / c8fb891`, 브랜치 `veluga/ar03-shared-scoring`. 구현일 2026-10-11~12. 의존성은 §4 공식 검증·잠금판을 유지하고 신규 의존성 없이 정책과 계약을 변경했다.
+
+- 활성 업무 계정은 모든 시트 현재/보존 판본·기본 결과·의견·최종을 조회하고 수정한다. 배정 없이 채점을 시작하며 원평가자 정보는 출처다. 소유 계정 비활성·옛 배정 active false·grant 없음도 업무 접근을 막지 않는다.
+- 운영 grant/reveal/배정 취소/시트 재개방 API와 실행 함수/고아 DTO를 제거했다. 제출본 수정 저장은 자동 새 draft revision이며 최초 제출 참조·이전 파일 bytes·original rater_id/rater_kind는 보존하고 실제 저장 actor를 기록한다. 완료/사용 중단 의견도 새 판본으로 다시 작성한다.
+- AR02의 명시 open 사건에서 원평가자의 사전 타결과 열람을 읽는다. 제출 사건의 rowid 경계로 최초 제출 의미를 고정하며 제3자 후행 열람이나 후속 편집은 최초 독립본을 바꾸지 않는다. 과거 exposure/grant는 읽기 전용 출처로 보존한다. 열람으로 시트 revision/purpose/initial_submission을 쓰지 않는다.
+- AI 관찰/판정의 사람 수정도 새 수동 판본이며 AI 원래 rater·원본 bytes를 보존한다. manual_modified·수동 판정 출처와 실제 actor를 표시하고 후속 계산/최종의 독립 AI 표시는 제외한다. 고정 입력·관찰 범위·필수/결측·변조·409 보호는 유지한다.
+- 화면은 모든 시트를 열고 배정/공개 승인 없이 작성·저장·제출본 수정·이전 판본·기록을 사용한다. 타인 해석은 바로 표시하며 명시 열람을 기존 활동 사건에 기록한다.
+
+| 검증 | 결과 |
+| --- | --- |
+| 핵심 8개 모듈: sheets/sheets_api/judgements/opinions/final_results/disclosures/opinions_api/attachment_ai | 최종 78개, 92.377초 통과. 첫 실행의 옛 권한/잠금 기대를 공통 접근과 원본 보존으로 갱신했으며 변조·범위·충돌 회귀는 유지 |
+| 최종 typed 활동 응답·4계정 실제 API·노출·변조 | `tests.test_disclosures_v4 tests.test_sheets_api_v4` 9개, 10.981초 통과 |
+| activity/ai_api/preprocess_api/report_api/report_validation/report_acceptance 영향 회귀 | 22개 중 21통과, 전처리의 옛 타평가자403 기대 1건을200으로 갱신; 해당 실제 FFmpeg 클립/결과 회귀 1개, 6.001초 재실행 통과 |
+| `npm run build` | 최종 통과, 기존 500kB chunk 안내 유지 |
+| `npm run test:e2e -- scoring-v4.spec.ts judgements-v4.spec.ts opinions-v4.spec.ts` | 최종5개, 36.3초 통과. 직접 타의견/최종 열람, 제출본 수정, 409 미저장 입력 유지, 이전판본, 360px 확인 |
+| 출처 존재/비활성 원평가자·공통 API | 4개, 6.154초 통과. 존재하지 않는 FK 출처는422이며 계정의 비활성·role은 접근 조건이 아님 |
+| 추가 AI 노출 수용 후 backend/build/E2E | 관련40개, 27.681초 통과·build 통과·E2E5개, 37.2초 통과 |
+| `git diff --check`·계획 index 링크 | 통과·93개, 누락0 |
+
+A가 배정 없이 생성 → B가 제출/제출본 수정 → C가 본인 시트 없이 현재/보존본 열람 → D가 고정 계산/최종 생성하는 실제 HTTP 회귀를 추가했다. AI 원본 사람 수정→재제출→기본 계산→최종의 manual 출처와 최초 bytes도 검증했다. 공급자는 fake/synthetic이며 운영 자료·실제 유료 호출은 사용하지 않았다.
+
+![공유 최종 해석 직접 열람 — 합성 자료](images/ar03-shared-final.png)
+
+### 독립 cold review·수용 판단
+
+`ar01_cold_review`의 독립 제품 검토 발견 3건을 수용했고 재검토에서 해결 확인했다. 추가 P2 1건도 수용했다. 최종 독립 재검토에서 4건 모두 해결·신규 actionable0을 확인했다.
+
+| 발견 | 수용 수정·회귀 |
+| --- | --- |
+| P1 최초 제출판본 계산에 현재 후속 편집 문맥이 섞임 | create/revise의 evaluation_context를 실제 pinned SheetDocument로 계산. 최초 independent 제출→타인 현재 review 편집→최초 판본 재계산의 독립 맥락 유지 회귀 |
+| P1 사람이 수정한 AI 관찰의 최종을 최초 독립 AI로 표시 | manual_modified·수동 판정·후속 기본 revision을 제외하고 계약 검증도 일치. AI 사람 수정→계산→최종에서 independent_ai=false·원본 hash 유지 |
+| P2 AI 명시 열람이 AI 노출 표시/계산에 누락 | 실제 명시 sheet/basic/의견/final의 pinned AI 원자료 출처로 effective_ai_exposed와 후속 저장/계산 context를 계산. 최초 draft/AI 원본 bytes 보존 회귀 |
+| P2 자기 조립 최종의 다른 원평가자 출처를 자기 결과로 오인 | 최종/의견의 실제 고정 기본 원평가자와 해석 작성자를 함께 확인. 다른 평가 기본을 본인이 조립·열람해도 초안은 노출 기록으로 분류 |
+
+AR04 동의/삭제/보관 및 AR05 리포트/내보내기 소유 조건은 해당 계획으로 인계한다. 이 PR만으로 통합 운영 전환 완료를 표시하지 않는다.
+
+최종 독립 재검토는 추가 AI 노출 재현에서 읽기 표시 True·원본 상태/bytes 보존·제출/계산 ai_exposed=True·최초 AI bytes 보존을 확인했다. 독립 회귀40개(23.883초) 통과, 신규 actionable0. 앞선 재검토의 52개 통과와 원평가 출처/FK 검토도 기록하며 중복 시험 수를 총합 성공 수로 과장하지 않는다.

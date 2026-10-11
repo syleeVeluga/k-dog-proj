@@ -271,8 +271,6 @@ class AttachmentPipelineTests(unittest.TestCase):
             rows = [{"code": item.code, "value": None, "status": "unobserved", "reason": "synthetic independent missing"} for item in basic.input_document.sheet.observations]
             viewer = sheets.revise(self.store, viewer["sheet_id"], model(sheets.SheetEditV4, expected_revision=viewer["revision"], observations=rows, reason="synthetic independent input"), self.helper.user, "save")
             viewer = sheets.revise(self.store, viewer["sheet_id"], model(sheets.SheetReasonV4, expected_revision=viewer["revision"], reason="synthetic independent submit"), self.helper.user, "submit")
-            sheets.grant(self.store, viewer["sheet_id"], model(sheets.SheetGrantV4, expected_revision=viewer["revision"], target_sheet_id=basic.input.sheet_id, target_revision=basic.input.revision, reason="synthetic explicit AI grant"), self.helper.user)
-            sheets.revise(self.store, viewer["sheet_id"], model(sheets.SheetRevealV4, expected_revision=viewer["revision"], ref=basic.input.ref), self.helper.user, "reveal")
         with self.store.connect() as db:
             row = db.execute("SELECT * FROM basic_results WHERE result_id=?", (basic.result_id,)).fetchone()
         result = finals.assemble(self.store, self.helper.case_id, self.helper.session_id, model(finals.AssembleFinalV4,
