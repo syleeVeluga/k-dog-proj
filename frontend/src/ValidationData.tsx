@@ -73,11 +73,12 @@ export function ValidationData({ user }: { user: User }) {
   }
   if (unavailable) return <section className="panel"><h1>검수 자료</h1><p role="alert">{error}</p></section>;
   return <section className="panel" aria-label="검수 참고 자료" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-    <h1>검수 자료</h1><p>원본 셀과 전달된 상태를 보존하는 참고 등록입니다. 현재 S1 채점 시트에 복사하지 않으며, 독립 사람 정답 여부는 G03 확인 대기입니다. S1 빈 입력 양식의 G01·G04 승인과도 별개입니다.</p>
+    <h1>검수 자료</h1><p>검수 참고 파일(Excel)을 올리면 원본 셀과 전달된 상태를 그대로 보존합니다.</p>
+    <details><summary>자세히</summary><p>채점 시트에는 복사하지 않으며, 사람이 확정한 정답 여부는 아직 정해지지 않았습니다. 빈 입력 양식의 승인과도 별개입니다.</p></details>
     <p className="fine">수식은 실행하지 않습니다. 파일에 저장된 캐시는 실제 Excel 재계산이나 앱 실측 결과가 아닙니다. 보호자 이름을 평가자로 자동 지정하지 않습니다.</p>
     {error && <p role="alert" className="error">{error}</p>}{notice && <p role="status">{notice}</p>}
     <fieldset disabled={busy}><legend>참고 파일과 셀 선택</legend><label>검수 XLSX 파일<input type="file" accept=".xlsx" onChange={event => { const value = event.target.files?.[0]; event.target.value = ''; if (value && (!file || window.confirm('현재 파일의 미등록 선택을 버리고 새 파일을 검사할까요?'))) void work(() => inspect(value)); }} /></label>
-      {file && book && <><p>{file.name} · SHA-256: {book.source_sha256}</p><label>원본 시트<select aria-label="원본 시트" value={selection.sheet} onChange={event => setSelection({ ...selection, sheet: event.target.value, cell: '' })}>{book.sheets.map(sheet => <option key={sheet}>{sheet}</option>)}</select></label>
+      {file && book && <><p>{file.name}</p><details><summary>기술 정보</summary><p className="fine">SHA-256: {book.source_sha256}</p></details><label>원본 시트<select aria-label="원본 시트" value={selection.sheet} onChange={event => setSelection({ ...selection, sheet: event.target.value, cell: '' })}>{book.sheets.map(sheet => <option key={sheet}>{sheet}</option>)}</select></label>
         <label>원본 셀 주소<input placeholder="B2" value={selection.cell} maxLength={10} onChange={event => setSelection({ ...selection, cell: event.target.value.toUpperCase() })} /></label>
         <p className="fine">현재 시트의 기록된 셀: {book.cells.filter(cell => cell.sheet === selection.sheet).slice(0, 80).map(cell => cell.cell).join(', ')}{book.cells.filter(cell => cell.sheet === selection.sheet).length > 80 ? ' … (주소를 직접 입력하면 검사합니다)' : ''}</p>
         {raw ? <Cell value={raw} /> : selection.cell && <p>이 주소에 저장된 셀 값이 없습니다. 선택하면 결측(null)로 보존합니다.</p>}
@@ -93,7 +94,7 @@ export function ValidationData({ user }: { user: User }) {
       </>}
     </fieldset>
     <section aria-label="등록한 검수 참고 자료"><h2>내가 등록한 참고 자료</h2><button disabled={busy} onClick={() => void work(reload)}>참고 자료 목록 새로고침</button>{records.length === 0 && <p>등록한 자료가 없습니다.</p>}{records.map(row => 'reference' in row ? <p key={row.reference.validation_id}>{row.filename} · {row.row_count}행 · 연결 대상 {row.mapped_subject_count}개 <button disabled={busy} onClick={() => void work(async () => { const value = await api<ValidationViewV4>(`/validation-data-s1/${row.reference.validation_id}`); if (alive.current) setOpened(value); })}>참고 기록 열기 {row.reference.validation_id.slice(0, 8)}</button></p> : <p key={row.validation_id}>참고 자료 {row.validation_id.slice(0, 8)} · 제공 차단: {row.reason}</p>)}</section>
-    {opened && <section aria-label="보존한 검수 참고 기록"><h2>{opened.filename} · 참고 기록</h2><p>원본 SHA-256: {opened.document.source.hash}</p><p>등록 {opened.document.recorded_at} · 수식 재계산 안 함 · G03 정답 미확정</p>{opened.document.bindings.map(binding => <p key={binding.source_subject}>{binding.source_subject} → {binding.case_id} / {binding.session_id} · 입력 r{binding.expected_revision} · {binding.participation} · {binding.reason}</p>)}<Rows rows={opened.document.rows} /></section>}
+    {opened && <section aria-label="보존한 검수 참고 기록"><h2>{opened.filename} · 참고 기록</h2><p>등록 {opened.document.recorded_at} · 수식 재계산 안 함 · 사람 정답 미확정</p><details><summary>기술 정보</summary><p className="fine">원본 SHA-256: {opened.document.source.hash}</p></details>{opened.document.bindings.map(binding => <p key={binding.source_subject}>{binding.source_subject} → {binding.case_id} / {binding.session_id} · 입력 r{binding.expected_revision} · {binding.participation} · {binding.reason}</p>)}<Rows rows={opened.document.rows} /></section>}
   </section>;
 }
 

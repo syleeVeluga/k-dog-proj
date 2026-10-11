@@ -124,7 +124,7 @@ def _case(store, db, case_id, session_id, user):
     row = store.case(db, case_id)
     manifest = store.manifest(row)
     if not isinstance(manifest, ManifestV4) or manifest.consents.analysis_feedback != "confirmed":
-        raise HTTPException(403, "분석·피드백 동의가 확인된 S1 자료만 리포트를 열 수 있습니다.")
+        raise HTTPException(403, "분석·피드백 동의가 확인된 참가자만 리포트를 열 수 있습니다.")
     if not any(session.session_id == session_id for session in manifest.sessions):
         raise HTTPException(404, "이 대상의 촬영 회차가 없습니다.")
     return row, manifest

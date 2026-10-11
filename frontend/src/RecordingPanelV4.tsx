@@ -112,12 +112,12 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
       {(!record.video_id || !record.procedure_note.trim()) && <span className="fine" aria-live="polite">{!record.video_id ? (videos.length ? '기준 영상을 고르세요.' : '읽을 수 있는 영상을 먼저 연결하세요.') : '실제 촬영 절차의 확인 근거를 기록해야 저장할 수 있습니다.'}</span>}</> : <button onClick={() => setEditing(true)}>확정본 수정 시작</button>}
       {edit.dirty && <><span role="status">촬영 기록 · 저장 전</span><button onClick={() => { if (edit.discard()) { setRecord(initial(item)); setEditing(!session.recording_s1?.confirmed); } }}>촬영 입력 버리고 최신 값 보기</button></>}</div>}
     <p>입장 → 기준 → 혼자 → 재회 → 무시 → 걷기 → 낯선 사람 → 퇴장</p>
-    <details><summary>S1 진행 안내</summary>
+    <details><summary>진행 안내</summary>
       <p>예정 길이는 30·20·60·30·20·30·30·30초이며 전환은 별도입니다. 실제 시작과 끝을 기록합니다. 분리 중 복지 중단 시 보호자가 즉시 돌아오고, 혼자 구간 끝과 재회 시작을 같은 실제 시각으로 기록합니다.</p>
       <p>분리 미실시는 재회도 미실시입니다. 걷기는 실제 이동과 정지 세 쌍을 기록하며 이동 시간을 균등 분할하지 않습니다. 중단·안전상 거리 예외는 사유와 함께 남깁니다.</p>
       <p>직원 신호, 실제 부름, 접촉 시작·끝, 미접촉을 구분합니다. 예정 시각으로 실제 사건을 대신하지 않습니다. 영상 가림·신체 미관찰·오디오 손상은 각각 기록하고 관찰되지 않은 반응을 0으로 채우지 않습니다.</p>
     </details>
-    {session.recording && <details><summary>보존된 이전 촬영 원기록</summary><p>이전 기록은 원자료로 보존됩니다. 아래 S1 절차 확인은 실제 영상을 다시 확인하여 입력하세요.</p>
+    {session.recording && <details><summary>보존된 이전 촬영 원기록</summary><p>이전 기록은 원자료로 보존됩니다. 아래 현재 절차 확인은 실제 영상을 다시 확인하여 입력하세요.</p>
       <ul>{session.recording.segments.map(value => <li key={value.segment}>{SEGMENTS_V3.find(([id]) => id === value.segment)?.[1]} · {value.start_sec ?? '미확인'}~{value.end_sec ?? '미확인'}초 · {states[value.state]} · {value.reason}</li>)}</ul>
       <ul>{session.recording.walk_phases.map((value, index) => <li key={value.phase}>{phaseNames[index]} · {value.start_sec ?? '미확인'}~{value.end_sec ?? '미확인'}초 · {states[value.state]} · {value.reason}</li>)}</ul>
       <ul>{session.recording.events.map(value => <li key={value.event_id}>{EVENT_CHOICES.find(([id]) => id === value.kind)?.[1] ?? value.kind} · {session.videos.find(video => video.video_id === value.video_id)?.original_name} · {value.seconds ?? '미관찰'}~{value.end_seconds ?? '끝 미지정'}초 · {value.status === 'observed' ? '관찰됨' : value.status === 'not_occurred' ? '미발생' : '미관찰'} · {value.note} · {value.affected_codes.join(', ')}</li>)}</ul>
@@ -129,7 +129,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
     {record.video_id && <video src={`/api/cases/${item.case_id}/videos/${record.video_id}`} controls preload="metadata" />}
     <fieldset disabled={!writable || !editing}>
       <div className="form-grid"><label>실제 촬영 절차<select value={record.procedure_edition} onChange={event => change({ ...record, procedure_edition: event.target.value as RecordingV4['procedure_edition'] })}>
-        <option value="unconfirmed">미확인</option><option value="s1_confirmed">S1 절차 확인</option><option value="legacy">이전·다른 절차</option></select></label>
+        <option value="unconfirmed">미확인</option><option value="s1_confirmed">현재 절차 확인</option><option value="legacy">이전·다른 절차</option></select></label>
         <label>절차 확인 근거<textarea value={record.procedure_note} onChange={event => change({ ...record, procedure_note: event.target.value })} /></label>
         <label>기준 영상<select value={record.video_id} onChange={event => { const id = event.target.value; change({ ...record, video_id: id,
           segments: record.segments.map(value => ({ ...value, video_id: id, start_sec: null, end_sec: null })), walk_phases: record.walk_phases.map(value => ({ ...value, video_id: id, start_sec: null, end_sec: null })),

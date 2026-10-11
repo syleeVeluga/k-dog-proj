@@ -80,7 +80,7 @@ function RegistrationCard({ item, video, writable, run, refresh, parents }: Prop
   }
   return <article className="receipt-card" aria-label={`${video.original_name} 출처 등록`}>
     <h3>{video.original_name}</h3>
-    <p className="fine">영상 {video.video_id} · {(video.size_bytes / 1048576).toFixed(1)} MiB · SHA-256 {video.sha256}</p>
+    <p className="fine">영상 {(video.size_bytes / 1048576).toFixed(1)} MiB</p><details><summary>기술 정보</summary><p className="fine">영상 {video.video_id} · SHA-256 {video.sha256}</p></details>
     <form onChange={editor.change} onSubmit={event => { event.preventDefault(); void run(() => register()); }}>
       <fieldset disabled={!writable || busy || locked}><legend>확인한 촬영 정보</legend>
         <div className="form-grid">

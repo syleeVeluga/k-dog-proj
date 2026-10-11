@@ -83,7 +83,7 @@ def _case(store, db, case_id, session_id, actor, expected=None, *, write=False, 
 def _recording(session):
     recording = session.recording_s1
     if recording is None or not recording.confirmed or recording.procedure_edition != "s1_confirmed":
-        raise HTTPException(409, "S1 촬영 절차와 실제 시각을 확인·확정한 뒤 전처리하세요.")
+        raise HTTPException(409, "촬영 절차와 실제 시각을 확인·확정한 뒤 전처리하세요.")
     known = {video.video_id for video in session.videos}
     used = {recording.video_id, *(item.video_id for item in recording.video_offsets),
             *(item.video_id for item in recording.events), *(item.video_id for item in recording.coverage)}

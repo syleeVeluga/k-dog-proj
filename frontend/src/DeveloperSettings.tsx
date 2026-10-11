@@ -45,8 +45,9 @@ export function Recovery() {
   const [busy, setBusy] = useState(false);
   useEffect(() => { void api<typeof status>('/admin/recovery').then(setStatus).catch(e => setError(e.message)); }, []);
   return <details className="panel"><summary>자료 백업·복구</summary>
-    {status && <><p>{status.message}</p><p>남은 공간 {(status.free_bytes / 1024 ** 3).toFixed(1)} GB · 삭제 요청 {status.deletion_requests}건</p>
-      <p className="fine">최근 백업: {status.last_backup?.path ?? '없음'}</p></>}
+    {status && <><p>남은 공간 {(status.free_bytes / 1024 ** 3).toFixed(1)} GB · 삭제 요청 {status.deletion_requests}건</p>
+      <p className="fine">최근 백업: {status.last_backup?.path ?? '없음'}</p>
+      <p className="fine">{status.message}</p></>}
     <button disabled={busy} onClick={() => { setBusy(true); setMessage(''); setError(''); void api<{ path: string }>('/admin/backups', 'POST')
       .then(v => setMessage(`검증된 백업 저장 완료: ${v.path}`)).catch(e => setError(e.message)).finally(() => setBusy(false)); }}>{busy ? '파일 검증·백업 중…' : '자료 백업 생성 · 키 제외'}</button>
     <Notification message={error} kind="error" onClose={() => setError('')} />
