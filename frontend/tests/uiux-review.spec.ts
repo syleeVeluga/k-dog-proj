@@ -10,6 +10,7 @@ for (const width of [1366, 820, 390]) test(`${width}px 접수 제목의 참가�
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   const count = page.locator('.count span');
   await expect(count).toBeVisible();
+  await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeEnabled();
   expect((await count.boundingBox())!.width).toBeGreaterThanOrEqual(50);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath(`review-intake-${width}.png`), fullPage: true });
