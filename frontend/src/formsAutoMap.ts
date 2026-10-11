@@ -21,19 +21,22 @@ const aliases: Record<string, string[]> = {
   consent_confirmed: ['기본 동의', '동의 확인', '동의', 'consent_confirmed'],
   consent_analysis_feedback: ['분석·피드백 동의', '분석 피드백 동의', 'consent_analysis_feedback'],
   consent_stranger_contact: ['낯선 사람 접촉 동의', '낯선 요원 접근·접촉 동의', 'consent_stranger_contact'],
-  dog_breed: ['견종', '품종', 'dog_breed'],
-  dog_sex: ['성별', '반려견 성별', 'dog_sex'],
-  dog_age_years: ['나이', '연령', '반려견 나이', 'dog_age_years'],
-  dog_size: ['크기', '체급', '견 크기', 'dog_size'],
+  dog_breed: ['견종', '품종', '반려견 견종', 'dog_breed'],
+  dog_sex: ['반려견 성별', '강아지 성별', 'dog_sex'],
+  dog_age_years: ['반려견 나이', '강아지 나이', '반려견 나이(세)', '강아지 나이(세)', 'dog_age_years'],
+  dog_size: ['반려견 크기', '견 크기', '체급', 'dog_size'],
   years_together: ['함께 산 기간', '함께한 기간', 'years_together'],
   adoption_route: ['입양 경로', '분양 경로', 'adoption_route'],
 };
 
-// 앞뒤 공백·전각/반각·대소문자·괄호 안 보조 설명을 걷어내고 구분 기호를 없앤 비교용 문자열.
+// 앞뒤 공백·전각/반각·대소문자를 맞추고 필수·선택 같은 보조 설명 괄호만 걷어낸다. 단위·한정어가 든 괄호
+// (나이(개월), 크기(kg) 등)는 남겨 다른 항목으로 오인하지 않는다. 숫자 사이 구분은 지우지 않아 Q1-2가 Q12가 되지 않는다.
+const auxiliary = /\((?:필수|선택|필수 입력|선택 입력|필수\s*항목|선택\s*항목)\)/g;
 export function normalizeHeader(header: string): string {
   return header.normalize('NFKC').toLowerCase()
-    .replace(/\([^)]*\)|\[[^\]]*\]/g, '')
-    .replace(/[\s_\-.:·*?]/g, '');
+    .replace(auxiliary, '')
+    .replace(/(\d)[\s_]+(?=\d)/g, '$1#')
+    .replace(/[\s_·*?]/g, '');
 }
 
 const aliasIndex = new Map<string, string[]>();
@@ -42,7 +45,7 @@ for (const [key, names] of Object.entries(aliases)) for (const name of names) {
   aliasIndex.set(normal, [...new Set([...(aliasIndex.get(normal) ?? []), key])]);
 }
 
-const questionPattern = /^(?:q|s|문항|질문)?0*(\d{1,2})(?:번)?(?:원응답)?(빈칸사유|빈칸이유|사유|reason)?$/;
+const questionPattern = /^(?:(?:q|s|문항|질문)(\d{1,2})|(\d{1,2})번)(?:원응답)?(빈칸사유|빈칸이유|사유|reason)?$/;
 
 // 헤더 하나가 맞는 표준 항목 후보들. 비어 있으면 연결 안 됨, 둘 이상이면 확인 필요다.
 export function candidatesFor(header: string): string[] {
@@ -50,10 +53,10 @@ export function candidatesFor(header: string): string[] {
   const found = [...(aliasIndex.get(normal) ?? [])];
   const question = questionPattern.exec(normal);
   if (question) {
-    const number = Number(question[1]);
+    const number = Number(question[1] ?? question[2]);
     if (number >= 1 && number <= 28) {
       const key = `s${String(number).padStart(2, '0')}`;
-      found.push(question[2] ? `${key}_reason` : key);
+      found.push(question[3] ? `${key}_reason` : key);
     }
   }
   return [...new Set(found)];

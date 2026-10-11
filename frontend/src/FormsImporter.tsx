@@ -11,6 +11,7 @@ type Preview = { preview_id: string; preview_hash: string; source_hash: string; 
 const questions = questionKeys;
 const templates = [['roster', '명단만'], ['full', '명단 + 설문 28문항']] as const;
 const EVENT_KEY = 'kdog.forms.eventId';
+const INPUT_SHEET = '입력';
 
 // 브라우저 저장소는 편의용이다. 막혀 있어도 동작해야 한다.
 function storedEvent() { try { return window.localStorage.getItem(EVENT_KEY) ?? ''; } catch { return ''; } }
@@ -59,9 +60,17 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
   }
   // 파일·배치·시트가 정해지면 열을 읽고 헤더로 자동 연결을 제안한다.
   async function inspect(source: File, nextLayout: string, nextSheet: string) {
+    invalidate();
+    if (!/\.(csv|xlsx)$/i.test(source.name)) throw new Error('CSV 또는 XLSX 파일 하나만 올릴 수 있습니다.');
     if (source.size > 32 * 1024 * 1024) throw new Error('파일은 32 MiB 이하로 나누어 등록하세요.');
-    const query = new URLSearchParams({ format: fileFormat(source), layout: nextLayout }); if (nextSheet) query.set('sheet', nextSheet);
-    const found = await api<{ columns: { key: string }[]; sheets: string[]; selected_sheet: string | null }>(`/forms/columns?${query}`, 'POST', source);
+    const read = (sheetName: string) => {
+      const query = new URLSearchParams({ format: fileFormat(source), layout: nextLayout }); if (sheetName) query.set('sheet', sheetName);
+      return api<{ columns: { key: string }[]; sheets: string[]; selected_sheet: string | null }>(`/forms/columns?${query}`, 'POST', source);
+    };
+    let found = await read(nextSheet);
+    // 표준 양식을 안내 시트에서 저장한 경우처럼 첫 시트가 안내뿐이면 「입력」 시트를 대신 읽는다.
+    if (!nextSheet && found.selected_sheet !== INPUT_SHEET && found.sheets.includes(INPUT_SHEET)
+      && !Object.keys(autoMap(found.columns.map(c => c.key)).mapping).length) found = await read(INPUT_SHEET);
     const keys = found.columns.map(c => c.key), proposal = autoMap(keys);
     setColumns(keys); setSheets(found.sheets); setSheet(found.selected_sheet ?? ''); setMapping(proposal.mapping); setAuto(proposal);
     setLabels({}); setTargets([]); setBulkMessage(''); invalidate();
@@ -86,11 +95,11 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
   }
   async function preview() {
     if (!file) return;
-    const config = { request_id: requestId, event_id: eventId, filename: file.name, format: fileFormat(file),
+    const config = { request_id: requestId, event_id: eventId.trim(), filename: file.name, format: fileFormat(file),
       mapping: { version, source_profile: profile, survey_version: historical ? historicalVersion : 'survey-20260929-v3',
         sheet: sheet || null, layout, historical_reference_only: historical, columns: mapping, answer_labels: parsedLabels() }, targets };
     setResult(await api<Preview>('/forms/preview', 'POST', { config, file_base64: await encodedFile(file) }));
-    rememberEvent(eventId);
+    rememberEvent(eventId.trim());
   }
   function applyBulkLabels() {
     const chosen = bulkRange.trim() ? parseQuestionRange(bulkRange) : questions.filter(q => mapping[q]);
@@ -99,6 +108,9 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
     if ('error' in parsed || !bulkLabels.trim()) { setBulkMessage('error' in parsed ? parsed.error : '적용할 원라벨=숫자를 입력하세요.'); return; }
     const linked = chosen.filter(q => mapping[q]);
     if (!linked.length) { setBulkMessage('선택한 문항에 연결된 원본 열이 없습니다.'); return; }
+    if (Object.values(parsed.values).some(value => value > 4) && linked.some(q => ['s10', 's11', 's12', 's13', 's14'].includes(q))) {
+      setBulkMessage('10~14번은 0~4만 쓸 수 있습니다. 5가 있는 라벨은 10~14번을 뺀 문항 번호로 나누어 적용하세요.'); return;
+    }
     setLabels({ ...labels, ...Object.fromEntries(linked.map(q => [q, bulkLabels])) });
     setBulkMessage(`${linked.length}개 문항에 같은 라벨을 적용했습니다. 미리보기에서 결과를 확인하세요.`); invalidate();
   }
@@ -121,20 +133,20 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
 
   return <section aria-label="Forms 참가자와 설문 등록">
     <div className="page-heading"><div><p className="eyebrow">UPLOAD</p><h1>일괄 등록 (CSV·Excel)</h1></div></div>
-    <p className="fine">명단이나 설문 응답 파일(CSV·Excel)을 올리면 참가자와 설문을 등록합니다. 이름으로 기존 참가자를 추정하지 않습니다.</p>
+    <p className="fine">명단이나 설문 응답 파일(CSV·Excel)을 올리면 참가자와 설문을 등록합니다. 이름으로 기존 참가자를 추정하지 않습니다. 참가자 ID 열이 없으면 미리보기에서 ID를 발급하고, 동의 열이 없으면 미확인으로 남깁니다.</p>
     <fieldset disabled={busy}><legend>① 양식 받기 (선택)</legend>
-      <p className="fine">표준 양식을 채워 올리면 열 연결을 고칠 필요가 없습니다. 이미 가진 파일은 그대로 올려도 됩니다.</p>
+      <p className="fine">표준 양식을 채워 올리면 열 연결을 고칠 필요가 없습니다. 이미 가진 파일은 그대로 올려도 됩니다. Excel 양식(XLSX)을 권장합니다. CSV를 Excel에서 다시 저장하면 0001의 앞자리 0이 사라질 수 있습니다.</p>
       <div className="toolbar">{templates.map(([kind, name]) => <span key={kind} className="template-links"><strong>{name}</strong>
         {(['xlsx', 'csv'] as const).map(format => <a key={format} className="button-link" href={`/api/forms/template?kind=${kind}&format=${format}`} download>{name} {format === 'xlsx' ? 'Excel' : 'CSV'} 내려받기</a>)}</span>)}</div>
     </fieldset>
     <fieldset disabled={busy}><legend>② 파일 올리기</legend>
       <div className={`dropzone${dragging ? ' dragging' : ''}`} onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={drop}>
-        <label>Forms 파일<input aria-label="Forms 파일" type="file" accept=".csv,.xlsx" onChange={e => chooseFile(e.target.files?.[0] ?? null)} /></label>
+        <label>Forms 파일<input aria-label="Forms 파일" type="file" accept=".csv,.xlsx" onClick={e => { e.currentTarget.value = ''; }} onChange={e => chooseFile(e.target.files?.[0] ?? null)} /></label>
         <p className="fine">파일을 여기로 끌어다 놓거나 위에서 선택하세요. 올리면 열을 자동으로 읽습니다.{file ? ` 선택한 파일: ${file.name}` : ''}</p>
       </div>
       <div className="form-grid">
         <label>등록 행사 ID<input aria-label="폼 행사 ID" value={eventId} placeholder="KDOG-2026" onChange={e => { setEventId(e.target.value); invalidate(); }} /><small>필수 · 마지막으로 쓴 행사 ID를 제안합니다.</small></label>
-        {sheets.length > 1 && <label>원본 시트<select aria-label="원본 시트" value={sheet} onChange={e => { setSheet(e.target.value); clearColumns(); if (file) void work(() => inspect(file, layout, e.target.value)); }}>{sheets.map(s => <option key={s}>{s}</option>)}</select><small>시트가 여러 개입니다. 입력 내용이 있는 시트를 고르세요.</small></label>}
+        {sheets.length > 1 && <label>원본 시트<select aria-label="원본 시트" value={sheet} onChange={e => { setSheet(e.target.value); clearColumns(); invalidate(); if (file) void work(() => inspect(file, layout, e.target.value)); }}>{sheets.map(s => <option key={s}>{s}</option>)}</select><small>시트가 여러 개입니다. 입력 내용이 있는 시트를 고르세요.</small></label>}
       </div>
       <details><summary>고급 설정</summary><div className="form-grid">
         <label>파일 배치<select aria-label="파일 배치" value={layout} onChange={e => { setLayout(e.target.value); clearColumns(); invalidate(); if (file) void work(() => inspect(file, e.target.value, '')); }}><option value="rows">첫 행이 질문·항목, 이후 행이 참가자</option><option value="transposed">첫 열이 질문·항목, 이후 열이 참가자</option></select></label>
@@ -148,6 +160,8 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
       {auto && <p role="status">자동 연결 {Object.keys(auto.mapping).length}개 · 확인 필요 {auto.review.length + auto.conflicts.length}개 · 연결 안 됨 {auto.unmatched.length}개</p>}
       {!!missingRequired.length && <div className="warning" role="alert">{missingRequired.map(key => <div key={key}>
         {columnSelect(key, `필수: ${itemLabel(key)} 열을 고르세요`, `폼 필수 열 ${key}`)}</div>)}</div>}
+      {!mapping.participant_id && <p className="warning">참가자 ID 열이 연결되지 않았습니다. 이 파일을 올리면 참가자마다 새 ID를 발급하며, 고친 파일을 다시 올리면 같은 사람이 중복 등록됩니다. ID 열이 있다면 「모든 연결 보기」에서 연결하세요.</p>}
+      {layout !== 'rows' && <p className="warning">전치 파일(첫 열이 항목)로 읽는 중입니다. 일반 파일이면 「고급 설정」에서 파일 배치를 바꾸세요.</p>}
       {!!auto?.review.length && <ul className="warning">{auto.review.map(item => <li key={item.column}>‘{item.column}’ 열은 {item.keys.map(itemLabel).join('·')} 중 무엇인지 알 수 없어 연결하지 않았습니다. 「모든 연결 보기」에서 직접 고르세요.</li>)}</ul>}
       {!!auto?.conflicts.length && <ul className="warning">{auto.conflicts.map(item => <li key={item.key}>{itemLabel(item.key)}에 맞는 열이 여러 개입니다({item.columns.join(', ')}). 연결하지 않았으니 「모든 연결 보기」에서 하나를 고르세요.</li>)}</ul>}
       <p className="fine">연결된 항목: {linkedProfile.length ? linkedProfile.map(([key, label]) => `${label} ← ${mapping[key]}`).join(' · ') : '참가자 항목 없음'}{answerCount ? ` · 설문 응답 ${answerCount}문항` : ''}{reasonCount ? ` · 빈칸 사유 ${reasonCount}개` : ''}</p>
@@ -183,7 +197,7 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
     </fieldset>}
     <fieldset disabled={busy}><legend>④ 미리보기·등록</legend>
       <div className="toolbar"><button className="primary" disabled={!!previewBlock} aria-describedby="forms-preview-reason" onClick={() => void work(preview)}>Forms 등록 미리보기</button>
-        <span id="forms-preview-reason" className="fine">{previewBlock}</span></div>
+        <span id="forms-preview-reason" className="fine" aria-live="polite">{previewBlock}</span></div>
     </fieldset>
     {result && <section aria-label="Forms 등록 미리보기 결과"><h3>원행 {result.rows.length}개 · 오류 {result.errors.length}개</h3>
       {result.already_committed && <p role="status">이미 확정한 파일입니다. 재확정해도 참가자가 추가되지 않습니다.</p>}

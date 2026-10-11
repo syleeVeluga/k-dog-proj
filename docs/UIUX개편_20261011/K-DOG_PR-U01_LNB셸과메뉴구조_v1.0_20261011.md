@@ -51,7 +51,7 @@
 
 ## 구현 및 검증 기록
 
-상태: 구현·검증·cold review 반영 완료 (2026-10-11). 병합 여부는 PR 기록을 따른다.
+상태: 구현·검증·cold review 반영 완료 후 PR #62로 main에 병합 (2026-10-11, merge `caa68f0`). 계획 문서 PR #61도 이 병합으로 함께 들어갔다.
 
 - [x] 구현·변경 파일 및 commit/PR 기록
   - 브랜치 `veluga/u01-lnb-shell`, commit `d0f35be`(구현)와 cold review 수용 수정 commit. PR은 계획 문서 PR #61과 함께 올린다 (#61 단독 병합은 자동 모드 분류기가 거부해 U01 PR에 계획 문서 커밋이 포함된다).

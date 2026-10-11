@@ -53,12 +53,12 @@ test('명단만 있는 파일도 등록되고 설문은 미등록으로 남는�
 
 test('같은 항목에 맞는 열이 둘이면 연결하지 않고 확인 필요로 알린다', async ({ page }) => {
   const form = await openImporter(page);
-  await form.getByLabel('Forms 파일', { exact: true }).setInputFiles(csvFile('alias.csv', '접수번호,강아지 이름,Q1,1번,나이(세),타임스탬프\n0301,별칭견,3,4,5,2026-10-11\n'));
+  await form.getByLabel('Forms 파일', { exact: true }).setInputFiles(csvFile('alias.csv', '접수번호,강아지 이름,Q1,1번,반려견 나이,타임스탬프\n0301,별칭견,3,4,5,2026-10-11\n'));
   await expect(form.getByRole('status').filter({ hasText: '자동 연결 3개 · 확인 필요 1개 · 연결 안 됨 1개' })).toBeVisible();
   await expect(form.getByText('1번 응답에 맞는 열이 여러 개입니다(Q1, 1번)', { exact: false })).toBeVisible();
   await form.getByText('모든 연결 보기', { exact: true }).click();
   await expect(form.getByLabel('폼 열 participant_id', { exact: true })).toHaveValue('접수번호');
-  await expect(form.getByLabel('폼 열 dog_age_years', { exact: true })).toHaveValue('나이(세)');
+  await expect(form.getByLabel('폼 열 dog_age_years', { exact: true })).toHaveValue('반려견 나이');
   await form.getByText('28문항과 빈칸 사유 연결', { exact: true }).click();
   await expect(form.getByLabel('폼 열 s01', { exact: true })).toHaveValue('');
 });

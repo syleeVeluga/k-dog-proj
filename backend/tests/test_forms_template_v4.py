@@ -11,7 +11,7 @@ from app.domain.catalog import SURVEY_IDS
 from tests.support import AppCase
 
 ROSTER_HEADERS = ["참가자 ID", "반려견 이름", "보호자 이름", "예약 시각", "순번", "기본 동의", "분석·피드백 동의",
-                  "낯선 사람 접촉 동의", "견종", "성별", "나이", "크기", "함께 산 기간", "입양 경로"]
+                  "낯선 사람 접촉 동의", "견종", "반려견 성별", "반려견 나이", "반려견 크기", "함께 산 기간", "입양 경로"]
 SURVEY_HEADERS = [f"Q{index:02d}" for index in range(1, 29)]
 
 
@@ -44,6 +44,9 @@ class FormsTemplateV4Tests(AppCase):
         self.assertEqual(sheet["A1000"].number_format, "@")
         rules = {str(rule.sqref): rule for rule in sheet.data_validations.dataValidation}
         self.assertEqual(rules["J2:J1001"].formula1, '"암,수,중성화,미기재"')
+        self.assertTrue(all(rule.showErrorMessage and rule.error for rule in rules.values()))
+        for column in ("A", "B", "C"):
+            self.assertEqual(sheet[f"{column}500"].number_format, "@")
         self.assertEqual(rules["K2:K1001"].type, "whole")
         # Q10~Q14 allow 0~4; the other questions 1~5.
         question = {name: rules[f"{sheet.cell(row=1, column=index).column_letter}2:{sheet.cell(row=1, column=index).column_letter}1001"]
@@ -86,7 +89,9 @@ class FormsTemplateV4Tests(AppCase):
     def test_filled_xlsx_opens_on_the_input_sheet_and_previews(self):
         workbook = load_workbook(BytesIO(template("roster", "xlsx")))
         sheet = workbook["입력"]
-        sheet.append(["0007", "보리", "", "", 7, "", "", "", "", "", "", "", "", ""])
+        for column, value in enumerate(["0007", "보리", "", "", 7, "", "", "", "", "", "", "", "", ""], 1):
+            if value != "":
+                sheet.cell(row=2, column=column, value=value)
         output = BytesIO()
         workbook.save(output)
         found = self.client.post("/api/forms/columns?format=xlsx", content=output.getvalue())
@@ -103,3 +108,12 @@ class FormsTemplateV4Tests(AppCase):
         self.assertEqual(response.json()["errors"], [])
         self.assertEqual(response.json()["rows"][0]["participant_id"], "0007")
         self.assertEqual(response.json()["rows"][0]["registration_status"], "unregistered")
+
+    def test_workbook_saved_on_the_guide_sheet_still_lists_the_input_sheet(self):
+        workbook = load_workbook(BytesIO(template("roster", "xlsx")))
+        workbook.active = 0
+        output = BytesIO()
+        workbook.save(output)
+        found = self.client.post("/api/forms/columns?format=xlsx", content=output.getvalue()).json()
+        self.assertEqual(found["selected_sheet"], "안내")
+        self.assertEqual(found["sheets"], ["안내", "입력"])
