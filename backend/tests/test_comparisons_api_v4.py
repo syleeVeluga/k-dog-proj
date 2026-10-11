@@ -4,7 +4,7 @@ import unittest
 from fastapi.testclient import TestClient
 from app.api import create_app
 from app.auth import password_hash
-from app import maintenance
+from app import maintenance, comparisons_v4
 from app.storage import Store
 from tests import test_comparisons_v4 as support
 
@@ -42,9 +42,9 @@ class ComparisonApiV4Tests(unittest.TestCase):
         self.assertEqual(sources.status_code, 200)
         self.assertNotIn('reference_values', sources.text)
         self.assertNotIn('42926', sources.text)
-        self.assertEqual(self.client.get('/api/comparisons-s1/research').status_code, 200)
+        self.assertEqual(self.client.get('/api/comparisons-s1/definitions').status_code, 200)
         self.login('admin')
-        self.assertEqual(self.client.get('/api/comparisons-s1/research').status_code, 200)
+        self.assertEqual(self.client.get('/api/comparisons-s1/definitions').status_code, 200)
         self.login('reviewer')
         self.assertEqual(self.client.get('/api/comparisons-s1/cohorts').status_code, 200)
         self.assertEqual(self.client.get('/api/comparisons-s1/candidates').status_code, 200)
@@ -53,15 +53,16 @@ class ComparisonApiV4Tests(unittest.TestCase):
             db.execute('UPDATE cases SET deletion_requested=1 WHERE case_id=?', (f.ids[0],))
         self.assertEqual(self.client.get('/api/comparisons-s1/cohorts/' + saved['reference']['snapshot_id']).status_code, 200)
 
-    def test_typed_research_and_cohort_backup_reapply_deleted_member(self):
+    def test_typed_definition_and_cohort_backup_preserve_snapshot(self):
         f = self.fixture
         cohort = f.create()
-        research = f.confirmation(requirements={'ref': 'raw condition, not a file', 'condition_json': 'ordinary text'})
+        research = f.definition(population={'ref': 'raw condition, not a file', 'condition_json': 'ordinary text'})
+        evidence = comparisons_v4.definition_document(self.store, research).evidence[0]
         with self.store.connect() as db:
             refs = maintenance.references(self.store, db)
         self.assertIn(cohort.reference.ref, refs)
         self.assertIn(research.ref, refs)
-        self.assertIn('comparison-evidence/synthetic.txt', refs)
+        self.assertIn(evidence.ref, refs)
         backup = self.store.root.parent / (self.store.root.name + '-backup')
         restored = self.store.root.parent / (self.store.root.name + '-restored')
         self.addCleanup(self._remove, backup)

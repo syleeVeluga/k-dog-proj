@@ -184,89 +184,64 @@ class CohortComparisonV4Tests(ComparisonFixture):
 
 
 class ExternalComparisonGateV4Tests(ComparisonFixture):
-    def confirmation(self,*,status='confirmed',requirements=None,revision=0):
-        source_id='us2026-stranger-fear'
-        source,digest=compare._source(source_id)
-        data=b'SYNTHETIC APPROVAL FIXTURE ONLY - NOT A RESEARCH CONFIRMATION'
-        path=self.store.path('comparison-evidence/synthetic.txt');path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(data)
-        check={'status':status,'note':'SYNTHETIC TEST ONLY','evidence_location':'synthetic fixture section'}
-        scope=compare.target_scope(source_id).model_copy(update={'population_requirements':requirements or {}})
-        review=ResearchReviewV4.model_validate_json(encode({'source_id':source_id,'source_asset_hash':digest,'confirmed_by':'SYNTHETIC TEST ONLY',
-            'confirmed_at':'2026-10-04','evidence':[{'ref':'comparison-evidence/synthetic.txt','hash':hashlib.sha256(data).hexdigest()}],
-            'scope':scope.model_dump(mode='json'),'reason':'synthetic approval mechanics only',**{key:check for key in compare.CHECKS}}))
-        return compare.confirm_research(self.store,compare.ConfirmResearchV4(expected_revision=revision,document=review),self.admin)
+    def definition(self, **kwargs):
+        from tests.test_external_comparisons_v4 import define
+        return define(self.store, user=self.user, **kwargs)[0]
 
-    def activate(self,pointer,enabled=True,revision=0):
-        return compare.activate_external(self.store,compare.ActivateExternalV4(source_id='us2026-stranger-fear',expected_revision=revision,
-            confirmation=pointer,enabled=enabled,reason='SYNTHETIC TECHNICAL ACTIVATION ONLY'),self.admin)
-
-    def gate(self,**kwargs):
+    def gate(self, **kwargs):
         return compare.external_for_report(self.store,'us2026-stranger-fear',compare.target_scope('us2026-stranger-fear'),self.user,**kwargs)
 
-    def test_pending_sources_never_expose_reference_numbers(self):
+    def test_missing_definition_never_exposes_reference_numbers(self):
         payload=encode(compare.public_sources())+self.gate().model_dump_json(exclude_none=True)
         for number in ('0.66','0.91','42926','1.03','0.78','42764','43517'):
             self.assertNotIn(number,payload)
-        self.assertNotIn('values',self.gate().model_dump(exclude_none=True))
-        self.assertEqual(compare.research_inventory(self.store,self.user), compare.research_inventory(self.store,self.admin))
-        source=compare.research_inventory(self.store,self.admin)['sources']
-        self.assertEqual(source[0]['reference_values'],{'mean':0.66,'standard_deviation':0.91,'valid_n':42926,'total_n':43517})
-        self.assertEqual(source[1]['reference_values']['valid_n'],42764)
-
-    def test_research_and_admin_activation_are_distinct(self):
-        pointer=self.confirmation()
         self.assertEqual(self.gate().status,'blocked')
-        self.activate(pointer)
+        self.assertEqual(compare.definition_inventory(self.store,self.user),compare.definition_inventory(self.store,self.admin))
+
+    def test_save_applies_actual_definition_without_confirmation_or_activation(self):
+        pointer=self.definition()
         result=self.gate()
-        self.assertEqual(result.status,'approved')
-        self.assertEqual(result.values.valid_n,42926)
-        self.assertEqual(result.values.total_n,43517)
+        self.assertEqual(result.status,'ready')
+        self.assertEqual(result.definition,pointer)
+        self.assertIsNone(result.confirmation);self.assertIsNone(result.activation_revision)
+        self.assertEqual((result.values.valid_n,result.values.total_n),(42926,43517))
+        with self.store.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action IN ('comparison.research','comparison.activation')").fetchone()[0],0)
 
-    def test_pending_research_cannot_be_enabled_by_admin_toggle(self):
-        pointer=self.confirmation(status='pending')
-        with self.assertRaises(HTTPException):self.activate(pointer)
+    def test_missing_or_invalid_numeric_definition_is_not_permission(self):
+        from app.domain.comparisons_v4 import ComparisonDefinitionInputV4
+        pointer=self.definition()
+        document=compare.definition_document(self.store,pointer).model_dump(mode='json')
+        for key in ('definition_id','revision','actor','recorded_at','artifact_kind'):document.pop(key)
+        for values in ({'mean':None},{'valid_n':0},{'valid_n':43518},{'standard_deviation':-1},{'mean':5}):
+            with self.subTest(values=values),self.assertRaises(ValueError):
+                ComparisonDefinitionInputV4.model_validate_json(encode({**document,'values':{**document['values'],**values}}))
+
+    def test_exact_scope_and_actual_population_remain_required(self):
+        self.definition(population={'study_scope':'synthetic-eligible'})
         self.assertEqual(self.gate().status,'blocked')
-
-    def test_only_exact_scope_is_approved_and_video_cannot_construct_target(self):
-        from app.domain.comparisons_v4 import ComparisonScopeV4
-        pointer=self.confirmation();self.activate(pointer)
+        self.assertEqual(self.gate(population={'study_scope':'synthetic-eligible'}).status,'ready')
         target=compare.target_scope('us2026-stranger-fear')
-        for change in ({'survey_version':'old-1-5-comfort'},{'policy_version':'survey-policy-20261002-s1.1'},{'scale_minimum':1},{'direction':'higher_comfort'},
+        for change in ({'survey_version':'old-1-5-comfort'},{'scale_minimum':1},{'direction':'higher_comfort'},
                        {'question_text_hash':'0'*64},{'domain':'가르치는 방식'},{'missing_policy':'partial_mean'}):
             with self.subTest(change=change):
-                value=compare.external_for_report(self.store,'us2026-stranger-fear',target.model_copy(update=change),self.user)
+                value=compare.external_for_report(self.store,'us2026-stranger-fear',target.model_copy(update=change),self.user,population={'study_scope':'synthetic-eligible'})
                 self.assertEqual(value.status,'blocked');self.assertIsNone(value.values)
-        with self.assertRaises(ValueError):ComparisonScopeV4.model_validate_json(encode({**target.model_dump(mode='json'),'measurement':'video'}))
 
-    def test_population_unknown_must_not_be_inferred(self):
-        pointer=self.confirmation(requirements={'study_scope':'synthetic-eligible'});self.activate(pointer)
+    def test_new_revision_is_immediate_retirement_excludes_new_selection_and_stale_save_fails(self):
+        from tests.test_external_comparisons_v4 import retire
+        first=self.definition()
+        second=self.definition(revision=1)
+        self.assertEqual(self.gate().definition,second)
+        retired=retire(self.store,second,self.admin)
         self.assertEqual(self.gate().status,'blocked')
-        self.assertEqual(self.gate(population={'study_scope':'other'}).status,'blocked')
-        self.assertEqual(self.gate(population={'study_scope':'synthetic-eligible'}).status,'approved')
+        self.assertEqual(retired.revision,3)
+        with self.assertRaises(HTTPException):self.definition(revision=1)
+        self.assertEqual(compare.definition_document(self.store,first).revision,1)
 
-    def test_new_research_revision_and_revocation_block_new_output(self):
-        pointer=self.confirmation();self.activate(pointer)
-        old=self.gate()
-        next_pointer=self.confirmation(revision=1)
+    def test_actual_evidence_tamper_blocks_values(self):
+        first=self.definition()
+        doc=compare.definition_document(self.store,first)
+        self.store.path(doc.evidence[0].ref).write_bytes(b'changed')
         self.assertEqual(self.gate().status,'blocked')
-        self.activate(next_pointer,revision=1)
-        self.assertEqual(self.gate().status,'approved')
-        self.activate(next_pointer,enabled=False,revision=2)
-        self.assertEqual(self.gate().status,'blocked')
-        self.assertEqual(old.values.mean,0.66)
-
-    def test_damaged_research_evidence_blocks_output_and_normal_account_can_disable(self):
-        pointer=self.confirmation();self.activate(pointer)
-        self.store.path('comparison-evidence/synthetic.txt').write_bytes(b'changed')
-        self.assertEqual(self.gate().status,'blocked')
-        disabled=self.activate(pointer,enabled=False,revision=1)
-        self.assertFalse(disabled.enabled)
-        result=compare.activate_external(self.store,compare.ActivateExternalV4(source_id='us2026-stranger-fear',
-            expected_revision=2,confirmation=pointer,enabled=False,reason='common business account'),self.user)
-        self.assertFalse(result.enabled)
-
-    def test_stale_activation_revision_cannot_overwrite_revocation(self):
-        pointer=self.confirmation();self.activate(pointer)
-        self.activate(pointer,enabled=False,revision=1)
-        with self.assertRaises(HTTPException):self.activate(pointer,enabled=True,revision=1)
-        self.assertEqual(self.gate().status,'blocked')
+        with self.assertRaises(HTTPException):compare.definition_document(self.store,first)

@@ -220,7 +220,7 @@ def _snapshot(store, value, user):
     if len({pointer.snapshot_id for pointer in value.external_comparisons}) != len(value.external_comparisons):
         raise HTTPException(422, "같은 외부 비교 snapshot을 중복 선택할 수 없습니다.")
     for pointer in value.external_comparisons:
-        public = external_comparisons_v4.for_output(store, pointer, user)
+        public = external_comparisons_v4.for_output(store, pointer, user, new_selection=True)
         _external_member(members, public)
         for file in external_comparisons_v4.files(store, pointer):
             if file.ref in parents and parents[file.ref] != file.hash:
@@ -262,11 +262,9 @@ def _live_guard(store,db,snapshot,user):
                 raise HTTPException(409,"연결한 리포트 발급본이 취소·변경되었습니다.")
 
 
-def guard(store, snapshot, user):
+def guard(store, snapshot, user, *, new_selection=False):
     with store.connect() as db:
         _live_guard(store,db,snapshot,user)
-    if snapshot.actor != user.username:
-        raise HTTPException(403, "본인이 생성한 연구 내보내기만 열 수 있습니다.")
     for expected in snapshot.members:
         data, excluded, _ = _member(store, expected.selection, user)
         if excluded or any(data[key] != getattr(expected, key) for key in ("sheet", "basic", "final", "report", "report_file")):
@@ -279,7 +277,7 @@ def guard(store, snapshot, user):
         raise HTTPException(409, "연구 비교집단 출처가 변경되었습니다.")
     for expected in snapshot.external_comparisons:
         _external_member(snapshot.members, expected)
-        if external_comparisons_v4.for_output(store, expected.reference, user) != expected:
+        if external_comparisons_v4.for_output(store, expected.reference, user, new_selection=new_selection) != expected:
             raise HTTPException(409, "연구 외부 비교의 승인·출처 또는 대상 조건이 변경되었습니다.")
 
 
@@ -392,7 +390,7 @@ def tables(snapshot):
     for external in snapshot.external_comparisons:
         member = _external_member(snapshot.members, external)
         for entry in external.entries:
-            scope, values, confirmation = entry.gate.scope, entry.gate.values, entry.gate.confirmation
+            scope, values, definition = entry.gate.scope, entry.gate.values, entry.gate.definition or entry.gate.confirmation
             output["comparisons"].append({"source":"external_reference", "participant":member.pseudonym, "session":member.session_alias,
                 "snapshot_sha256":external.reference.hash, "snapshot_revision":external.reference.revision,
                 "source_id":entry.gate.source_id, "title":_text(snapshot,entry.title), "literature":_text(snapshot,entry.literature),
@@ -405,8 +403,7 @@ def tables(snapshot):
                 "local_mean":entry.local_mean, "local_n":entry.local_n, "local_n_label":"유효 응답 문항", "mean":values.mean,
                 "standard_deviation":values.standard_deviation, "valid_n":values.valid_n, "total_n":values.total_n,
                 "external_valid_n_label":"외부 유효 표본", "external_total_n_label":"외부 전체 표본",
-                "research_sha256":confirmation.hash, "research_revision":confirmation.revision,
-                "activation_revision":entry.gate.activation_revision})
+                "definition_sha256":definition.hash, "definition_revision":definition.revision})
     _pairs(snapshot, output, catalog)
     return output
 
@@ -523,11 +520,11 @@ def create(store,value:ExportCreateV4,user):
     output = reports._write_bytes(store,f"exports/{snapshot.export_id}/research."+("zip" if value.format == "csv_zip" else "xlsx"),data)
     snapshot = snapshot.model_copy(update={"output":output})
     pointer = reports._write_bytes(store,f"exports/{snapshot.export_id}/snapshot.json",snapshot.model_dump_json().encode())
-    guard(store,snapshot,user)
+    guard(store,snapshot,user,new_selection=True)
     reports._read_file(store,output,stamps); reports._read_file(store,pointer,stamps)
     with store.connect(write=True) as db:
         _live_guard(store,db,snapshot,user)
-        guard(store,snapshot,user)
+        guard(store,snapshot,user,new_selection=True)
         if _assets() != snapshot.asset_hashes:raise HTTPException(409,"연구 저장 직전 설문·카탈로그 판본이 변경되었습니다.")
         reports.check_stamps(store,stamps)
         if ExportSnapshotV4.model_validate_json(reports._read_file(store,pointer)) != snapshot:raise HTTPException(409,"새 연구 저장물이 변경되었습니다.")
@@ -561,7 +558,7 @@ def download(store,export_id,user):
 def list_exports(store,user):
     with store.connect() as db:
         sheets.manager(user,db)
-        ids = [row[0] for row in db.execute("SELECT DISTINCT target FROM changes WHERE actor=? AND action=?",(user.username,ACTION))]
+        ids = [row[0] for row in db.execute("SELECT DISTINCT target FROM changes WHERE action=?",(ACTION,))]
     result = []
     for export_id in ids:
         try:

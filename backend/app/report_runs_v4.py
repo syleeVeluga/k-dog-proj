@@ -9,7 +9,7 @@ from typing import Annotated, Literal
 from fastapi import HTTPException
 from pydantic import Field, field_validator
 
-from . import analysis, disclosures_v4, final_results_v4 as finals, media, opinions_v4 as opinions
+from . import analysis, final_results_v4 as finals, media, opinions_v4 as opinions
 from . import comparisons_v4, external_comparisons_v4, report_profile_v4 as profiles, sheets_v4 as sheets, uploads
 from . import report_narrative_v4 as narrative
 from .domain.comparisons_v4 import CohortReferenceV4, ExternalReferenceV4
@@ -99,7 +99,7 @@ class ReportRunViewV4(Model):
     final: FinalReferenceV4
     steps: list[ReportStepViewV4]
     external_comparison: ExternalReferenceV4 | None = None
-    external_comparison_status: Literal["not_selected", "approved", "blocked"] = "not_selected"
+    external_comparison_status: Literal["not_selected", "ready", "approved", "blocked"] = "not_selected"
     external_comparison_reason: str | None = None
     planned_provider_calls: int = 0
     max_ai_calls: int = 0
@@ -160,24 +160,9 @@ def _opinion_pin(store, db, case_id, session_id):
     return FileV4(ref=link.ref, hash=link.hash) if link else None
 
 
-def _scoring_block(db, case_id, session_id, username):
-    """U08 decision: a professor still scoring this case/session independently may not see issued results."""
-    if db.execute("SELECT 1 FROM score_sheets WHERE case_id=? AND session_id=? AND assigned_username=? AND active=1 "
-            "AND purpose='independent' AND state='draft' LIMIT 1", (case_id, session_id, username)).fetchone():
-        raise HTTPException(403, "이 참가자·회차의 독립 채점을 제출하기 전에는 리포트를 열 수 없습니다. 채점을 먼저 제출하세요.")
-
-
 def _source_access(store, db, snapshot, user, viewer_sheet_id=None, *, issued_open=False):
     case, manifest = _case(store, db, snapshot.case_id, snapshot.session_id, user)
-    if issued_open and _actor(db, user.username).role == "reviewer":
-        # U08(2026-10-11 결정 「바로 열람, 채점 중엔 차단」): 발급본 열람은 공개 절차 없이 허용하고 기록만 남긴다.
-        _scoring_block(db, snapshot.case_id, snapshot.session_id, user.username)
-        basic_row, basic, _ = opinions.pinned_basic(store, db, snapshot.case_id, snapshot.session_id, snapshot.final_document.basic)
-    else:
-        basic_row, basic = opinions.selected_basic(store, db, snapshot.case_id, snapshot.session_id,
-            snapshot.final_document.basic, user, viewer_sheet_id or snapshot.viewer_sheet_id)
-        disclosures_v4.require(db, snapshot.case_id, snapshot.session_id, user,
-            disclosures_v4.target("final", snapshot.final), snapshot.final_document.actor)
+    basic_row, basic, _ = opinions.pinned_basic(store, db, snapshot.case_id, snapshot.session_id, snapshot.final_document.basic)
     if basic != snapshot.final_document.basic_document:
         raise HTTPException(409, "고정한 최종 기본 입력이 변경되었습니다.")
     if _media_files(store, db, snapshot.final_document, user.username) != snapshot.media_sources:
@@ -185,7 +170,7 @@ def _source_access(store, db, snapshot, user, viewer_sheet_id=None, *, issued_op
     if snapshot.cohort and comparisons_v4.for_report(store, snapshot.cohort.reference, user) != snapshot.cohort:
         raise HTTPException(409, "고정한 자체 비교 집단의 출처가 변경되었습니다.")
     if snapshot.profile.external_comparison and external_comparisons_v4.for_output(store,
-            snapshot.profile.external_comparison.reference, user) != snapshot.profile.external_comparison:
+            snapshot.profile.external_comparison.reference, user, new_selection=not issued_open) != snapshot.profile.external_comparison:
         raise HTTPException(409, "고정한 외부 비교의 현재 제공 조건이 변경되었습니다.")
     return case, manifest, basic_row
 
@@ -371,13 +356,13 @@ def enqueue(store, case_id, session_id, value: ReportStartV4, user):
         **({"presentation_version": "report-presentation-20261007-rp04"} if configuration.version == "report-run-20261007-rp04" else {}))
     cohort = comparisons_v4.for_report(store, value.comparison, user) if value.comparison else None
     if value.external_comparison:
-        external = external_comparisons_v4.for_output(store, value.external_comparison, user)
+        external = external_comparisons_v4.for_output(store, value.external_comparison, user, new_selection=True)
         source = final.basic_document.input_document.source
         if (external.target.case_id, external.target.session_id, external.target.expected_revision, external.target.input) != (
                 case_id, session_id, source.input_revision, source.input):
             raise HTTPException(409, "외부 비교와 최종 결과의 설문 원입력 판본이 다릅니다.")
         profile = type(profile).model_validate_json(encode({**profile.model_dump(mode="json"),
-            "external_comparison": external.model_dump(mode="json"), "external_comparison_status": "approved_selected"}))
+                "external_comparison": external.model_dump(mode="json"), "external_comparison_status": "ready_selected"}))
     with store.connect() as db:
         basic_row, _ = opinions.selected_basic(store, db, case_id, session_id, final.basic, user, value.viewer_sheet_id)
         source_row = sheets.row_for(store, db, final.basic_document.input.sheet_id)
@@ -755,8 +740,8 @@ def view(store, run_id, user, viewer_sheet_id=None):
         if external:
             try:
                 if external_comparisons_v4.for_output(store,external.reference,user)!=external:
-                    raise HTTPException(409,"외부 비교의 고정 승인 범위가 변경되었습니다.")
-                external_status="approved"
+                    raise HTTPException(409,"외부 비교의 고정 기준 범위가 변경되었습니다.")
+                external_status="ready"
             except HTTPException as exc:
                 if exc.status_code in (401,403):raise
                 external_status,external_reason="blocked",str(exc.detail)

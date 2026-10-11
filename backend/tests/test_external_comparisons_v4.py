@@ -22,20 +22,25 @@ from tests import test_sheets_v4 as sheet_fixture
 SOURCE = "us2026-stranger-fear"
 
 
-def approve(store, *, revision=0, activation_revision=0, status="confirmed", population=None, source_id=SOURCE):
-    admin = SimpleNamespace(username="admin")
-    evidence = external.upload_evidence(store, b"SYNTHETIC TEST ONLY; NOT A RESEARCH APPROVAL", "synthetic.txt", admin)
-    scope = comparisons.target_scope(source_id).model_copy(update={"population_requirements": population or {}})
-    check = {"status": status, "note": "SYNTHETIC TEST ONLY", "evidence_location": "synthetic section"}
-    review = ResearchReviewV4.model_validate_json(encode({"source_id": source_id,
-        "source_asset_hash": comparisons._source(source_id)[1], "confirmed_by": "SYNTHETIC ONLY", "confirmed_at": "2026-10-04",
-        "evidence": [evidence.model_dump(mode="json")], "scope": scope.model_dump(mode="json"),
-        "reason": "synthetic conditional mechanism", **{name: check for name in comparisons.CHECKS}}))
-    pointer = comparisons.confirm_research(store, comparisons.ConfirmResearchV4(expected_revision=revision, document=review), admin)
-    if status == "confirmed":
-        comparisons.activate_external(store, comparisons.ActivateExternalV4(source_id=source_id, expected_revision=activation_revision,
-            confirmation=pointer, enabled=True, reason="SYNTHETIC ONLY"), admin)
-    return pointer, evidence
+def define(store, *, revision=0, enabled=True, population=None, source_id=SOURCE, user=None):
+    user = user or SimpleNamespace(username="operator")
+    evidence = external.upload_evidence(store, b"SYNTHETIC TEST DATA ONLY", "synthetic.txt", user)
+    source,digest = comparisons._source(source_id)
+    document = comparisons.ComparisonDefinitionInputV4.model_validate_json(encode({"source_id":source_id,
+        "source_asset_hash":digest,"evidence":[evidence.model_dump(mode="json")],
+        "scope":comparisons.target_scope(source_id).model_copy(update={"population_requirements":population or {}}).model_dump(mode="json"),
+        "values":source["reference_values"],"population_scope":"SYNTHETIC POPULATION ONLY",
+        "number_provenance":"SYNTHETIC FIXTURE TABLE","enabled":enabled,"reason":"synthetic definition mechanics"}))
+    pointer=comparisons.save_definition(store,comparisons.SaveDefinitionV4(expected_revision=revision,document=document),user)
+    return pointer,evidence
+
+
+def retire(store, pointer, user=None):
+    doc=comparisons.definition_document(store,pointer)
+    value=comparisons.ComparisonDefinitionInputV4.model_validate_json(encode({key:value for key,value in doc.model_dump(mode="json").items()
+        if key not in ("definition_id","revision","actor","recorded_at","artifact_kind")}))
+    return comparisons.save_definition(store,comparisons.SaveDefinitionV4(expected_revision=pointer.revision,
+        document=value.model_copy(update={"enabled":False,"reason":"SYNTHETIC RETIREMENT"})),user or SimpleNamespace(username="reviewer"))
 
 
 class ExternalSnapshotTests(comparison_fixture.ComparisonFixture):
@@ -50,13 +55,13 @@ class ExternalSnapshotTests(comparison_fixture.ComparisonFixture):
 
     def test_default_and_unconfirmed_source_never_creates_numeric_snapshot(self):
         with self.assertRaises(HTTPException): external.create(self.store, self.request(), self.user)
-        approve(self.store, status="pending")
+        define(self.store, enabled=False)
         with self.assertRaises(HTTPException): external.create(self.store, self.request(), self.user)
         with self.store.connect() as db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action=?", (external.ACTION,)).fetchone()[0], 0)
 
     def test_explicit_snapshot_preserves_zero_exact_scope_hashes_and_idempotency(self):
-        approve(self.store)
+        define(self.store)
         value = external.create(self.store, self.request(), self.user)
         self.assertEqual(external.create(self.store, self.request(), self.user).reference, value.reference)
         public = external.for_output(self.store, value.reference, self.user)
@@ -68,9 +73,9 @@ class ExternalSnapshotTests(comparison_fixture.ComparisonFixture):
         self.assertEqual(comparisons.public_sources(self.store, self.user)["sources"][0]["status"], "conditionally_available")
 
     def test_unknown_population_missing_answers_and_different_edition_stay_blocked(self):
-        approve(self.store, population={"unverified_research_profile": "required"})
+        define(self.store, population={"unverified_research_profile": "required"})
         with self.assertRaises(HTTPException): external.create(self.store, self.request(), self.user)
-        approve(self.store, revision=1, activation_revision=1)
+        define(self.store, revision=1)
         with self.assertRaises(HTTPException): external.create(self.store, self.request(index=2), self.user)
         def historical(manifest):
             manifest.sessions[0].survey_version = "catalog-20260913-v2"
@@ -78,50 +83,52 @@ class ExternalSnapshotTests(comparison_fixture.ComparisonFixture):
         self.edit(0, historical)
         with self.assertRaises(HTTPException): external.create(self.store, self.request(), self.user)
 
-    def test_revocation_keeps_old_bytes_masks_detail_and_records_impact(self):
-        pointer, _ = approve(self.store)
+    def test_retirement_preserves_fixed_bytes_detail_and_records_impact(self):
+        pointer, _ = define(self.store)
         value = external.create(self.store, self.request(), self.user)
         before = self.store.path(value.reference.ref).read_bytes()
-        comparisons.activate_external(self.store, comparisons.ActivateExternalV4(source_id=SOURCE, expected_revision=1,
-            confirmation=pointer, enabled=False, reason="SYNTHETIC WITHDRAWAL"), self.admin)
-        with self.assertRaises(HTTPException): external.for_output(self.store, value.reference, self.user)
-        shown = external.view(self.store, value.reference.snapshot_id, self.user)
-        self.assertEqual(shown.status, "blocked"); self.assertIsNone(shown.document)
-        self.assertEqual(len(shown.impact_history), 1)
-        self.assertNotIn('0.66', shown.model_dump_json())
-        self.assertEqual(self.store.path(value.reference.ref).read_bytes(), before)
+        retire(self.store,pointer,self.admin)
+        self.assertEqual(external.for_output(self.store,value.reference,self.user).entries,value.document.entries)
+        with self.assertRaises(HTTPException):external.create(self.store,self.request(request_id="retired-new"),self.user)
+        shown=external.view(self.store,value.reference.snapshot_id,self.user)
+        self.assertEqual(shown.status,"ready");self.assertIsNotNone(shown.document)
+        self.assertFalse(shown.new_selection_available)
+        self.assertFalse(external.list_snapshots(self.store,self.user)[0].new_selection_available)
+        self.assertEqual(len(shown.impact_history),1)
+        self.assertEqual(self.store.path(value.reference.ref).read_bytes(),before)
 
-    def test_new_confirmation_requires_new_exact_snapshot_and_tampered_evidence_blocks(self):
-        approve(self.store)
-        old = external.create(self.store, self.request(), self.user)
-        _, evidence = approve(self.store, revision=1, activation_revision=1)
-        with self.assertRaises(HTTPException): external.for_output(self.store, old.reference, self.user)
-        fresh = external.create(self.store, self.request(request_id="new-version"), self.user)
-        self.assertEqual(fresh.document.entries[0].gate.confirmation.revision, 2)
+    def test_new_definition_preserves_old_snapshot_and_tampered_new_evidence_blocks(self):
+        define(self.store)
+        old=external.create(self.store,self.request(),self.user)
+        _,evidence=define(self.store,revision=1)
+        self.assertEqual(external.for_output(self.store,old.reference,self.user).entries,old.document.entries)
+        self.assertFalse(external.view(self.store,old.reference.snapshot_id,self.user).new_selection_available)
+        with self.assertRaises(HTTPException):external.for_output(self.store,old.reference,self.user,new_selection=True)
+        fresh=external.create(self.store,self.request(request_id="new-version"),self.user)
+        self.assertTrue(fresh.new_selection_available)
+        self.assertEqual(fresh.document.entries[0].gate.definition.revision,2)
         self.store.path(evidence.ref).write_bytes(b"tampered")
-        with self.assertRaises(HTTPException): external.for_output(self.store, fresh.reference, self.user)
+        with self.assertRaises(HTTPException):external.for_output(self.store,fresh.reference,self.user)
+        self.assertEqual(external.for_output(self.store,old.reference,self.user).entries,old.document.entries)
 
-    def test_withdrawal_during_final_document_read_masks_same_response(self):
-        research,_=approve(self.store)
+    def test_retirement_during_fixed_document_read_preserves_same_response(self):
+        definition,_=define(self.store)
         shown=external.create(self.store,self.request(),self.user)
         original=external.document
         calls=0
-        def withdraw_on_second_read(store,pointer):
+        def retire_on_second_read(store,pointer):
             nonlocal calls
             result=original(store,pointer);calls+=1
-            if calls==2:
-                comparisons.activate_external(store,comparisons.ActivateExternalV4(source_id=SOURCE,expected_revision=1,
-                    confirmation=research,enabled=False,reason="SYNTHETIC LATE WITHDRAWAL"),SimpleNamespace(username="admin"))
+            if calls==2:retire(store,definition)
             return result
-        with patch.object(external,"document",side_effect=withdraw_on_second_read):
-            blocked=external.view(self.store,shown.reference.snapshot_id,self.user)
-        self.assertEqual(blocked.status,"blocked")
-        self.assertIsNone(blocked.document)
-        self.assertNotIn("42926",blocked.model_dump_json())
+        with patch.object(external,"document",side_effect=retire_on_second_read):
+            value=external.view(self.store,shown.reference.snapshot_id,self.user)
+        self.assertEqual(value.status,"ready")
+        self.assertEqual(value.document,shown.document)
 
     def test_evidence_role_late_change_and_unadopted_snapshot_cannot_bypass(self):
         self.assertTrue(external.upload_evidence(self.store,b"data","test.txt",self.user).hash)
-        approve(self.store)
+        define(self.store)
         original = comparisons._write
         def corrupt(store, kind, doc):
             pointer = original(store,kind,doc)
@@ -149,18 +156,45 @@ class ExternalReportTests(unittest.TestCase):
             self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
         self.store,self.user=self.fixture.store,self.fixture.user
-        self.research,_=approve(self.store)
+        self.research,_=define(self.store)
         source=self.fixture.basic["document"]["input_document"]["source"]
         target=CohortSelectionV4.model_validate_json(encode({"case_id":self.fixture.case_id,"session_id":self.fixture.session_id,
             "expected_revision":source["input_revision"],"input":source["input"]}))
         self.external=external.create(self.store,external.ExternalCreateV4(request_id="external",target=target,source_ids=[SOURCE],reason="synthetic"),self.user)
         self.fixture.request=self.fixture.request.model_copy(update={"external_comparison":self.external.reference})
 
+    def test_profile_correction_preserves_issued_files_but_disables_new_selection(self):
+        with self.store.connect(write=True) as db:
+            case=self.store.case(db,self.fixture.case_id)
+            profile=json.loads(case["dog_profile_json"])
+            profile["sex"]="암"
+            db.execute("UPDATE cases SET dog_profile_json=? WHERE case_id=?",(encode(profile),case["case_id"]))
+        define(self.store,revision=1,population={"dog.sex":"암"})
+        fixed=external.create(self.store,external.ExternalCreateV4(request_id="profile-fixed",target=self.external.target,
+            source_ids=[SOURCE],reason="SYNTHETIC PROFILE"),self.user)
+        self.fixture.request=self.fixture.request.model_copy(update={"external_comparison":fixed.reference})
+        run_id=self.fixture.publish()
+        before={kind:reports.download(self.store,self.fixture.case_id,self.fixture.session_id,run_id,kind,self.user)[0]
+            for kind in ("html","pdf","manifest")}
+        raw=self.store.path(fixed.reference.ref).read_bytes()
+        with self.store.connect(write=True) as db:
+            case=self.store.case(db,self.fixture.case_id)
+            profile=json.loads(case["dog_profile_json"])
+            profile["sex"]="수"
+            db.execute("UPDATE cases SET dog_profile_json=? WHERE case_id=?",(encode(profile),case["case_id"]))
+        for kind,data in before.items():
+            self.assertEqual(reports.download(self.store,self.fixture.case_id,self.fixture.session_id,run_id,kind,self.user)[0],data)
+        self.assertEqual(self.store.path(fixed.reference.ref).read_bytes(),raw)
+        shown=external.view(self.store,fixed.reference.snapshot_id,self.user)
+        self.assertEqual(shown.status,"ready")
+        self.assertFalse(shown.new_selection_available)
+        with self.assertRaises(HTTPException):external.for_output(self.store,fixed.reference,self.user,new_selection=True)
+
     def test_actual_content_html_pdf_and_withdrawal_keep_issued_bytes_immutable(self):
         from app.report_render_v4 import external_notice, render_html
         from app.report_pdf_v4 import render_pdf
         other="us2026-nonsocial-fear"
-        approve(self.store,source_id=other)
+        define(self.store,source_id=other)
         self.external=external.create(self.store,external.ExternalCreateV4(request_id="both-sources",target=self.external.target,
             source_ids=[SOURCE,other],reason="SYNTHETIC TWO-SOURCE OUTPUT"),self.user)
         self.fixture.request=self.fixture.request.model_copy(update={"external_comparison":self.external.reference})
@@ -180,14 +214,13 @@ class ExternalReportTests(unittest.TestCase):
             pdf_path=Path(self.fixture.helper.temp.name)/"approved.pdf";pdf_path.write_bytes(pdf)
             extracted=subprocess.check_output(["pdftotext","-enc","UTF-8",str(pdf_path),"-"]).decode("utf-8")
             for text in ("0.66","0.91","42926","43517"):self.assertIn(text,extracted)
-        comparisons.activate_external(self.store,comparisons.ActivateExternalV4(source_id=SOURCE,expected_revision=1,
-            confirmation=self.research,enabled=False,reason="SYNTHETIC WITHDRAWAL"),SimpleNamespace(username="admin"))
+        retire(self.store,self.research)
         for kind in ("html","pdf","manifest"):
-            with self.assertRaises(HTTPException):reports.download(self.store,self.fixture.case_id,self.fixture.session_id,run_id,kind,self.user)
+            self.assertTrue(reports.download(self.store,self.fixture.case_id,self.fixture.session_id,run_id,kind,self.user)[0])
         metadata=reports.view(self.store,run_id,self.user)
         self.assertEqual(metadata["status"],"succeeded")
-        self.assertEqual(metadata["external_comparison_status"],"blocked")
-        self.assertFalse(metadata["result_available"])
+        self.assertEqual(metadata["external_comparison_status"],"ready")
+        self.assertTrue(metadata["result_available"])
         self.assertEqual(self.store.path(row["result_ref"]).read_bytes(),raw)
         with self.assertRaises(HTTPException):self.fixture.enqueue(self.fixture.request.model_copy(update={"request_id":"revoked"}))
 
@@ -204,8 +237,7 @@ class ExternalReportTests(unittest.TestCase):
         with self.assertRaises(HTTPException):self.fixture.enqueue(request)
         request=request.model_copy(update={"external_comparison":self.external.reference})
         run=self.fixture.enqueue(request)
-        comparisons.activate_external(self.store,comparisons.ActivateExternalV4(source_id=SOURCE,expected_revision=1,
-            confirmation=self.research,enabled=False,reason="SYNTHETIC WITHDRAWAL"),SimpleNamespace(username="admin"))
+        retire(self.store,self.research)
         from app.worker import Worker
         self.assertFalse(Worker(self.store).once())
         self.assertNotEqual(self.fixture.row(run["run_id"])["status"],"succeeded")
@@ -223,44 +255,36 @@ class ExternalReportTests(unittest.TestCase):
 
 
 class ExternalApiTests(unittest.TestCase):
-    def test_explicit_http_research_activation_target_snapshot_and_revocation(self):
+    def test_common_http_definition_applies_immediately_and_retirement_preserves_snapshot(self):
         from tests import test_comparisons_api_v4 as api_fixture
         fixture=api_fixture.ComparisonApiV4Tests();fixture.setUp();self.addCleanup(fixture.doCleanups)
-        client=fixture.client
-        with fixture.store.connect(write=True) as db:db.execute("UPDATE cases SET consent_confirmed=1")
-        endpoint="/api/comparisons-s1"
-        self.assertEqual(client.post(endpoint+"/evidence?filename=synthetic.txt",content=b"synthetic").status_code,201)
-        fixture.login("admin")
-        evidence=client.post(endpoint+"/evidence?filename=synthetic.txt",content=b"SYNTHETIC TEST ONLY")
+        client=fixture.client;endpoint="/api/comparisons-s1"
+        fixture.login("reviewer")
+        evidence=client.post(endpoint+"/evidence?filename=synthetic.txt",content=b"SYNTHETIC TEST DATA")
         self.assertEqual(evidence.status_code,201,evidence.text)
-        inventory=client.get(endpoint+"/research").json()
+        inventory=client.get(endpoint+"/definitions").json()
         source=next(row for row in inventory["sources"] if row["source_id"]==SOURCE)
-        check={"status":"confirmed","note":"SYNTHETIC ONLY","evidence_location":"synthetic fixture"}
-        document={"source_id":SOURCE,"source_asset_hash":inventory["asset_hash"],"confirmed_by":"SYNTHETIC ONLY",
-            "confirmed_at":"2026-10-04","evidence":[evidence.json()],"scope":source["scope"],"reason":"synthetic mechanism",
-            **{name:check for name in comparisons.CHECKS}}
-        confirmation=client.post(endpoint+"/research",json={"expected_revision":0,"document":document})
-        self.assertEqual(confirmation.status_code,200,confirmation.text)
-        activation={"source_id":SOURCE,"expected_revision":0,"confirmation":confirmation.json(),"enabled":True,"reason":"synthetic"}
-        response=client.post(endpoint+"/activation",json=activation)
-        self.assertEqual(response.status_code,200,response.text)
-        self.assertEqual(client.get(endpoint+"/research").json()["documents"][SOURCE]["confirmed_by"],"SYNTHETIC ONLY")
+        document={"source_id":SOURCE,"source_asset_hash":inventory["asset_hash"],"evidence":[evidence.json()],
+            "scope":source["scope"],"values":source["reference_values"],"population_scope":"SYNTHETIC ONLY",
+            "number_provenance":"SYNTHETIC TABLE","enabled":True,"reason":"synthetic mechanism"}
+        result=client.post(endpoint+"/definitions",json={"expected_revision":0,"document":document})
+        self.assertEqual(result.status_code,200,result.text)
+        self.assertEqual(client.get(endpoint+"/definitions").json()["documents"][SOURCE]["actor"],"reviewer")
+        for path in ("/research","/activation"):
+            self.assertEqual(client.post(endpoint+path,json={}).status_code,404)
         fixture.login("operator")
-        self.assertNotIn("reference_values",client.get(endpoint+"/sources").text)
-        request={"request_id":"http-external","target":fixture.fixture.selection(fixture.fixture.ids[0]).model_dump(mode="json"),
-            "source_ids":[SOURCE],"reason":"synthetic selected scope"}
+        request={"request_id":"http-external","target":fixture.fixture.selection(fixture.fixture.ids[0]).model_dump(mode="json"),"source_ids":[SOURCE],"reason":"synthetic"}
         response=client.post(endpoint+"/external-snapshots",json=request)
         self.assertEqual(response.status_code,201,response.text)
         saved=response.json();identifier=saved["reference"]["snapshot_id"]
         self.assertEqual(saved["document"]["entries"][0]["local_mean"],0)
-        self.assertNotIn("42926",client.get(endpoint+"/external-snapshots").text)
-        self.assertEqual(client.get(endpoint+"/external-snapshots/"+identifier).json()["status"],"approved")
+        before=client.get(endpoint+"/external-snapshots/"+identifier).json()["document"]
+        document.update(enabled=False,reason="SYNTHETIC RETIREMENT")
         fixture.login("admin")
-        activation.update(expected_revision=1,enabled=False,reason="SYNTHETIC WITHDRAWAL")
-        self.assertEqual(client.post(endpoint+"/activation",json=activation).status_code,200)
+        self.assertEqual(client.post(endpoint+"/definitions",json={"expected_revision":1,"document":document}).status_code,200)
         fixture.login("operator")
-        blocked=client.get(endpoint+"/external-snapshots/"+identifier)
-        self.assertEqual(blocked.status_code,200,blocked.text)
-        self.assertIsNone(blocked.json()["document"])
-        self.assertEqual(blocked.json()["status"],"blocked")
-        self.assertNotIn("42926",blocked.text)
+        shown=client.get(endpoint+"/external-snapshots/"+identifier)
+        self.assertEqual(shown.json()["document"],before)
+        self.assertEqual(shown.json()["status"],"ready")
+        request["request_id"]="retired-new"
+        self.assertEqual(client.post(endpoint+"/external-snapshots",json=request).status_code,409)

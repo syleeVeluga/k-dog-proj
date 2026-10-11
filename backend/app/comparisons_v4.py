@@ -12,7 +12,7 @@ from .domain.catalog_v3 import SurveyCatalogV3
 from .domain.catalog_v4 import RESOURCES,RUNTIME_SURVEY_POLICY_VERSION,SURVEY_POLICY_VERSION,validate_source_references_v4
 from .domain.comparisons_v4 import (CohortDomainV4,CohortMemberV4,CohortPublicDomainV4,CohortPublicV4,CohortReferenceV4,
     CohortSelectionV4,CohortSnapshotV4,ComparisonScopeV4,ExternalGateV4,ExternalValuesV4,ResearchConfirmationV4,
-    ResearchReferenceV4,ResearchReviewV4,TechnicalActivationV4)
+    ResearchReferenceV4,TechnicalActivationV4,ComparisonDefinitionInputV4,ComparisonDefinitionV4,DefinitionReferenceV4)
 from .domain.preprocess_v4 import FileV4
 from .domain.sheets_v4 import InputPointerV4
 from .input_models import Model
@@ -24,9 +24,9 @@ from .survey_v4 import load_survey_policy_v4,survey_scores_v4
 COHORT_ACTION="comparison.s1.snapshot"
 RESEARCH_ACTION="comparison.research"
 ACTIVATION_ACTION="comparison.activation"
+DEFINITION_ACTION="comparison.definition"
 SOURCE_ASSET="report/comparison-sources-v4.json"
 SURVEY_ASSETS=("catalogs/survey-v3.json","rules/survey-policy-v4.json")
-CHECKS=("numerical_table","question_equivalence","scale_direction","missing_policy","translation_usage","population_scope")
 
 
 class CohortCreateV4(Model):
@@ -76,27 +76,14 @@ class CohortSummaryV4(Model):
     outdated: bool
 
 
-class ConfirmResearchV4(Model):
+class SaveDefinitionV4(Model):
     expected_revision: int = Field(ge=0,strict=True)
-    document: ResearchReviewV4
+    document: ComparisonDefinitionInputV4
 
     @field_validator("document",mode="before")
     @classmethod
     def contract(cls,value):
-        return ResearchReviewV4.model_validate_json(encode(value)) if isinstance(value,dict) else value
-
-
-class ActivateExternalV4(Model):
-    source_id: str = Field(min_length=1)
-    expected_revision: int = Field(ge=0,strict=True)
-    confirmation: ResearchReferenceV4 | None = None
-    enabled: bool = Field(strict=True)
-    reason: str = Field(min_length=1,max_length=4000)
-
-    @field_validator("confirmation",mode="before")
-    @classmethod
-    def contract(cls,value):
-        return ResearchReferenceV4.model_validate_json(encode(value)) if isinstance(value,dict) else value
+        return ComparisonDefinitionInputV4.model_validate_json(encode(value)) if isinstance(value,dict) else value
 
 
 def _account(db,user,*,admin=False,reader=False):
@@ -124,25 +111,22 @@ def _sources():
 
 def public_sources(store=None, user=None):
     value,_=_sources()
-    result = {"version":value["version"],"status":"pending_D06","sources":[{"source_id":item["source_id"],"title":item["title"],
-        "status":"blocked","reason":"연구 확인자료와 별도의 관리자 기술 활성화가 모두 필요합니다."} for item in value["sources"]],
+    result = {"version":value["version"],"status":"not_ready","sources":[{"source_id":item["source_id"],"title":item["title"],
+        "status":"blocked","reason":"실제 외부 비교 기준 정의가 없습니다."} for item in value["sources"]],
         "domestic_status":value["domestic_status"],"domestic_reason":value["domestic_reason"]}
     if store is not None:
         with store.connect() as db:
             _account(db,user,reader=True)
             for item in result["sources"]:
-                pointer=_record(db,RESEARCH_ACTION,item["source_id"])
-                activation=_record(db,ACTIVATION_ACTION,item["source_id"])
-                if not pointer or not activation:continue
                 try:
-                    reference=ResearchReferenceV4.model_validate_json(encode(pointer))
-                    doc=research_document(store,reference)
+                    doc,reference,activation=current_definition(store,db,item["source_id"])
+                    if doc is None:continue
                     source,digest=_source(item["source_id"])
-                    result_gate=gate(source,digest,doc,reference,TechnicalActivationV4.model_validate_json(encode(activation)),
+                    result_gate=gate(source,digest,doc,reference,activation,
                         target_scope(item["source_id"]),doc.scope.population_requirements)
                 except (HTTPException,ValueError):continue
-                if result_gate.status=="approved":
-                    item.update(status="conditionally_available",reason="연구 확인과 기술 활성화가 기록되었습니다. 대상의 실제 설문·프로필 조건은 명시 snapshot 생성 시 검증합니다.")
+                if result_gate.status=="ready":
+                    item.update(status="conditionally_available",reason="기준 정의를 사용할 수 있습니다. 대상의 실제 설문·프로필 조건은 snapshot 생성 시 검증합니다.")
         if any(item["status"]=="conditionally_available" for item in result["sources"]):result["status"]="conditional_selection_available"
     return result
 
@@ -334,19 +318,21 @@ def _evidence(store,document):
             raise HTTPException(409,"연구 확인 근거 파일의 고정 참조가 유효하지 않습니다.") from exc
 
 
-def research_inventory(store,user):
-    """Privileged source review only. Never reuse this response for output."""
+def definition_inventory(store,user):
     with store.connect() as db:
-        _account(db,user,admin=True)
+        _account(db,user)
         sources,digest=_sources()
-        confirmations={source["source_id"]:_record(db,RESEARCH_ACTION,source["source_id"]) for source in sources["sources"]}
-        documents,errors={},{}
-        for source_id,pointer in confirmations.items():
-            try:documents[source_id]=research_document(store,ResearchReferenceV4.model_validate_json(encode(pointer))).model_dump(mode="json") if pointer else None
-            except HTTPException as exc:documents[source_id]=None;errors[source_id]=str(exc.detail)
-        return {**sources,"sources":[{**source,"scope":target_scope(source["source_id"]).model_dump(mode="json")} for source in sources["sources"]],
-            "asset_hash":digest,"confirmations":confirmations,"documents":documents,"document_errors":errors,
-            "activations":{source["source_id"]:_record(db,ACTIVATION_ACTION,source["source_id"]) for source in sources["sources"]}}
+        documents,references,errors={},{},{}
+        for source in sources["sources"]:
+            source_id=source["source_id"]
+            try:
+                doc,pointer,_=current_definition(store,db,source_id)
+                documents[source_id]=doc.model_dump(mode="json") if doc else None
+                references[source_id]=pointer.model_dump(mode="json") if pointer else None
+            except HTTPException as exc:
+                documents[source_id]=None;references[source_id]=None;errors[source_id]=str(exc.detail)
+        return {"asset_hash":digest,"sources":[{**source,"scope":target_scope(source["source_id"]).model_dump(mode="json")} for source in sources["sources"]],
+            "references":references,"documents":documents,"document_errors":errors}
 
 
 def research_document(store,pointer):
@@ -357,81 +343,87 @@ def research_document(store,pointer):
     return doc
 
 
-def confirm_research(store,value:ConfirmResearchV4,user):
-    value=ConfirmResearchV4.model_validate_json(value.model_dump_json())
+def definition_document(store,pointer):
+    if isinstance(pointer,dict):
+        pointer=(DefinitionReferenceV4 if "definition_id" in pointer else ResearchReferenceV4).model_validate_json(encode(pointer))
+    if isinstance(pointer,ResearchReferenceV4):
+        return research_document(store,pointer)
+    doc=_read(store,pointer,ComparisonDefinitionV4)
+    if (doc.definition_id,doc.revision)!=(pointer.definition_id,pointer.revision):
+        raise HTTPException(409,"외부 비교 기준 참조가 다릅니다.")
+    _evidence(store,doc)
+    return doc
+
+
+def current_definition(store,db,source_id):
+    pointer=_record(db,DEFINITION_ACTION,source_id)
+    if pointer:
+        reference=DefinitionReferenceV4.model_validate_json(encode(pointer))
+        return definition_document(store,reference),reference,None
+    pointer=_record(db,RESEARCH_ACTION,source_id)
+    reference=ResearchReferenceV4.model_validate_json(encode(pointer)) if pointer else None
+    old_activation=_record(db,ACTIVATION_ACTION,source_id)
+    activation=TechnicalActivationV4.model_validate_json(encode(old_activation)) if old_activation else None
+    return research_document(store,reference) if reference else None,reference,activation
+
+
+def save_definition(store,value:SaveDefinitionV4,user):
+    value=SaveDefinitionV4.model_validate_json(value.model_dump_json())
     doc=value.document
     _,digest=_source(doc.source_id)
     with store.connect() as db:
-        _account(db,user,admin=True)
-        prior=_record(db,RESEARCH_ACTION,doc.source_id)
+        _account(db,user)
+        prior=_record(db,DEFINITION_ACTION,doc.source_id)
         revision=prior["revision"] if prior else 0
-        if revision!=value.expected_revision:raise HTTPException(409,"연구 확인자료 판본이 변경되었습니다.")
+        if revision!=value.expected_revision:raise HTTPException(409,"외부 비교 기준 판본이 변경되었습니다.")
     expected=target_scope(doc.source_id).model_dump(mode="json",exclude={"population_requirements"})
     if doc.source_asset_hash!=digest or doc.scope.model_dump(mode="json",exclude={"population_requirements"})!=expected:
-        raise HTTPException(422,"연구 확인 범위가 해당 출처·설문 원문·척도와 다릅니다.")
-    doc=ResearchConfirmationV4.model_validate_json(encode({**doc.model_dump(mode="json"),"confirmation_id":uid(),"revision":revision+1,"actor":user.username,"recorded_at":now()}))
+        raise HTTPException(422,"기준 정의가 해당 출처·문항 원문·척도·방향·산식·결측 정책과 다릅니다.")
+    doc=ComparisonDefinitionV4.model_validate_json(encode({**doc.model_dump(mode="json"),"definition_id":uid(),"revision":revision+1,"actor":user.username,"recorded_at":now()}))
     _evidence(store,doc)
-    file=_write(store,"research",doc)
-    pointer=ResearchReferenceV4(confirmation_id=doc.confirmation_id,revision=doc.revision,ref=file.ref,hash=file.hash)
+    file=_write(store,"definitions",doc)
+    pointer=DefinitionReferenceV4(definition_id=doc.definition_id,revision=doc.revision,ref=file.ref,hash=file.hash)
     with store.connect(write=True) as db:
-        _account(db,user,admin=True)
-        if _record(db,RESEARCH_ACTION,doc.source_id)!=prior:raise HTTPException(409,"연구 확인자료가 동시에 변경되었습니다.")
-        if _source(doc.source_id)[1]!=digest or research_document(store,pointer)!=doc:raise HTTPException(409,"연구 근거가 저장 중 변경되었습니다.")
-        store.audit(db,user.username,doc.source_id,RESEARCH_ACTION,pointer.model_dump(mode="json"))
+        _account(db,user)
+        if _record(db,DEFINITION_ACTION,doc.source_id)!=prior:raise HTTPException(409,"외부 비교 기준이 동시에 변경되었습니다.")
+        if _source(doc.source_id)[1]!=digest or definition_document(store,pointer)!=doc:raise HTTPException(409,"기준 근거가 저장 중 변경되었습니다.")
+        store.audit(db,user.username,doc.source_id,DEFINITION_ACTION,pointer.model_dump(mode="json"))
         from .external_comparisons_v4 import record_impacts
-        record_impacts(store,db,doc.source_id,user.username,"연구 확인자료가 새 판본으로 변경되었습니다. 새 출력에는 다시 선택한 현재 승인 범위가 필요합니다.")
+        record_impacts(store,db,doc.source_id,user.username,"외부 비교 기준이 새 판본으로 변경되었습니다. 기존 발급 파일은 고정 판본으로 보존합니다.")
     return pointer
 
 
-def gate(source,source_hash,confirmation,confirmation_ref,activation,target,population=None):
-    """The one gate for API/report/export. No blocked branch contains values."""
+def gate(source,source_hash,definition,definition_ref,activation,target,population=None):
+    """Validate actual data; historical confirmation is provenance, not permission."""
     def blocked(reason):return ExternalGateV4(source_id=source["source_id"],status="blocked",reason=reason)
-    if confirmation is None:return blocked("D06 연구 확인자료가 없습니다.")
-    if activation is None or not activation.enabled:return blocked("관리자 기술 활성화가 꺼져 있습니다.")
-    if confirmation.source_id!=source["source_id"] or activation.source_id!=source["source_id"] or confirmation.source_asset_hash!=source_hash:
-        return blocked("확인자료와 출처 판본이 다릅니다.")
-    if activation.confirmation!=confirmation_ref:return blocked("기술 활성화가 현재 연구 확인자료 판본을 명시하지 않았습니다.")
-    if any(getattr(confirmation,key).status!="confirmed" for key in CHECKS):return blocked("문헌·문항·척도·결측·번안/사용·대상 조건의 연구 확인이 미완료입니다.")
-    if confirmation.scope.model_dump(mode="json",exclude={"population_requirements"})!=target.model_dump(mode="json",exclude={"population_requirements"}):
-        return blocked("입력의 설문·문항·척도·방향·산식·결측 정책이 승인 범위와 다릅니다.")
-    if any((population or {}).get(key)!=expected for key,expected in confirmation.scope.population_requirements.items()):
-        return blocked("필요한 대상 정보가 없거나 승인된 대상 범위와 다릅니다.")
-    return ExternalGateV4(source_id=source["source_id"],status="approved",reason="연구 확인 범위와 별도 관리자 활성화가 모두 일치합니다.",
-        scope=confirmation.scope,confirmation=confirmation_ref,activation_revision=activation.revision,
-        values=ExternalValuesV4.model_validate_json(encode(source["reference_values"])))
+    if definition is None:return blocked("실제 외부 비교 기준 정의가 없습니다.")
+    if isinstance(definition,ComparisonDefinitionV4):
+        if not definition.enabled:return blocked("이 기준은 새 계산에서 사용 중단되었습니다.")
+        values=definition.values
+    else:
+        if activation is not None and not activation.enabled:return blocked("이 기준은 새 계산에서 사용 중단되었습니다.")
+        try:values=ExternalValuesV4.model_validate_json(encode(source["reference_values"]))
+        except (ValueError,KeyError):return blocked("실제 외부 기준 수치가 없습니다.")
+    if definition.source_id!=source["source_id"] or definition.source_asset_hash!=source_hash:
+        return blocked("기준 정의와 출처 판본이 다릅니다.")
+    if definition.scope.model_dump(mode="json",exclude={"population_requirements"})!=target.model_dump(mode="json",exclude={"population_requirements"}):
+        return blocked("입력의 문항·척도·방향·산식·결측 정책이 기준과 다릅니다.")
+    if not target.scale_minimum<=values.mean<=target.scale_maximum:return blocked("외부 평균이 원척도 범위를 벗어났습니다.")
+    if any((population or {}).get(key)!=expected for key,expected in definition.scope.population_requirements.items()):
+        return blocked("필요한 대상 정보가 없거나 기준의 대상 범위와 다릅니다.")
+    return ExternalGateV4(source_id=source["source_id"],status="ready",reason="실제 기준 정의와 입력 조건이 일치합니다.",
+        scope=definition.scope,definition=definition_ref,values=values)
 
 
-def activate_external(store,value:ActivateExternalV4,user):
-    value=ActivateExternalV4.model_validate_json(value.model_dump_json())
-    source,digest=_source(value.source_id)
-    with store.connect(write=True) as db:
-        _account(db,user,admin=True)
-        prior=_record(db,ACTIVATION_ACTION,value.source_id)
-        revision=prior["revision"] if prior else 0
-        if revision!=value.expected_revision:raise HTTPException(409,"외부 비교 활성화 판본이 변경되었습니다.")
-        activation=TechnicalActivationV4(source_id=value.source_id,revision=revision+1,actor=user.username,recorded_at=now(),enabled=value.enabled,confirmation=value.confirmation,reason=value.reason)
-        if value.enabled:
-            latest=_record(db,RESEARCH_ACTION,value.source_id)
-            reference=ResearchReferenceV4.model_validate_json(encode(latest)) if latest else None
-            doc=research_document(store,reference) if reference else None
-            result=gate(source,digest,doc,reference,activation,target_scope(value.source_id),doc.scope.population_requirements if doc else {})
-            if result.status!="approved":raise HTTPException(422,result.reason)
-        store.audit(db,user.username,value.source_id,ACTIVATION_ACTION,activation.model_dump(mode="json"))
-        from .external_comparisons_v4 import record_impacts
-        record_impacts(store,db,value.source_id,user.username,"기술 활성화 판본이 변경되었습니다. 기존 발급 파일은 보존하며 현재 제공 조건을 다시 확인합니다.")
-    return activation
+
 
 
 def external_for_report(store,source_id,target,user,*,population=None):
     target=ComparisonScopeV4.model_validate(target)
     source,digest=_source(source_id)
     with store.connect() as db:
-        _account(db,user,reader=True)
-        latest=_record(db,RESEARCH_ACTION,source_id)
-        activation=_record(db,ACTIVATION_ACTION,source_id)
-        reference=ResearchReferenceV4.model_validate_json(encode(latest)) if latest else None
-        try:document=research_document(store,reference) if reference else None
+        _account(db,user)
+        try:document,reference,activation=current_definition(store,db,source_id)
         except HTTPException:
-            return ExternalGateV4(source_id=source_id,status="blocked",reason="연구 확인자료 또는 근거 파일이 손상되어 출력을 보류합니다.")
-        active=TechnicalActivationV4.model_validate_json(encode(activation)) if activation else None
-        return gate(source,digest,document,reference,active,target,population)
+            return ExternalGateV4(source_id=source_id,status="blocked",reason="기준 정의 또는 근거 파일이 손상되었습니다.")
+        return gate(source,digest,document,reference,activation,target,population)

@@ -233,7 +233,7 @@ class ReportRunV4Tests(unittest.TestCase):
         reports.view(self.store, run_id, self.user)
 
     def test_u08_professor_creates_opens_report_and_open_is_audited_without_manager_powers(self):
-        """U08 decision 「바로 열람, 채점 중엔 차단」: operator issues; a professor without any sheet opens directly, logged."""
+        """AR05 common issued access is logged, including while another independent draft exists."""
         from app import sheets_v4 as sheets
         from tests.test_opinions_v4 import model as make
         run_id = self.publish()
@@ -256,12 +256,9 @@ class ReportRunV4Tests(unittest.TestCase):
         reports.action(self.store, queued, reports.ReportActionV4(expected_updated_at=self.row(queued)["updated_at"], reason=reason), professor, retry=True)
         self.assertEqual([(row["actor"], row["action"]) for row in reports.access_log(self.store, self.case_id, self.session_id, queued, professor)][-2:],
             [("reviewer", "report.s1.stop"), ("reviewer", "report.s1.retry")])
-        # 독립 채점 중(미제출 시트)인 교수는 열 수 없다.
+        # 독립 draft가 있어도 공통 자료를 바로 열 수 있다.
         self.helper.assign("other")
-        with self.assertRaises(HTTPException) as caught:
-            reports.download(self.store, self.case_id, self.session_id, run_id, "html", self.helper.people["other"])
-        self.assertEqual(caught.exception.status_code, 403)
-        self.assertIn("독립 채점을 제출하기 전", caught.exception.detail)
+        self.assertTrue(reports.download(self.store, self.case_id, self.session_id, run_id, "html", self.helper.people["other"])[0])
         # 공통 업무 계정은 시트 생성도 수행한다. 기존 활성 배정 중복 검사는 AR03 전까지 유지한다.
         value = make(sheets.SheetAssignmentV4, expected_revision=self.current()["input_revision"], assigned_username="reviewer",
             rater_id="rater-other-u08", rater_name="합성 평가자", source_sheet_id=None, purpose="independent", batch_id=None)

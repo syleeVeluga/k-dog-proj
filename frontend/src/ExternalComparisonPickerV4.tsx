@@ -35,12 +35,12 @@ export function ExternalComparisonPickerV4({ target, value, onChange, disabled =
     changed.current(result.reference); setIds([]); setReason(''); request.current = { key: '', id: '' }; await reload();
   }
   return <fieldset disabled={disabled || busy} aria-label="이 출력의 외부 비교"><legend>이 출력의 외부 비교</legend>
-    <p>연구 확인과 기술 활성화가 모두 유효한 출처만 선택합니다. 이 대상의 원문·원척도·응답·필요 프로필을 다시 검사해 고정합니다. 외부 비교 없이도 나머지 결과를 출력할 수 있습니다.</p>
+    <p>현재 기준 정의에 맞는 출처를 선택합니다. 이 대상의 원문·원척도·응답·대상 조건을 검사해 고정합니다. 외부 비교 없이도 나머지 결과를 출력할 수 있습니다.</p>
     {!target ? <p>먼저 출력할 원자료·최종본을 선택하세요.</p> : <>
       {error && <p role="alert" className="error">{error}</p>}<button onClick={() => void work(reload)}>외부 비교 조건 새로고침</button><p>선택한 대상·회차의 입력 {target.expected_revision}판 기준입니다.</p>
-      <label>이 출력의 외부 비교<select aria-label="이 출력의 외부 비교" value={value?.snapshot_id ?? ''} onChange={e => changed.current(rows.find(row => row.reference.snapshot_id === e.target.value)?.reference ?? null)}><option value="">외부 비교 없음</option>{rows.map(row => <option key={row.reference.snapshot_id} value={row.reference.snapshot_id} disabled={row.status !== 'approved'}>{row.source_titles.join(' / ')} · {new Date(row.recorded_at).toLocaleString()}{row.status !== 'approved' ? ' · 제공 차단' : ''}</option>)}</select></label>
-      {value && !rows.some(row => row.reference.hash === value.hash && row.status === 'approved') && <p role="status">선택한 외부 비교를 현재 제공할 수 없습니다. 외부 비교 없음을 선택하거나 조건을 새로 확인하세요.</p>}
-      {rows.filter(row => row.status === 'blocked').map(row => <p key={row.reference.snapshot_id}>{row.source_titles.join(' / ')}: {row.reason}</p>)}
+      <label>이 출력의 외부 비교<select aria-label="이 출력의 외부 비교" value={value?.snapshot_id ?? ''} onChange={e => changed.current(rows.find(row => row.reference.snapshot_id === e.target.value && row.new_selection_available)?.reference ?? null)}><option value="">외부 비교 없음</option>{rows.map(row => <option key={row.reference.snapshot_id} value={row.reference.snapshot_id} disabled={!row.new_selection_available}>{row.source_titles.join(' / ')} · {new Date(row.recorded_at).toLocaleString()}{!row.new_selection_available ? ' · 새 출력 선택 불가' : ''}</option>)}</select></label>
+      {value && !rows.some(row => row.reference.hash === value.hash && row.new_selection_available) && <p role="status">선택한 외부 비교는 새 출력에 사용할 수 없습니다. 외부 비교 없음을 선택하거나 현재 기준으로 새 비교를 고정하세요.</p>}
+      {rows.filter(row => !row.new_selection_available).map(row => <p key={row.reference.snapshot_id}>{row.source_titles.join(' / ')}: {row.new_selection_reason}</p>)}
       <details><summary>확인된 출처로 새 비교 고정</summary>{sources?.sources.map(row => <label key={row.source_id}><input type="checkbox" aria-label={`${row.title} 외부 비교 포함`} disabled={row.status !== 'conditionally_available'} checked={ids.includes(row.source_id)} onChange={e => setIds(e.target.checked ? [...ids, row.source_id] : ids.filter(id => id !== row.source_id))} />{row.title} · {row.reason}</label>)}
         <label>외부 비교 고정 사유<textarea aria-label="외부 비교 고정 사유" value={reason} onChange={e => setReason(e.target.value)} /></label><button disabled={!ids.length || !reason.trim()} onClick={() => void work(create)}>선택 조건으로 외부 비교 고정</button>
         {request.current.id && <p role="status">응답이 유실되면 같은 선택으로 다시 요청하세요. 동일 요청을 중복 생성하지 않습니다.</p>}

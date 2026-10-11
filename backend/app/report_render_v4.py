@@ -43,7 +43,7 @@ def external_rows(profile):
             f"본인 설문 평균 {number(entry.local_mean)} · 유효 응답 문항 {entry.local_n}개 / 외부 참고 평균 {number(gate.values.mean)} · 표준편차 {number(gate.values.standard_deviation)} · 외부 유효 표본 n={gate.values.valid_n} · 외부 전체 표본 n={gate.values.total_n}",
             f"설문 원척도 {gate.scope.scale_minimum}–{gate.scope.scale_maximum} · {', '.join(gate.scope.question_ids)} · {entry.population_scope}",
             f"{entry.literature} · DOI {entry.doi}",
-            f"연구 확인 {gate.confirmation.revision}판 · 기술 활성화 {gate.activation_revision}판"))
+            f"기준 정의 {(gate.definition or gate.confirmation).revision}판"))
     return rows
 
 

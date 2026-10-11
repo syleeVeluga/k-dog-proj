@@ -80,7 +80,7 @@ def references(store, db):
                     and isinstance(value["reference"], dict) and "snapshot_id" in value["reference"]):
                 # ExternalPublicV4 embeds raw population metadata, never file links.
                 visit({"reference": value["reference"], "input": value["target"]["input"],
-                       "confirmations": [entry["gate"]["confirmation"] for entry in value["entries"]]})
+                       "definitions": [entry["gate"].get("definition") or entry["gate"].get("confirmation") for entry in value["entries"]]})
                 return
             for key, candidate in value.items():
                 if key == "conversion" and "upload_id" in value and "video_id" in value:
@@ -105,11 +105,11 @@ def references(store, db):
                             visit(document["source"])
                         elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-cohort":
                             visit([member["input"] for member in document["members"]])
-                        elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-research":
+                        elif isinstance(document, dict) and document.get("artifact_kind") in ("comparison-research", "comparison-definition"):
                             visit(document["evidence"])
                         elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-external":
                             visit({"input": document["target"]["input"],
-                                   "confirmations": [entry["gate"]["confirmation"] for entry in document["entries"]]})
+                                   "definitions": [entry["gate"].get("definition") or entry["gate"].get("confirmation") for entry in document["entries"]]})
                         elif isinstance(document, dict) and document.get("artifact_kind") == "validation-reference":
                             visit(document["source"])
                         elif isinstance(document, dict) and document.get("artifact_kind") == "research-export":

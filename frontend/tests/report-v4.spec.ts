@@ -55,7 +55,7 @@ test('S1 report uses explicit final pins, recovers a lost create response and st
   await expect(panel.getByRole('heading', { name: '대기', exact: true })).toBeVisible();
   expect(requests).toHaveLength(2); expect(requests[0].request_id).toBe(requests[1].request_id); expect(requests[0].final).toEqual(data.final.reference);
   const runs = await (await page.request.get(data.base + '/report-runs-s1')).json(); expect(runs).toHaveLength(1);
-  await panel.getByLabel('공개·실행 제어 사유', { exact: true }).fill('합성 중지와 고정 재시도');
+  await panel.getByLabel('실행 제어 기록', { exact: true }).fill('합성 중지와 고정 재시도');
   await panel.getByRole('button', { name: '이 리포트 실행 중지', exact: true }).click(); await expect(panel.getByRole('heading', { name: '중지', exact: true })).toBeVisible();
   await panel.getByRole('button', { name: '고정 입력으로 리포트 재시도', exact: true }).click(); await expect(panel.getByRole('heading', { name: '대기', exact: true })).toBeVisible();
   await panel.getByRole('button', { name: '이 리포트 실행 중지', exact: true }).click(); await expect(panel.getByRole('heading', { name: '중지', exact: true })).toBeVisible();
@@ -115,32 +115,20 @@ test('S1 report publication UI opens guarded cards and offline HTML, marks histo
   await expect(output).toHaveCount(0); await expect(panel.getByRole('alert')).toHaveText('합성 권한 철회: 발급본 열람 차단');
 });
 
-test('S1 report final disclosure is explicit and a professor (reviewer) issues the report with an access record (U08)', async ({ page, request }) => {
-  test.setTimeout(120000); const data = await fixture(request, 's1report-disclosure');
-  const admin = await (await request.post(data.base + '/sheets-s1', { headers, data: { expected_revision: data.item.input_revision, source_sheet_id: data.sheet.sheet_id, assigned_username: 'reviewer', rater_id: 'report-professor', rater_name: '독립 리포트 교수' } })).json();
-  await login(page, 'reviewer'); const sheetPath = `/api/score-sheets-s1/${admin.sheet_id}`;
-  // U08: 교수에게도 리포트 발급 메뉴가 있고, 비교 조건·연구 내보내기는 운영자 전용으로 남는다.
-  const nav = page.getByRole('navigation', { name: '주 메뉴' });
-  await expect(nav.getByRole('button', { name: '리포트 발급', exact: true })).toHaveCount(1);
-  for (const name of ['비교 조건', '연구 내보내기']) await expect(nav.getByRole('button', { name, exact: true })).toHaveCount(0);
-  const draft = await (await page.request.put(sheetPath, { headers, data: { expected_revision: admin.revision, observations: data.observations, reason: '합성 독립 원자료' } })).json();
-  const submitted = await (await page.request.post(sheetPath + '/submit', { headers, data: { expected_revision: draft.revision, reason: '합성 독립 제출' } })).json();
-  expect((await request.post(sheetPath + '/grants', { headers, data: { expected_revision: submitted.revision, target_sheet_id: data.sheet.sheet_id, target_revision: data.sheet.revision, reason: '원자료 공개 허용' } })).status()).toBe(200);
-  const before = await (await page.request.get(sheetPath)).json();
-  expect((await page.request.post(sheetPath + '/reveal-ai-s1', { headers, data: { expected_revision: before.summary.revision, ref: data.sheet.manifest_ref } })).status()).toBe(200);
-  await open(page, 's1report-disclosure'); const panel = page.getByRole('region', { name: '리포트 실행', exact: true });
+test('AR05 reviewer creates a report from another final while an independent draft remains untouched', async ({ page, request }) => {
+  test.setTimeout(120000); const data = await fixture(request, 'ar05report-shared');
+  const created = await request.post(data.base + '/sheets-s1', { headers, data: { expected_revision: data.item.input_revision, source_sheet_id: data.sheet.sheet_id, assigned_username: 'reviewer', rater_id: 'ar05-professor', rater_name: '독립 리포트 교수' } });
+  expect(created.status(), await created.text()).toBe(201); const draft = await created.json();
+  await login(page, 'reviewer');
+  const before = await (await page.request.get(`/api/score-sheets-s1/${draft.sheet_id}`)).json();
+  await open(page, 'ar05report-shared'); const panel = page.getByRole('region', { name: '리포트 실행', exact: true });
   await panel.getByLabel('리포트에 고정할 최종본', { exact: true }).selectOption(data.final.reference.final_id);
-  await expect(panel.getByRole('button', { name: '선택한 최종본으로 리포트 생성', exact: true })).toBeDisabled();
-  await panel.getByLabel('리포트 공개 맥락의 본인 제출 시트', { exact: true }).selectOption(admin.sheet_id);
-  await panel.getByLabel('공개·실행 제어 사유', { exact: true }).fill('독립 제출 뒤 최종 해석을 리포트로 확인');
-  await panel.getByRole('button', { name: '선택한 최종 해석을 명시 공개', exact: true }).click();
   await expect(panel.getByRole('button', { name: '선택한 최종본으로 리포트 생성', exact: true })).toBeEnabled();
-  const after = await (await page.request.get(sheetPath)).json(); expect(after.document.interpretation_exposures).toHaveLength(1); expect(after.document.initial_submission.revision).toBe(submitted.revision);
+  await expect(panel.getByText(/본인 제출 시트|명시 공개/)).toHaveCount(0);
   await panel.getByRole('button', { name: '선택한 최종본으로 리포트 생성', exact: true }).click();
   const run = panel.getByRole('article').first(); await expect(run).toBeVisible();
-  // 누가 만들었는지 기록이 화면에 보인다.
   await run.getByText('열람·수정 기록', { exact: true }).click();
   await expect(run.getByRole('list', { name: '리포트 열람·수정 기록', exact: true })).toContainText('reviewer · 생성 요청');
-  // 교수 권한으로 운영자 배정은 여전히 거절된다.
-  expect((await page.request.post(data.base + '/sheets-s1', { headers, data: { expected_revision: data.item.input_revision, assigned_username: 'reviewer', rater_id: 'u08-denied', rater_name: '거절' } })).status()).toBe(403);
+  const after = await (await page.request.get(`/api/score-sheets-s1/${draft.sheet_id}`)).json();
+  expect(after.document).toEqual(before.document); expect(after.summary.revision).toBe(before.summary.revision);
 });

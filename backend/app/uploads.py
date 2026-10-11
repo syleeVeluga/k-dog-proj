@@ -58,7 +58,7 @@ def _row(store, db, upload_id, actor, request_id=None, *, available_parents=True
         raise HTTPException(404, "수신물을 찾을 수 없습니다.")
     if linked_reader and row["state"] != "linked":
         raise HTTPException(403, "참가자·회차에 연결된 영상만 열람할 수 있습니다.")
-    if request_id is not None and (row["creator"] != actor or row["request_id"] != request_id):
+    if request_id is not None and row["request_id"] != request_id:
         raise HTTPException(409, "수신 요청 식별자가 일치하지 않습니다.")
     case_id = row["linked_case_id"] or row["scope_case_id"]
     if case_id:
@@ -513,9 +513,7 @@ def linked_video_path(store, case_id, video_id, actor):
 def abort_receipt(store, upload_id, actor):
     with store.connect(write=True) as db:
         row = _row(store, db, upload_id, actor, available_parents=False)
-        account = _account(db, actor)
-        if actor != row["creator"] and account["role"] != "admin":
-            raise HTTPException(403, "작성자 또는 관리자만 수신물을 정리할 수 있습니다.")
+        _account(db, actor)
         if row["state"] == "linked":
             raise HTTPException(409, "이미 연결된 원자료의 수신은 취소할 수 없습니다.")
         if any(parent["upload_id"] == upload_id for other in db.execute(

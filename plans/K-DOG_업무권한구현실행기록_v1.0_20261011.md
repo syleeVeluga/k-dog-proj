@@ -11,8 +11,8 @@
 | AR01 | [x] | [x] | [x] | [x] | [x] | [x] PR #75 |
 | AR02 | [x] | [x] | [x] | [x] | [x] | [x] PR #76 |
 | AR03 | [x] | [x] | [x] | [x] | [x] | [x] PR #77 |
-| AR04 | [x] | [x] | [x] | [x] 발견 없음 | [x] | [ ] |
-| AR05 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
+| AR04 | [x] | [x] | [x] | [x] 발견 없음 | [x] | [x] PR #78 |
+| AR05 | [x] | [x] | [x] | [x] P2 2건 | [x] | [ ] |
 | AR06 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
 | AR07 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
 
@@ -156,7 +156,7 @@ AR04 동의/삭제/보관 및 AR05 리포트/내보내기 소유 조건은 해�
 
 ## 7 AR04 구현·검증·독립 cold review
 
-2026-10-12, 브랜치 `veluga/ar04-consent-retention`, 기준 `1986e22` (AR03 merge), [PR #78](https://github.com/syleeVeluga/k-dog-proj/pull/78), 구현 head `3f88726`. 요구사항 AR-R06·AR-R07·AR-R10·AR-R11. 의존성은 §4 공식 확인과 같은 잠금판이며 추가/업그레이드 없음. 최종 head·merge는 병합 후 기록한다.
+2026-10-12, 브랜치 `veluga/ar04-consent-retention`, 기준 `1986e22` (AR03 merge), [PR #78](https://github.com/syleeVeluga/k-dog-proj/pull/78), 구현 head `3f88726`, 최종 head `c3642f9b94bcef488f9ecbb4169ab0eaca71d271`, merge `8d7d8d76494c70ad16c2075e4ebd630444e22f08` (2026-10-11 15:51:35 UTC). 요구사항 AR-R06·AR-R07·AR-R10·AR-R11. 의존성은 §4 공식 확인과 같은 잠금판이며 추가/업그레이드 없음.
 
 - 목록/영상/업로드/촬영/전처리/AI/채점/리포트/비교/검수/export/Worker/benchmark의 live·frozen 동의·삭제 차단을 제거했다. product 삭제 API·버튼·상태와 identity/Forms/검수 source tombstone을 제거했다. 역사 Manifest·DB·대장 metadata는 보존하며 새 정상 DTO/화면의 조건에서 제외한다. 생략한 사례 수정은 옛 동의값을 유지한다.
 - clean은 참조 hash 전체 검증 후 현재 참조하지 않는 관리 경로의 고아파일만 제거한다. 연쇄 DB 삭제·purge·VACUUM은 없다. restore는 백업 시점 DB/자료/changes만 복원하며 현재 삭제대장·백업 이후 event를 추출·병합하거나 lease를 다시 쓰지 않는다. 세션 초기화·S1 초기화 경계·hash/FK/offline/목적지 검사는 유지한다.
@@ -181,3 +181,38 @@ AR04 동의/삭제/보관 및 AR05 리포트/내보내기 소유 조건은 해�
 `ar01_cold_review`가 Graft 호출 관계와 diff를 읽기 전용으로 독립 검토했다. actionable 0건으로 수용 수정이 필요한 발견은 없었다. 동의/삭제 차단 제거·고정 판본·Worker lease/token·참조 보존 후 고아 정리·snapshot 복원·시험 무결성을 확인하고 독립 합성 회귀 13개(19.584초)를 통과했다. AR05/AR06 후속 범위와 구분했다.
 
 ![동의·삭제 절차 없는 상세 — 합성 참가자](images/ar04-retention-detail.png)
+
+## 8 AR05 구현·검증·독립 cold review
+
+2026-10-12, `veluga/ar05-shared-outputs`, 기준 AR04 merge `8d7d8d76494c70ad16c2075e4ebd630444e22f08`. AR-R03·AR-R05·AR-R09·AR-R10. 신규 의존성 없이 §4 공식 확인·기존 잠금판을 유지한다. 독립 리뷰 진행 중이며 병합 전이다.
+
+- 검수 원자료·CSV/XLSX·리포트·집단·기준을 모든 활성 계정에 공유한다. 원 생성자 비활성·grant 없음·미제출 초안은 접근을 막지 않는다. 리포트는 실제 고정 원자료/기본 결과를 검증한다. 수정/재생성은 새 판본이며 기존 파일 bytes/hash와 실제 생성/열람 actor를 보존한다.
+- Forms preset 삭제와 receipt 조회/재수신/취소는 공통 업무다. creator/request ID의 생성 중복 식별과 실제 claim/session/token/연결된 원본 보호는 유지한다. 같은 request ID의 다른 생성자 수신물은 별개 upload ID로 제공한다.
+- 외부 비교는 실제 수치·척도·문항·산식·결측·표본 n·대상 조건·수치 출처·근거 파일을 입력하는 기준 정의 하나의 저장/적용으로 바꿨다. 여섯 confirmed 및 별도 활성화 승인 API를 제거했다. 값 없음/미준비·scope 불일치·근거 변조는 기술 오류이며 합성 승인을 만들지 않는다. 새 양식의 수치는 빈칸에서 시작한다.
+- 새 문서는 ready 기준 정의 판본을 고정한다. 과거 confirmation/activation은 출처로 읽으며 재승인 없이 사용한다. 새 계산은 최신 정의/사용중단을 재검사하지만 과거 발급·내보내기 파일은 당시 정의/근거/원본 hash로 제공한다. 정의 변경·중단은 과거 bytes를 바꾸지 않는다. 실제 손상·유실은 기술 오류다.
+- 최초 독립 제출 뒤 제3자의 단순 열람은 최초 독립 분모/분류를 바꾸지 않는다. 타인 후속 편집과 제출 전 AI 열람은 새 판본의 review/노출로 구분하며 원평가자와 최초 제출 bytes를 보존한다.
+
+| 검증 | 결과 |
+| --- | --- |
+| validation/exports/forms presets/uploads/report runs/validation 공통 접근 | 85개, 115.066초 통과. 최초 4개 옛 소유/채점 중 접근 기대를 갱신하고 전체 묶음 재실행 |
+| comparisons/external/external exports/current narrative report 인수 | 37개, 47.336초 통과. 사용중단 중 새 생성 거절·과거 HTML/PDF/CSV/XLSX 유지·범위/값/hash 검증 |
+| research/comparison API/report API/acceptance/narrative/benchmark 영향 | 48개 중 46개 통과, 94.307초. 제거한 research API 및 fixture 호출 2개를 갱신 후 비교 API/백업 2개, 2.066초 통과 |
+| 새 공유 산출물 실제 종단 | 6개, 25.803초 통과. 네 계정 각각 HTTP 요청→현재 RP04 fake narrative Worker→HTML/PDF/manifest 열람·실제 actor 1건·poll 무기록, 독립 초안 보존; 생성자 비활성 검수/export 공유·다른 계정 신규 XLSX; 수신 ID 충돌 분리·실제 claim actor; legacy 미확인/미활성 출처; 최초 독립/후속 편집·사전 AI 노출 분모 |
+| 최초 독립 export 추가 행렬 | 새 공유 5개+기존 독립성 1개, 26.823초 통과. 이후 새 공유 검증은 위 6개로 강화 |
+| `npm run build` | 통과, 기존 chunk 안내 유지 |
+| report E2E | 3개 통과. 미제출 초안 있는 다른 계정 실제 생성/열람·리포트 기록·중지/재시도 |
+| external E2E | 1개, 25.0초 통과. 일반 계정 기준 즉시 적용·409 입력 보존·360px·실제 fake Worker HTML/PDF·CSV·사용중단 후 과거 파일 유지/새 선택 거절 |
+| exports E2E | 3개, 20.1초 통과. 참고 원본/수식/미확인 출처·0/음수/null·CSV 안전·타인 시트 직접 사용→다른 계정 공유 파일 다운로드 |
+| cold review 수용 후 관련 종단 | 25개 중 24통과, 65.284초. 새 프로필 정정 fixture의 저장 위치 오류를 수정 후 해당1개, 6.313초 통과. 이미 발급한 HTML/PDF/manifest bytes 유지·새 선택 제외 |
+| 수용 후 build·report/export E2E | build 통과·6개 통과. 추가 외부 picker 인수는 화면 재진입 후 최종본 명시 선택 fixture 보완 후 외부1개, 26.0초 통과. 과거 ready/새 선택 불가 응답·disabled option 확인 |
+
+브라우저 연구 파일 시험의 옛 AR04 제한 기대와 공유 목록에서 정확한 파일을 여는 선택자를 수정했다. 위 묶음 실행의 초기 실패와 집중 재실행은 단일 전체 성공 실행으로 합산하지 않는다. 실제 운영 자료·유료 호출·중간 배포는 없다.
+
+![공유 외부 기준 정의 — 합성 수치·근거, 360px](images/ar05-shared-definition-360.png)
+
+독립 cold review의 P2 2건을 모두 수용했다. 보류/거절은 없다. 독립 새 종단6개(30.118초)와 두 추가 합성 재현으로 확인했다. 현재 source/survey 자산 hash 검사는 승인과 구별되는 기술 보호로 판단했다. 독립 재검토에서 두 건 해결·신규 actionable0을 확인했고 회귀9개(17.595초)를 통과했다. Graft build·diff check·계획 Git index 링크97개 누락0도 확인했다.
+
+| 발견 | 수용 수정·회귀 |
+| --- | --- |
+| 과거 발급본에 현재 접수 프로필 조건을 적용해 정정 뒤 정상 PDF도409 | 과거 제공은 고정 entry.population과 당시 정의 조건을 검증. 현재 프로필 검사는 새 선택 경로만 수행. 접수 성별 정정 뒤 기존 HTML/PDF/manifest bytes 동일·새 선택 제외 회귀 |
+| 사용중단/변경된 기준의 옛 snapshot이 새 출력 picker의 활성 선택지 | 과거 ready와 new_selection_available/reason을 별도 응답. picker는 현재 새 선택 가능 여부로 disabled/사유 표시, 서버 새 선택 재검사 유지. 정의 변경/중단 목록·새 비교 활성·브라우저 option 비활성 회귀 |

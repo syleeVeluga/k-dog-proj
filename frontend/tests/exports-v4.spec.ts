@@ -31,7 +31,7 @@ test.beforeEach(({ page }) => { page.setDefaultTimeout(15000); });
 test('S14 reference workbook preserves raw cells, formulas, unknown identity and idempotent reference-only registration', async ({ page }, info) => {
   test.setTimeout(120000); await login(page); const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   const item = await (await page.request.post('/api/cases', { headers, data: { event_id: 'S14-REFERENCE', participant_id: 'reference-only', dog_name: '동명이견', guardian_name: '평가자로 추정하면 안 되는 이름', consents: { analysis_feedback: 'declined', stranger_contact: 'unknown' } } })).json();
-  expect((await (await page.request.get('/api/comparisons-s1/candidates')).json()).some((row: any) => row.case_id === item.case_id)).toBe(false);
+  expect((await (await page.request.get('/api/comparisons-s1/candidates')).json()).some((row: any) => row.case_id === item.case_id)).toBe(true);
   await openMenu(page, '검수 자료'); const panel = page.getByRole('region', { name: '검수 참고 자료', exact: true });
   const buffer = execFileSync('uv', ['run', '--locked', 'python', '-X', 'utf8', '-c', 'import sys; from tests.test_validation_data_v4 import workbook_bytes; sys.stdout.buffer.write(workbook_bytes())'], { cwd: backend });
   await panel.getByLabel('검수 XLSX 파일', { exact: true }).setInputFiles({ name: 'synthetic-reference.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer });
@@ -50,7 +50,7 @@ test('S14 reference workbook preserves raw cells, formulas, unknown identity and
   await panel.getByRole('button', { name: '선택 자료 미리보기', exact: true }).click(); const preview = await (await previewResponse).json();
   const byCell = Object.fromEntries(preview.rows.map((row: any) => [row.source.cell, row]));
   expect(byCell.A1.source.value).toBe(0); expect(byCell.A2.source.value).toBe(-2); expect(byCell.D1.source.value).toBeNull(); expect(byCell.B1.source.value).toBeNull(); expect(byCell.B1.source.cached_value).toBe(-2); expect(byCell.A3.effective_status).toBe('legacy_semantics'); expect(byCell.C1.effective_status).toBe('example');
-  expect(byCell.A1.exclusion_reasons).toContain('participant_withdrawn'); expect(byCell.D1.exclusion_reasons).toContain('unmatched_subject'); expect(preview.rows.every((row: any) => !row.current_s1_score && !row.independent_ground_truth && row.selection.evaluator === null)).toBe(true);
+  expect(byCell.A1.exclusion_reasons).not.toContain('participant_withdrawn'); expect(byCell.D1.exclusion_reasons).toContain('unmatched_subject'); expect(preview.rows.every((row: any) => !row.current_s1_score && !row.independent_ground_truth && row.selection.evaluator === null)).toBe(true);
   const requests: any[] = []; let lost = true;
   await page.route('**/api/validation-data-s1', async route => { if (route.request().method() !== 'POST') return route.continue(); requests.push(route.request().postDataJSON()); if (lost) { lost = false; await route.fetch(); await route.abort('failed'); } else await route.continue(); });
   await panel.getByRole('button', { name: '참고 자료로 등록', exact: true }).click(); await expect(panel.getByRole('alert')).toBeVisible();
@@ -68,7 +68,7 @@ test('S14 reference workbook preserves raw cells, formulas, unknown identity and
   await opened.getByText('연결 기술 정보', { exact: true }).click();
   await expect(opened).toContainText(item.selected_session_id);
   await opened.getByText('연결 기술 정보', { exact: true }).click();
-  expect((await page.request.get(`/api/cases/${item.case_id}/sessions/${item.selected_session_id}/sheets-s1`)).status()).toBe(403);
+  expect((await page.request.get(`/api/cases/${item.case_id}/sessions/${item.selected_session_id}/sheets-s1`)).status()).toBe(200);
   expect((await (await page.request.get(`/api/cases/${item.case_id}`)).json()).input_revision).toBe(item.input_revision);
   await page.setViewportSize({ width: 360, height: 800 }); await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); await panel.screenshot({ path: info.outputPath('validation-s1-360.png') });
   expect(errors).toEqual([]);
@@ -76,7 +76,7 @@ test('S14 reference workbook preserves raw cells, formulas, unknown identity and
 
 test('S14 research download pins S1 raw/basic/final and preserves zero, negative, null and CSV safety', async ({ page, request }, info) => {
   test.setTimeout(120000); const data = await fixture(request, 'export-values'); await login(page); const panel = await openExport(page, 'export-values');
-  await panel.getByLabel('기준 본인 시트').selectOption(data.sheet.sheet_id); await panel.getByLabel('내보낼 원자료 판본').selectOption(data.sheet.manifest_ref);
+  await panel.getByLabel('기준 시트').selectOption(data.sheet.sheet_id); await panel.getByLabel('내보낼 원자료 판본').selectOption(data.sheet.manifest_ref);
   await panel.getByLabel('같은 원자료의 기본 결과').selectOption(`${data.basic.result_id}:${data.basic.revision}`); await panel.getByLabel('최종 결과', { exact: true }).selectOption(data.final.reference.final_id);
   await panel.getByRole('button', { name: '고정 선택 목록에 추가', exact: true }).click(); await panel.getByLabel('연구 내보내기 사유').fill('합성 원자료 값 보존 시험');
   const sent: any[] = []; let lost = true;
@@ -91,25 +91,28 @@ test('S14 research download pins S1 raw/basic/final and preserves zero, negative
   const xlsxEvent = page.waitForEvent('download'); await panel.locator('details[open]').getByRole('button', { name: /연구 파일 다운로드/ }).click(); const xlsx = await xlsxEvent; const xlsxPath = info.outputPath(xlsx.suggestedFilename()); await xlsx.saveAs(xlsxPath);
   const typed = JSON.parse(execFileSync('uv', ['run', '--locked', 'python', '-X', 'utf8', '-c', "import sys,json,openpyxl; w=openpyxl.load_workbook(sys.argv[1],data_only=False); values=list(w['raw_observations'].values); rows=[dict(zip(values[0],r)) for r in values[1:]]; print(json.dumps({r['code']:r['value'] for r in rows},ensure_ascii=False)); w.close()", xlsxPath], { cwd: backend, encoding: 'utf8' })); expect(typed['개5']).toBe(0); expect(typed['개45']).toBe(-2); expect(typed['개6']).toBeNull();
   await page.setViewportSize({ width: 360, height: 800 }); await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); await panel.screenshot({ path: info.outputPath('research-export-s1-360.png') });
-  const lastVisibleCases = await (await page.request.get('/api/cases')).json();
-  await page.route('**/api/cases', route => route.request().method() === 'GET' ? route.fulfill({ json: lastVisibleCases }) : route.continue());
-  const current = await (await page.request.get(`/api/cases/${data.item.case_id}`)).json();
-  expect((await page.request.post(`/api/cases/${data.item.case_id}/deletion`, { headers, data: { expected_revision: current.input_revision } })).status()).toBe(200);
-  const deniedDownload = page.waitForResponse(response => response.url().includes('/exports-s1/') && response.url().endsWith('/download'));
-  let leaked = false; page.on('download', () => { leaked = true; }); await panel.locator('details[open]').getByRole('button', { name: /연구 파일 다운로드/ }).click(); expect((await deniedDownload).ok()).toBe(false); await expect(panel.getByRole('alert')).toBeVisible(); expect(leaked).toBe(false);
+  expect((await page.request.post(`/api/cases/${data.item.case_id}/deletion`, { headers, data: { expected_revision: data.item.input_revision } })).status()).toBe(404);
+  const retained = page.waitForEvent('download'); await panel.locator('details[open]').getByRole('button', { name: /연구 파일 다운로드/ }).click(); await retained;
+
 });
 
-test('S14 already-revealed target is selectable; grant-only and reviewer export access remain blocked', async ({ page, request }) => {
-  test.setTimeout(120000); const data = await fixture(request, 'export-disclosure');
-  const assigned = await (await request.post(data.base + '/sheets-s1', { headers, data: { expected_revision: data.item.input_revision, source_sheet_id: data.sheet.sheet_id, assigned_username: 'admin', rater_id: 'export-admin', rater_name: '독립 연구 검토자' } })).json();
-  await login(page, 'admin'); const base = `/api/score-sheets-s1/${assigned.sheet_id}`;
-  const draft = await (await page.request.put(base, { headers, data: { expected_revision: assigned.revision, observations: data.observations, reason: '합성 독립 관찰' } })).json(); const submitted = await (await page.request.post(base + '/submit', { headers, data: { expected_revision: draft.revision, reason: '독립 제출' } })).json();
-  expect((await request.post(base + '/grants', { headers, data: { expected_revision: submitted.revision, target_sheet_id: data.sheet.sheet_id, target_revision: data.sheet.revision, reason: '합성 공개' } })).status()).toBe(200);
-  const panel = await openExport(page, 'export-disclosure'); await panel.getByLabel('기준 본인 시트').selectOption(assigned.sheet_id); await expect(panel.getByLabel('내보낼 원자료 판본').locator('option')).not.toContainText([/실제 공개 원본/]);
-  expect((await page.request.post(base + '/reveal-ai-s1', { headers, data: { expected_revision: submitted.revision, ref: data.sheet.manifest_ref } })).status()).toBe(200);
-  await panel.getByRole('button', { name: '내보내기 후보 새로고침', exact: true }).click(); await panel.getByLabel('내보낼 원자료 판본').selectOption(data.sheet.manifest_ref); await panel.getByRole('button', { name: '고정 선택 목록에 추가', exact: true }).click(); await panel.getByLabel('연구 내보내기 사유').fill('노출된 exact 원본 선택');
-  const output = page.waitForResponse(response => response.url().endsWith('/exports-s1') && response.request().method() === 'POST'); await panel.getByRole('button', { name: '선택 판본으로 연구 파일 생성', exact: true }).click(); const exported = await output; expect(exported.status(), await exported.text()).toBe(201);
-  expect((await request.post(`/api/score-sheets-s1/${data.sheet.sheet_id}/assignment`, { headers, data: { expected_revision: data.sheet.revision, active: false, reason: '원본 배정 취소' } })).status()).toBe(200);
-  await panel.getByRole('button', { name: /연구 파일 다운로드/ }).click(); await expect(panel.getByRole('alert')).toBeVisible();
-  await page.getByRole('button', { name: '로그아웃', exact: true }).click(); await login(page, 'reviewer'); await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '검수 자료', exact: true })).toHaveCount(0); expect((await page.request.get('/api/exports-s1')).status()).toBe(403);
+test('AR05 reviewer selects another author without grant or reveal and shared exports are downloadable', async ({ page, request }) => {
+  test.setTimeout(120000); const data = await fixture(request, 'ar05-export-shared');
+  await login(page, 'reviewer');
+  const panel = await openExport(page, 'ar05-export-shared');
+  await panel.getByLabel('기준 시트').selectOption(data.sheet.sheet_id);
+  await panel.getByLabel('내보낼 원자료 판본').selectOption(data.sheet.manifest_ref);
+  await panel.getByRole('button', { name: '고정 선택 목록에 추가', exact: true }).click();
+  await panel.getByLabel('연구 내보내기 사유').fill('공유 exact 원본 선택');
+  const response = page.waitForResponse(value => value.url().endsWith('/exports-s1') && value.request().method() === 'POST');
+  await panel.getByRole('button', { name: '선택 판본으로 연구 파일 생성', exact: true }).click();
+  const output = await response; expect(output.status(), await output.text()).toBe(201);
+  const saved = await output.json();
+  await page.getByRole('button', { name: '로그아웃', exact: true }).click(); await login(page, 'admin');
+  const shared = await openExport(page, 'ar05-export-shared');
+  const section = shared.getByRole('region', { name: '공유 연구 파일', exact: true });
+  await section.locator('details').filter({ has: page.getByRole('button', { name: `연구 파일 다운로드 ${saved.export_id.slice(0, 8)}`, exact: true, includeHidden: true }) }).locator(':scope > summary').click();
+  const file = page.waitForEvent('download');
+  await section.getByRole('button', { name: `연구 파일 다운로드 ${saved.export_id.slice(0, 8)}`, exact: true }).click(); await file;
+  expect((await page.request.get('/api/exports-s1')).status()).toBe(200);
 });
