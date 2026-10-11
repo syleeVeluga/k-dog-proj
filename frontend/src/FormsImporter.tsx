@@ -1,17 +1,21 @@
 import { useState } from 'react';
+import type { DragEvent } from 'react';
 import { api } from './api';
+import { autoMap, itemLabel, parseLabelLines, parseQuestionRange, profileFields, questionKeys, requiredKeys } from './formsAutoMap';
+import type { AutoMap } from './formsAutoMap';
 import type { Case, Run } from './types';
 
 type Target = { row_number: number; case_id: string; session_id: string; expected_revision: number };
 type PreviewRow = { row_number: number; action: 'create' | 'update'; case_id: string; session_id: string; event_id: string; participant_id: string; dog_name: string; answers: Record<string, number | null>; previous_answers: Record<string, number | null>; blank_reasons: Record<string, string>; previous_blank_reasons: Record<string, string>; changed_questions: string[]; registration_status: string };
 type Preview = { preview_id: string; preview_hash: string; source_hash: string; already_committed: boolean; rows: PreviewRow[]; errors: { row_number: number | null; message: string }[] };
-const questions = Array.from({ length: 28 }, (_, i) => `s${String(i + 1).padStart(2, '0')}`);
-const profileFields = [
-  ['event_id', '행사 ID'], ['participant_id', '참가자 ID'], ['dog_name', '반려견 이름'], ['guardian_name', '보호자 이름'],
-  ['reservation_at', '예약 시각'], ['sequence_no', '순번'], ['consent_confirmed', '기본 동의'],
-  ['consent_analysis_feedback', '분석·피드백 동의'], ['consent_stranger_contact', '낯선 사람 접촉 동의'],
-  ['dog_breed', '견종'], ['dog_sex', '성별'], ['dog_age_years', '나이'], ['dog_size', '크기'], ['years_together', '함께 산 기간'], ['adoption_route', '입양 경로'],
-];
+const questions = questionKeys;
+const templates = [['roster', '명단만'], ['full', '명단 + 설문 28문항']] as const;
+const EVENT_KEY = 'kdog.forms.eventId';
+const INPUT_SHEET = '입력';
+
+// 브라우저 저장소는 편의용이다. 막혀 있어도 동작해야 한다.
+function storedEvent() { try { return window.localStorage.getItem(EVENT_KEY) ?? ''; } catch { return ''; } }
+function rememberEvent(value: string) { try { window.localStorage.setItem(EVENT_KEY, value); } catch { /* 저장 실패는 무시한다 */ } }
 
 function encodedFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -22,15 +26,21 @@ function encodedFile(file: File): Promise<string> {
   });
 }
 
+const fileFormat = (file: File) => file.name.toLowerCase().endsWith('.xlsx') ? 'xlsx' : 'csv';
+
 export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; done: (message: string) => Promise<void> }) {
   const [file, setFile] = useState<File | null>(null);
-  const [eventId, setEventId] = useState('');
+  const [eventId, setEventId] = useState(storedEvent);
   const [layout, setLayout] = useState('rows');
   const [sheet, setSheet] = useState('');
   const [sheets, setSheets] = useState<string[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [auto, setAuto] = useState<AutoMap | null>(null);
   const [labels, setLabels] = useState<Record<string, string>>({});
+  const [bulkRange, setBulkRange] = useState('');
+  const [bulkLabels, setBulkLabels] = useState('');
+  const [bulkMessage, setBulkMessage] = useState('');
   const [profile, setProfile] = useState('google-forms');
   const [version, setVersion] = useState('forms-map-1');
   const [historical, setHistorical] = useState(false);
@@ -40,94 +50,166 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [commitId, setCommitId] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
-  const format = file?.name.toLowerCase().endsWith('.xlsx') ? 'xlsx' : 'csv';
+  const [dragging, setDragging] = useState(false);
 
   function invalidate() { setResult(null); setRequestId(crypto.randomUUID()); setCommitId(crypto.randomUUID()); }
+  function clearColumns() { setColumns([]); setMapping({}); setAuto(null); setLabels({}); setTargets([]); setBulkMessage(''); }
   async function work(action: () => Promise<void>) {
     setBusy(true);
     try { await run(action); } finally { setBusy(false); }
   }
-  async function loadColumns() {
-    if (!file) return;
-    if (file.size > 32 * 1024 * 1024) throw new Error('파일은 32 MiB 이하로 나누어 등록하세요.');
-    const query = new URLSearchParams({ format, layout }); if (sheet) query.set('sheet', sheet);
-    const found = await api<{ columns: { key: string }[]; sheets: string[]; selected_sheet: string | null }>(`/forms/columns?${query}`, 'POST', file);
-    setColumns(found.columns.map(c => c.key)); setSheets(found.sheets); setSheet(found.selected_sheet ?? ''); setMapping({}); invalidate();
+  // 파일·배치·시트가 정해지면 열을 읽고 헤더로 자동 연결을 제안한다.
+  async function inspect(source: File, nextLayout: string, nextSheet: string) {
+    invalidate();
+    if (!/\.(csv|xlsx)$/i.test(source.name)) throw new Error('CSV 또는 XLSX 파일 하나만 올릴 수 있습니다.');
+    if (source.size > 32 * 1024 * 1024) throw new Error('파일은 32 MiB 이하로 나누어 등록하세요.');
+    const read = (sheetName: string) => {
+      const query = new URLSearchParams({ format: fileFormat(source), layout: nextLayout }); if (sheetName) query.set('sheet', sheetName);
+      return api<{ columns: { key: string }[]; sheets: string[]; selected_sheet: string | null }>(`/forms/columns?${query}`, 'POST', source);
+    };
+    let found = await read(nextSheet);
+    // 표준 양식을 안내 시트에서 저장한 경우처럼 첫 시트가 안내뿐이면 「입력」 시트를 대신 읽는다.
+    if (!nextSheet && found.selected_sheet !== INPUT_SHEET && found.sheets.includes(INPUT_SHEET)
+      && !Object.keys(autoMap(found.columns.map(c => c.key)).mapping).length) found = await read(INPUT_SHEET);
+    const keys = found.columns.map(c => c.key), proposal = autoMap(keys);
+    setColumns(keys); setSheets(found.sheets); setSheet(found.selected_sheet ?? ''); setMapping(proposal.mapping); setAuto(proposal);
+    setLabels({}); setTargets([]); setBulkMessage(''); invalidate();
   }
-  async function preview() {
-    if (!file) return;
+  function chooseFile(next: File | null) {
+    setFile(next); clearColumns(); setSheets([]); setSheet(''); invalidate();
+    if (next) void work(() => inspect(next, layout, ''));
+  }
+  function drop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault(); setDragging(false);
+    if (!busy) chooseFile(event.dataTransfer.files[0] ?? null);
+  }
+  function parsedLabels() {
     const answerLabels: Record<string, Record<string, number>> = {};
     for (const [question, lines] of Object.entries(labels)) {
       if (!lines.trim()) continue;
-      const values: Record<string, number> = {};
-      for (const line of lines.split('\n').filter(l => l.trim())) {
-        const split = line.lastIndexOf('=');
-        const label = line.slice(0, split).trim(); const raw = line.slice(split + 1).trim();
-        if (split < 1 || !/^[0-5]$/.test(raw) || label in values) throw new Error(`${question}: 원라벨=숫자 형식과 중복을 확인하세요.`);
-        values[label] = Number(raw);
-      }
-      answerLabels[question] = values;
+      const parsed = parseLabelLines(lines);
+      if ('error' in parsed) throw new Error(`${question}: ${parsed.error}`);
+      answerLabels[question] = parsed.values;
     }
-    const config = { request_id: requestId, event_id: eventId, filename: file.name, format,
+    return answerLabels;
+  }
+  async function preview() {
+    if (!file) return;
+    const config = { request_id: requestId, event_id: eventId.trim(), filename: file.name, format: fileFormat(file),
       mapping: { version, source_profile: profile, survey_version: historical ? historicalVersion : 'survey-20260929-v3',
-        sheet: sheet || null, layout, historical_reference_only: historical, columns: mapping, answer_labels: answerLabels }, targets };
+        sheet: sheet || null, layout, historical_reference_only: historical, columns: mapping, answer_labels: parsedLabels() }, targets };
     setResult(await api<Preview>('/forms/preview', 'POST', { config, file_base64: await encodedFile(file) }));
+    rememberEvent(eventId.trim());
+  }
+  function applyBulkLabels() {
+    const chosen = bulkRange.trim() ? parseQuestionRange(bulkRange) : questions.filter(q => mapping[q]);
+    if (!chosen) { setBulkMessage('문항 번호는 「1-9, 15, 20-28」처럼 1~28 범위로 쓰세요.'); return; }
+    const parsed = parseLabelLines(bulkLabels);
+    if ('error' in parsed || !bulkLabels.trim()) { setBulkMessage('error' in parsed ? parsed.error : '적용할 원라벨=숫자를 입력하세요.'); return; }
+    const linked = chosen.filter(q => mapping[q]);
+    if (!linked.length) { setBulkMessage('선택한 문항에 연결된 원본 열이 없습니다.'); return; }
+    if (Object.values(parsed.values).some(value => value > 4) && linked.some(q => ['s10', 's11', 's12', 's13', 's14'].includes(q))) {
+      setBulkMessage('10~14번은 0~4만 쓸 수 있습니다. 5가 있는 라벨은 10~14번을 뺀 문항 번호로 나누어 적용하세요.'); return;
+    }
+    setLabels({ ...labels, ...Object.fromEntries(linked.map(q => [q, bulkLabels])) });
+    setBulkMessage(`${linked.length}개 문항에 같은 라벨을 적용했습니다. 미리보기에서 결과를 확인하세요.`); invalidate();
   }
   function setTarget(index: number, caseId: string) {
     const item = cases.find(c => c.case_id === caseId);
     setTargets(targets.map((target, i) => i !== index ? target : { ...target, case_id: caseId, session_id: item?.selected_session_id ?? '', expected_revision: item?.input_revision ?? 1 })); invalidate();
   }
-  function columnSelect(key: string, label: string) {
-    return <label key={key}>{label}<select aria-label={`폼 열 ${key}`} value={mapping[key] ?? ''} onChange={e => {
+  function columnSelect(key: string, label: string, ariaLabel = `폼 열 ${key}`) {
+    return <label key={key}>{label}<select aria-label={ariaLabel} value={mapping[key] ?? ''} onChange={e => {
       const next = { ...mapping }; if (e.target.value) next[key] = e.target.value; else delete next[key]; setMapping(next); invalidate();
     }}><option value="">연결 안 함</option>{columns.map(column => <option key={column} value={column}>{column}</option>)}</select></label>;
   }
+
+  const missingRequired = requiredKeys.filter(key => !mapping[key] && !(key === 'dog_name' && targets.length));
+  const previewBlock = !file ? '파일을 올리세요.' : !columns.length ? '파일의 열을 읽는 중이거나 파일을 확인하세요.'
+    : !eventId.trim() ? '행사 ID를 입력하세요.' : missingRequired.length ? `${missingRequired.map(itemLabel).join('·')} 열을 연결하세요.`
+    : historical && !historicalVersion ? '고급 설정에서 원문 설문 판본을 입력하세요.' : !version || !profile ? '고급 설정에서 원자료 프로필과 매핑 버전을 입력하세요.' : '';
+  const linkedProfile = profileFields.filter(([key]) => mapping[key]);
+  const answerCount = questions.filter(q => mapping[q]).length, reasonCount = questions.filter(q => mapping[`${q}_reason`]).length;
+
   return <section aria-label="Forms 참가자와 설문 등록">
-    <p className="fine">CSV·XLSX 한 파일에서 참가자와 설문을 함께 등록합니다. 이름으로 기존 참가자를 추정하지 않습니다. 원본 ID가 없으면 미리보기에서 ID를 발급합니다. 동의 열이 없으면 미확인으로 남깁니다.</p>
-    <fieldset disabled={busy}><legend>원본 파일과 판본</legend><div className="form-grid">
-      <label>Forms 파일<input aria-label="Forms 파일" type="file" accept=".csv,.xlsx" onChange={e => { setFile(e.target.files?.[0] ?? null); setColumns([]); setMapping({}); setLabels({}); setTargets([]); setSheets([]); setSheet(''); invalidate(); }} /></label>
-      <label>등록 행사 ID<input aria-label="폼 행사 ID" value={eventId} onChange={e => { setEventId(e.target.value); invalidate(); }} /></label>
-      <label>원자료 프로필<input value={profile} onChange={e => { setProfile(e.target.value); invalidate(); }} /></label>
-      <label>매핑 버전<input value={version} onChange={e => { setVersion(e.target.value); invalidate(); }} /></label>
-      <label>파일 배치<select aria-label="파일 배치" value={layout} onChange={e => { setLayout(e.target.value); setColumns([]); setMapping({}); setLabels({}); setTargets([]); invalidate(); }}><option value="rows">첫 행이 질문·항목, 이후 행이 참가자</option><option value="transposed">첫 열이 질문·항목, 이후 열이 참가자</option></select></label>
-      {!!sheets.length && <label>원본 시트<select aria-label="원본 시트" value={sheet} onChange={e => { setSheet(e.target.value); setColumns([]); setMapping({}); setLabels({}); setTargets([]); invalidate(); }}>{sheets.map(s => <option key={s}>{s}</option>)}</select></label>}
-      <label><input type="checkbox" checked={historical} onChange={e => { setHistorical(e.target.checked); invalidate(); }} />과거 판본 원자료 참고만 등록</label>
-      {historical && <label>원문 설문 판본<input value={historicalVersion} onChange={e => { setHistoricalVersion(e.target.value); invalidate(); }} /></label>}
-    </div><p className="fine">현재 반영 판본은 survey-20260929-v3입니다. 10~14번은 0~4, 나머지는 1~5입니다. 과거 척도는 자동 환산하지 않습니다.</p>
-      <button disabled={!file} onClick={() => void work(loadColumns)}>Forms 열 확인</button>
+    <div className="page-heading"><div><p className="eyebrow">UPLOAD</p><h1>일괄 등록 (CSV·Excel)</h1></div></div>
+    <p className="fine">명단이나 설문 응답 파일(CSV·Excel)을 올리면 참가자와 설문을 등록합니다. 이름으로 기존 참가자를 추정하지 않습니다. 참가자 ID 열이 없으면 미리보기에서 ID를 발급하고, 동의 열이 없으면 미확인으로 남깁니다.</p>
+    <fieldset disabled={busy}><legend>① 양식 받기 (선택)</legend>
+      <p className="fine">표준 양식을 채워 올리면 열 연결을 고칠 필요가 없습니다. 이미 가진 파일은 그대로 올려도 됩니다. Excel 양식(XLSX)을 권장합니다. CSV를 Excel에서 다시 저장하면 0001의 앞자리 0이 사라질 수 있습니다.</p>
+      <div className="toolbar">{templates.map(([kind, name]) => <span key={kind} className="template-links"><strong>{name}</strong>
+        {(['xlsx', 'csv'] as const).map(format => <a key={format} className="button-link" href={`/api/forms/template?kind=${kind}&format=${format}`} download>{name} {format === 'xlsx' ? 'Excel' : 'CSV'} 내려받기</a>)}</span>)}</div>
     </fieldset>
-    {!!columns.length && <fieldset disabled={busy}><legend>원본 열과 응답 라벨 연결</legend>
-      <div className="form-grid">{profileFields.map(([key, label]) => columnSelect(key, label))}</div>
-      <details><summary>28문항과 빈칸 사유 연결</summary><div className="form-grid">{questions.map((q, i) => <div key={q}>
-        {columnSelect(q, `${i + 1}번 원응답`)}{columnSelect(`${q}_reason`, `${i + 1}번 빈칸 사유`)}
-        {mapping[q] && <label>{i + 1}번 원라벨=원점수<textarea aria-label={`폼 라벨 ${q}`} placeholder="전혀 그렇지 않다=1" value={labels[q] ?? ''} onChange={e => { setLabels({ ...labels, [q]: e.target.value }); invalidate(); }} /><small>숫자 원응답은 그대로 읽습니다. 문장 응답은 줄마다 원라벨=숫자로 명시하세요.</small></label>}
-      </div>)}</div></details>
-      <details><summary>기존 참가자·회차에 명시적으로 연결 ({targets.length})</summary>
-        <p className="fine">대상 행 번호는 첫 참가자가 2입니다. 전치 파일은 첫 참가자 열이 2입니다. 선택하지 않은 행은 신규 등록하며, 같은 ID가 있으면 오류로 표시합니다.</p>
-        {targets.map((target, index) => { const item = cases.find(c => c.case_id === target.case_id); return <div className="form-grid" key={index}>
-          <label>원행 번호<input aria-label={`연결 ${index + 1} 원행`} type="number" min="2" value={target.row_number} onChange={e => { setTargets(targets.map((v, i) => i === index ? { ...v, row_number: Number(e.target.value) } : v)); invalidate(); }} /></label>
-          <label>기존 참가자<select aria-label={`연결 ${index + 1} 참가자`} value={target.case_id} onChange={e => setTarget(index, e.target.value)}><option value="">대상 선택</option>{cases.map(c => <option key={c.case_id} value={c.case_id}>{c.event_id} / {c.participant_id} · {c.dog_name}</option>)}</select></label>
-          <label>촬영 회차<select aria-label={`연결 ${index + 1} 회차`} value={target.session_id} onChange={e => { setTargets(targets.map((v, i) => i === index ? { ...v, session_id: e.target.value } : v)); invalidate(); }}>{item?.manifest.sessions.map(s => <option key={s.session_id} value={s.session_id}>{s.session_id}</option>)}</select></label>
-          <button disabled={!target.case_id} onClick={() => void work(async () => {
-            const latest = await api<Case>(`/cases/${target.case_id}`);
-            setTargets(targets.map((v, i) => i === index ? { ...v, expected_revision: latest.input_revision } : v)); invalidate();
-          })}>대상 최신 상태로 다시 연결</button>
-          <button onClick={() => { setTargets(targets.filter((_, i) => i !== index)); invalidate(); }}>이 연결 제거</button>
-        </div>; })}
-        <button onClick={() => { setTargets([...targets, { row_number: 2 + targets.length, case_id: '', session_id: '', expected_revision: 1 }]); invalidate(); }}>기존 대상 연결 추가</button>
+    <fieldset disabled={busy}><legend>② 파일 올리기</legend>
+      <div className={`dropzone${dragging ? ' dragging' : ''}`} onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={drop}>
+        <label>Forms 파일<input aria-label="Forms 파일" type="file" accept=".csv,.xlsx" onClick={e => { e.currentTarget.value = ''; }} onChange={e => chooseFile(e.target.files?.[0] ?? null)} /></label>
+        <p className="fine">파일을 여기로 끌어다 놓거나 위에서 선택하세요. 올리면 열을 자동으로 읽습니다.{file ? ` 선택한 파일: ${file.name}` : ''}</p>
+      </div>
+      <div className="form-grid">
+        <label>등록 행사 ID<input aria-label="폼 행사 ID" value={eventId} placeholder="KDOG-2026" onChange={e => { setEventId(e.target.value); invalidate(); }} /><small>필수 · 마지막으로 쓴 행사 ID를 제안합니다.</small></label>
+        {sheets.length > 1 && <label>원본 시트<select aria-label="원본 시트" value={sheet} onChange={e => { setSheet(e.target.value); clearColumns(); invalidate(); if (file) void work(() => inspect(file, layout, e.target.value)); }}>{sheets.map(s => <option key={s}>{s}</option>)}</select><small>시트가 여러 개입니다. 입력 내용이 있는 시트를 고르세요.</small></label>}
+      </div>
+      <details><summary>고급 설정</summary><div className="form-grid">
+        <label>파일 배치<select aria-label="파일 배치" value={layout} onChange={e => { setLayout(e.target.value); clearColumns(); invalidate(); if (file) void work(() => inspect(file, e.target.value, '')); }}><option value="rows">첫 행이 질문·항목, 이후 행이 참가자</option><option value="transposed">첫 열이 질문·항목, 이후 열이 참가자</option></select></label>
+        <label>원자료 프로필<input aria-label="원자료 프로필" value={profile} onChange={e => { setProfile(e.target.value); invalidate(); }} /></label>
+        <label>매핑 버전<input aria-label="매핑 버전" value={version} onChange={e => { setVersion(e.target.value); invalidate(); }} /></label>
+        <label className="check"><input type="checkbox" checked={historical} onChange={e => { setHistorical(e.target.checked); invalidate(); }} />과거 판본 원자료 참고만 등록</label>
+        {historical && <label>원문 설문 판본<input aria-label="원문 설문 판본" value={historicalVersion} onChange={e => { setHistoricalVersion(e.target.value); invalidate(); }} /></label>}
+      </div><p className="fine">현재 반영 판본은 survey-20260929-v3입니다. 10~14번은 0~4, 나머지는 1~5입니다. 과거 척도는 자동 환산하지 않습니다.</p></details>
+    </fieldset>
+    {!!columns.length && <fieldset disabled={busy}><legend>③ 열 연결 확인</legend>
+      {auto && <p role="status">자동 연결 {Object.keys(auto.mapping).length}개 · 확인 필요 {auto.review.length + auto.conflicts.length}개 · 연결 안 됨 {auto.unmatched.length}개</p>}
+      {!!missingRequired.length && <div className="warning" role="alert">{missingRequired.map(key => <div key={key}>
+        {columnSelect(key, `필수: ${itemLabel(key)} 열을 고르세요`, `폼 필수 열 ${key}`)}</div>)}</div>}
+      {!mapping.participant_id && <p className="warning">참가자 ID 열이 연결되지 않았습니다. 이 파일을 올리면 참가자마다 새 ID를 발급하며, 고친 파일을 다시 올리면 같은 사람이 중복 등록됩니다. ID 열이 있다면 「모든 연결 보기」에서 연결하세요.</p>}
+      {layout !== 'rows' && <p className="warning">전치 파일(첫 열이 항목)로 읽는 중입니다. 일반 파일이면 「고급 설정」에서 파일 배치를 바꾸세요.</p>}
+      {!!auto?.review.length && <ul className="warning">{auto.review.map(item => <li key={item.column}>‘{item.column}’ 열은 {item.keys.map(itemLabel).join('·')} 중 무엇인지 알 수 없어 연결하지 않았습니다. 「모든 연결 보기」에서 직접 고르세요.</li>)}</ul>}
+      {!!auto?.conflicts.length && <ul className="warning">{auto.conflicts.map(item => <li key={item.key}>{itemLabel(item.key)}에 맞는 열이 여러 개입니다({item.columns.join(', ')}). 연결하지 않았으니 「모든 연결 보기」에서 하나를 고르세요.</li>)}</ul>}
+      <p className="fine">연결된 항목: {linkedProfile.length ? linkedProfile.map(([key, label]) => `${label} ← ${mapping[key]}`).join(' · ') : '참가자 항목 없음'}{answerCount ? ` · 설문 응답 ${answerCount}문항` : ''}{reasonCount ? ` · 빈칸 사유 ${reasonCount}개` : ''}</p>
+      <details><summary>모든 연결 보기</summary>
+        <div className="form-grid">{profileFields.filter(([key]) => !missingRequired.includes(key)).map(([key, label]) => columnSelect(key, label))}</div>
+        <details><summary>28문항과 빈칸 사유 연결</summary><div className="form-grid">{questions.map((q, i) => <div key={q}>
+          {columnSelect(q, `${i + 1}번 원응답`)}{columnSelect(`${q}_reason`, `${i + 1}번 빈칸 사유`)}
+          {mapping[q] && <label>{i + 1}번 원라벨=원점수<textarea aria-label={`폼 라벨 ${q}`} placeholder="전혀 그렇지 않다=1" value={labels[q] ?? ''} onChange={e => { setLabels({ ...labels, [q]: e.target.value }); invalidate(); }} /><small>숫자 원응답은 그대로 읽습니다. 문장 응답은 줄마다 원라벨=숫자로 명시하세요.</small></label>}
+        </div>)}</div></details>
+        <details><summary>선택 문항에 같은 라벨 적용</summary>
+          <div className="form-grid">
+            <label>적용할 문항<input aria-label="라벨 적용 문항" value={bulkRange} placeholder="예: 1-9, 15-28 (비우면 연결된 모든 문항)" onChange={e => setBulkRange(e.target.value)} /></label>
+            <label>원라벨=원점수<textarea aria-label="라벨 일괄 입력" placeholder={'매우 그렇다=5\n그렇다=4'} value={bulkLabels} onChange={e => setBulkLabels(e.target.value)} /></label>
+          </div>
+          <button onClick={applyBulkLabels}>선택 문항에 같은 라벨 적용</button>
+          {bulkMessage && <p className="fine" role="status">{bulkMessage}</p>}
+        </details>
+        <details><summary>기존 참가자·회차에 명시적으로 연결 ({targets.length})</summary>
+          <p className="fine">대상 행 번호는 첫 참가자가 2입니다. 전치 파일은 첫 참가자 열이 2입니다. 선택하지 않은 행은 신규 등록하며, 같은 ID가 있으면 오류로 표시합니다.</p>
+          {targets.map((target, index) => { const item = cases.find(c => c.case_id === target.case_id); return <div className="form-grid" key={index}>
+            <label>원행 번호<input aria-label={`연결 ${index + 1} 원행`} type="number" min="2" value={target.row_number} onChange={e => { setTargets(targets.map((v, i) => i === index ? { ...v, row_number: Number(e.target.value) } : v)); invalidate(); }} /></label>
+            <label>기존 참가자<select aria-label={`연결 ${index + 1} 참가자`} value={target.case_id} onChange={e => setTarget(index, e.target.value)}><option value="">대상 선택</option>{cases.map(c => <option key={c.case_id} value={c.case_id}>{c.event_id} / {c.participant_id} · {c.dog_name}</option>)}</select></label>
+            <label>촬영 회차<select aria-label={`연결 ${index + 1} 회차`} value={target.session_id} onChange={e => { setTargets(targets.map((v, i) => i === index ? { ...v, session_id: e.target.value } : v)); invalidate(); }}>{item?.manifest.sessions.map(s => <option key={s.session_id} value={s.session_id}>{s.session_id}</option>)}</select></label>
+            <button disabled={!target.case_id} onClick={() => void work(async () => {
+              const latest = await api<Case>(`/cases/${target.case_id}`);
+              setTargets(targets.map((v, i) => i === index ? { ...v, expected_revision: latest.input_revision } : v)); invalidate();
+            })}>대상 최신 상태로 다시 연결</button>
+            <button onClick={() => { setTargets(targets.filter((_, i) => i !== index)); invalidate(); }}>이 연결 제거</button>
+          </div>; })}
+          <button onClick={() => { setTargets([...targets, { row_number: 2 + targets.length, case_id: '', session_id: '', expected_revision: 1 }]); invalidate(); }}>기존 대상 연결 추가</button>
+        </details>
       </details>
-      <button className="primary" disabled={!eventId || !version || !profile || (historical && !historicalVersion)} onClick={() => void work(preview)}>Forms 등록 미리보기</button>
     </fieldset>}
+    <fieldset disabled={busy}><legend>④ 미리보기·등록</legend>
+      <div className="toolbar"><button className="primary" disabled={!!previewBlock} aria-describedby="forms-preview-reason" onClick={() => void work(preview)}>Forms 등록 미리보기</button>
+        <span id="forms-preview-reason" className="fine" aria-live="polite">{previewBlock}</span></div>
+    </fieldset>
     {result && <section aria-label="Forms 등록 미리보기 결과"><h3>원행 {result.rows.length}개 · 오류 {result.errors.length}개</h3>
       {result.already_committed && <p role="status">이미 확정한 파일입니다. 재확정해도 참가자가 추가되지 않습니다.</p>}
       {!!result.errors.length && <div role="alert">{result.errors.map((error, i) => <p key={i}>{error.row_number ? `${error.row_number}행: ` : ''}{error.message}</p>)}<p>오류를 모두 해결한 후 파일 전체를 확정합니다.</p></div>}
       {result.rows.map(row => <details key={row.row_number}><summary>{row.row_number}행 · {row.action === 'create' ? '신규' : '기존 응답 변경'} · {row.event_id}/{row.participant_id} · {row.dog_name} · {row.registration_status === 'reference_only' ? '원자료 참고' : `응답 ${Object.values(row.answers).filter(v => v !== null).length}/28`}</summary>
         <div className="table-wrap"><table><thead><tr><th>문항</th><th>이전 원응답</th><th>반영 원응답</th><th>이전 빈칸 사유</th><th>반영 빈칸 사유</th></tr></thead><tbody>{questions.filter(q => row.changed_questions.includes(q) || row.answers[q] !== null || row.blank_reasons[q]).map(q => <tr key={q}><td>{q}</td><td>{row.previous_answers[q] ?? '빈칸'}</td><td>{row.answers[q] ?? '빈칸'}</td><td>{row.previous_blank_reasons[q] ?? '—'}</td><td>{row.blank_reasons[q] ?? '—'}</td></tr>)}</tbody></table></div>
       </details>)}
-      <button className="primary" disabled={busy || !!result.errors.length || !result.rows.length} onClick={() => void work(async () => {
+      <div className="toolbar"><button className="primary" disabled={busy || !!result.errors.length || !result.rows.length} onClick={() => void work(async () => {
         const committed = await api<{ rows: { case_id: string }[] }>('/forms/commit', 'POST', { request_id: commitId, preview_id: result.preview_id, preview_hash: result.preview_hash });
         setResult({ ...result, already_committed: true }); await done(`${committed.rows.length}개 원행의 참가자·설문 등록을 확인했습니다.`);
       })}>Forms 전체 확정</button>
+        {(result.errors.length > 0 || !result.rows.length) && <span className="fine">{result.errors.length ? '오류를 모두 해결해야 확정할 수 있습니다.' : '등록할 행이 없습니다.'}</span>}</div>
     </section>}
   </section>;
 }

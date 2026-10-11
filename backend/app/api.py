@@ -852,6 +852,13 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         return Response(template(kind, format, catalog.version), media_type="application/octet-stream",
                         headers={"Content-Disposition": f'attachment; filename="kdog-{kind}.{format}"'})
 
+    @app.get("/api/forms/template")
+    def forms_template(kind: Literal["roster", "full"], format: Literal["csv", "xlsx"] = "xlsx", user=Depends(writer)):
+        media = "text/csv; charset=utf-8" if format == "csv" else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        name = "kdog-roster" if kind == "roster" else "kdog-roster-survey"
+        return Response(forms_v4.template(kind, format), media_type=media,
+                        headers={"Content-Disposition": f'attachment; filename="{name}.{format}"'})
+
     @app.post("/api/forms/columns", response_model=ImportColumns)
     async def forms_columns(request: Request, format: Literal["csv", "xlsx"],
                             layout: Literal["rows", "transposed"] = "rows", sheet: str | None = None, user=Depends(writer)):

@@ -191,3 +191,11 @@ footer { display: flex; justify-content: space-between; gap: 20px; margin-top: 6
   .lnb-backdrop { display: block; position: fixed; inset: 0; z-index: 899; background: #292c2966; }
   .lnb-close { display: block; margin: 0 0 16px auto; }
 }
+
+.button-link { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 16px; border: 1px solid #deded7; border-radius: 5px; background: #fff; color: #292c29; text-decoration: none; }
+.button-link:hover { background: #eeeee8; }
+.template-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-right: 16px; }
+.dropzone { margin: 12px 0; padding: 16px; border: 2px dashed #cfd3c8; border-radius: 8px; }
+.dropzone.dragging { border-color: #6b866e; background: #edf3ec; }
+section[aria-label="Forms 참가자와 설문 등록"] fieldset { margin: 20px 0; padding-top: 16px; border-top: 1px solid #eaeaea; }
+section[aria-label="Forms 참가자와 설문 등록"] legend { padding: 0 0 8px; font-size: 17px; font-weight: 600; }

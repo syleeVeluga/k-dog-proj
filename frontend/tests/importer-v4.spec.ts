@@ -16,17 +16,16 @@ test(`Forms ${format} 원라벨 검증·일괄 등록·재시도·명시적 연�
   const buffer = format === 'csv' ? Buffer.from('강아지,보호자,Q10,Q11\n합성 동명이견,동명이인,없음,2\n합성 동명이견,동명이인,2,4\n')
     : execFileSync('../backend/.venv/Scripts/python.exe', ['-X', 'utf8', '-c', "import io,sys; from openpyxl import Workbook; w=Workbook(); w.active.title='안내'; w.active.append(['설명']); s=w.create_sheet('실제입력'); s.append(['강아지','보호자','Q10','Q11']); s.append(['합성 동명이견','동명이인','없음',2]); s.append(['합성 동명이견','동명이인',2,4]); b=io.BytesIO(); w.save(b); sys.stdout.buffer.write(b.getvalue())"]);
   await form.getByLabel('Forms 파일', { exact: true }).setInputFiles({ name: `synthetic-forms.${format}`, mimeType: 'application/octet-stream', buffer });
-  await form.getByRole('button', { name: 'Forms 열 확인', exact: true }).click();
   if (format === 'xlsx') {
     await expect(form.getByLabel('원본 시트', { exact: true })).toHaveValue('안내');
     await form.getByLabel('원본 시트', { exact: true }).selectOption('실제입력');
-    await form.getByRole('button', { name: 'Forms 열 확인', exact: true }).click();
   }
-  await form.getByLabel('폼 열 dog_name', { exact: true }).selectOption('강아지');
-  await form.getByLabel('폼 열 guardian_name', { exact: true }).selectOption('보호자');
+  // 헤더(강아지·보호자·Q10·Q11)가 알려진 이름이라 열 연결을 손으로 고르지 않는다.
+  await expect(form.getByRole('status').filter({ hasText: '자동 연결 4개 · 확인 필요 0개 · 연결 안 됨 0개' })).toBeVisible();
+  await form.getByText('모든 연결 보기', { exact: true }).click();
+  await expect(form.getByLabel('폼 열 dog_name', { exact: true })).toHaveValue('강아지');
+  await expect(form.getByLabel('폼 열 s10', { exact: true })).toHaveValue('Q10');
   await form.getByText('28문항과 빈칸 사유 연결', { exact: true }).click();
-  await form.getByLabel('폼 열 s10', { exact: true }).selectOption('Q10');
-  await form.getByLabel('폼 열 s11', { exact: true }).selectOption('Q11');
   await form.getByRole('button', { name: 'Forms 등록 미리보기', exact: true }).click();
   await expect(form.getByRole('heading', { name: '원행 1개 · 오류 1개' })).toBeVisible();
   await expect(form.getByRole('button', { name: 'Forms 전체 확정', exact: true })).toBeDisabled();
@@ -45,10 +44,9 @@ test(`Forms ${format} 원라벨 검증·일괄 등록·재시도·명시적 연�
   expect(first.manifest.sessions[0].survey.s10).toBe(0);
 
   await form.getByLabel('Forms 파일', { exact: true }).setInputFiles({ name: 'synthetic-change.csv', mimeType: 'text/csv', buffer: Buffer.from('Q10,Q11\n4,2\n') });
-  await form.getByRole('button', { name: 'Forms 열 확인', exact: true }).click();
-  await form.getByText('28문항과 빈칸 사유 연결', { exact: true }).click();
-  await form.getByLabel('폼 열 s10', { exact: true }).selectOption('Q10');
-  await form.getByLabel('폼 열 s11', { exact: true }).selectOption('Q11');
+  await expect(form.getByRole('status').filter({ hasText: '자동 연결 2개' })).toBeVisible();
+  await form.getByText('모든 연결 보기', { exact: true }).click();
+  await expect(form.getByLabel('폼 열 s10', { exact: true })).toHaveValue('Q10');
   await form.getByText(/기존 참가자·회차에 명시적으로 연결/).click();
   await form.getByRole('button', { name: '기존 대상 연결 추가' }).click();
   await form.getByLabel('연결 1 참가자', { exact: true }).selectOption(first.case_id);
@@ -72,8 +70,10 @@ test(`Forms ${format} 원라벨 검증·일괄 등록·재시도·명시적 연�
   await expect(form.getByText('이미 확정한 파일입니다. 재확정해도 참가자가 추가되지 않습니다.')).toBeVisible();
   const updated = await (await page.request.get(`/api/cases/${first.case_id}`)).json();
   expect(updated.manifest.sessions[0].survey.s10).toBe(4);
+  await form.getByText('고급 설정', { exact: true }).click();
   await form.getByLabel('파일 배치', { exact: true }).selectOption('transposed');
-  await form.getByRole('button', { name: 'Forms 열 확인', exact: true }).click();
+  await expect(form.getByRole('status').filter({ hasText: '자동 연결' })).toBeVisible();
+  await form.getByText('모든 연결 보기', { exact: true }).click();
   await expect(form.getByText('기존 참가자·회차에 명시적으로 연결 (0)', { exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath(`forms-v4-${format}.png`), fullPage: true });
   expect(errors).toEqual([]);

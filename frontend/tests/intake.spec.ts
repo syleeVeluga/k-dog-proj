@@ -102,9 +102,8 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
   const form = page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true });
   await form.getByLabel('폼 행사 ID', { exact: true }).fill('BROWSER-TEST');
   await form.getByLabel('Forms 파일', { exact: true }).setInputFiles({ name: 'synthetic-survey.csv', mimeType: 'text/csv', buffer: Buffer.from([ids.join(','), values.join(',')].join('\n')) });
-  await form.getByRole('button', { name: 'Forms 열 확인', exact: true }).click();
-  await form.getByText('28문항과 빈칸 사유 연결', { exact: true }).click();
-  for (const id of ids) await form.getByLabel(`폼 열 ${id}`, { exact: true }).selectOption(id);
+  await expect(form.getByRole('status').filter({ hasText: '자동 연결 28개' })).toBeVisible();
+  await form.getByText('모든 연결 보기', { exact: true }).click();
   await form.getByText(/기존 참가자·회차에 명시적으로 연결/).click();
   await form.getByRole('button', { name: '기존 대상 연결 추가', exact: true }).click();
   await form.getByLabel('연결 1 참가자', { exact: true }).selectOption(item.case_id);
@@ -150,8 +149,7 @@ test('360px: Forms duplicate row errors, corrected atomic save and detail access
   for (const duplicate of [true, false]) {
     await form.getByLabel('Forms 파일', { exact: true }).setInputFiles({ name: 'synthetic-participants.csv', mimeType: 'text/csv',
       buffer: Buffer.from(`participant_id,dog_name\n0002,모바일 가상견\n${duplicate ? '0002,중복 가상견\n' : ''}`) });
-    await form.getByRole('button', { name: 'Forms 열 확인', exact: true }).click();
-    for (const column of ['participant_id', 'dog_name']) await form.getByLabel(`폼 열 ${column}`, { exact: true }).selectOption(column);
+    await expect(form.getByRole('status').filter({ hasText: '자동 연결 2개' })).toBeVisible();
     await form.getByRole('button', { name: 'Forms 등록 미리보기', exact: true }).click();
     if (duplicate) {
       await expect(form.getByRole('heading', { name: '원행 1개 · 오류 1개', exact: true })).toBeVisible();
