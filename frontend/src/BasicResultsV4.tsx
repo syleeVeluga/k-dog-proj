@@ -42,7 +42,7 @@ export function BasicResultsV4({ sheetId, input, blocked }: { sheetId: string; i
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   }
   return <section className="panel basic-s1" aria-label="S1 기본 결과">
-    <h3>S1 계산과 기본 판정</h3><p>제출 원자료 {input.revision}판을 고정해 계산합니다. 수동 선택을 완료해도 자동 계산과 원자료는 보존됩니다.</p>
+    <h3>계산과 기본 판정</h3><p>제출 원자료 {input.revision}판을 고정해 계산합니다. 수동 선택을 완료해도 자동 계산과 원자료는 보존됩니다.</p>
     <fieldset disabled={blocked || busy}><div className="form-grid"><label>입장·퇴장 같은 물건 확인<select value={sameObject} onChange={e => setSameObject(e.target.value)}><option value="">미확인</option><option value="yes">같은 물건</option><option value="no">다른 물건</option></select></label>
       <label>같은 물건 확인 근거<input value={basis} onChange={e => setBasis(e.target.value)} maxLength={2000} /></label></div>
       <button disabled={sameObject !== '' && !basis.trim()} onClick={() => void calculate()}>제출 원자료로 계산</button></fieldset>
@@ -102,7 +102,7 @@ function ResultEditor({ resultId, blocked }: { resultId: string; blocked: boolea
     <details><summary>장면 평균·합계와 고정 출처</summary><p>장면 합계: {owner.totals.map(valueText).join(' / ')}</p>{Object.entries(owner.scene_means).map(([scene, means]) => <p key={scene}>{scene}: {means.map(valueText).join(' / ')}</p>)}<p className="fine">원자료 {doc.input.ref} · SHA256 {doc.input.hash}<br />계산 {doc.rule_version} · SHA256 {doc.rule_hash}<br />작성 {doc.actor} · {doc.recorded_at} · {doc.change_reason}</p></details>
     <h4>계산·원값·보류 사유</h4>{doc.calculations.metrics.map(metric => <details key={metric.key}><summary>{metric.key}: {valueText(metric.value)} · {states[metric.status] ?? metric.status}{metric.caution ? ' · 주의' : ''}{metric.internal_only ? ' · 내부 보조값' : ''}</summary><p>{metric.reason}</p><p>분자 {valueText(metric.numerator)} / 분모 {valueText(metric.denominator)} · 사용 {metric.used_codes.join(', ') || '없음'}</p>{metric.inputs.map(item => <p key={item.code}>{item.code}: {valueText(item.value)} · {item.status}{metric.excluded[item.code] && ` · 제외: ${metric.excluded[item.code]}`}</p>)}</details>)}
     <p>안전기지 실제 순서: {doc.calculations.safe_base.status === 'confirmed_sequence' ? '접근·접촉·탐색 재개 순서 확인' : '확인 필요'}{doc.calculations.safe_base.reasons.map(reason => ` · ${sequenceReasons[reason] ?? reason}`)}{doc.calculations.safe_base.reference_seconds.length > 0 && ` · 기준 영상 ${doc.calculations.safe_base.reference_seconds.map(value => `${value}초`).join(' → ')}`}</p>
-    <p className="fine">정책 확인 대기: {doc.calculations.policy_pending_codes.join(', ')}. 개21 전체30초 자동 집계·보5 복수 사건 종합은 규칙 확인 대기입니다. AI 애착 판단은 별도 실행 결과와 보류 사유를 확인하세요.</p>
+    <p className="fine">아직 산출하지 않는 항목: {doc.calculations.policy_pending_codes.join(', ')}. 개21 전체30초 자동 집계·보5 복수 사건 종합은 준비 중이라 값을 만들지 않습니다. AI 애착 판단은 별도 실행 결과와 보류 사유를 확인하세요.</p>
     <h4>기본 유형 선택</h4><p>작성 중 선택은 자동 초안을 유지합니다. 완료 또는 판정보류로 저장하면 수동 선택을 적용합니다.</p>
     <fieldset disabled={readonly}>{edits.map((edit, index) => {
       const automatic = doc.automatic_decisions.find(item => item.key === edit.key)!;

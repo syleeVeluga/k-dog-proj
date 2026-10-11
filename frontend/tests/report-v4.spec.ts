@@ -130,7 +130,6 @@ test('S1 report final disclosure is explicit and reviewer menu stays unavailable
   const after = await (await page.request.get(sheetPath)).json(); expect(after.document.interpretation_exposures).toHaveLength(1); expect(after.document.initial_submission.revision).toBe(submitted.revision);
   await panel.getByRole('button', { name: '선택한 최종본으로 리포트 생성', exact: true }).click(); await expect(panel.getByRole('heading', { name: '대기', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '로그아웃', exact: true }).click(); await login(page, 'reviewer'); await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '리포트 발급', exact: true })).toHaveCount(0);
-  // 교수/검토자는 「리포트 조회」만 보이고 비교 조건·연구 내보내기는 열 수 없다.
-  await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '리포트 조회', exact: true })).toBeVisible();
-  await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '연구 내보내기', exact: true })).toHaveCount(0);
+  // 교수/검토자에게는 리포트·비교 조건·연구 내보내기 메뉴가 모두 없다.
+  for (const name of ['리포트 조회', '비교 조건', '연구 내보내기']) await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name, exact: true })).toHaveCount(0);
 });

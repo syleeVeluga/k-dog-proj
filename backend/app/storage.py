@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS changes (
     happened_at TEXT NOT NULL, target TEXT NOT NULL,
     action TEXT NOT NULL, detail_json TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS changes_action_target ON changes(action, target);
 CREATE TABLE IF NOT EXISTS score_sheets (
     sheet_id TEXT PRIMARY KEY, case_id TEXT NOT NULL REFERENCES cases(case_id),
     session_id TEXT NOT NULL, assigned_username TEXT NOT NULL REFERENCES users(username),

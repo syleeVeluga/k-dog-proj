@@ -131,8 +131,8 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
     {!rows.length && <p>생성된 리포트 실행이 없습니다.</p>}
     {rows.map(row => <article className="panel" key={row.run_id} aria-label={`리포트 실행 ${row.run_id}`}><h3>{states[row.status] ?? row.status}{row.is_latest_issued ? ' · 최신 발급본' : row.publication_state === 'issued' ? ' · 이전 발급본' : ''}{row.outdated && ' · 이전 입력·기준'}</h3>
       <p>입력 {row.input_revision}판 · {new Date(row.updated_at).toLocaleString()}</p>
-      <details><summary>기술 정보 · 고정 최종본</summary><p className="fine">실행 {row.run_id}<br />고정 최종본 {row.final.final_id} · {row.final.hash}</p></details>
-      {row.failure_code && <p role="status">실행 사유: {row.failure_code}</p>}
+      <details><summary>기술 정보 · 고정 최종본</summary><p className="fine">{row.failure_code && <>실행 사유 코드 {row.failure_code}<br /></>}실행 {row.run_id}<br />고정 최종본 {row.final.final_id} · {row.final.hash}</p></details>
+      {row.failure_code && <p role="status">리포트를 완성하지 못했습니다. 아래 「기술 정보」의 사유를 확인하고 필요하면 재시도하세요.</p>}
       {row.external_comparison_status === 'blocked' && <p role="status">외부 비교 제공 차단: {row.external_comparison_reason} · 당시 발급 이력과 파일은 보존됩니다.</p>}
       {row.pending_reasons.includes('G02') && <p className="fine">일부 문장은 준비 중이며 정상 발급에는 영향이 없습니다.</p>}
       <div className="toolbar">{active.has(row.status) && <button disabled={busy || !reason.trim()} onClick={() => void work(async () => { await api(`/report-runs-s1/${row.run_id}/stop`, 'POST', { expected_updated_at: row.updated_at, reason: reason.trim() }); })}>이 리포트 실행 중지</button>}

@@ -15,6 +15,7 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
   const path = `/cases/${item.case_id}/sessions/${item.selected_session_id}`;
   const [runs, setRuns] = useState<AiRunV4[]>([]), [ready, setReady] = useState<AiReadinessV4 | null>(null);
   const [preprocess, setPreprocess] = useState<PreprocessStatusV4 | null>(null), [error, setError] = useState('');
+  const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false), [loading, setLoading] = useState(false), [reuse, setReuse] = useState(''), [reason, setReason] = useState('');
   const alive = useRef(true), sequence = useRef(0), timer = useRef<ReturnType<typeof setTimeout> | null>(null), working = useRef(false);
   const request = useRef<{ fingerprint: string; request_id: string } | null>(null);
@@ -22,9 +23,10 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
     if (timer.current) clearTimeout(timer.current);
     const current = ++sequence.current; setLoading(true);
     try {
-      const [list, config, media] = await Promise.all([api<AiRunV4[]>(path + '/runs-s1'), api<AiReadinessV4>('/scoring-ai-s1/readiness'), api<PreprocessStatusV4>(path + '/preprocess-s1')]);
+      const [list, config, media] = manager ? await Promise.all([api<AiRunV4[]>(path + '/runs-s1'), api<AiReadinessV4>('/scoring-ai-s1/readiness'), api<PreprocessStatusV4>(path + '/preprocess-s1')])
+        : [await api<AiRunV4[]>(path + '/runs-s1'), null, null];
       if (alive.current && current === sequence.current) {
-        setRuns(list); setReady(config); setPreprocess(media); if (clearError) setError('');
+        setRuns(list); setReady(config); setPreprocess(media); setLoaded(true); if (clearError) setError('');
         if (list.some(run => active.has(run.status))) timer.current = setTimeout(() => { void reload(); }, 2000);
       }
     } catch (value) {
@@ -54,7 +56,7 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
     request.current = null;
   }
   // 교수/검토자에게는 AI 초안 상태 한 줄만 보인다. 설정·호출 수·비용 같은 운영 정보는 운영자·관리자에게만 「기술 정보」로 보인다.
-  const draft = runs.some(run => run.result_available && !run.outdated) ? '완료' : runs.some(run => active.has(run.status)) ? '실행 중' : '준비 안 됨';
+  const draft = !loaded && !error ? '확인 중' : runs.some(run => run.result_available && !run.outdated) ? '완료' : runs.some(run => active.has(run.status)) ? '실행 중' : '준비 안 됨';
   if (!manager) return <section className="panel" aria-label="AI 초안 상태"><p role="status">AI 초안: {draft}</p></section>;
   return <section className="panel" aria-label="S1 AI 실행" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <h2>AI 관찰 원자료 실행</h2><p role="status">AI 초안: {draft}</p>

@@ -23,8 +23,8 @@ export const menuTree: MenuGroup[] = [
   { id: 'analysis', label: '분석·평가', items: [
     { route: 'preprocess', label: '전처리', roles: everyone },
     { route: 'scoring', label: '독립 채점', roles: everyone },
-    // 교수/검토자는 발급된 리포트를 조회만 한다(발급·비교 조건·내보내기는 운영자·관리자).
-    { route: 'report', label: '리포트 발급', roles: everyone, parent: '리포트', roleLabels: { reviewer: '리포트 조회' } },
+    // 리포트 열람은 운영자·관리자만이다. 교수/검토자 조회(Q03)는 공개 규칙과 얽혀 있어 후속 결정이 필요하다.
+    { route: 'report', label: '리포트 발급', roles: staff, parent: '리포트' },
     { route: 'report/comparison', label: '비교 조건', roles: staff, parent: '리포트' },
     { route: 'report/export', label: '연구 내보내기', roles: staff, parent: '리포트' },
   ] },

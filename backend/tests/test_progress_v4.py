@@ -15,9 +15,9 @@ class ProgressV4Tests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="kdog-progress-")
         self.addCleanup(temporary.cleanup)
         self.store = Store(Path(temporary.name))
-        progress_v4._usable_videos.cache_clear()
+        progress_v4._read_clips.cache_clear()
         with self.store.connect(write=True) as db:
-            for name, role in (("operator", "operator"), ("reviewer", "reviewer"), ("reviewer2", "reviewer")):
+            for name, role in (("operator", "operator"), ("reviewer", "reviewer"), ("reviewer2", "reviewer"), ("kdog-ai-service", "reviewer")):
                 db.execute("INSERT INTO users(username,password_hash,role) VALUES (?,?,?)", (name, "unused", role))
             db.execute("INSERT INTO cases(case_id,event_id,participant_id,dog_name,reservation_at,input_revision,selected_session_id,manifest_ref,manifest_hash,created_at,updated_at) "
                        "VALUES ('C1','E','P','합성견','',3,'S1','inputs/none.json','h','now','now')")
@@ -33,10 +33,10 @@ class ProgressV4Tests(unittest.TestCase):
         with self.store.connect(write=True) as db:
             self.store.audit(db, "operator", target, action, detail)
 
-    def sheet(self, user, state, number):
+    def sheet(self, user, state, number, purpose="independent"):
         with self.store.connect(write=True) as db:
             db.execute("INSERT INTO score_sheets VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                       (f"sheet-{number}", "C1", "S1", user, f"rater-{number}", user, "h" * 64, "independent", state, 1, 1, f"ref-{number}", "h" * 64))
+                       (f"sheet-{number}", "C1", "S1", user, f"rater-{number}", user, "h" * 64, purpose, state, 1, 1, f"ref-{number}", "h" * 64))
 
     def build(self, user, **views):
         with self.store.connect() as db:
@@ -66,7 +66,7 @@ class ProgressV4Tests(unittest.TestCase):
         self.assertEqual((value.preprocess, value.stage, value.videos_usable), ("outdated", "scoring", 1))
         self.audit("preprocess_v4.failed", {"session_id": "S1", "input_revision": 4, "message": "synthetic"})
         value = self.build("operator", confirmed=True)
-        self.assertEqual((value.preprocess, value.stage, value.videos_usable), ("failed", "preprocess", 0))
+        self.assertEqual((value.preprocess, value.stage, value.videos_usable), ("failed", "preprocess", 1))  # 마지막 완성 결과의 영상은 그대로 읽을 수 있다
 
     def test_other_sessions_and_missing_files_do_not_count(self):
         self.audit("preprocess_v4.completed", {"session_id": "OTHER", "input_revision": 3, "ref": "clips/none.json", "hash": "x"})
@@ -129,3 +129,45 @@ class ProgressV4Tests(unittest.TestCase):
         single = client.get(f"/api/cases/{created.json()['case_id']}").json()
         self.assertIsNone(single["progress"])
         self.assertNotIn("progress", json.dumps(single["manifest"]))
+
+    def test_disclosure_turns_a_sheet_into_review_but_it_still_counts_as_the_raters_sheet(self):
+        self.sheet("reviewer", "submitted", 1, purpose="review")
+        self.sheet("reviewer2", "draft", 2)
+        self.assertEqual((self.build("reviewer", confirmed=True).my_sheet, self.build("reviewer", confirmed=True).scoring), ("submitted", "done"))
+        staff = self.build("operator", confirmed=True)
+        self.assertEqual((staff.sheets_total, staff.sheets_submitted, staff.assigned), (2, 1, ["reviewer", "reviewer2"]))
+        with self.store.connect(write=True) as db:
+            db.execute("INSERT INTO score_sheets VALUES ('sheet-9','C1','S1','reviewer2','rater-9','합의','h','consensus','submitted',1,1,'ref-9','h')")
+        self.assertEqual(self.build("operator", confirmed=True).sheets_total, 2)  # 합의 기록은 평가자 배정이 아니다
+
+    def test_the_ai_service_sheet_is_not_a_human_rater(self):
+        self.sheet("kdog-ai-service", "submitted", 1)
+        value = self.build("operator", confirmed=True)
+        self.assertEqual((value.scoring, value.sheets_total, value.assigned, value.stage), ("none", 0, [], "preprocess"))
+        self.sheet("reviewer", "draft", 2)
+        value = self.build("operator", confirmed=True)
+        self.assertEqual((value.sheets_total, value.sheets_submitted, value.assigned), (1, 0, ["reviewer"]))
+
+    def test_reviewers_do_not_learn_whether_a_report_exists_and_the_session_is_named(self):
+        with self.store.connect(write=True) as db:
+            db.execute("INSERT INTO runs(run_id,case_id,session_id,input_revision,input_snapshot_json,config_snapshot_json,status,created_at,updated_at,kind,result_ref) "
+                       "VALUES ('R1','C1','S1',3,'{}','{}','succeeded','now','now','report_v4','report/ref')")
+        self.assertIsNone(self.build("reviewer", confirmed=True).report)
+        staff = self.build("operator", confirmed=True)
+        self.assertEqual((staff.report, staff.session_id), (True, "S1"))
+
+    def test_a_rerun_or_failure_keeps_the_last_completed_batchs_readable_videos(self):
+        ref = self.batch([{"video_id": "v1", "status": "complete"}])
+        self.audit("preprocess_v4.completed", {"session_id": "S1", "input_revision": 3, "ref": ref, "hash": "x"})
+        self.audit("preprocess_v4.started", {"session_id": "S1", "input_revision": 3})
+        value = self.build("operator", confirmed=True)
+        self.assertEqual((value.preprocess, value.videos_usable), ("running", 1))
+
+    def test_a_failed_batch_read_is_not_cached(self):
+        ref = "clips/C1/S1/b2/t1/batch.json"
+        self.audit("preprocess_v4.completed", {"session_id": "S1", "input_revision": 3, "ref": ref, "hash": "x"})
+        self.assertEqual(self.build("operator", confirmed=True).videos_usable, 0)  # file not there yet (e.g. a transient lock)
+        path = self.store.root / ref
+        path.parent.mkdir(parents=True)
+        path.write_text(encode({"clips": [{"video_id": "v2", "status": "partial"}]}), encoding="utf-8")
+        self.assertEqual(self.build("operator", confirmed=True).videos_usable, 1)

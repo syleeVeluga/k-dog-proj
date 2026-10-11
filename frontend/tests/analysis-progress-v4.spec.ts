@@ -73,7 +73,7 @@ test('교수/검토자는 4단계 진행·내 시트만 보고 다른 평가자 
   await login(page, 'reviewer');
   await openMenu(page, '독립 채점');
   const row = page.getByRole('row').filter({ hasText: 'V1' });
-  await expect(row.getByRole('list', { name: 'V1 진행 단계' }).getByRole('listitem')).toHaveText(['촬영 확정 진행 중', '전처리 대기', '내 채점 대기', '리포트 대기']);
+  await expect(row.getByRole('list', { name: 'V1 진행 단계' }).getByRole('listitem')).toHaveText(['촬영 확정 진행 중', '전처리 대기', '내 채점 대기']);
   await expect(row.getByText('운영자가 준비하고 있습니다', { exact: true })).toBeVisible();
   await expect(row.getByText('배정 없음', { exact: true })).toBeVisible();
   const options = await page.getByLabel('진행 단계 필터', { exact: true }).locator('option').allInnerTexts();
@@ -92,18 +92,11 @@ test('교수/검토자는 4단계 진행·내 시트만 보고 다른 평가자 
   await openMenu(page, '전처리');
   await page.getByRole('button', { name: 'V1 전처리 열기', exact: true }).click();
   expect(await page.locator('main').innerText()).not.toMatch(DEV_CODES);
-  // 리포트는 조회만: 발급 컨트롤과 운영 정보가 없다.
-  await openMenu(page, '리포트 조회');
-  await expect(page.getByRole('heading', { name: '리포트 조회', exact: true })).toBeVisible();
-  // 선택한 참가자는 메뉴를 옮겨도 유지되므로 곧바로 그 참가자의 리포트가 열린다.
-  await expect(page.getByText('조회 전용입니다.', { exact: false })).toBeVisible();
-  await expect(page.getByText('아직 발급된 리포트가 없습니다.', { exact: false })).toBeVisible();
-  await expect(page.getByRole('button', { name: '선택한 최종본으로 리포트 생성', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '현재 접수 입력 새로고침', exact: true })).toHaveCount(0);
-  expect(await page.locator('main').innerText()).not.toMatch(DEV_CODES);
-  // 서버도 발급·내보내기를 허용하지 않는다.
-  await page.evaluate(() => { window.location.hash = '#/report/export'; });
-  await expect(page).toHaveURL(/#\/intake$/);
+  // 리포트 열람은 현재 운영자·관리자만이다(교수 조회 Q03는 후속 결정). 메뉴도 경로도 열리지 않는다.
+  for (const hash of ['#/report', '#/report/export', '#/report/comparison']) {
+    await page.evaluate(value => { window.location.hash = value; }, hash);
+    await expect(page).toHaveURL(/#\/intake$/);
+  }
 });
 
 test('연구 내보내기는 리포트 하위 메뉴로 옮겨지고 독립 채점 화면에는 없다', async ({ page, request }) => {
@@ -114,7 +107,7 @@ test('연구 내보내기는 리포트 하위 메뉴로 옮겨지고 독립 채�
   await expect(page.locator('main').getByText('연구 내보내기', { exact: true })).toHaveCount(0);
   await openMenu(page, '연구 내보내기');
   await expect(page).toHaveURL(/#\/report\/export$/);
-  await expect(page.getByRole('heading', { name: '연구 내보내기', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '연구 내보내기', exact: true, level: 1 })).toBeVisible();
   await expect(page.getByRole('region', { name: 'S1 연구 내보내기', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '← 참가자 목록', exact: true }).click();
   await page.getByRole('button', { name: 'X1 연구 내보내기 열기', exact: true }).click();

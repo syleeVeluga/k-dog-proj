@@ -85,7 +85,7 @@ export function ComparisonSettings({ user, onSaved }: { user: User; onSaved?: ()
     </section>}
     <h3>외부 비교 · 출처별 확인 상태</h3><p>연구자의 문항 동등성·사용 조건 확인과 관리자의 기술 활성화는 별개입니다. 미승인 참고 수치는 리포트에 표시하지 않습니다.</p>
     {sources?.sources.map(source => <article key={source.source_id}><h4>{source.title}</h4><p>{source.reason}</p></article>)}{sources && <p>{sources.domestic_reason}</p>}
-    <p className="fine">실제 외부 비교 활성화는 S17 문헌·연구 확인 자료가 갖춰진 뒤 진행합니다. 자체 집단을 넣지 않아도 정상 리포트를 생성할 수 있습니다.</p>
+    <p className="fine">실제 외부 비교 활성화는 문헌·연구 확인 자료가 갖춰진 뒤 진행합니다. 자체 집단을 넣지 않아도 정상 리포트를 생성할 수 있습니다.</p>
     <details><summary>외부 비교 연구 확인·활성화 관리</summary><ExternalComparisonSettingsV4 user={user} onChanged={() => { void work(reload); onSaved?.(); }} /></details>
   </section>;
 }

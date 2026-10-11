@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CaseFilters, matchesCase } from './CaseFilters';
 import type { CaseFilterProps } from './CaseFilters';
-import { isMine, nextAction, ownerText, stageNames, stepsOf } from './progressText';
+import { currentProgress, isMine, nextAction, ownerText, stageNames, stepsOf } from './progressText';
 import type { Case, User } from './types';
 
 // 전처리·독립 채점·리포트가 함께 쓰는 참가자 목록. 참가자별로 어느 단계까지 왔는지와 다음 할 일을 보여 준다.
@@ -12,7 +12,7 @@ export function CaseProgressList({ cases, user, filters, open, openLabel }: {
   const [stage, setStage] = useState('');
   const [mine, setMine] = useState(false);
   const visible = cases.filter(item => matchesCase(item, filters.search, filters.eventFilter)
-    && (!stage || item.progress?.stage === stage) && (!mine || isMine(item, user.role)))
+    && (!stage || currentProgress(item)?.stage === stage) && (!mine || isMine(item, user.role)))
     .sort((a, b) => (a.sequence_no ?? 1e9) - (b.sequence_no ?? 1e9) || a.participant_id.localeCompare(b.participant_id));
   const stageOptions = user.role === 'reviewer' ? ['recording', 'preprocess', 'scoring', 'complete'] : ['recording', 'preprocess', 'scoring', 'final', 'report', 'complete'];
   return <>
@@ -23,7 +23,7 @@ export function CaseProgressList({ cases, user, filters, open, openLabel }: {
       <label className="check"><input type="checkbox" checked={mine} onChange={event => setMine(event.target.checked)} />내가 할 일만</label>
     </div>
     <div className="table-wrap"><table className="progress-table"><thead><tr><th>순번</th><th>참가자 / 반려견</th><th>진행 단계</th><th>다음 할 일</th><th>담당</th><th>작업</th></tr></thead>
-      <tbody>{visible.map(item => { const steps = item.progress ? stepsOf(item.progress, user.role) : [];
+      <tbody>{visible.map(item => { const progress = currentProgress(item), steps = progress ? stepsOf(progress, user.role) : [];
         return <tr key={item.case_id}>
           <td data-label="순번"><strong className="mono">{item.sequence_no ?? '—'}</strong></td>
           <td data-label="참가자 / 반려견"><strong className="mono">{item.participant_id}</strong><small>{item.event_id}</small>{item.dog_name}</td>
