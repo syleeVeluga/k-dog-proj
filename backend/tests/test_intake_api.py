@@ -223,7 +223,7 @@ class IntakeTests(AppCase):
         item = self.make_case()
         with self.store.connect(write=True) as db:
             tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-            self.assertEqual(tables, {"users", "cases", "runs", "steps", "changes", "score_sheets", "score_grants", "basic_results", "upload_receipts"})
+            self.assertEqual(tables, {"users", "cases", "runs", "steps", "changes", "score_sheets", "score_grants", "basic_results", "upload_receipts", "forms_mapping_presets"})
             self.assertEqual(db.execute("PRAGMA foreign_keys").fetchone()[0], 1)
             self.assertEqual(db.execute("PRAGMA journal_mode").fetchone()[0], "wal")
             self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 11)
