@@ -156,7 +156,7 @@ AR04 동의/삭제/보관 및 AR05 리포트/내보내기 소유 조건은 해�
 
 ## 7 AR04 구현·검증·독립 cold review
 
-2026-10-12, 브랜치 `veluga/ar04-consent-retention`, 기준 `1986e22` (AR03 merge). 요구사항 AR-R06·AR-R07·AR-R10·AR-R11. 의존성은 §4 공식 확인과 같은 잠금판이며 추가/업그레이드 없음.
+2026-10-12, 브랜치 `veluga/ar04-consent-retention`, 기준 `1986e22` (AR03 merge), [PR #78](https://github.com/syleeVeluga/k-dog-proj/pull/78), 구현 head `3f88726`. 요구사항 AR-R06·AR-R07·AR-R10·AR-R11. 의존성은 §4 공식 확인과 같은 잠금판이며 추가/업그레이드 없음. 최종 head·merge는 병합 후 기록한다.
 
 - 목록/영상/업로드/촬영/전처리/AI/채점/리포트/비교/검수/export/Worker/benchmark의 live·frozen 동의·삭제 차단을 제거했다. product 삭제 API·버튼·상태와 identity/Forms/검수 source tombstone을 제거했다. 역사 Manifest·DB·대장 metadata는 보존하며 새 정상 DTO/화면의 조건에서 제외한다. 생략한 사례 수정은 옛 동의값을 유지한다.
 - clean은 참조 hash 전체 검증 후 현재 참조하지 않는 관리 경로의 고아파일만 제거한다. 연쇄 DB 삭제·purge·VACUUM은 없다. restore는 백업 시점 DB/자료/changes만 복원하며 현재 삭제대장·백업 이후 event를 추출·병합하거나 lease를 다시 쓰지 않는다. 세션 초기화·S1 초기화 경계·hash/FK/offline/목적지 검사는 유지한다.
