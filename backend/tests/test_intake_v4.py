@@ -78,3 +78,59 @@ class IntakeV4Tests(AppCase):
         self.assertEqual(result.status_code, 409)
         self.assertEqual(result.headers["Cache-Control"], "no-store")
         self.assertEqual(result.headers["X-Content-Type-Options"], "nosniff")
+
+class IntakeFieldConflictTests(AppCase):
+    """U04: 중복은 어느 칸인지, 누가 쓰고 있는지 알려 준다."""
+
+    def setUp(self):
+        super().setUp()
+        self.app = create_app(self.root)
+        self.client = self.client_for("operator")
+
+    def add(self, participant, sequence=None, event="U04", dog="초코"):
+        body = {"event_id": event, "participant_id": participant, "dog_name": dog}
+        if sequence is not None:
+            body["sequence_no"] = sequence
+        return self.client.post("/api/cases", json=body)
+
+    def test_duplicate_id_and_sequence_name_the_field_and_the_existing_participant(self):
+        self.assertEqual(self.add("0001", 1).status_code, 201)
+        response = self.add("0001", 2, dog="다른견")
+        self.assertEqual(response.status_code, 409)
+        body = response.json()
+        self.assertEqual((body["field"], body["existing"]), ("participant_id", {"participant_id": "0001", "dog_name": "초코"}))
+        self.assertIn("0001", body["detail"])
+        response = self.add("0002", 1, dog="콩이")
+        body = response.json()
+        self.assertEqual((response.status_code, body["field"]), (409, "sequence_no"))
+        self.assertEqual(body["existing"], {"participant_id": "0001", "dog_name": "초코"})
+        self.assertIn("순번 1은 이미 0001(초코)이 쓰고 있습니다", body["detail"])
+        self.assertEqual(len(self.client.get("/api/cases").json()), 1)
+
+    def test_same_sequence_in_another_event_and_blank_sequences_are_allowed(self):
+        self.assertEqual(self.add("0001", 1).status_code, 201)
+        self.assertEqual(self.add("0001", 1, event="U04-OTHER").status_code, 201)
+        self.assertEqual(self.add("0002").status_code, 201)
+        self.assertEqual(self.add("0003").status_code, 201)
+
+    def test_correction_excludes_itself_and_reports_other_participants(self):
+        first = self.add("0001", 1).json()
+        second = self.add("0002", 2, dog="콩이").json()
+        same = {"expected_revision": first["input_revision"], "participant_id": "0001", "dog_name": "초코", "sequence_no": 1}
+        self.assertEqual(self.client.put(f"/api/cases/{first['case_id']}", json=same).status_code, 200)
+        current = self.client.get(f"/api/cases/{first['case_id']}").json()
+        clash = {**same, "expected_revision": current["input_revision"], "sequence_no": 2}
+        response = self.client.put(f"/api/cases/{first['case_id']}", json=clash)
+        self.assertEqual((response.status_code, response.json()["field"]), (409, "sequence_no"))
+        self.assertEqual(response.json()["existing"]["dog_name"], "콩이")
+        clash = {**same, "expected_revision": current["input_revision"], "participant_id": "0002"}
+        response = self.client.put(f"/api/cases/{first['case_id']}", json=clash)
+        self.assertEqual((response.status_code, response.json()["field"]), (409, "participant_id"))
+        self.assertEqual(self.client.get(f"/api/cases/{second['case_id']}").json()["participant_id"], "0002")
+
+    def test_a_deletion_requested_participant_is_not_named(self):
+        item = self.add("0001", 1).json()
+        self.delete_case(item)
+        for response, field in ((self.add("0001"), "participant_id"), (self.add("0009", 1), "sequence_no")):
+            self.assertEqual((response.status_code, response.json()["field"], response.json()["existing"]), (409, field, None))
+            self.assertIn("삭제 요청된 참가자", response.json()["detail"])

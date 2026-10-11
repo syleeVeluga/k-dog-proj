@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { api } from '../api';
+import { ApiError, api } from '../api';
 import { mayLeave, useUnsaved } from '../Editing';
+import { focusFirstError, focusSoon, useFieldErrors, validateForm } from '../FieldErrors';
 import { ParticipantFields, participantValue } from '../ParticipantFields';
 import { CaseDetail } from './CaseDetail';
 import { CaseFilters, matchesCase } from '../CaseFilters';
 import type { CaseFilterProps } from '../CaseFilters';
-import { SURVEY_TOTAL, protocolName, segmentState, sessionOf, surveyHandled } from '../types';
 import type { Route } from '../navigation';
+import { SURVEY_TOTAL, segmentState, sessionOf, surveyHandled } from '../types';
 import type { Case, Run, User } from '../types';
 
 type Props = {
@@ -16,10 +17,18 @@ type Props = {
   filters: CaseFilterProps; goTo: (route: Route) => void;
 };
 
-// 접수 메뉴: 참가자 단건 등록과 원입력 상세. 파일 일괄 등록은 「일괄 등록」 메뉴에서 한다.
+// 접수 메뉴: 참가자 단건 등록과 원입력 상세. 저장 후에도 폼에 머물러 다음 참가자를 이어서 받는다.
+// 파일 일괄 등록은 「일괄 등록」 메뉴에서 한다.
 export function Intake({ user, cases, selected, writable, run, reload, select, status, notify, filters, goTo }: Props) {
   const [filter, setFilter] = useState('all');
   const [dirty, setDirty] = useState(false);
+  const [formOpen, setFormOpen] = useState<boolean | null>(null);
+  const [eventId, setEventId] = useState('');
+  const [formKey, setFormKey] = useState(0);
+  const [nextSequence, setNextSequence] = useState<number | ''>('');
+  const [last, setLast] = useState<Case | null>(null);
+  const fields = useFieldErrors();
+  const form = useRef<HTMLFormElement>(null);
   useUnsaved(dirty);
   const visible = cases.filter(c => {
     const session = sessionOf(c);
@@ -34,13 +43,34 @@ export function Intake({ user, cases, selected, writable, run, reload, select, s
     back={() => { if (mayLeave()) void run(async () => { select(null); await reload(); }); }}
     refresh={async message => { await reload(selected.case_id); if (message) notify(message); }} />;
 
+  function open(item: Case) {
+    if (mayLeave()) { setDirty(false); void run(async () => select(await api<Case>(`/cases/${item.case_id}`))); }
+  }
+
   function register(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const target = event.currentTarget;
+    const intent = (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') ?? 'next';
+    const problems = validateForm(target);
+    if (Object.keys(problems).length) { fields.set(problems); focusFirstError(target, problems); return; }
+    const data = new FormData(target);
     void run(async () => {
-      const created = await api<Case>('/cases', 'POST', { event_id: form.get('event_id'), ...participantValue(form) });
-      setDirty(false);
-      await reload(created.case_id); notify('참가자를 등록했습니다.');
+      let created: Case;
+      try { created = await api<Case>('/cases', 'POST', { event_id: String(data.get('event_id')).trim(), ...participantValue(data) }); }
+      catch (error) {
+        // 중복 ID·순번은 해당 칸 아래에 알리고 그 칸으로 돌아간다. 다른 오류는 전역 알림으로 넘긴다.
+        if (error instanceof ApiError && (error.field === 'participant_id' || error.field === 'sequence_no')) {
+          const problem = { [error.field]: error.message }; fields.set(problem); focusSoon(target, problem); return;
+        }
+        throw error;
+      }
+      setDirty(false); fields.clear(); setLast(created); setFormOpen(true);
+      if (intent === 'detail') { await reload(created.case_id); notify('참가자를 등록했습니다.'); return; }
+      const sequences = [...cases.filter(c => c.event_id === created.event_id).map(c => c.sequence_no ?? 0), created.sequence_no ?? 0];
+      setNextSequence(created.sequence_no === null ? '' : Math.max(...sequences) + 1);
+      setFormKey(key => key + 1);
+      await reload(); notify('참가자를 등록했습니다.');
+      window.setTimeout(() => form.current?.querySelector<HTMLElement>('[name="participant_id"]')?.focus(), 60);
     });
   }
 
@@ -53,20 +83,27 @@ export function Intake({ user, cases, selected, writable, run, reload, select, s
     <p className="fine" role="status">{status} · 표시 {visible.length}명</p>
     <div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자 / 행사</th><th>반려견 / 보호자</th><th>동의</th><th>설문</th><th>영상</th><th>구간</th><th>자료</th></tr></thead>
       <tbody>{visible.map(c => { const s = sessionOf(c); const count = surveyHandled(s);
-        return <tr key={c.case_id}><td data-label="순번"><strong className="mono">{c.sequence_no ?? '—'}</strong></td>
+        return <tr key={c.case_id} className="clickable" onClick={() => open(c)}><td data-label="순번"><strong className="mono">{c.sequence_no ?? '—'}</strong></td>
           <td data-label="참가자 / 행사"><strong className="mono">{c.participant_id}</strong><small>{c.event_id}</small></td>
           <td data-label="반려견 / 보호자">{c.dog_name}<small>{c.guardian_name ? `${c.guardian_name} 님` : '보호자명 없음'}{c.dog.breed ? ` · ${c.dog.breed}` : ''}</small></td>
           <td data-label="동의"><span className={c.consent_confirmed ? 'tag green' : 'tag'}>{c.consent_confirmed ? '확인' : '미확인'}</span></td>
           <td data-label="설문"><span className={count === SURVEY_TOTAL ? 'tag green' : 'tag'}>{count}/{SURVEY_TOTAL}</span>{s.survey_version === 'survey-20260929-v3' && <small>빈칸 사유 {Object.keys(s.survey_blank_reasons ?? {}).length}개 · 완료 기준 미확정</small>}</td><td data-label="영상">{s.videos.length}개</td>
-          <td data-label="구간">{({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(s)]}<small>{protocolName(s)}</small>{c.manifest.schema_version === 'intake-4.0' && <small>S1 재분석 필요</small>}</td>
-          <td data-label="자료"><button aria-label={`${c.participant_id} 상세 열기`} onClick={() => { if (mayLeave()) { setDirty(false); void run(async () => select(await api<Case>(`/cases/${c.case_id}`))); } }}>열기 ↗</button></td></tr>;
+          <td data-label="구간">{({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(s)]}{c.scoring_status === 'reanalysis_required' && <small>채점 전</small>}</td>
+          <td data-label="자료"><button aria-label={`${c.participant_id} 상세 열기`} onClick={e => { e.stopPropagation(); open(c); }}>열기</button></td></tr>;
       })}</tbody></table>{!visible.length && <div className="empty"><h2>{cases.length ? '조건에 맞는 참가자가 없습니다.' : '첫 참가자를 등록하세요.'}</h2><p>행사와 참가자 ID를 먼저 확인한 뒤 자료를 연결합니다.</p></div>}</div>
     {writable && <div className="panel toolbar"><p>CSV·Excel 파일로 참가자와 설문을 한꺼번에 등록할 수 있습니다.</p><button onClick={() => goTo('intake/upload')}>일괄 등록으로 이동</button></div>}
-    {writable && <details className="panel" open={!cases.length}><summary>참가자 등록</summary>
-      <form onSubmit={register} onChange={() => setDirty(true)}>
-        <div className="form-grid"><label>행사 ID<input aria-label="행사 ID" name="event_id" placeholder="KDOG-2026" pattern="[A-Za-z0-9_\-]+" required /><small>필수 · 같은 행사에는 같은 ID. 예: KDOG-2026. 영문·숫자·밑줄·하이픈.</small></label>
-          <ParticipantFields /></div>
+    {writable && <details className="panel" open={formOpen ?? !cases.length}><summary onClick={e => { e.preventDefault(); setFormOpen(!(formOpen ?? !cases.length)); }}>참가자 등록</summary>
+      {last && <p role="status" className="registered"><strong>{last.participant_id} {last.dog_name} 등록됨</strong> · <button className="plain" onClick={() => { if (mayLeave()) select(last); }}>상세 보기</button> · <button className="plain" onClick={() => { if (mayLeave()) { select(last); goTo('recording/record'); } }}>촬영으로</button></p>}
+      <form ref={form} noValidate onSubmit={register} onChange={() => setDirty(true)} {...fields.bind}>
+        {fields.summary && <p className="error" role="alert">{fields.summary}</p>}
+        <div className="form-grid"><label>행사 ID<input aria-label="행사 ID" name="event_id" placeholder="KDOG-2026" required value={eventId}
+          aria-invalid={fields.errors.event_id ? true : undefined} aria-describedby={fields.errors.event_id ? 'participant-event_id-error' : undefined} onChange={e => setEventId(e.target.value)} />
+          <small>필수 · 같은 행사에는 같은 ID. 예: KDOG-2026. 영문·숫자·밑줄·하이픈.</small>
+          {fields.errors.event_id && <small className="field-error" id="participant-event_id-error" role="alert">{fields.errors.event_id}</small>}</label>
+          <ParticipantFields key={formKey} errors={fields.errors} defaultSequence={nextSequence} /></div>
         <p className="fine">이름이 같아도 참가자 ID는 각각 등록합니다. ID 앞자리 0은 그대로 보존됩니다. 순번은 행사 안에서 하나씩입니다. 연락처는 받지 않습니다.</p>
-        <button className="primary">참가자 저장</button></form></details>}
+        <div className="toolbar"><button className="primary" name="intent" value="next">참가자 저장</button>
+          <button name="intent" value="detail">저장하고 상세 열기</button>
+          <span className="fine">저장하면 이 화면에 머물러 다음 참가자를 이어서 등록합니다.</span></div></form></details>}
   </>;
 }

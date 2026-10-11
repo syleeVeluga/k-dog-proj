@@ -35,13 +35,15 @@ test('shell: favicon and identifier constraints are valid', async ({ page }) => 
   });
   await login(page);
   await openRegistrationWithExistingCase(page, 'shell-existing');
-  const inputs = page.locator('input[pattern]');
-  await expect(inputs).toHaveCount(2);
-  for (const input of await inputs.all()) {
+  // 행사 ID·참가자 ID는 영문·숫자·밑줄·하이픈만 허용하고, 어긋나면 칸 아래에 한국어로 알린다.
+  for (const [label, name] of [['행사 ID', 'event_id'], ['참가자 ID', 'participant_id']] as const) {
+    const input = page.getByLabel(label, { exact: true });
     await input.fill('invalid!');
-    expect(await input.evaluate(element => (element as HTMLInputElement).checkValidity())).toBe(false);
+    await page.getByLabel('반려견 이름', { exact: true }).focus();
+    await expect(page.locator(`#participant-${name}-error`)).toContainText('영문·숫자·밑줄·하이픈만 쓸 수 있습니다');
+    await expect(input).toHaveAttribute('aria-invalid', 'true');
     await input.fill('VALID_ID-1');
-    expect(await input.evaluate(element => (element as HTMLInputElement).checkValidity())).toBe(true);
+    await expect(page.locator(`#participant-${name}-error`)).toHaveCount(0);
   }
   expect(patternErrors).toEqual([]);
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg');
@@ -67,11 +69,12 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
   await page.getByLabel('촬영 영상·설문 사용 동의 확인').check();
   await page.getByRole('combobox', { name: '영상·설문 분석 및 피드백 동의' }).selectOption('confirmed');
   await page.getByRole('combobox', { name: '낯선 요원 접근·접촉 동의' }).selectOption('declined');
-  await page.getByRole('button', { name: '참가자 저장' }).click();
+  await page.getByRole('button', { name: '저장하고 상세 열기' }).click();
   await expect(page.getByRole('heading', { name: '검증용 가상견', exact: true })).toBeVisible();
   await expect(page.getByText('가상 보호자 님 · 보더콜리 · 암 · 4세', { exact: true })).toBeVisible();
   await expect(page.getByText('동의 확인', { exact: true })).toBeVisible();
   await expect(page.getByText('분석·피드백 동의: 확인 · 낯선 요원 접촉 동의: 거절', { exact: true })).toBeVisible();
+  await page.getByText('기술 정보', { exact: true }).click();
   await expect(page.getByText('촬영 기준:', { exact: false })).toContainText('S1.1 · 10월 2일');
   await expect(page.getByText('입력 버전 1', { exact: true })).toBeVisible();
   await expect(page.getByText('영상 등록·8구간 시각·촬영 메모·재촬영은 「촬영」 메뉴에서', { exact: false })).toBeVisible();

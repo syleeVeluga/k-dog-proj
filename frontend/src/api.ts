@@ -1,5 +1,6 @@
 export class ApiError extends Error {
-  constructor(message: string, public status: number) { super(message); }
+  // field·existing은 중복 ID·순번처럼 어느 칸이 문제인지 서버가 알려 줄 때만 채워진다.
+  constructor(message: string, public status: number, public field?: string, public existing?: { participant_id: string; dog_name: string } | null) { super(message); }
 }
 
 export const accessLost = (error: unknown) => error instanceof ApiError && [401, 403, 404].includes(error.status);
@@ -13,7 +14,7 @@ export async function api<T>(path: string, method = 'GET', data?: unknown): Prom
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: '서버에 연결할 수 없습니다.' }));
     if (response.status === 401 && path !== '/auth/login') window.dispatchEvent(new Event('kdog-session-expired'));
-    throw new ApiError(typeof error.detail === 'string' ? error.detail : '입력 형식을 확인하세요.', response.status);
+    throw new ApiError(typeof error.detail === 'string' ? error.detail : '입력 형식을 확인하세요.', response.status, typeof error.field === 'string' ? error.field : undefined, error.existing ?? undefined);
   }
   if (path === '/cases' && method === 'GET') {
     window.dispatchEvent(new CustomEvent('kdog-unavailable-cases', { detail: Number(response.headers.get('X-KDOG-Unavailable-Cases') ?? 0) }));
