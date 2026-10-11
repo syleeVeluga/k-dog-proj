@@ -116,7 +116,7 @@ FastAPI 최신판의 breaking-change 항목은 이번 정책 PR에서 자동 교
 
 ## 6 AR03 공유 채점과 해석
 
-기준 `main / c8fb891`, 브랜치 `veluga/ar03-shared-scoring`. 구현일 2026-10-11~12. 의존성은 §4 공식 검증·잠금판을 유지하고 신규 의존성 없이 정책과 계약을 변경했다.
+기준 `main / c8fb891`, 브랜치 `veluga/ar03-shared-scoring`, [PR #77](https://github.com/syleeVeluga/k-dog-proj/pull/77), 구현 커밋 `4b76a59`. 구현일 2026-10-11~12. 의존성은 §4 공식 검증·잠금판을 유지하고 신규 의존성 없이 정책과 계약을 변경했다.
 
 - 활성 업무 계정은 모든 시트 현재/보존 판본·기본 결과·의견·최종을 조회하고 수정한다. 배정 없이 채점을 시작하며 원평가자 정보는 출처다. 소유 계정 비활성·옛 배정 active false·grant 없음도 업무 접근을 막지 않는다.
 - 운영 grant/reveal/배정 취소/시트 재개방 API와 실행 함수/고아 DTO를 제거했다. 제출본 수정 저장은 자동 새 draft revision이며 최초 제출 참조·이전 파일 bytes·original rater_id/rater_kind는 보존하고 실제 저장 actor를 기록한다. 완료/사용 중단 의견도 새 판본으로 다시 작성한다.
