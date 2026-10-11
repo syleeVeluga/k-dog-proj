@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError, api } from '../api';
-import { mayLeave, useUnsaved } from '../Editing';
+import { forgetEdits, mayLeave, useUnsaved } from '../Editing';
 import { focusFirstError, focusSoon, useFieldErrors, validateForm } from '../FieldErrors';
 import { ParticipantFields, participantValue } from '../ParticipantFields';
 import { CaseDetail } from './CaseDetail';
@@ -12,22 +12,27 @@ import { SURVEY_TOTAL, segmentState, sessionOf, surveyHandled } from '../types';
 import type { Case, Run, User } from '../types';
 
 type Props = {
-  user: User; cases: Case[]; selected: Case | null; writable: boolean; run: Run;
+  user: User; cases: Case[]; selected: Case | null; writable: boolean; busy: boolean; run: Run;
   reload: (id?: string) => Promise<void>; select: (item: Case | null) => void; status: string; notify: (message: string) => void;
   filters: CaseFilterProps; goTo: (route: Route) => void;
 };
 
 // 접수 메뉴: 참가자 단건 등록과 원입력 상세. 저장 후에도 폼에 머물러 다음 참가자를 이어서 받는다.
 // 파일 일괄 등록은 「일괄 등록」 메뉴에서 한다.
-export function Intake({ user, cases, selected, writable, run, reload, select, status, notify, filters, goTo }: Props) {
+export function Intake({ user, cases, selected, writable, busy, run, reload, select, status, notify, filters, goTo }: Props) {
   const [filter, setFilter] = useState('all');
   const [dirty, setDirty] = useState(false);
   const [formOpen, setFormOpen] = useState<boolean | null>(null);
   const [eventId, setEventId] = useState('');
   const [formKey, setFormKey] = useState(0);
-  const [nextSequence, setNextSequence] = useState<number | ''>('');
+  const [typedSequence, setTypedSequence] = useState<string | null>(null);
   const [last, setLast] = useState<Case | null>(null);
   const fields = useFieldErrors();
+  // 다음 빈 순번 제안: 그 행사에 순번이 있는 참가자가 있으면 가장 큰 순번 다음 값. 직접 입력하면 그 값을 쓴다.
+  const suggested = useMemo(() => {
+    const used = cases.filter(c => c.event_id === eventId.trim() && c.sequence_no !== null).map(c => c.sequence_no as number);
+    return used.length ? String(Math.max(...used) + 1) : '';
+  }, [cases, eventId]);
   const form = useRef<HTMLFormElement>(null);
   useUnsaved(dirty);
   const visible = cases.filter(c => {
@@ -44,7 +49,13 @@ export function Intake({ user, cases, selected, writable, run, reload, select, s
     refresh={async message => { await reload(selected.case_id); if (message) notify(message); }} />;
 
   function open(item: Case) {
-    if (mayLeave()) { setDirty(false); void run(async () => select(await api<Case>(`/cases/${item.case_id}`))); }
+    if (busy || window.getSelection()?.toString()) return;  // 저장 중이거나 글자를 드래그해 복사하는 중에는 열지 않는다.
+    if (mayLeave()) { forgetEdits(); setDirty(false); void run(async () => select(await api<Case>(`/cases/${item.case_id}`))); }
+  }
+  function openRegistered(next: Route | null) {
+    if (!last || !mayLeave()) return;
+    forgetEdits(); setDirty(false); select(last);
+    if (next) goTo(next);
   }
 
   function register(event: FormEvent<HTMLFormElement>) {
@@ -60,15 +71,13 @@ export function Intake({ user, cases, selected, writable, run, reload, select, s
       catch (error) {
         // 중복 ID·순번은 해당 칸 아래에 알리고 그 칸으로 돌아간다. 다른 오류는 전역 알림으로 넘긴다.
         if (error instanceof ApiError && (error.field === 'participant_id' || error.field === 'sequence_no')) {
-          const problem = { [error.field]: error.message }; fields.set(problem); focusSoon(target, problem); return;
+          const problem = { [error.field]: error.message }; fields.setServer(problem); focusSoon(target, problem); return;
         }
         throw error;
       }
       setDirty(false); fields.clear(); setLast(created); setFormOpen(true);
+      setTypedSequence(null); setFormKey(key => key + 1);
       if (intent === 'detail') { await reload(created.case_id); notify('참가자를 등록했습니다.'); return; }
-      const sequences = [...cases.filter(c => c.event_id === created.event_id).map(c => c.sequence_no ?? 0), created.sequence_no ?? 0];
-      setNextSequence(created.sequence_no === null ? '' : Math.max(...sequences) + 1);
-      setFormKey(key => key + 1);
       await reload(); notify('참가자를 등록했습니다.');
       window.setTimeout(() => form.current?.querySelector<HTMLElement>('[name="participant_id"]')?.focus(), 60);
     });
@@ -93,14 +102,14 @@ export function Intake({ user, cases, selected, writable, run, reload, select, s
       })}</tbody></table>{!visible.length && <div className="empty"><h2>{cases.length ? '조건에 맞는 참가자가 없습니다.' : '첫 참가자를 등록하세요.'}</h2><p>행사와 참가자 ID를 먼저 확인한 뒤 자료를 연결합니다.</p></div>}</div>
     {writable && <div className="panel toolbar"><p>CSV·Excel 파일로 참가자와 설문을 한꺼번에 등록할 수 있습니다.</p><button onClick={() => goTo('intake/upload')}>일괄 등록으로 이동</button></div>}
     {writable && <details className="panel" open={formOpen ?? !cases.length}><summary onClick={e => { e.preventDefault(); setFormOpen(!(formOpen ?? !cases.length)); }}>참가자 등록</summary>
-      {last && <p role="status" className="registered"><strong>{last.participant_id} {last.dog_name} 등록됨</strong> · <button className="plain" onClick={() => { if (mayLeave()) select(last); }}>상세 보기</button> · <button className="plain" onClick={() => { if (mayLeave()) { select(last); goTo('recording/record'); } }}>촬영으로</button></p>}
+      {last && <p role="status" className="registered"><strong>{last.participant_id} {last.dog_name} 등록됨</strong> · <button className="plain" onClick={() => openRegistered(null)}>상세 보기</button> · <button className="plain" onClick={() => openRegistered('recording/record')}>촬영으로</button></p>}
       <form ref={form} noValidate onSubmit={register} onChange={() => setDirty(true)} {...fields.bind}>
         {fields.summary && <p className="error" role="alert">{fields.summary}</p>}
         <div className="form-grid"><label>행사 ID<input aria-label="행사 ID" name="event_id" placeholder="KDOG-2026" required value={eventId}
           aria-invalid={fields.errors.event_id ? true : undefined} aria-describedby={fields.errors.event_id ? 'participant-event_id-error' : undefined} onChange={e => setEventId(e.target.value)} />
           <small>필수 · 같은 행사에는 같은 ID. 예: KDOG-2026. 영문·숫자·밑줄·하이픈.</small>
           {fields.errors.event_id && <small className="field-error" id="participant-event_id-error" role="alert">{fields.errors.event_id}</small>}</label>
-          <ParticipantFields key={formKey} errors={fields.errors} defaultSequence={nextSequence} /></div>
+          <ParticipantFields key={formKey} errors={fields.errors} sequence={typedSequence ?? suggested} onSequence={setTypedSequence} /></div>
         <p className="fine">이름이 같아도 참가자 ID는 각각 등록합니다. ID 앞자리 0은 그대로 보존됩니다. 순번은 행사 안에서 하나씩입니다. 연락처는 받지 않습니다.</p>
         <div className="toolbar"><button className="primary" name="intent" value="next">참가자 저장</button>
           <button name="intent" value="detail">저장하고 상세 열기</button>

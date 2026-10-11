@@ -6,6 +6,9 @@ export function mayLeave() {
   return !edits.size || window.confirm('저장하지 않은 입력이 있습니다. 입력을 버리고 이동하시겠습니까?');
 }
 
+// 사용자가 「입력을 버리고 이동」을 확인한 뒤 호출한다. 남은 미저장 표시 때문에 같은 확인창이 다시 뜨지 않게 한다.
+export function forgetEdits() { edits.clear(); }
+
 export function useUnsaved(dirty: boolean) {
   const id = useId();
   useEffect(() => {

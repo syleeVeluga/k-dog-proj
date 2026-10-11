@@ -141,3 +141,61 @@ test('동의 항목 세 개는 「동의서 확인」 묶음에 모이고 설명
   await group.getByText('자세히', { exact: true }).click();
   await expect(group.getByText('기존 기록에서 자동으로 확대하지 않습니다', { exact: false })).toBeVisible();
 });
+
+test('다음 순번 제안은 행사 ID와 저장 방식에 따라 갱신되고 직접 입력한 값이 우선한다', async ({ page }) => {
+  const form = await openRegistration(page, [['U04-SEQ', 'Q1', 1, '초코'], ['U04-SEQ', 'Q2', 2, '콩이']]);
+  const sequence = form.getByLabel('순번', { exact: true });
+  await form.getByLabel('행사 ID', { exact: true }).fill('U04-SEQ');
+  await expect(sequence).toHaveValue('3');
+  await form.getByLabel('행사 ID', { exact: true }).fill('U04-SEQ-NEW');
+  await expect(sequence).toHaveValue('');
+  await form.getByLabel('행사 ID', { exact: true }).fill('U04-SEQ');
+  await expect(sequence).toHaveValue('3');
+  await sequence.fill('7');
+  await form.getByLabel('행사 ID', { exact: true }).fill('U04-SEQ-NEW');
+  await expect(sequence).toHaveValue('7');
+  await form.getByLabel('행사 ID', { exact: true }).fill('U04-SEQ');
+  await sequence.fill('3');
+  await form.getByLabel('참가자 ID', { exact: true }).fill('Q3');
+  await form.getByLabel('반려견 이름', { exact: true }).fill('보리');
+  await form.getByRole('button', { name: '저장하고 상세 열기', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '보리', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '← 접수 목록' }).click();
+  await expect(page.getByRole('heading', { name: '접수', exact: true })).toBeVisible();
+  const again = page.locator('form').filter({ has: page.getByLabel('행사 ID', { exact: true }) });
+  await again.getByLabel('행사 ID', { exact: true }).fill('U04-SEQ');
+  await expect(again.getByLabel('순번', { exact: true })).toHaveValue('4');
+});
+
+test('등록 알림의 상세·촬영 버튼은 미저장 입력 확인을 한 번만 묻는다', async ({ page }) => {
+  const form = await openRegistration(page);
+  await form.getByLabel('행사 ID', { exact: true }).fill('U04-BANNER');
+  await form.getByLabel('참가자 ID', { exact: true }).fill('B1');
+  await form.getByLabel('반려견 이름', { exact: true }).fill('첫째');
+  await form.getByRole('button', { name: '참가자 저장', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'B1 첫째 등록됨' })).toBeVisible();
+  const prompts: string[] = [];
+  page.on('dialog', dialog => { prompts.push(dialog.message()); void dialog.accept(); });
+  await form.getByLabel('참가자 ID', { exact: true }).fill('B2');
+  await page.getByRole('status').filter({ hasText: 'B1 첫째 등록됨' }).getByRole('button', { name: '촬영으로', exact: true }).click();
+  await expect(page).toHaveURL(/#\/recording\/record$/);
+  expect(prompts).toHaveLength(1);
+});
+
+test('서버가 알린 중복 오류는 값을 고치기 전에는 칸을 벗어나도 남고, 100자를 넘는 ID는 칸 아래에 알린다', async ({ page }) => {
+  const form = await openRegistration(page, [['U04-KEEP', 'K1', 1, '초코']]);
+  await form.getByLabel('행사 ID', { exact: true }).fill('U04-KEEP');
+  await form.getByLabel('참가자 ID', { exact: true }).fill('K2');
+  await form.getByLabel('순번', { exact: true }).fill('1');
+  await form.getByLabel('반려견 이름', { exact: true }).fill('콩이');
+  await form.getByRole('button', { name: '참가자 저장', exact: true }).click();
+  await expect(page.locator('#participant-sequence_no-error')).toContainText('순번 1은 이미 K1(초코)이 쓰고 있습니다');
+  await expect(form.getByLabel('순번', { exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#participant-sequence_no-error')).toContainText('순번 1은 이미');
+  await form.getByLabel('순번', { exact: true }).fill('2');
+  await expect(page.locator('#participant-sequence_no-error')).toHaveCount(0);
+  await form.getByLabel('참가자 ID', { exact: true }).fill('A'.repeat(101));
+  await form.getByLabel('반려견 이름', { exact: true }).focus();
+  await expect(page.locator('#participant-participant_id-error')).toHaveText('참가자 ID는 100자 이하로 입력하세요.');
+});
