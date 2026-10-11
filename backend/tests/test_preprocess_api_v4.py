@@ -100,4 +100,4 @@ class PreprocessApiV4Tests(AppCase):
         self.store.path(clip["ai"]["ref"]).write_bytes(b"tampered derived artifact")
         self.assertEqual(self.client.get(url).status_code, 409)
         self.delete_case(self.get_case(item))
-        self.assertEqual(self.client.get(url).status_code, 403)
+        self.assertEqual(self.client.get(url).status_code, 409)

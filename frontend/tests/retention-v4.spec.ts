@@ -6,7 +6,14 @@ test('동의·삭제 입력 없이 접수하고 원자료 상세를 연다', asy
   await page.getByLabel('계정', { exact: true }).fill('reviewer');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
   await openMenu(page, '참가자 접수');
+  const registration = page.locator('details').filter({ has: page.locator('summary', { hasText: /^참가자 등록$/ }) });
+  const cases = await (await page.request.get('/api/cases')).json();
+  await expect(page.locator('.page-heading .count strong')).toHaveText(String(cases.length).padStart(2, '0'));
+  await expect(page.locator('fieldset.workspace')).toBeEnabled();
+  if (await registration.getAttribute('open') === null) await registration.locator('summary').click();
+  await expect(registration).toHaveAttribute('open', '');
   await expect(page.getByRole('option', { name: '동의 미확인', exact: true })).toHaveCount(0);
   const participant = `AR04_${Date.now()}`;
   await page.getByLabel('행사 ID', { exact: true }).fill('AR04_SYNTHETIC');

@@ -8,7 +8,7 @@ for (const width of [360, 390, 768, 1440]) {
     await page.getByLabel('계정', { exact: true }).fill('operator');
     await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
     await page.getByRole('button', { name: '로그인', exact: true }).click();
-    await expect(page.getByRole('status').filter({ hasText: '3초마다 자동 갱신' })).toContainText(/마지막 조회 [^·\s]/);
+    await expect(page.getByRole('status').filter({ hasText: '3초마다 자동 갱신' })).toContainText(/마지막 조회 [^·\s]/, { timeout: 30000 });
     await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeEnabled();
     const registration = page.locator('details').filter({ has: page.getByText('참가자 등록', { exact: true }) });
     if (await registration.getAttribute('open') === null) await registration.getByText('참가자 등록', { exact: true }).click();

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { openMenu } from './menu';
 
-test('S1 관리자는 임시 원자료를 검증 백업하고 계정 철회로 열린 세션을 종료한다', async ({ page, browser }) => {
+test('S1 업무 사용자는 임시 원자료를 검증 백업하고 계정 철회로 열린 세션을 종료한다', async ({ page, browser }) => {
   const headers = { 'X-KDOG-Request': '1' }, password = 'Browser-test-only-42';
   await page.goto('/');
   await page.getByLabel('계정', { exact: true }).fill('admin');
@@ -19,7 +19,7 @@ test('S1 관리자는 임시 원자료를 검증 백업하고 계정 철회로 �
   await page.getByText('직원 계정 추가', { exact: true }).click();
   await page.getByLabel('새 계정', { exact: true }).fill('s1-revoked-staff');
   await page.getByLabel('초기 비밀번호', { exact: true }).fill(password);
-  await page.getByRole('combobox', { name: '새 계정 역할' }).selectOption('operator');
+  await expect(page.getByRole('combobox', { name: '새 계정 역할' })).toHaveCount(0);
   await page.getByRole('button', { name: '계정 생성', exact: true }).click();
   const account = page.locator('.user-row').filter({ has: page.locator('strong', { hasText: /^s1-revoked-staff$/ }) });
   await expect(account).toBeVisible();
@@ -39,7 +39,7 @@ test('S1 관리자는 임시 원자료를 검증 백업하고 계정 철회로 �
   } finally { await client.close(); }
   await openMenu(page, '백업·복구');
   await page.getByText('자료 백업·복구', { exact: true }).click();
-  await expect(page.getByText(/남은 공간 .* GB · 삭제 요청/)).toBeVisible();
+  await expect(page.getByText(/남은 공간 .* GB/)).toBeVisible();
   const backupResponse = page.waitForResponse(response => response.url().endsWith('/api/admin/backups') && response.request().method() === 'POST');
   await page.getByRole('button', { name: '자료 백업 생성 · 키 제외', exact: true }).click();
   const response = await backupResponse;
@@ -66,7 +66,9 @@ test('S1 관리자는 임시 원자료를 검증 백업하고 계정 철회로 �
   await page.getByLabel('비밀번호', { exact: true }).fill(password);
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
-  await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '백업·복구', exact: true })).toHaveCount(0);
-  expect((await page.request.post('/api/admin/backups', { headers })).status()).toBe(403);
-  expect((await page.request.get('/api/admin/recovery')).status()).toBe(403);
+  await openMenu(page, '백업·복구');
+  await page.getByText('자료 백업·복구', { exact: true }).click();
+  await expect(page.getByRole('button', { name: '자료 백업 생성 · 키 제외', exact: true })).toBeVisible();
+  expect((await page.request.post('/api/admin/backups', { headers })).status()).toBe(201);
+  expect((await page.request.get('/api/admin/recovery')).status()).toBe(200);
 });

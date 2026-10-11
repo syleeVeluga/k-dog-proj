@@ -2,7 +2,7 @@
 
 Plain ZIP: new Korean/space path, damaged-file rejection, bundled runtime, HTTP login/intake/restart, locks.
 Issued ZIP (synthetic customer VERIFY): no readable product files, wrong key and tampering change nothing,
-key install with accounts and shortcut, admin/developer login, and reinstall keeping data and accounts.
+key install with accounts and shortcut, business/developer login, and reinstall keeping data and accounts.
 User-install ZIP (--variant online, uv/FFmpeg on PATH, internet): Start.cmd asks for Install.cmd first, damage
 is rejected before a venv exists, Install.cmd builds backend/.venv, then the same HTTP, restart and lock checks.
 """
@@ -20,7 +20,7 @@ import socket
 import subprocess
 import tempfile
 import time
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import build_opener, HTTPCookieProcessor, ProxyHandler, Request
 from zipfile import ZipFile
 
@@ -166,7 +166,7 @@ def verify_plain(package, root):
     run_python(python, app, env, "-c", "from pathlib import Path; import os; from app.storage import Store\n"
                "from app.auth import create_user\nfrom app.input_models import UserCreate\n"
                "with Store(Path(os.environ['KDOG_DATA_DIR'])).connect(write=True) as db:\n"
-               "    create_user(db,UserCreate(username='pilot',role='admin',password='Synthetic-install-only-42'))\n")
+               "    create_user(db,UserCreate(username='pilot',role='operator',password='Synthetic-install-only-42'))\n")
     case_id = None
     for run in range(2):
         with served([str(python), "-X", "utf8", "-m", "app.launcher"], app, env) as client:
@@ -240,7 +240,7 @@ def verify_online(package, root):
     run_python(python, backend, clean, "-c", "from pathlib import Path; import os; from app.storage import Store\n"
                "from app.auth import create_user\nfrom app.input_models import UserCreate\n"
                "with Store(Path(os.environ['KDOG_DATA_DIR'])).connect(write=True) as db:\n"
-               "    create_user(db,UserCreate(username='pilot',role='admin',password='Synthetic-install-only-42'))\n")
+               "    create_user(db,UserCreate(username='pilot',role='operator',password='Synthetic-install-only-42'))\n")
     case_id = None
     for command, launch_env, kill_tree in (([str(python), "-X", "utf8", "-m", "app.launcher"], clean, False),
                                            ([str(app / "Start.cmd")], env, True)):
@@ -263,8 +263,8 @@ def verify_issued(package, root):
     spec = importlib.util.spec_from_file_location("issue_release", ROOT / "scripts/issue_release.py")
     issuer = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(issuer)
-    passwords = {"verify-admin": secrets.token_urlsafe(18), "verify-dev": secrets.token_urlsafe(18)}
-    issued = issuer.issue(package, "VERIFY", [("verify-admin", "admin", passwords["verify-admin"]),
+    passwords = {"verify-user": secrets.token_urlsafe(18), "verify-dev": secrets.token_urlsafe(18)}
+    issued = issuer.issue(package, "VERIFY", [("verify-user", "operator", passwords["verify-user"]),
                                               ("verify-dev", "developer", passwords["verify-dev"])], root / "issued")
     unpacked = root / "새 발행 패키지"
     with ZipFile(issued["path"]) as archive:
@@ -314,21 +314,33 @@ def verify_issued(package, root):
     if not shown or Path(shown).resolve() != (target / "Start.cmd").resolve():
         raise RuntimeError(f"desktop shortcut does not start the installed version: {shown!r} {link.stderr!r}")
     with served([str(target / "Start.cmd")], target, env, kill_tree=True) as client:
-        admin, developer = client(), client()
-        admin("/api/auth/login", {"username": "verify-admin", "password": passwords["verify-admin"]})
-        case_id = admin("/api/cases", {"event_id": "S1-ISSUED", "participant_id": "0002", "dog_name": "발행 시험견"})["case_id"]
+        business, developer = client(), client()
+        business("/api/auth/login", {"username": "verify-user", "password": passwords["verify-user"]})
+        case_id = business("/api/cases", {"event_id": "S1-ISSUED", "participant_id": "0002", "dog_name": "발행 시험견"})["case_id"]
+        try:
+            business("/api/developer/settings")
+        except HTTPError as error:
+            if error.code != 403:
+                raise
+        else:
+            raise RuntimeError("business account accessed developer settings")
         developer("/api/auth/login", {"username": "verify-dev", "password": passwords["verify-dev"]})
         developer("/api/developer/settings")
+        if developer("/api/cases/" + case_id)["participant_id"] != "0002":
+            raise RuntimeError("developer account cannot read shared work")
+        developer("/api/cases", {"event_id": "S1-ISSUED", "participant_id": "0003", "dog_name": "개발자 업무 시험견"})
     code, output = install(issued["key"])
     if code or "기존 비밀번호가 유지" not in output:
         raise RuntimeError("reinstalling the same package did not keep accounts: " + output)
     with served([str(target / "Start.cmd")], target, env, kill_tree=True) as client:
-        admin = client()
-        admin("/api/auth/login", {"username": "verify-admin", "password": passwords["verify-admin"]})
-        if admin("/api/cases/" + case_id)["participant_id"] != "0002":
+        business = client()
+        business("/api/auth/login", {"username": "verify-user", "password": passwords["verify-user"]})
+        if business("/api/cases/" + case_id)["participant_id"] != "0002":
             raise RuntimeError("reinstall lost data")
     return {"issued_package_sealed": True, "wrong_key_and_tampering_change_nothing": True,
             "key_install_accounts_shortcut": "passed", "developer_settings_access": "passed",
+            "ordinary_business_account": "passed", "business_settings_forbidden": "passed",
+            "developer_shared_work": "passed",
             "reinstall_keeps_data_and_accounts": "passed"}
 
 

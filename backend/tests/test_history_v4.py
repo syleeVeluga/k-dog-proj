@@ -46,9 +46,10 @@ class ExportHistoryTests(unittest.TestCase):
         client=client_for(self)
         response=client.get("/api/exports-s1")
         self.assertEqual(response.status_code,200,response.text)
-        self.assert_history(response.json())
-        self.assertEqual(client.get("/api/exports-s1/"+self.unavailable["export_id"]).status_code,409)
-        self.assertEqual(client.get("/api/exports-s1/"+self.unavailable["export_id"]+"/download").status_code,409)
+        self.assertEqual({row["export_id"] for row in response.json()}, {self.ready["export_id"], self.unavailable["export_id"]})
+        self.assertTrue(all(row["status"] == "ready" for row in response.json()))
+        self.assertEqual(client.get("/api/exports-s1/"+self.unavailable["export_id"]).status_code,200)
+        self.assertEqual(client.get("/api/exports-s1/"+self.unavailable["export_id"]+"/download").status_code,200)
         self.assertEqual(client.get("/api/exports-s1/"+self.ready["export_id"]+"/download").status_code,200)
 
     def test_damaged_or_missing_snapshot_is_isolated_without_hash_or_counts(self):
@@ -64,7 +65,8 @@ class ExportHistoryTests(unittest.TestCase):
                 path.write_bytes(original)
 
     def test_other_actor_and_account_revocation_are_not_artifact_placeholders(self):
-        self.assertEqual(exports.list_exports(self.store,SimpleNamespace(username="admin",role="admin")),[])
+        self.assertEqual({row["export_id"] for row in exports.list_exports(self.store,SimpleNamespace(username="admin",role="admin"))},
+                         {self.ready["export_id"], self.unavailable["export_id"]})
         with self.store.connect(write=True) as db:db.execute("UPDATE users SET active=0 WHERE username=?",(self.user.username,))
         with self.assertRaises(HTTPException) as caught:exports.list_exports(self.store,self.user)
         self.assertEqual(caught.exception.status_code,403)
@@ -114,7 +116,8 @@ class ValidationHistoryTests(unittest.TestCase):
         validation.view(self.store,self.unavailable["reference"]["validation_id"],self.user)
 
     def test_other_actor_and_mid_read_account_revocation_fail_at_account_boundary(self):
-        self.assertEqual(validation.list_records(self.store,SimpleNamespace(username="admin",role="admin")),[])
+        self.assertEqual({row["reference"]["validation_id"] for row in validation.list_records(self.store,SimpleNamespace(username="admin",role="admin"))},
+                         {self.ready["reference"]["validation_id"], self.unavailable["reference"]["validation_id"]})
         original=validation.view
         def revoke_after_read(*args):
             result=original(*args)

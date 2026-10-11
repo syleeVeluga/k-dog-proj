@@ -15,7 +15,7 @@ async function makeCase(page: Page, id: string, missing: boolean) {
 }
 test.beforeEach(({ page }) => { page.setDefaultTimeout(15000); });
 
-test('S1 cohorts pin explicit same-edition responses, preserve valid n and retries, and hide revoked source details', async ({ page }, testInfo) => {
+test('S1 cohorts pin explicit same-edition responses and preserve valid n, retries and shared sources', async ({ page }, testInfo) => {
   test.setTimeout(120000); const errors: string[] = []; page.on('pageerror', value => errors.push(value.message)); await login(page);
   const first = await makeCase(page, 'cohort-one', false), second = await makeCase(page, 'cohort-two', true);
   await page.request.post('/api/cases', { headers, data: { event_id: 'S1-COHORT', participant_id: 'cohort-unconfirmed', dog_name: '동의 미확인 합성견' } });
@@ -46,8 +46,10 @@ test('S1 cohorts pin explicit same-edition responses, preserve valid n and retri
   await panel.getByRole('button', { name: '비교 후보·이력 새로고침', exact: true }).click(); await expect(detail.getByText(/고정 이후 입력이 변경된 대상 1개/)).toBeVisible(); await expect(detail.getByRole('row').filter({ hasText: fear.domain })).toContainText('0 · n=1');
   await page.setViewportSize({ width: 360, height: 800 }); await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await detail.screenshot({ path: testInfo.outputPath('cohort-s1-360.png'), animations: 'disabled' });
-  expect((await page.request.post(`/api/cases/${second.item.case_id}/deletion`, { headers, data: { expected_revision: second.item.input_revision } })).status()).toBe(200);
-  await panel.getByRole('button', { name: '비교 후보·이력 새로고침', exact: true }).click(); await expect(detail).toHaveCount(0); await expect(panel.getByRole('alert')).toBeVisible(); expect(errors).toEqual([]);
+  expect((await page.request.post(`/api/cases/${second.item.case_id}/deletion`, { headers, data: { expected_revision: second.item.input_revision } })).status()).toBe(404);
+  await panel.getByRole('button', { name: '비교 후보·이력 새로고침', exact: true }).click();
+  await expect(detail.getByRole('row').filter({ hasText: fear.domain })).toContainText('0 · n=1');
+  expect(errors).toEqual([]);
 });
 
 test('S1 cohort drafts retain stale pins until explicit replacement and reports require explicit comparison selection', async ({ page }) => {

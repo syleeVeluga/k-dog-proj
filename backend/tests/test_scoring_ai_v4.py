@@ -211,7 +211,7 @@ class AiNormalizationV4Tests(unittest.TestCase):
         self.assertEqual(value["linked_memos"][0]["code"],"개59")
         raw["observations"][0]["review_memo"]="G should never be a provider response field"
         with self.assertRaises(ValueError):ai.normalize(source,stage,raw)
-        sent=ai.context(source,stage,{"run_id":"run"})
+        sent=ai.context(source,stage,{"run_id":"run"}, source.requested_by)
         self.assertNotIn("survey",sent);self.assertNotIn("scores",sent);self.assertNotIn("human",encode(sent))
 
     def test_adoption_replays_original_response_and_rejects_mutated_observation(self):

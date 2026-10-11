@@ -54,7 +54,9 @@ def product_file(name):
         name.startswith("backend/app/") and name.endswith(".py") or
         name.startswith("resources/") and Path(name).suffix in (".json", ".ttf", ".txt", ".md", ".html", ".css") or
         name in OPERATING_DOCUMENTS or
-        name.startswith("docs/개발반영_20261003/") and name.endswith(".md")
+        name.startswith("docs/개발반영_20261003/") and name.endswith(".md") or
+        name.startswith("plans/") and (name.endswith(".md") or
+                                      name.startswith("plans/images/") and name.endswith(".png"))
     )
 
 

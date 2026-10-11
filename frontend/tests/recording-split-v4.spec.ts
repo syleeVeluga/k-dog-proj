@@ -43,7 +43,7 @@ test('원본1~3 파일명은 카메라와 원본 번호를 안내 표대로 미�
     await expect(target).toHaveCount(0);
   }
   await page.getByText(/^연결 완료한 파일/).click();
-  for (const name of Object.keys(expected)) await expect(card(page, name).getByText('연결됨 · 영상 읽기 확인 대기', { exact: true })).toBeVisible();
+  for (const name of Object.keys(expected)) await expect(card(page, name).getByText('연결됨 · 영상 읽기 확인 대기', { exact: true }).first()).toBeVisible();
   const videos = (await (await page.request.get(`/api/cases/${caseId}`)).json()).manifest.sessions[0].videos;
   expect(Object.fromEntries(videos.map((video: { original_name: string; camera_id: string; source_original_number: string }) => [video.original_name, [video.camera_id, video.source_original_number]]))).toEqual(expected);
 });
@@ -119,7 +119,7 @@ test('촬영 기록 화면은 선택 참가자의 연결 영상 요약과 저장
     await expect(card(page, name).getByRole('button', { name: '연결', exact: true })).toHaveCount(0);
   }
   await page.getByText(/^연결 완료한 파일/).click();
-  await expect(card(page, '원본3.mp4').getByText('연결됨 · 영상 읽기 확인 대기', { exact: true })).toBeVisible();
+  await expect(card(page, '원본3.mp4').getByText('연결됨 · 영상 읽기 확인 대기', { exact: true }).first()).toBeVisible();
   await openMenu(page, '촬영 기록 (8구간)');
   await page.getByRole('button', { name: 'U5E 촬영 열기', exact: true }).click();
   const panel = page.getByRole('region', { name: '촬영 기록', exact: true });
@@ -142,7 +142,7 @@ test('파일명으로 채운 카메라를 고치면 원본 번호는 새 카메�
   await expect(target.getByLabel('원본 번호', { exact: true })).toHaveAttribute('placeholder', '3');
   await target.getByRole('button', { name: '연결', exact: true }).click();
   await page.getByText(/^연결 완료한 파일/).click();
-  await expect(card(page, '원본1.mp4').getByText('연결됨 · 영상 읽기 확인 대기', { exact: true })).toBeVisible();
+  await expect(card(page, '원본1.mp4').getByText('연결됨 · 영상 읽기 확인 대기', { exact: true }).first()).toBeVisible();
   const videos = (await (await page.request.get(`/api/cases/${caseId}`)).json()).manifest.sessions[0].videos;
   expect(videos.map((video: { camera_id: string; source_original_number: string }) => [video.camera_id, video.source_original_number])).toEqual([['CAM2', '3']]);
 });

@@ -116,12 +116,16 @@ def validate(assessment, doc, ref, calculations, opinion=None):
 
 
 def request(worker, row, step, group, context, guard):
+    from .run_v4 import execution_actor
     verify_stage(group)
     if not context["facts"]["evidence"]:
         result = held(context, "유효한 실제 관찰 근거가 없어 애착 유형 보류")
         return {"assessment": result.model_dump(mode="json"), "response": result.response.model_dump(mode="json"), "usage": {"program_merge": True}}
     info = {key: value for key, value in context.items() if key != "instruction_snapshot"}
-    info.update(audit_actor=row["requested_by"] if "requested_by" in row else json.loads(row["input_snapshot_json"])["requested_by"], run_id=row["run_id"])
+    original_actor = row["requested_by"] if "requested_by" in row else json.loads(row["input_snapshot_json"])["requested_by"]
+    with worker.store.connect() as db:
+        actor = execution_actor(db, row["run_id"], original_actor, "run_v4.retry")
+    info.update(audit_actor=actor, run_id=row["run_id"])
     if step["attempt"] > 1:
         from .scoring_ai_v4 import repair_instruction
         with worker.store.connect() as db:
