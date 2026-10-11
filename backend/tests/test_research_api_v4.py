@@ -42,6 +42,10 @@ class ResearchApiV4Tests(unittest.TestCase):
         detail = client.get('/api/validation-data-s1/' + saved['reference']['validation_id'])
         self.assertEqual(detail.status_code, 200, detail.text)
         self.assertEqual(detail.json(), saved)
+        opened = client.get('/api/validation-data-s1/' + saved['reference']['validation_id'] + '?purpose=open')
+        self.assertEqual(opened.json(), saved)
+        history = client.get('/api/validation-data-s1/' + saved['reference']['validation_id'] + '/activity').json()['items']
+        self.assertEqual(sum(row['action'] == 'validation.open' for row in history), 1)
         broken = {**body, 'file_base64': '!invalid'}
         self.assertEqual(client.post('/api/validation-data-s1/preview', json=broken).status_code, 422)
 
@@ -55,9 +59,19 @@ class ResearchApiV4Tests(unittest.TestCase):
         self.assertEqual(client.get('/api/exports-s1').json(), [saved])
         path = '/api/exports-s1/' + saved['export_id']
         self.assertEqual(client.get(path).json(), saved)
+        self.assertEqual(client.get(path + '?purpose=open').json(), saved)
         response = client.get(path + '/download')
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.headers['cache-control'], 'no-store')
+        history = client.get(path + '/activity').json()['items']
+        opens = [row for row in history if row['action'] == 'export.open']
+        self.assertEqual(len(opens), 2)
+        self.assertEqual({row['actor'] for row in opens}, {'operator'})
+        self.assertIn('csv_zip', {row['format'] for row in opens})
+        self.assertEqual(client.post('/api/auth/login', json={'username':'reviewer','password':'Synthetic-Research-2026!'}).status_code, 200)
+        self.assertEqual(client.get(path + '/activity').json()['items'], history)
+        self.assertEqual(client.get('/api/exports-s1/missing/activity').status_code, 404)
+        self.assertEqual(client.post('/api/auth/login', json={'username':'operator','password':'Synthetic-Research-2026!'}).status_code, 200)
         with ZipFile(BytesIO(response.content)) as archive:
             self.assertIn('raw_observations.csv', archive.namelist())
         with f.store.connect(write=True) as db:

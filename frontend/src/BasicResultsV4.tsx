@@ -68,14 +68,14 @@ function ResultEditor({ resultId, blocked }: { resultId: string; blocked: boolea
   function adopt(next: BasicResultViewV4, old = false) { setView(next); setEdits(editsOf(next)); setReason(''); setDirty(false); setHistorical(old); setError(''); }
   useEffect(() => {
     const current = ++sequence.current; pending.current = true; setBusy(true);
-    api<BasicResultViewV4>(path).then(next => { if (current === sequence.current) adopt(next); }).catch(e => { if (current === sequence.current) setError(errorText(e)); })
+    api<BasicResultViewV4>(path + "?purpose=open").then(next => { if (current === sequence.current) adopt(next); }).catch(e => { if (current === sequence.current) setError(errorText(e)); })
       .finally(() => { if (current === sequence.current) { pending.current = false; setBusy(false); } });
     return () => { sequence.current++; pending.current = false; };
   }, [path]);
   async function load(revision?: number) {
     if (pending.current || !mayLeave()) return;
     const current = ++sequence.current; pending.current = true; setBusy(true); setError('');
-    try { const next = await api<BasicResultViewV4>(revision ? `${path}/revisions/${revision}` : path); if (current === sequence.current) adopt(next, revision !== undefined); }
+    try { const next = await api<BasicResultViewV4>(revision ? `${path}/revisions/${revision}?purpose=open` : path + "?purpose=open"); if (current === sequence.current) adopt(next, revision !== undefined); }
     catch (e) { if (current === sequence.current) setError(errorText(e)); }
     finally { if (current === sequence.current) { pending.current = false; setBusy(false); } }
   }

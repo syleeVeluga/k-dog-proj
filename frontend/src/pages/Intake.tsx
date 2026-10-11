@@ -51,7 +51,7 @@ export function Intake({ user, cases, selected, writable, busy, run, reload, sel
 
   function open(item: Case) {
     if (busy || window.getSelection()?.toString()) return;  // 저장 중이거나 글자를 드래그해 복사하는 중에는 열지 않는다.
-    if (mayLeave()) { forgetEdits(); setDirty(false); void run(async () => select(await api<Case>(`/cases/${item.case_id}`))); }
+    if (mayLeave()) { forgetEdits(); setDirty(false); void run(async () => select(await api<Case>(`/cases/${item.case_id}?purpose=open`))); }
   }
   function openRegistered(next: Route | null) {
     if (!last || !mayLeave()) return;

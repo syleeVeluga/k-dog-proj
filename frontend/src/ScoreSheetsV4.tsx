@@ -105,9 +105,10 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
   const path = `/score-sheets-s1/${sheetId}`;
   function adopt(value: SheetViewV4) { setObservations(value.document.sheet.observations); setPhases(value.document.sheet.walk_phases); setMemos(value.document.sheet.linked_memos); }
   useEffect(() => {
-    let active = true; let timer: ReturnType<typeof setTimeout>;
+    let active = true; let first = true; let timer: ReturnType<typeof setTimeout>;
     async function poll() {
-      try { const value = await api<SheetViewV4>(path); if (active) { setLatest(value); setUnavailable(false); if (clean.current) adopt(value); if (revealedRef.current && !value.grants.some(grant => grant.ref === revealedRef.current)) { setRevealed(null); setRevealedResults([]); revealedRef.current = null; } } }
+      const purpose = first ? '?purpose=open' : ''; first = false;
+      try { const value = await api<SheetViewV4>(path + purpose); if (active) { setLatest(value); setUnavailable(false); if (clean.current) adopt(value); if (revealedRef.current && !value.grants.some(grant => grant.ref === revealedRef.current)) { setRevealed(null); setRevealedResults([]); revealedRef.current = null; } } }
       catch (failure) { if (active) { setError(errorText(failure)); if (accessLost(failure)) { setUnavailable(true); setRevealed(null); setRevealedResults([]); setHistorical(null); } } }
       if (active) timer = setTimeout(poll, 2000);
     }
@@ -145,7 +146,7 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
     <p>저장본 필수 미기록 {view.missing_required_codes.length}개 · 규칙 대기 {view.policy_pending_codes.join(', ') || '없음'}</p>
     <label>보존본 조회<select aria-label="보존본 조회" disabled={busy || edit.dirty} value={historical?.revision ?? ''} onChange={event => {
       const value = event.target.value; if (!value) { setHistorical(null); return; }
-      void work(async () => setHistorical(await api<SheetDocumentV4>(path + `/revisions/${value}`)));
+      void work(async () => setHistorical(await api<SheetDocumentV4>(path + `/revisions/${value}?purpose=open`)));
     }}><option value="">현재 작업본 r{view.summary.revision}</option>{view.document.previous.map(ref => <option key={ref.ref} value={ref.revision}>보존본 r{ref.revision}</option>)}</select></label>
     {historical && <p role="status">보존본 읽기 전용</p>}
     <div className="toolbar"><label>8구간 필터<select aria-label="8구간 필터" value={segment} onChange={event => setSegment(event.target.value)}><option value="">전체</option>{segments.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><label>원코드/항목 검색<input value={search} onChange={event => setSearch(event.target.value)} /></label></div>

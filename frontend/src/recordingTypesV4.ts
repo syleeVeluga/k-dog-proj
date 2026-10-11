@@ -24,6 +24,7 @@ export type RecordingWindowV4 = {
   reasons: string[]; whole_visual_observed: boolean; whole_audio_observed: boolean; event_ids: string[];
 };
 export type RecordingViewV4 = {
+  input_revision: number;
   recording: RecordingV4 | null; windows: RecordingWindowV4[];
   gates: { code: string; window_ids: string[]; status: string; reasons: string[] }[];
 };

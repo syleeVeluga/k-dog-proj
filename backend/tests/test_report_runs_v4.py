@@ -264,12 +264,11 @@ class ReportRunV4Tests(unittest.TestCase):
             reports.download(self.store, self.case_id, self.session_id, run_id, "html", self.helper.people["other"])
         self.assertEqual(caught.exception.status_code, 403)
         self.assertIn("독립 채점을 제출하기 전", caught.exception.detail)
-        # 운영자 권한(배정)은 넓히지 않는다.
-        value = make(sheets.SheetAssignmentV4, expected_revision=self.current()["input_revision"], assigned_username="other",
+        # 공통 업무 계정은 시트 생성도 수행한다. 기존 활성 배정 중복 검사는 AR03 전까지 유지한다.
+        value = make(sheets.SheetAssignmentV4, expected_revision=self.current()["input_revision"], assigned_username="reviewer",
             rater_id="rater-other-u08", rater_name="합성 평가자", source_sheet_id=None, purpose="independent", batch_id=None)
-        with self.assertRaises(HTTPException) as caught:
-            sheets.assign(self.store, self.case_id, self.session_id, value, professor)
-        self.assertEqual(caught.exception.status_code, 403)
+        created = sheets.assign(self.store, self.case_id, self.session_id, value, professor)
+        self.assertEqual(created["assigned_username"], "reviewer")
     def test_backup_restore_and_deleted_case_cleanup_preserve_or_purge_full_report(self):
         run_id = self.publish()
         root = Path(self.helper.temp.name)

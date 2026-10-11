@@ -25,6 +25,7 @@ class RecordingEditV4(ContractV4):
 
 
 class RecordingStateV4(ContractV4):
+    input_revision: int
     recording: RecordingV4 | None
     windows: tuple[RecordingWindowV4, ...] = ()
     gates: tuple[ItemCaptureGateV4, ...] = ()
@@ -47,11 +48,11 @@ def _session(store, db, case_id, session_id, expected=None, *, selected=True):
 def state(store, case_id, session_id, actor):
     with store.connect() as db:
         uploads._account(db, actor, linked_reader=True)
-        _, _, session = _session(store, db, case_id, session_id, selected=False)
+        case, _, session = _session(store, db, case_id, session_id, selected=False)
         record = session.recording_s1
     if record is None:
-        return RecordingStateV4(recording=None)
-    return RecordingStateV4(recording=record, windows=build_windows_v4(record),
+        return RecordingStateV4(input_revision=case["input_revision"], recording=None)
+    return RecordingStateV4(input_revision=case["input_revision"], recording=record, windows=build_windows_v4(record),
         gates=item_capture_gates_v4(record), safe_base=safe_base_sequence_v4(record))
 
 

@@ -54,6 +54,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
   const videos = session.videos.filter(video => video.media_status !== 'storage_only');
   const [verified, setVerified] = useState<Set<string>>(new Set());
   const [stale, setStale] = useState(false);
+  const [openedVideo, setOpenedVideo] = useState<string | null>(null);
   const sessionIndex = item.manifest.sessions.findIndex(value => value.session_id === session.session_id) + 1;
   // 영상 읽기 확인은 전처리에서 이루어진다. 마지막 전처리 결과에서 실제 클립(완성·일부)이 만들어진 영상만 「사용 가능」으로 센다.
   // 입력이 바뀌어 전처리가 낡았어도 영상 자체는 그대로이므로 세되, 다시 전처리가 필요함을 알린다.
@@ -126,7 +127,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
       <details><summary>재촬영 세션 추가</summary><button onClick={() => { if (!mayLeave()) return; void run(async () => { await api(`/cases/${item.case_id}/sessions`, 'POST', { expected_revision: item.input_revision }); await refresh('새 촬영 세션을 시작했습니다.'); }); }}>새 촬영 시작</button></details></>}
     {session.videos.some(video => video.media_status === 'storage_only') && <p>INSV 원본은 보관 중입니다. 변환 파일을 연결한 뒤 관찰 시각을 기록하세요.</p>}
     {edit.dirty && edit.view.input_revision !== item.input_revision && <p role="status">다른 변경이 저장되었습니다. 편집 시작 버전 {edit.view.input_revision}을 유지하며 현재 입력은 자동으로 덮어쓰지 않습니다.</p>}
-    {record.video_id && <video src={`/api/cases/${item.case_id}/videos/${record.video_id}`} controls preload="metadata" />}
+    {record.video_id && <><button onClick={() => void run(async () => { await api(`/cases/${item.case_id}/videos/${record.video_id}/open`, "POST"); setOpenedVideo(record.video_id); })}>영상 열기</button>{openedVideo === record.video_id && <video src={`/api/cases/${item.case_id}/videos/${record.video_id}`} controls preload="metadata" />}</>}
     <fieldset disabled={!writable || !editing}>
       <div className="form-grid"><label>실제 촬영 절차<select value={record.procedure_edition} onChange={event => change({ ...record, procedure_edition: event.target.value as RecordingV4['procedure_edition'] })}>
         <option value="unconfirmed">미확인</option><option value="s1_confirmed">현재 절차 확인</option><option value="legacy">이전·다른 절차</option></select></label>

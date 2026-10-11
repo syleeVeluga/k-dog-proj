@@ -64,18 +64,28 @@ class PreprocessApiV4Tests(AppCase):
         self.assertEqual(calculated.status_code, 201, calculated.text)
         self.assertIsNone(calculated.json()["document"]["calculations"]["owner"]["ratios"])
         result_id = calculated.json()["summary"]["result_id"]
-        self.assertEqual(self.client.get(f"/api/basic-results-s1/{result_id}").status_code, 200)
+        self.assertEqual(self.client.get(f"/api/basic-results-s1/{result_id}?purpose=open").status_code, 200)
         self.assertEqual(self.client_for("reviewer").get(f"/api/basic-results-s1/{result_id}").status_code, 403)
         held = self.client.put(f"/api/basic-results-s1/{result_id}/judgements", json={"expected_revision": 1, "reason": "합성 판정 보류",
             "decisions": [{"key": "attachment_type", "label": None, "status": "held", "evidence_codes": [], "reason": "관찰 부족"}]})
         self.assertEqual(held.status_code, 200, held.text)
-        self.assertEqual(self.client.get(f"/api/basic-results-s1/{result_id}/revisions/1").json()["document"]["revision"], 1)
+        self.assertEqual(self.client.get(f"/api/basic-results-s1/{result_id}/revisions/1?purpose=open").json()["document"]["revision"], 1)
         # End S07 integration.
         clip = batch["clips"][0]
         url = endpoint + f"/{batch['batch_id']}/clips/{clip['clip_id']}/original"
         downloaded = self.client_for("reviewer").get(url)
         self.assertEqual(downloaded.status_code, 200, downloaded.text if downloaded.status_code != 200 else "")
         self.assertEqual(downloaded.content, self.store.path(clip["original"]["ref"]).read_bytes())
+        reader = self.client_for("reviewer")
+        for _ in range(10):
+            self.assertEqual(reader.get(url, headers={"Range":"bytes=0-3"}).status_code, 206)
+        with self.store.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='clip.open'").fetchone()[0], 0)
+        self.assertEqual(reader.post(url + '/open').status_code, 204)
+        history = reader.get(f"/api/cases/{item['case_id']}/activity").json()['items']
+        mark = next(row for row in history if row['action'] == 'clip.open')
+        self.assertEqual(mark['actor'], 'reviewer')
+        self.assertEqual(mark['target'], batch['batch_id'])
         self.assertEqual(self.client_for("developer").get(url).status_code, 200)
         self.assertEqual(self.client.get(url.replace(clip["clip_id"], "other-clip")).status_code, 404)
         selected = self.client.post(f"/api/cases/{item['case_id']}/sessions",

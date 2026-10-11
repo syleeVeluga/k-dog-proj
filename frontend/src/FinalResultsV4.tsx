@@ -65,7 +65,7 @@ export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sh
   }
   async function selectBasic(row: BasicSummaryV4) {
     const scope = context.current;
-    const value = await api<BasicResultViewV4>(path + `/final-results-s1/candidates/${row.result_id}/${row.revision}` + query);
+    const value = await api<BasicResultViewV4>(path + `/final-results-s1/candidates/${row.result_id}/${row.revision}` + query + (query ? "&" : "?") + "purpose=open");
     if (alive.current && scope === context.current) { setBasic(value); setDirty(false); }
   }
   async function startAttachment() {
@@ -129,7 +129,7 @@ export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sh
     </fieldset>
     <h3>보존 최종본</h3>{!finals.length && <p>생성된 최종본이 없습니다.</p>}
     <ul>{finals.map(row => <li key={row.reference.final_id}><p>{new Date(row.recorded_at).toLocaleString()} · {row.actor} · 기본 r{row.basic.revision} · 의견 {row.opinion ? `r${row.opinion.revision}` : '없음'}</p>
-      {row.requires_reveal ? <button disabled={busy || dirty || !viewerRow || !revealReason.trim()} onClick={() => void work(() => reveal({ kind: 'final', document_id: row.reference.final_id, revision: null, ref: row.reference.ref, hash: row.reference.hash }))}>이 최종본을 명시 공개하고 노출 기록</button> : <button disabled={busy} onClick={() => void work(async () => { const value = await api<FinalViewV4>(path + `/final-results-s1/${row.reference.final_id}` + query); if (alive.current) setSelectedFinal(value); })}>최종본 {row.reference.final_id.slice(0, 8)} 읽기</button>}
+      {row.requires_reveal ? <button disabled={busy || dirty || !viewerRow || !revealReason.trim()} onClick={() => void work(() => reveal({ kind: 'final', document_id: row.reference.final_id, revision: null, ref: row.reference.ref, hash: row.reference.hash }))}>이 최종본을 명시 공개하고 노출 기록</button> : <button disabled={busy} onClick={() => void work(async () => { const value = await api<FinalViewV4>(path + `/final-results-s1/${row.reference.final_id}` + query + (query ? "&" : "?") + "purpose=open"); if (alive.current) setSelectedFinal(value); })}>최종본 {row.reference.final_id.slice(0, 8)} 읽기</button>}
     </li>)}</ul>
     {selectedFinal && <FinalSnapshot value={selectedFinal} />}
   </section>;

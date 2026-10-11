@@ -1,3 +1,4 @@
+import { ActivityLogV4 } from './ActivityLogV4';
 import { useEffect, useRef, useState } from 'react';
 import { accessLost, api, ApiError } from './api';
 import { useUnsaved } from './Editing';
@@ -64,14 +65,14 @@ export function ResearchExportsV4({ item, user }: { item: Case; user: User }) {
     setOwn(null); setSource(null); setBasic(null); setFinal(null); setReport(''); setBasics([]); setFinals([]); setReports([]);
     if (!sheetId) return;
     const seq = ++sequence.current, scope = context.current;
-    const [value, results, documents, runs] = await Promise.all([api<SheetViewV4>(`/score-sheets-s1/${sheetId}`), api<BasicSummaryV4[]>(path + `/final-results-s1/candidates?viewer_sheet_id=${sheetId}`), api<FinalSummaryV4[]>(path + `/final-results-s1?viewer_sheet_id=${sheetId}`), api<ReportRunV4[]>(path + '/report-runs-s1')]);
+    const [value, results, documents, runs] = await Promise.all([api<SheetViewV4>(`/score-sheets-s1/${sheetId}?purpose=open`), api<BasicSummaryV4[]>(path + `/final-results-s1/candidates?viewer_sheet_id=${sheetId}`), api<FinalSummaryV4[]>(path + `/final-results-s1?viewer_sheet_id=${sheetId}`), api<ReportRunV4[]>(path + '/report-runs-s1')]);
     if (!alive.current || seq !== sequence.current || scope !== context.current) return;
     setOwn(value); setBasics(results); setFinals(documents); setReports(runs);
   }
   async function selectFinal(id: string) {
     setFinal(null); setReport(''); if (!id || !source || !own) return;
     const seq = ++sequence.current, scope = context.current;
-    const value = await api<FinalViewV4>(path + `/final-results-s1/${id}?viewer_sheet_id=${own.summary.sheet_id}`);
+    const value = await api<FinalViewV4>(path + `/final-results-s1/${id}?viewer_sheet_id=${own.summary.sheet_id}&purpose=open`);
     if (!alive.current || seq !== sequence.current || scope !== context.current) return;
     if (!same(value.document.basic_document.input, source.reference)) throw new Error('이 최종본은 선택한 원자료 판본과 다릅니다. 원자료 선택을 확인하세요.');
     setFinal(value.reference); setBasic(value.document.basic);
@@ -127,6 +128,6 @@ export function ResearchExportsV4({ item, user }: { item: Case; user: User }) {
       <p className="fine">새로고침은 고정 선택을 최신 판본으로 바꾸지 않습니다. 응답 유실 후 같은 선택으로 다시 생성하면 같은 요청을 확인합니다. 생성·다운로드 시 권한, 동의, 삭제와 파일 hash를 다시 검사합니다.</p>
     </fieldset>
     {created && <p role="status">연구 파일 준비 완료 · 포함 {created.member_count}개 · 제외 {created.excluded_count}개</p>}
-    <section aria-label="내가 생성한 연구 파일"><h3>내가 생성한 연구 파일</h3>{history.length === 0 && <p>생성한 연구 파일이 없습니다.</p>}{history.map(row => row.status === 'blocked' ? <p key={row.export_id}>연구 파일 {row.export_id.slice(0, 8)} · 제공 차단: {row.reason}</p> : <details key={row.export_id} open={row.export_id === created?.export_id}><summary>{row.created_at} · {row.format === 'xlsx' ? 'XLSX' : 'CSV ZIP'} · 포함 {row.member_count}개 / 제외 {row.excluded_count}개</summary><p>고정 자료 SHA-256: {row.snapshot_sha256}<br />파일 SHA-256: {row.output_sha256}</p><button disabled={busy} onClick={() => void work(() => download(row))}>연구 파일 다운로드 {row.export_id.slice(0, 8)}</button></details>)}</section>
+    <section aria-label="내가 생성한 연구 파일"><h3>내가 생성한 연구 파일</h3>{history.length === 0 && <p>생성한 연구 파일이 없습니다.</p>}{history.map(row => row.status === 'blocked' ? <p key={row.export_id}>연구 파일 {row.export_id.slice(0, 8)} · 제공 차단: {row.reason}</p> : <details key={row.export_id} open={row.export_id === created?.export_id}><summary>{row.created_at} · {row.format === 'xlsx' ? 'XLSX' : 'CSV ZIP'} · 포함 {row.member_count}개 / 제외 {row.excluded_count}개</summary><p>고정 자료 SHA-256: {row.snapshot_sha256}<br />파일 SHA-256: {row.output_sha256}</p><button disabled={busy} onClick={() => void work(() => download(row))}>연구 파일 다운로드 {row.export_id.slice(0, 8)}</button><ActivityLogV4 path={`/exports-s1/${row.export_id}/activity`} /></details>)}</section>
   </section>;
 }
