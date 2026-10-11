@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Notification } from './Notification';
 import { DeveloperSettings, Recovery } from './DeveloperSettings';
 import { api } from './api';
+import { ActivityLogV4 } from './ActivityLogV4';
 import { mayLeave } from './Editing';
 import { FormsImporter } from './FormsImporter';
 import { Users } from './Users';
@@ -165,6 +166,7 @@ export function App() {
     <p className="fine">직원 전용 · 계정은 운영 관리자에게 문의하세요.</p>
   </main>;
 
+  const openCase = (item: Case | null) => { if (!item) setSelected(null); else void run(async () => setSelected(await api<Case>(`/cases/${item.case_id}?purpose=open`))); };
   return <>
     <header inert={modal}><button ref={menuToggle} className="menu-toggle" aria-controls="lnb" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>메뉴</button>
       <button className="wordmark plain" onClick={() => go('intake')}>K-DOG<span>FIELD NOTES</span></button>
@@ -186,6 +188,7 @@ export function App() {
           void run(async () => { const saved = await api<Case>(`/cases/${selected.case_id}/sessions`, 'POST', { expected_revision: selected.input_revision, session_id: id }); setSelected(saved); await reload(); });
         }}>{selected.manifest.sessions.map((s, i) => <option key={s.session_id} value={s.session_id}>{i + 1}차 촬영 · 영상 {videoCounts(selected, i)}</option>)}</select></label>
         {writable && current?.selected_session_id !== selected.selected_session_id && <p role="status">다른 요청이 저장 대상 회차를 변경했습니다. 현재 화면의 회차를 확인하고 선택 세션에서 저장 대상을 다시 선택하세요.</p>}
+        <ActivityLogV4 key={selected.case_id} path={`/cases/${selected.case_id}/activity`} />
         <div className={`context-tools${contextExpanded ? ' expanded' : ''}`}>
           <button className="context-toggle" aria-expanded={contextExpanded} aria-controls="context-extra" onClick={() => setContextExpanded(!contextExpanded)}>회차 안내·바로가기</button>
           <div id="context-extra" className="context-extra">
@@ -203,11 +206,11 @@ export function App() {
           : route === 'validation' ? <ValidationData user={user} />
           : route === 'admin/users' ? <Users run={run} />
           : route === 'admin/backup' ? <section><h1>자료 관리</h1><Recovery /></section>
-          : route === 'preprocess' ? <Preprocessing cases={cases} selected={selected} select={setSelected} filters={filters} user={user} writable={!!writable} run={run} goTo={go} refresh={async message => { await reload(); if (message) setNotice(message); }} />
-          : route === 'scoring' ? <Scoring cases={cases} selected={selected} select={setSelected} filters={filters} user={user} run={run} goTo={go} refresh={async message => { await reload(); if (message) setNotice(message); }} />
-          : route === 'report' || route === 'report/comparison' || route === 'report/export' ? <Report view={route === 'report' ? 'issue' : route === 'report/export' ? 'export' : 'comparison'} goTo={go} cases={cases} selected={selected} select={setSelected} filters={filters} user={user} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
-          : route === 'survey' ? <Survey cases={cases} selected={selected} select={setSelected} filters={filters} catalog={catalog} writable={!!writable} goTo={go} />
-          : route === 'recording/inbox' || route === 'recording/record' ? <Recording view={route === 'recording/inbox' ? 'inbox' : 'record'} user={user} cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} run={run} reload={reload} notify={setNotice} />
+          : route === 'preprocess' ? <Preprocessing cases={cases} selected={selected} select={openCase} filters={filters} user={user} writable={!!writable} run={run} goTo={go} refresh={async message => { await reload(); if (message) setNotice(message); }} />
+          : route === 'scoring' ? <Scoring cases={cases} selected={selected} select={openCase} filters={filters} user={user} run={run} goTo={go} refresh={async message => { await reload(); if (message) setNotice(message); }} />
+          : route === 'report' || route === 'report/comparison' || route === 'report/export' ? <Report view={route === 'report' ? 'issue' : route === 'report/export' ? 'export' : 'comparison'} goTo={go} cases={cases} selected={selected} select={openCase} filters={filters} user={user} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
+          : route === 'survey' ? <Survey cases={cases} selected={selected} select={openCase} filters={filters} catalog={catalog} writable={!!writable} goTo={go} />
+          : route === 'recording/inbox' || route === 'recording/record' ? <Recording view={route === 'recording/inbox' ? 'inbox' : 'record'} user={user} cases={cases} selected={selected} select={openCase} filters={filters} writable={!!writable} run={run} reload={reload} notify={setNotice} />
           : <Intake user={user} cases={cases} selected={selected} writable={!!writable} busy={busy} run={run} reload={reload}
               select={setSelected} filters={filters} status={connectionError || `3초마다 자동 갱신 · 마지막 조회 ${updatedAt}`} notify={setNotice} goTo={go} />}
       </fieldset>

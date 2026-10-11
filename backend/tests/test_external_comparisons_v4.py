@@ -120,7 +120,7 @@ class ExternalSnapshotTests(comparison_fixture.ComparisonFixture):
         self.assertNotIn("42926",blocked.model_dump_json())
 
     def test_evidence_role_late_change_and_unadopted_snapshot_cannot_bypass(self):
-        with self.assertRaises(HTTPException): external.upload_evidence(self.store,b"data","test.txt",self.user)
+        self.assertTrue(external.upload_evidence(self.store,b"data","test.txt",self.user).hash)
         approve(self.store)
         original = comparisons._write
         def corrupt(store, kind, doc):
@@ -229,7 +229,7 @@ class ExternalApiTests(unittest.TestCase):
         client=fixture.client
         with fixture.store.connect(write=True) as db:db.execute("UPDATE cases SET consent_confirmed=1")
         endpoint="/api/comparisons-s1"
-        self.assertEqual(client.post(endpoint+"/evidence?filename=synthetic.txt",content=b"synthetic").status_code,403)
+        self.assertEqual(client.post(endpoint+"/evidence?filename=synthetic.txt",content=b"synthetic").status_code,201)
         fixture.login("admin")
         evidence=client.post(endpoint+"/evidence?filename=synthetic.txt",content=b"SYNTHETIC TEST ONLY")
         self.assertEqual(evidence.status_code,201,evidence.text)

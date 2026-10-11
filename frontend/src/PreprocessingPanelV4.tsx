@@ -129,9 +129,11 @@ function WindowDetails({ value, batch, videoName, choose }: { value: WindowV4; b
 
 function ClipPreview({ clip, file, url, variant }: { clip: PhysicalClipV4; file: ClipFileV4 | null; url: string; variant: 'original' | 'ai' }) {
   const video = useRef<HTMLVideoElement>(null), [frame, setFrame] = useState(0), [error, setError] = useState('');
+  const [opened, setOpened] = useState(false), [opening, setOpening] = useState(false);
   if (!file) return <p role="status">{variant === 'ai' ? 'AI용' : '원본 FPS'} 클립 없음 · {label(clip.reason ?? clip.status)}</p>;
   return <article aria-label="전처리 클립 미리보기"><p>{clip.camera_id} · 원본 범위 {range(clip.source_start_seconds, clip.source_end_seconds)} · 연결 창 {clip.window_ids.map(nameOf).join(', ')}</p>
-    <video ref={video} controls preload="metadata" src={url} style={{ width: '100%', maxHeight: 420 }} onError={() => setError('클립을 재생할 수 없습니다. 접근 권한·원본 상태를 확인하고 전처리 상태를 새로고침하세요.')} />
+    <button disabled={opening} onClick={() => { setOpening(true); setError(''); void api(url.replace(/^\/api/, '') + '/open', 'POST').then(() => setOpened(true)).catch(value => setError(value instanceof Error ? value.message : '영상을 열 수 없습니다.')).finally(() => setOpening(false)); }}>영상 열기</button>
+    {opened && <video ref={video} controls preload="metadata" src={url} style={{ width: '100%', maxHeight: 420 }} onError={() => setError('클립을 재생할 수 없습니다. 접근 권한·원본 상태를 확인하고 전처리 상태를 새로고침하세요.')} />}
     {error && <p role="alert">{error}</p>}
     <p>{variant === 'ai' ? 'AI용: 1초마다 실제 프레임 최대 1장' : '원본 FPS: 실제 원본 프레임 보존'} · {file.frame_times_seconds.length}프레임 · 길이 {seconds(file.duration_seconds)} · 연속 오디오 {ranges(file.audio_ranges)}</p>
     <label>확인할 실제 프레임 번호<input type="number" min={1} step={1} max={file.frame_times_seconds.length} value={frame + 1} onChange={event => { const index = Math.max(0, Math.min(file.frame_times_seconds.length - 1, Math.trunc(Number(event.target.value)) - 1)); setFrame(index); if (video.current) video.current.currentTime = file.frame_times_seconds[index]; }} /></label>

@@ -8,8 +8,8 @@
 
 | 단계 | 구현 | 검증 | 독립 cold review | 수용 수정·재검증 | 문서 | 병합 |
 | --- | --- | --- | --- | --- | --- | --- |
-| AR01 | [x] | [x] | [x] | [x] | [x] | 대기 |
-| AR02 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
+| AR01 | [x] | [x] | [x] | [x] | [x] | [x] PR #75 |
+| AR02 | [x] | [x] | [x] | [x] | [x] | 대기 |
 | AR03 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
 | AR04 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
 | AR05 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
@@ -20,7 +20,7 @@ PR 최종 head·merge SHA는 PR 메타데이터로 확인하고 병합 후 다�
 
 ## 2 AR01 구현과 검증
 
-브랜치: `veluga/ar01-common-business-access`. [PR #75](https://github.com/syleeVeluga/k-dog-proj/pull/75), 구현 head `5480da6`. 요구사항: AR-R01·AR-R02·AR-R08·AR-R12의 계정 공통화 범위.
+브랜치: `veluga/ar01-common-business-access`. [PR #75](https://github.com/syleeVeluga/k-dog-proj/pull/75), 최종 head `087ed8790e5e1fba68b1b61c9089540c6b95333b`, merge `af91032e7352283546f8253706cb2057e2e77381` (2026-10-11 14:22:29 UTC). 요구사항: AR-R01·AR-R02·AR-R08·AR-R12의 계정 공통화 범위.
 
 - API reader/writer/administrator와 영상·업로드·촬영·Forms·전처리·분석·채점·비교 내부의 업무 역할 제한을 제거했다. 요청 actor의 활성 계정·세션·CSRF/host와 hash·판본 검사는 유지한다.
 - 웹 신규 일반 계정은 `operator`로 저장한다. 역할 선택 UI를 제거하고 기존 reviewer/admin의 role/password hash는 활성 상태 저장과 앱 재시작 후에도 보존한다. 모든 계정이 일반 업무 계정을 생성·활성 관리하며 개발자 생성/승격/변경과 현재 로그인 계정의 비활성화는 거절한다.
@@ -74,3 +74,42 @@ AI 회귀는 교수 계정 요청 → 다른 업무 계정 stop/retry → fake p
 릴리스/API: [FastAPI release](https://fastapi.tiangolo.com/release-notes/)·[Depends](https://fastapi.tiangolo.com/tutorial/dependencies/), [Pydantic changelog](https://docs.pydantic.dev/latest/changelog/)·[models](https://docs.pydantic.dev/latest/concepts/models/), [React versions](https://react.dev/versions)·[useEffect](https://react.dev/reference/react/useEffect), [Playwright release](https://playwright.dev/docs/release-notes)·[assertions](https://playwright.dev/docs/test-assertions).
 
 FastAPI 최신판의 breaking-change 항목은 이번 정책 PR에서 자동 교체하지 않았다. 기존 Starlette TestClient의 HTTPX deprecation 안내는 시험 실패가 아니며 HTTPX2 도입을 범위에 추가하지 않았다.
+
+## 5 AR02 구현·검증 — 수용 수정·독립 재검토 완료
+
+기준 merge `af91032`, 브랜치 `veluga/ar02-minimal-activity-records`, [PR #76](https://github.com/syleeVeluga/k-dog-proj/pull/76), 구현 head `1500a1d`. 새 DB/의존성 없이 `changes`/`Store.audit`를 재사용한다. 의존성은 §4의 같은 날짜 공식 버전 검증과 잠금 환경을 유지한다.
+
+- 주요 참가자·촬영·시트 현재/보존본·기본 결과·의견·최종·검수 참고·비교집단·외부 비교·export 상세는 명시 `purpose=open`만 기록한다. 목록·자동 상세 갱신·기록 조회는 기록하지 않는다.
+- 원본 영상/전처리 클립은 「영상 열기」에서 서버의 파일 연결·해시 검증 후 1건을 남긴다. 재생 preload/seek/Range는 기록하지 않으며 다시 여는 동작은 별도 제공 사실로 남긴다. 원본 파일/export 다운로드는 실제 actor·대상·형식을 기록한다.
+- 시트·입력의 revision/purpose/initial_submission·원본 bytes는 열기로 바꾸지 않는다. 저장·실행·중지·재시도·발급은 기존 event를 재사용한다. 기록 실패 시 성공 저장을 채택하지 않는 기존 transaction을 시험했다.
+- 참가자와 검수 참고/집단/export 상세에 최근 이력을 접어서 표시한다. 서버 시각·rowid 역순 20건과 더 보기만 제공하며, 이력 응답에는 비밀번호·키·참가자 원문·상세 변경 원문을 반환하지 않는다. 모든 활성 계정이 등록된 대상의 최소 이력을 조회한다.
+
+| 검증 | 결과 |
+| --- | --- |
+| `tests.test_business_access_v4` | 5개, 8.826초 통과 |
+| `tests.test_activity_v4 tests.test_sheets_api_v4 tests.test_exports_v4` | 20개, 28.863초 통과 |
+| `tests.test_activity_v4 tests.test_opinions_api_v4 tests.test_report_api_v4 tests.test_research_api_v4 tests.test_comparisons_api_v4 tests.test_external_comparisons_v4 tests.test_preprocess_api_v4 tests.test_recording_api_v4` | 32개, 64.402초 통과 |
+| 명시 의견/최종/참고/export와 리포트 추가 회귀 | 31개 중 30통과, AR01 공통 시트 생성의 옛 403 기대 1개 수정. 해당 시험과 명시 열기 관련 9개를 21.951초에 재검증 통과 |
+| 실제 합성 FFmpeg 클립 명시 열기·반복 Range·기본 결과 현재/보존 판본 | 1개, 5.941초 통과 |
+| 공통 대상 이력·다른 계정의 export 이력·등록 안 된 대상 404 | `tests.test_activity_v4 tests.test_research_api_v4` 6개, 12.791초 통과 |
+| cold review 수용 후 페이지 삽입·촬영 판본/회차·영상/기본 결과·공통 이력 | `tests.test_activity_v4 tests.test_recording_api_v4 tests.test_preprocess_api_v4 tests.test_research_api_v4` 17개, 28.810초 통과 |
+| `npm run build` | 통과; 기존 chunk 안내 유지 |
+| `npm run test:e2e -- activity-v4.spec.ts navigation.spec.ts business-access-v4.spec.ts` | 최종 10개, 16.8초 통과. 초기 로그인 응답 대기 누락을 시험에서 보완 |
+| 수용 수정 E2E | 관련 재실행에서 공통 계정/메뉴 9개 통과. 이력 시험의 등록 사건은 첫20개가 아닌 더 보기 이후에 있음으로 기대를 수정, 이력 1개 최종 7.7초 통과. 삽입 중 26행·내부 접기·폴링 무증가 검증 |
+| diff check·계획 상대 링크와 Git index | 통과·91개 링크, 누락 0개 |
+
+추가 회귀의 AR01 옛 외부 근거 업로드 역할 기대 2건도 공통 허용으로 갱신했다. 기존 변조·권한 비활성·stale 판본·동의·파일 연결 검사는 유지하며 후속 AR03~AR05 제거 범위와 구분한다.
+
+![대상별 최소 활동 기록 — 합성 참가자](images/ar02-activity-history.png)
+
+### AR02 독립 cold review·수용 판단
+
+`ar01_cold_review`가 계획·main 대비 diff·실제 합성 API를 독립 검토했다. P2 3건 모두 수용했으며 보류/거절 건은 없다.
+
+| 발견 | 수용 수정 | 검증 |
+| --- | --- | --- |
+| 페이지 사이 새 사건 삽입 시 offset 중복 | 최초 max rowid 경계로 이력과 연관 target 집합을 고정하고 더 보기에 같은 경계를 전달 | API 삽입 중 두 페이지 중복 0개 |
+| 내부 「대상 확인」 toggle이 바깥 load(0)를 호출 | event.target=currentTarget인 바깥 접기만 조회 | 브라우저 26행 유지 회귀 |
+| 촬영 열람 판본 미기록·회차 미표시 | state가 실제 읽은 input_revision을 반환·open에 기록, 대상 확인에 회차/클립 표시 | 촬영 API 실제 revision/session 사건 일치 |
+
+기존 자동 폴링의 최초 열기 표식은 요청 전에 소비하여 최초 응답 유실 후 polling이 재열람 event를 만들지 않게 했다. 새 snapshot 경계는 읽기 페이지 계약이며 DB/사건 스키마/추출·합병을 도입하지 않는다. 독립 재검토에서 P2 3건 모두 해결·새 actionable 0건을 확인했다. 독립 합성 재현도 페이지 간 중복 change_id 0개·실제 촬영 r3 사건을 확인했고 diff check는 통과했다.

@@ -569,10 +569,11 @@ def download(store,export_id,user):
     stamps = _files(store,snapshot)
     data = reports._read_file(store,snapshot.output,stamps)
     guard(store,snapshot,user)
-    with store.connect() as db:
+    with store.connect(write=True) as db:
         _live_guard(store,db,snapshot,user)
         if _record(db,export_id) != record:raise HTTPException(409,"다운로드 중 연구 저장 참조가 변경되었습니다.")
         reports.check_stamps(store,stamps)
+        store.audit(db,user.username,export_id,"export.open",{"format":snapshot.format})
     return data, "application/zip" if snapshot.format == "csv_zip" else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "research-"+export_id+(".zip" if snapshot.format == "csv_zip" else ".xlsx")
 
 

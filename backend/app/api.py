@@ -40,7 +40,7 @@ from app import run_v4, scoring_ai_v4, settings_v4
 from app import opinions_v4, final_results_v4, disclosures_v4, attachment_runs_v4
 from app import report_runs_v4, comparisons_v4
 from app import external_comparisons_v4
-from app import validation_data_v4, exports_v4
+from app import validation_data_v4, exports_v4, activity_v4
 from app.domain.runs_v4 import ActionV4, RunViewV4, StartV4
 from app.domain.preprocess_v4 import BatchV4, PreprocessRequestV4, PreprocessStatusV4
 from app.domain.media_v4 import PreservedMediaRegistrationV4, StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
@@ -335,10 +335,15 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             case_id = create_case(store, db, value, user.username, catalog.version)
             return store.view(store.case(db, case_id))
 
+    @app.get("/api/cases/{case_id}/activity", response_model=activity_v4.ActivityPageV4)
+    def case_activity(case_id: Key, offset: Annotated[int, Query(ge=0)] = 0, before: Annotated[int | None, Query(ge=0)] = None, user=Depends(reader)):
+        return activity_v4.recent(store, case_id, offset, before=before, case=True)
+
     @app.get("/api/cases/{case_id}", response_model=CaseViewV4)
-    def get_case(case_id: Key, user=Depends(reader)):
+    def get_case(case_id: Key, purpose: Literal["open"] | None = None, user=Depends(reader)):
         with store.connect() as db:
-            return store.view(store.case(db, case_id))
+            value = store.view(store.case(db, case_id))
+        return activity_v4.opened(store, user, case_id, "case.open", value, purpose, revision=value.input_revision)
 
     @app.put("/api/cases/{case_id}", response_model=CaseViewV4)
     def edit_case(case_id: Key, value: CaseEditV3, user=Depends(writer)):
@@ -477,6 +482,12 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 raise HTTPException(403, "분석·피드백 동의가 거절된 자료입니다.")
             return FileResponse(path, filename=f"{video_id}{path.suffix}", content_disposition_type="inline")
 
+    @app.post("/api/cases/{case_id}/videos/{video_id}/open", status_code=204)
+    def video_open(case_id: Key, video_id: Key, request: Request, user=Depends(reader)):
+        video_file(case_id, video_id, request, user)
+        activity_v4.opened(store, user, video_id, "video.open", None, "open", case_id=case_id)
+        return Response(status_code=204)
+
     @app.put("/api/cases/{case_id}/sessions/{session_id}", response_model=CaseViewV4)
     def session_metadata(case_id: Key, session_id: Key, value: SessionMetadata, user=Depends(writer)):
         with store.connect(write=True) as db:
@@ -511,6 +522,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def upload_download(upload_id: Key, user=Depends(writer)):
         receipt = uploads.get_receipt(store, upload_id, user.username)
         path = uploads.download_path(store, upload_id, user.username)
+        activity_v4.opened(store, user, upload_id, "upload.open", None, "open", format="original")
         return FileResponse(path, filename=receipt.filename, media_type="application/octet-stream")
 
     @app.delete("/api/uploads/{upload_id}", response_model=UploadReceiptV4)
@@ -530,8 +542,9 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         return load_rules_v4("protocol")
 
     @app.get("/api/cases/{case_id}/sessions/{session_id}/recording-s1", response_model=capture_v4.RecordingStateV4)
-    def recording_s1(case_id: Key, session_id: Key, user=Depends(reader)):
-        return capture_v4.state(store, case_id, session_id, user.username)
+    def recording_s1(case_id: Key, session_id: Key, purpose: Literal["open"] | None = None, user=Depends(reader)):
+        value = capture_v4.state(store, case_id, session_id, user.username)
+        return activity_v4.opened(store, user, case_id, "recording.open", value, purpose, case_id=case_id, session_id=session_id, revision=value.input_revision)
 
     @app.put("/api/cases/{case_id}/sessions/{session_id}/recording-s1", response_model=CaseViewV4)
     async def recording_s1_save(case_id: Key, session_id: Key, request: Request, user=Depends(writer)):
@@ -572,6 +585,14 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         return FileResponse(preprocess_v4.clip_path(store, case_id, session_id, batch_id, clip_id, kind, user.username),
                             media_type="video/mp4", content_disposition_type="inline")
 
+    @app.post("/api/cases/{case_id}/sessions/{session_id}/preprocess-s1/{batch_id}/clips/{clip_id}/{kind}/open", status_code=204)
+    def preprocessing_clip_open(case_id: Key, session_id: Key, batch_id: Key, clip_id: Key,
+                                kind: Literal["original", "ai"], user=Depends(reader)):
+        preprocess_v4.clip_path(store, case_id, session_id, batch_id, clip_id, kind, user.username)
+        activity_v4.opened(store, user, batch_id, "clip.open", None, "open", case_id=case_id,
+                           session_id=session_id, clip_id=clip_id, format=kind)
+        return Response(status_code=204)
+
     @app.get("/api/catalog/behavior-s1", response_model=BehaviorCatalogV4)
     def behavior_s1(user=Depends(reader)):
         return load_catalog_v4()
@@ -585,12 +606,14 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         return sheets_v4.assign(store, case_id, session_id, value, user)
 
     @app.get("/api/score-sheets-s1/{sheet_id}", response_model=sheets_v4.SheetViewV4)
-    def scoring_s1_sheet(sheet_id: Key, user=Depends(reader)):
-        return sheets_v4.view(store, sheet_id, user)
+    def scoring_s1_sheet(sheet_id: Key, purpose: Literal["open"] | None = None, user=Depends(reader)):
+        value = sheets_v4.view(store, sheet_id, user)
+        return activity_v4.opened(store, user, sheet_id, "sheet.open", value, purpose, revision=value["summary"]["revision"])
 
     @app.get("/api/score-sheets-s1/{sheet_id}/revisions/{revision}", response_model=SheetDocumentV4)
-    def scoring_s1_revision(sheet_id: Key, revision: Annotated[int, ApiPath(ge=1)], user=Depends(reader)):
-        return sheets_v4.revision(store, sheet_id, revision, user)
+    def scoring_s1_revision(sheet_id: Key, revision: Annotated[int, ApiPath(ge=1)], purpose: Literal["open"] | None = None, user=Depends(reader)):
+        value = sheets_v4.revision(store, sheet_id, revision, user)
+        return activity_v4.opened(store, user, sheet_id, "sheet.open", value, purpose, revision=revision)
 
     @app.put("/api/score-sheets-s1/{sheet_id}", response_model=sheets_v4.SheetSummaryV4)
     def scoring_s1_save(sheet_id: Key, value: sheets_v4.SheetEditV4, user=Depends(reader)):
@@ -629,20 +652,23 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         return judgements_v4.create(store, sheet_id, value, user)
 
     @app.get("/api/basic-results-s1/{result_id}", response_model=judgements_v4.ResultViewV4)
-    def basic_s1_result(result_id: Key, user=Depends(reader)):
-        return judgements_v4.view(store, result_id, user)
+    def basic_s1_result(result_id: Key, purpose: Literal["open"] | None = None, user=Depends(reader)):
+        value = judgements_v4.view(store, result_id, user)
+        return activity_v4.opened(store, user, result_id, "basic.open", value, purpose, revision=value["document"]["revision"], case_id=value["document"]["case_id"], session_id=value["document"]["session_id"])
 
     @app.get("/api/basic-results-s1/{result_id}/revisions/{revision}", response_model=judgements_v4.ResultViewV4)
-    def basic_s1_result_revision(result_id: Key, revision: Annotated[int, ApiPath(ge=1)], user=Depends(reader)):
-        return judgements_v4.view(store, result_id, user, revision)
+    def basic_s1_result_revision(result_id: Key, revision: Annotated[int, ApiPath(ge=1)], purpose: Literal["open"] | None = None, user=Depends(reader)):
+        value = judgements_v4.view(store, result_id, user, revision)
+        return activity_v4.opened(store, user, result_id, "basic.open", value, purpose, revision=revision, case_id=value["document"]["case_id"], session_id=value["document"]["session_id"])
 
     @app.put("/api/basic-results-s1/{result_id}/judgements", response_model=judgements_v4.ResultViewV4)
     def basic_s1_judgements(result_id: Key, value: judgements_v4.JudgementEditV4, user=Depends(reader)):
         return judgements_v4.revise(store, result_id, value, user)
 
     @app.get("/api/cases/{case_id}/sessions/{session_id}/opinions-s1", response_model=opinions_v4.OpinionViewV4)
-    def opinions_s1(case_id: Key, session_id: Key, viewer_sheet_id: Key | None = None, user=Depends(reader)):
-        return opinions_v4.view(store, case_id, session_id, user, viewer_sheet_id)
+    def opinions_s1(case_id: Key, session_id: Key, viewer_sheet_id: Key | None = None, purpose: Literal["open"] | None = None, user=Depends(reader)):
+        value = opinions_v4.view(store, case_id, session_id, user, viewer_sheet_id)
+        return activity_v4.opened(store, user, case_id, "opinion.open", value, purpose, session_id=session_id, revision=value["reference"]["revision"] if value["reference"] else None)
 
     @app.put("/api/cases/{case_id}/sessions/{session_id}/opinions-s1", response_model=opinions_v4.OpinionViewV4)
     def opinions_s1_save(case_id: Key, session_id: Key, value: opinions_v4.OpinionWriteV4, user=Depends(reader)):
@@ -691,12 +717,14 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         return opinions_v4.basic_candidates(store, case_id, session_id, user, viewer_sheet_id)
 
     @app.get("/api/cases/{case_id}/sessions/{session_id}/final-results-s1/candidates/{result_id}/{revision}", response_model=judgements_v4.ResultViewV4)
-    def final_s1_candidate(case_id: Key, session_id: Key, result_id: Key, revision: Annotated[int, ApiPath(ge=1)], viewer_sheet_id: Key | None = None, user=Depends(reader)):
-        return opinions_v4.basic_candidate(store, case_id, session_id, result_id, revision, user, viewer_sheet_id)
+    def final_s1_candidate(case_id: Key, session_id: Key, result_id: Key, revision: Annotated[int, ApiPath(ge=1)], viewer_sheet_id: Key | None = None, purpose: Literal["open"] | None = None, user=Depends(reader)):
+        value = opinions_v4.basic_candidate(store, case_id, session_id, result_id, revision, user, viewer_sheet_id)
+        return activity_v4.opened(store, user, result_id, "basic.open", value, purpose, case_id=case_id, session_id=session_id, revision=revision)
 
     @app.get("/api/cases/{case_id}/sessions/{session_id}/final-results-s1/{final_id}", response_model=final_results_v4.FinalViewV4)
-    def final_s1_result(case_id: Key, session_id: Key, final_id: Key, viewer_sheet_id: Key | None = None, user=Depends(reader)):
-        return final_results_v4.view(store, case_id, session_id, final_id, user, viewer_sheet_id)
+    def final_s1_result(case_id: Key, session_id: Key, final_id: Key, viewer_sheet_id: Key | None = None, purpose: Literal["open"] | None = None, user=Depends(reader)):
+        value = final_results_v4.view(store, case_id, session_id, final_id, user, viewer_sheet_id)
+        return activity_v4.opened(store, user, final_id, "final.open", value, purpose, case_id=case_id, session_id=session_id)
 
     @app.post("/api/cases/{case_id}/sessions/{session_id}/final-results-s1/{final_id}/reveal", response_model=disclosures_v4.InterpretationRevealResultV4)
     def final_s1_reveal(case_id: Key, session_id: Key, final_id: Key, value: disclosures_v4.InterpretationRevealV4, user=Depends(reader)):
@@ -748,9 +776,14 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def comparison_s1_create(value: comparisons_v4.CohortCreateV4, user=Depends(writer)):
         return comparisons_v4.create(store, value, user)
 
+    @app.get("/api/comparisons-s1/cohorts/{snapshot_id}/activity", response_model=activity_v4.ActivityPageV4)
+    def snapshot_id_activity(snapshot_id: Key, offset: Annotated[int, Query(ge=0)] = 0, before: Annotated[int | None, Query(ge=0)] = None, user=Depends(reader)):
+        return activity_v4.recent(store, snapshot_id, offset, before=before, registered_action=comparisons_v4.COHORT_ACTION)
+
     @app.get("/api/comparisons-s1/cohorts/{snapshot_id}", response_model=comparisons_v4.CohortViewV4)
-    def comparison_s1_view(snapshot_id: Key, user=Depends(reader)):
-        return comparisons_v4.view(store, snapshot_id, user)
+    def comparison_s1_view(snapshot_id: Key, purpose: Literal["open"] | None = None, user=Depends(reader)):
+        value = comparisons_v4.view(store, snapshot_id, user)
+        return activity_v4.opened(store, user, snapshot_id, "comparison.open", value, purpose)
 
     @app.get("/api/comparisons-s1/sources")
     def comparison_s1_sources(user=Depends(reader)):
@@ -773,8 +806,9 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         return external_comparisons_v4.list_snapshots(store,user)
 
     @app.get("/api/comparisons-s1/external-snapshots/{snapshot_id}", response_model=external_comparisons_v4.ExternalViewV4)
-    def comparison_s1_external_view(snapshot_id:Key,user=Depends(reader)):
-        return external_comparisons_v4.view(store,snapshot_id,user)
+    def comparison_s1_external_view(snapshot_id:Key,purpose: Literal["open"] | None = None, user=Depends(reader)):
+        value = external_comparisons_v4.view(store,snapshot_id,user)
+        return activity_v4.opened(store, user, snapshot_id, "comparison.external.open", value, purpose)
 
     @app.get("/api/comparisons-s1/research")
     def comparison_s1_research(user=Depends(writer)):
@@ -830,9 +864,14 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def validation_s1_list(user=Depends(writer)):
         return validation_data_v4.list_records(store, user)
 
+    @app.get("/api/validation-data-s1/{validation_id}/activity", response_model=activity_v4.ActivityPageV4)
+    def validation_id_activity(validation_id: Key, offset: Annotated[int, Query(ge=0)] = 0, before: Annotated[int | None, Query(ge=0)] = None, user=Depends(reader)):
+        return activity_v4.recent(store, validation_id, offset, before=before, registered_action=validation_data_v4.ACTION)
+
     @app.get("/api/validation-data-s1/{validation_id}", response_model=validation_data_v4.ValidationFullViewV4)
-    def validation_s1_view(validation_id: Key, user=Depends(writer)):
-        return validation_data_v4.view(store, validation_id, user)
+    def validation_s1_view(validation_id: Key, purpose: Literal["open"] | None = None, user=Depends(writer)):
+        value = validation_data_v4.view(store, validation_id, user)
+        return activity_v4.opened(store, user, validation_id, "validation.open", value, purpose)
 
     @app.post("/api/exports-s1", response_model=exports_v4.ExportViewV4, status_code=201)
     def export_s1_create(value: exports_v4.ExportCreateV4, user=Depends(writer)):
@@ -842,9 +881,14 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def export_s1_list(user=Depends(writer)):
         return exports_v4.list_exports(store, user)
 
+    @app.get("/api/exports-s1/{export_id}/activity", response_model=activity_v4.ActivityPageV4)
+    def export_id_activity(export_id: Key, offset: Annotated[int, Query(ge=0)] = 0, before: Annotated[int | None, Query(ge=0)] = None, user=Depends(reader)):
+        return activity_v4.recent(store, export_id, offset, before=before, registered_action=exports_v4.ACTION)
+
     @app.get("/api/exports-s1/{export_id}", response_model=exports_v4.ExportViewV4)
-    def export_s1_view(export_id: Key, user=Depends(writer)):
-        return exports_v4.view(store, export_id, user)
+    def export_s1_view(export_id: Key, purpose: Literal["open"] | None = None, user=Depends(writer)):
+        value = exports_v4.view(store, export_id, user)
+        return activity_v4.opened(store, user, export_id, "export.open", value, purpose)
 
     @app.get("/api/exports-s1/{export_id}/download")
     def export_s1_download(export_id: Key, user=Depends(writer)):

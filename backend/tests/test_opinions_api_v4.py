@@ -35,12 +35,15 @@ class OpinionsApiV4Tests(unittest.TestCase):
         self.assertEqual(revealed.status_code,200,revealed.text)
         self.assertEqual(revealed.json()['viewer']['purpose'],'review')
         self.assertEqual(self.store.path(f.sheet['manifest_ref']).read_bytes(),original)
-        opinion = self.client.get(self.path+'/opinions-s1')
+        opinion = self.client.get(self.path+'/opinions-s1?purpose=open')
         self.assertEqual(opinion.status_code,200,opinion.text)
         final = self.client.post(self.path+'/final-results-s1',json={"basic":f.basic_ref,"opinion":f.opinion['reference'],"reason":"synthetic final"})
         self.assertEqual(final.status_code,201,final.text)
         ref = final.json()['reference']
-        self.assertEqual(self.client.get(self.path+'/final-results-s1/'+ref['final_id']).json()['reference'],ref)
+        self.assertEqual(self.client.get(self.path+'/final-results-s1/'+ref['final_id']+'?purpose=open').json()['reference'],ref)
+        history = self.client.get(f'/api/cases/{f.case_id}/activity').json()['items']
+        self.assertEqual(sum(row['action'] == 'opinion.open' for row in history), 1)
+        self.assertEqual(sum(row['action'] == 'final.open' for row in history), 1)
         bad = {**request,"target":{**request['target'],"kind":"final","revision":None}}
         self.assertEqual(self.client.post(self.path+'/final-results-s1/wrong/reveal',json=bad).status_code,422)
 
@@ -61,7 +64,7 @@ class OpinionsApiV4Tests(unittest.TestCase):
         self.assertEqual(self.client.get(url+f'/{result_id}/1',params=query).status_code,403)
         f.helper.reveal(f.sheet,row,'operator')
         self.assertIn(result_id,ids())
-        view = self.client.get(url+f'/{result_id}/1',params=query)
+        view = self.client.get(url+f'/{result_id}/1',params={**query, 'purpose':'open'})
         self.assertEqual(view.status_code,200,view.text)
         self.assertEqual(view.json()['summary'],basic['summary'])
         with self.store.connect(write=True) as db:
