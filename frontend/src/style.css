@@ -11,14 +11,14 @@ button.primary { background: #292c29; color: #fff; border-color: #292c29; }
 button.primary:hover { background: #454b43; }
 a { color: #35533d; text-underline-offset: 4px; }
 :focus-visible { outline: 3px solid #6b866e; outline-offset: 3px; }
-header { min-height: 96px; padding: 22px max(24px, calc((100vw - 1180px) / 2)); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #eaeaea; background: #fbfbfa; gap: 24px; }
+header { min-height: 96px; padding: 22px max(24px, calc((100vw - 1448px) / 2 + 24px)); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #eaeaea; background: #fbfbfa; gap: 24px; }
 .wordmark { display: flex; align-items: center; gap: 20px; font-size: 28px; font-weight: 800; letter-spacing: -.05em; }
 .wordmark span { padding-left: 20px; border-left: 1px solid #bcbcba; font-size: 10px; font-weight: 600; letter-spacing: .14em; }
 .plain { border: 0; padding: 0; background: transparent; }
 .plain:hover { background: transparent; color: #4f6e53; }
 .account { display: flex; align-items: center; gap: 20px; font-size: 13px; }
 main { max-width: 1228px; margin: auto; padding: 0 24px; }
-.shell { display: flex; align-items: flex-start; max-width: 1480px; margin: 0 auto; }
+.shell { display: flex; align-items: flex-start; max-width: 1448px; margin: 0 auto; }
 .shell > main { flex: 1; min-width: 0; }
 .lnb { position: sticky; top: 0; flex: 0 0 220px; width: 220px; max-height: 100dvh; overflow-y: auto; padding: 24px 12px 24px 24px; border-right: 1px solid #eaeaea; background: #f7f6f3; }
 .lnb-group { margin-bottom: 24px; }

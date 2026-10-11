@@ -45,6 +45,8 @@ export function App() {
   const [unavailableCases, setUnavailableCases] = useState(0);
   const [route, setRoute] = useState<Route>('intake');
   const routeRef = useRef<Route>('intake');
+  const historyIndex = useRef(0);
+  const restoring = useRef(false);
   const wide = useMatch('(min-width: 1024px)');
   const drawer = useMatch('(max-width: 767px)');
   const [menuOpen, setMenuOpen] = useState(() => window.innerWidth >= 768);
@@ -73,33 +75,47 @@ export function App() {
     setMenuOpen(false);
     requestAnimationFrame(() => menuToggle.current?.focus());
   }
+  const stateIndex = () => { const value = (window.history.state as { idx?: number } | null)?.idx; return typeof value === 'number' ? value : null; };
   function go(next: Route) {
+    if (next !== routeRef.current && !mayLeave()) return;
     if (drawer && menuOpen) closeMenu();
-    if (next === routeRef.current || !mayLeave()) return;
-    window.history.pushState(null, '', hashOf(next));
-    routeRef.current = next; setRoute(next);
+    if (next === routeRef.current) return;
+    const idx = historyIndex.current + 1;
+    window.history.pushState({ idx }, '', hashOf(next));
+    historyIndex.current = idx; routeRef.current = next; setRoute(next);
   }
   // 로그인·세션 확인 직후 hash를 역할에 맞게 확정한다. 권한 없는 경로는 첫 메뉴로 보낸다.
   function enter(next: User) {
     if (next.role !== 'developer') {
       const target = parseHash(window.location.hash, next.role) ?? defaultRoute(next.role);
-      if (window.location.hash !== hashOf(target)) window.history.replaceState(null, '', hashOf(target));
+      historyIndex.current = stateIndex() ?? 0;
+      window.history.replaceState({ idx: historyIndex.current }, '', hashOf(target));
       routeRef.current = target; setRoute(target);
     }
     setUser(next);
   }
-  useEffect(() => { setMenuOpen(!drawer); }, [drawer]);
+  useEffect(() => { setMenuOpen(!drawer); }, [drawer, user]);
   useEffect(() => {
     if (!user || user.role === 'developer') return;
     const role = user.role;
-    // 뒤로가기·주소 직접 수정도 미저장 입력 보호를 거친다. 취소하면 hash를 원래대로 되돌린다.
+    // 뒤로가기·주소 직접 수정도 미저장 입력 보호를 거친다. 취소하면 기록 위치째로 원래 항목으로 되돌린다.
     const onHash = () => {
+      if (restoring.current) { restoring.current = false; return; }
+      const arrived = stateIndex();
       const parsed = parseHash(window.location.hash, role);
       const target = parsed ?? defaultRoute(role);
-      if (target === routeRef.current) { if (!parsed) window.history.replaceState(null, '', hashOf(target)); return; }
-      if (!mayLeave()) { window.history.replaceState(null, '', hashOf(routeRef.current)); return; }
-      if (!parsed) window.history.replaceState(null, '', hashOf(target));
-      routeRef.current = target; setRoute(target);
+      const changes = target !== routeRef.current;
+      if (changes && !mayLeave()) {
+        if (arrived !== null && arrived !== historyIndex.current) {
+          restoring.current = true; window.setTimeout(() => { restoring.current = false; }, 1000);
+          window.history.go(historyIndex.current - arrived);
+        } else window.history.replaceState({ idx: historyIndex.current }, '', hashOf(routeRef.current));
+        return;
+      }
+      const idx = arrived ?? historyIndex.current + 1;
+      historyIndex.current = idx;
+      if (!parsed || arrived === null) window.history.replaceState({ idx }, '', hashOf(target));
+      if (changes) { routeRef.current = target; setRoute(target); }
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);

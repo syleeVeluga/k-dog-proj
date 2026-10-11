@@ -86,6 +86,7 @@ test('미저장 입력이 있으면 메뉴 이동과 뒤로가기를 확인하�
   await login(page);
   await menu(page).getByRole('button', { name: '일괄 등록 (CSV·Excel)', exact: true }).click();
   await menu(page).getByRole('button', { name: '참가자 접수', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: /마지막 조회 [^·\s]/ })).toBeVisible();
   const registration = page.locator('details').filter({ has: page.getByText('참가자 등록', { exact: true }) });
   if (await registration.getAttribute('open') === null) await registration.getByText('참가자 등록', { exact: true }).click();
   await page.getByLabel('행사 ID', { exact: true }).fill('NAV-GUARD');
@@ -101,6 +102,14 @@ test('미저장 입력이 있으면 메뉴 이동과 뒤로가기를 확인하�
   expect(prompts.every(text => text.includes('저장하지 않은 입력'))).toBe(true);
   page.removeAllListeners('dialog');
   page.on('dialog', dialog => void dialog.accept());
+  // 취소한 뒤로가기가 기록을 덮어쓰지 않는다: 허용 후 다시 뒤로 가면 이전 항목(일괄 등록)이 열린다.
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/intake\/upload$/);
+  await page.goForward();
+  await expect(page).toHaveURL(/#\/intake$/);
+  const again = page.locator('details').filter({ has: page.getByText('참가자 등록', { exact: true }) });
+  if (await again.getAttribute('open') === null) await again.getByText('참가자 등록', { exact: true }).click();
+  await page.getByLabel('행사 ID', { exact: true }).fill('NAV-GUARD');
   await menu(page).getByRole('button', { name: '설문 현황', exact: true }).click();
   await expect(page).toHaveURL(/#\/survey$/);
   await expect(page.getByRole('heading', { name: '설문', exact: true })).toBeVisible();
@@ -157,3 +166,29 @@ for (const width of [360, 390]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
+
+test('390px: 이동을 취소해도 서랍은 열려 있고, 세션 만료 뒤 다시 로그인하면 서랍이 닫혀 있다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await login(page);
+  await expect(page.getByRole('status').filter({ hasText: /마지막 조회 [^·\s]/ })).toBeVisible();
+  const registration = page.locator('details').filter({ has: page.getByText('참가자 등록', { exact: true }) });
+  if (await registration.getAttribute('open') === null) await registration.getByText('참가자 등록', { exact: true }).click();
+  await page.getByLabel('행사 ID', { exact: true }).fill('NAV-DRAWER');
+  page.on('dialog', dialog => void dialog.dismiss());
+  const toggle = page.getByRole('button', { name: '메뉴', exact: true });
+  await toggle.click();
+  await menu(page).getByRole('button', { name: '설문 현황', exact: true }).click();
+  await expect(page).toHaveURL(/#\/intake$/);
+  await expect(menu(page)).toBeVisible();
+  page.removeAllListeners('dialog');
+  await page.evaluate(() => window.dispatchEvent(new Event('kdog-session-expired')));
+  await expect(page.getByRole('button', { name: '로그인', exact: true })).toBeVisible();
+  await page.getByLabel('계정', { exact: true }).fill('operator');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(toggle).toBeVisible();
+  await expect(menu(page)).toBeHidden();
+  expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
+  await expect(page.locator('main')).not.toHaveAttribute('inert');
+  expect(await page.evaluate(() => !!document.getElementById('lnb'))).toBe(true);
+});

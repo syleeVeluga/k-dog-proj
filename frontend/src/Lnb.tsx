@@ -40,7 +40,7 @@ export function Lnb({ role, current, go, visible, drawer, close }: Props) {
   }, [modal]);
   return <>
     {modal && <div className="lnb-backdrop" onClick={close} aria-hidden="true" />}
-    <nav ref={root} className={`lnb${drawer ? ' drawer' : ''}`} aria-label="주 메뉴" hidden={!visible}>
+    <nav ref={root} id="lnb" className={`lnb${drawer ? ' drawer' : ''}`} aria-label="주 메뉴" hidden={!visible}>
       {drawer && <button className="lnb-close" onClick={close}>메뉴 닫기</button>}
       {visibleMenu(role).map(group => <div key={group.id} role="group" aria-labelledby={`lnb-${group.id}`} className="lnb-group">
         <p id={`lnb-${group.id}`} className="lnb-title">{group.label}</p>
