@@ -7,14 +7,15 @@ const EVENT = 'U07-PROF';
 const NEW_PROFESSOR = 'u07-professor';
 
 // 합성 현장 리허설: 관리자가 교수 계정을 만들고, 교수는 자기 할 일과 선행 조건만 읽는다. 앱 서버 밖으로는 요청하지 않는다.
-test('관리자가 교수 계정을 추가하면 교수는 「내가 할 일만」과 선행 조건 체크리스트를 읽기 전용으로 본다', async ({ page, browser, request }) => {
+test('관리자가 교수 계정을 추가하면 교수는 「내가 할 일만」과 선행 조건 체크리스트를 읽기 전용으로 본다', async ({ page, browser, request, baseURL }) => {
   test.setTimeout(120000);
   await request.post('/api/auth/login', { headers, data: { username: 'operator', password } });
   for (const [id, dog, sequence] of [['P1', '교수견1', 1], ['P2', '교수견2', 2]] as const)
     expect((await request.post('/api/cases', { headers, data: { event_id: EVENT, participant_id: id, dog_name: dog, sequence_no: sequence } })).status()).toBe(201);
 
   const outside: string[] = [];
-  page.on('request', value => { if (!value.url().startsWith('http://127.0.0.1:8765/') && !value.url().startsWith('data:') && !value.url().startsWith('blob:')) outside.push(value.url()); });
+  const origin = new URL(baseURL!).origin + '/';
+  page.on('request', value => { if (!value.url().startsWith(origin) && !value.url().startsWith('data:') && !value.url().startsWith('blob:')) outside.push(value.url()); });
   await page.goto('/');
   await page.getByLabel('계정', { exact: true }).fill('admin');
   await page.getByLabel('비밀번호', { exact: true }).fill(password);
@@ -37,7 +38,7 @@ test('관리자가 교수 계정을 추가하면 교수는 「내가 할 일만�
   const client = await browser.newContext();
   try {
     const prof = await client.newPage();
-    prof.on('request', value => { if (!value.url().startsWith('http://127.0.0.1:8765/') && !value.url().startsWith('data:') && !value.url().startsWith('blob:')) outside.push(value.url()); });
+    prof.on('request', value => { if (!value.url().startsWith(origin) && !value.url().startsWith('data:') && !value.url().startsWith('blob:')) outside.push(value.url()); });
     await prof.goto('/');
     await prof.getByLabel('계정', { exact: true }).fill(NEW_PROFESSOR);
     await prof.getByLabel('비밀번호', { exact: true }).fill(password);
