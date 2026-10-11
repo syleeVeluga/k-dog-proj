@@ -70,5 +70,5 @@ class SheetsApiV4Tests(AppCase):
         path = f"/api/score-sheets-s1/{sheet['sheet_id']}"
         self.assertEqual(self.client.get(path + "/revisions/1").status_code, 403)
         self.assertEqual(self.client.put(path, json={"expected_revision": 1, "observations": []}).status_code, 403)
-        self.assertEqual(self.client_for("developer").get("/api/catalog/behavior-s1").status_code, 403)
+        self.assertEqual(self.client_for("developer").get("/api/catalog/behavior-s1").status_code, 200)
         self.assertEqual(self.client_for().get(path).status_code, 401)

@@ -40,7 +40,7 @@ class ProgressV4Tests(unittest.TestCase):
 
     def build(self, user, **views):
         with self.store.connect() as db:
-            return progress_v4.build(self.store, db, [self.view(**views)], SimpleNamespace(username=user, role="reviewer" if user.startswith("reviewer") else "operator"))["C1"]
+            return progress_v4.build(self.store, db, [self.view(**views)], SimpleNamespace(username=user, role="reviewer" if user.startswith("reviewer") else user))["C1"]
 
     def batch(self, clips):
         ref = "clips/C1/S1/b1/t1/batch.json"
@@ -93,17 +93,17 @@ class ProgressV4Tests(unittest.TestCase):
         value = self.build("operator", confirmed=True)
         self.assertEqual((value.stage, value.final, value.report), ("complete", True, True))
 
-    def test_reviewers_never_see_other_raters_counts_names_or_final_progress(self):
+    def test_all_accounts_see_the_same_counts_names_and_final_progress(self):
         self.sheet("reviewer", "draft", 1)
         self.sheet("reviewer2", "submitted", 2)
         self.audit("final.s1.publish", {"session_id": "S1", "ref": "f", "hash": "x"})
         value = self.build("reviewer", confirmed=True)
-        self.assertEqual((value.sheets_total, value.sheets_submitted, value.assigned, value.final), (None, None, [], None))
+        self.assertEqual((value.sheets_total, value.sheets_submitted, value.assigned, value.final), (2, 1, ["reviewer", "reviewer2"], True))
         self.assertEqual((value.my_sheet, value.scoring), ("draft", "partial"))
         other = self.build("reviewer2", confirmed=True)
-        self.assertEqual((other.my_sheet, other.scoring), ("submitted", "done"))
-        dumped = json.dumps(value.model_dump())
-        self.assertNotIn("reviewer2", dumped)
+        self.assertEqual((other.my_sheet, other.scoring), ("submitted", "partial"))
+        for user in ("operator", "admin", "developer", "reviewer2"):
+            self.assertEqual(value.model_dump(exclude={"my_sheet"}), self.build(user, confirmed=True).model_dump(exclude={"my_sheet"}))
         nothing = self.build("reviewer", confirmed=True)
         self.assertNotEqual(nothing.stage, "complete")
 
@@ -133,7 +133,7 @@ class ProgressV4Tests(unittest.TestCase):
     def test_disclosure_turns_a_sheet_into_review_but_it_still_counts_as_the_raters_sheet(self):
         self.sheet("reviewer", "submitted", 1, purpose="review")
         self.sheet("reviewer2", "draft", 2)
-        self.assertEqual((self.build("reviewer", confirmed=True).my_sheet, self.build("reviewer", confirmed=True).scoring), ("submitted", "done"))
+        self.assertEqual((self.build("reviewer", confirmed=True).my_sheet, self.build("reviewer", confirmed=True).scoring), ("submitted", "partial"))
         staff = self.build("operator", confirmed=True)
         self.assertEqual((staff.sheets_total, staff.sheets_submitted, staff.assigned), (2, 1, ["reviewer", "reviewer2"]))
         with self.store.connect(write=True) as db:
@@ -148,11 +148,11 @@ class ProgressV4Tests(unittest.TestCase):
         value = self.build("operator", confirmed=True)
         self.assertEqual((value.sheets_total, value.sheets_submitted, value.assigned), (1, 0, ["reviewer"]))
 
-    def test_reviewers_do_not_learn_whether_a_report_exists_and_the_session_is_named(self):
+    def test_every_account_sees_report_progress_and_the_session_is_named(self):
         with self.store.connect(write=True) as db:
             db.execute("INSERT INTO runs(run_id,case_id,session_id,input_revision,input_snapshot_json,config_snapshot_json,status,created_at,updated_at,kind,result_ref) "
                        "VALUES ('R1','C1','S1',3,'{}','{}','succeeded','now','now','report_v4','report/ref')")
-        self.assertIsNone(self.build("reviewer", confirmed=True).report)
+        self.assertTrue(self.build("reviewer", confirmed=True).report)
         staff = self.build("operator", confirmed=True)
         self.assertEqual((staff.report, staff.session_id), (True, "S1"))
 

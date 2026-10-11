@@ -1,0 +1,32 @@
+import { test, expect } from '@playwright/test';
+import { openMenu } from './menu';
+
+test('공통 계정 관리: 역할 선택 없이 생성·로그인·비활성화하고 개발 설정은 보호한다', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await page.getByLabel('계정', { exact: true }).fill('reviewer');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await openMenu(page, '직원 계정');
+  await expect(page.getByRole('heading', { name: '직원 계정', exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox')).toHaveCount(0);
+  await page.getByText('직원 계정 추가', { exact: true }).click();
+  const username = `common_${Date.now()}`;
+  await page.getByLabel('새 계정', { exact: true }).fill(username);
+  await page.getByLabel('초기 비밀번호').fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '계정 생성', exact: true }).click();
+  const row = page.locator('.user-row').filter({ hasText: username });
+  await expect(row).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('common-accounts.png'), fullPage: true });
+  await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+  await page.getByLabel('계정', { exact: true }).fill(username);
+  await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await openMenu(page, '참가자 접수');
+  await expect(page.getByText('참가자 등록', { exact: true })).toBeVisible();
+  expect((await page.request.get('/api/settings-s1')).status()).toBe(403);
+  await openMenu(page, '직원 계정');
+  const own = page.locator('.user-row').filter({ hasText: username });
+  await own.getByLabel('활성', { exact: true }).uncheck();
+  await own.getByRole('button', { name: '계정 변경 저장', exact: true }).click();
+  await expect(page.getByRole('alert').filter({ hasText: '현재 로그인 계정을 비활성화할 수 없습니다.' })).toBeVisible();
+});

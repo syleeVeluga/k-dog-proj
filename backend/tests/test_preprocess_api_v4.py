@@ -36,7 +36,7 @@ class PreprocessApiV4Tests(AppCase):
         value = {"request_id": "batch", "expected_revision": response.json()["input_revision"], "camera_priority": ["CAM1"]}
         endpoint = base + "/preprocess-s1"
         self.assertTrue(self.client.get(endpoint).json()["ready"])
-        self.assertEqual(self.client_for("reviewer").post(endpoint, json=value).status_code, 403)
+        self.assertEqual(self.client_for("reviewer").post(endpoint, json={**value, "expected_revision": 0}).status_code, 422)
         result = self.client.post(endpoint, json=value)
         self.assertEqual(result.status_code, 200, result.text)
         batch = result.json()
@@ -76,7 +76,7 @@ class PreprocessApiV4Tests(AppCase):
         downloaded = self.client_for("reviewer").get(url)
         self.assertEqual(downloaded.status_code, 200, downloaded.text if downloaded.status_code != 200 else "")
         self.assertEqual(downloaded.content, self.store.path(clip["original"]["ref"]).read_bytes())
-        self.assertEqual(self.client_for("developer").get(url).status_code, 403)
+        self.assertEqual(self.client_for("developer").get(url).status_code, 200)
         self.assertEqual(self.client.get(url.replace(clip["clip_id"], "other-clip")).status_code, 404)
         selected = self.client.post(f"/api/cases/{item['case_id']}/sessions",
             json={"expected_revision": value["expected_revision"], "note": "synthetic next session"})

@@ -100,9 +100,9 @@ class ActivateExternalV4(Model):
 
 
 def _account(db,user,*,admin=False,reader=False):
-    """reader: report-menu use (professors may pick pinned comparisons); cohort settings stay operator-only."""
+    """Recheck the request actor's active account for all business operations."""
     row=db.execute("SELECT active,role FROM users WHERE username=?",(user.username,)).fetchone()
-    if not row or not row["active"] or row["role"] not in (("admin",) if admin else ("operator","admin","reviewer") if reader else ("operator","admin")):
+    if not row or not row["active"]:
         raise HTTPException(403,"집단 비교 관리 권한이 없습니다.")
     return row
 

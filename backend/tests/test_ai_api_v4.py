@@ -60,11 +60,10 @@ class AiApiV4Tests(unittest.TestCase):
     def test_explicit_run_stop_retry_public_status_and_s1_usage_include_only_reserved_calls(self):
         self.activate()
         request = self.helper.request.model_dump(mode="json")
-        self.assertEqual(self.clients["reviewer"].post(self.path, json=request).status_code, 403)
-        started = self.operator.post(self.path, json=request)
+        started = self.clients["reviewer"].post(self.path, json=request)
         self.assertEqual(started.status_code, 201, started.text)
         run_id = started.json()["run_id"]
-        self.assertEqual(self.operator.post(self.path, json=request).json()["run_id"], run_id)
+        self.assertEqual(self.clients["reviewer"].post(self.path, json=request).json()["run_id"], run_id)
         url = f"/api/runs-s1/{run_id}"
         stopped = self.operator.post(url + "/stop", json={"expected_updated_at": started.json()["updated_at"], "reason": "synthetic explicit stop"})
         self.assertEqual(stopped.status_code, 200, stopped.text)
@@ -95,5 +94,5 @@ class AiApiV4Tests(unittest.TestCase):
         self.assertIsNone(usage["complete_meter_cost_estimate"])
         self.assertEqual(usage["groups"][0]["provider"], "gemini")
         self.assertEqual(usage["groups"][0]["model"], "gemini-3.8-flash")
-        self.assertEqual(self.developer.get(url).status_code, 403)
+        self.assertEqual(self.developer.get(url).status_code, 200)
         self.assertEqual(len(self.operator.get(self.path).json()), 1)

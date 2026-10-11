@@ -53,7 +53,7 @@ class FormsApiV4Tests(AppCase):
     def test_invalid_base64_and_roles_never_create_preview_artifacts(self):
         payload = {"config": self.config(dog_name="name"), "file_base64": "@not-base64"}
         self.assertEqual(self.client.post("/api/forms/preview", json=payload).status_code, 422)
-        for role, status in ((None, 401), ("reviewer", 403), ("developer", 403)):
+        for role, status in ((None, 401), ("reviewer", 422), ("developer", 422)):
             response = self.client_for(role).post("/api/forms/preview", json=payload)
             self.assertEqual(response.status_code, status)
         with self.store.connect() as db:

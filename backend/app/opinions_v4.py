@@ -65,11 +65,11 @@ class OpinionMetadataV4(Model):
         return model.model_validate_json(encode(value)) if isinstance(value, dict) else value
 
 
-REPORT_ROLES = ("operator", "admin", "reviewer")
+REPORT_ROLES = ("operator", "admin", "reviewer", "developer")
 
 
 def report_reader(user, db):
-    """Report-menu read scope: operators plus active professors (reviewer). Not a manager power."""
+    """All active business accounts can use the report menu."""
     account = db.execute("SELECT role,active FROM users WHERE username=?", (user.username,)).fetchone()
     if user.role not in REPORT_ROLES or not account or not account["active"] or account["role"] not in REPORT_ROLES:
         raise HTTPException(403, "리포트 열람 권한이 없습니다.")

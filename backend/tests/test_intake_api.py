@@ -141,8 +141,8 @@ class IntakeTests(AppCase):
         for client in (self.client, reviewer, admin):
             self.assertEqual(client.get("/api/developer/settings").status_code, 403)
         self.assertEqual(developer.get("/api/developer/settings").status_code, 200)
-        self.assertEqual(developer.get("/api/cases").status_code, 403)
-        self.assertEqual(reviewer.post("/api/cases", json={}).status_code, 403)
+        self.assertEqual(developer.get("/api/cases").status_code, 200)
+        self.assertEqual(reviewer.post("/api/cases", json={}).status_code, 422)
         self.assertEqual(admin.post("/api/admin/users", json={"username": "escalation", "password": PASSWORD, "role": "developer"}).status_code, 403)
         self.assertEqual(admin.patch("/api/admin/users/admin", json={"role": "developer", "active": True}).status_code, 403)
         self.assertEqual(admin.patch("/api/admin/users/operator", json={"role": "reviewer", "active": True}).status_code, 200)
@@ -194,7 +194,7 @@ class IntakeTests(AppCase):
         item = self.make_case()
         path = f"/api/cases/{item['case_id']}/deletion"
         for role in ("reviewer", "developer"):
-            self.assertEqual(self.client_for(role).post(path, json={"expected_revision": 1}).status_code, 403)
+            self.assertEqual(self.client_for(role).post(path, json={"expected_revision": 2}).status_code, 409)
         self.assertEqual(self.client.post(path, json={"expected_revision": 2}).status_code, 409)
         self.delete_case(item)
         self.assertEqual(self.client.post(path, json={"expected_revision": 1}).status_code, 403)

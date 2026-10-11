@@ -83,9 +83,9 @@ def main():
             parser.error("현재 데이터 DB가 필요합니다.")
         store = Store(args.data_dir)
         with store.connect() as db:
-            actor = db.execute("SELECT username FROM users WHERE username=? AND role IN ('operator','admin') AND active=1", (args.actor,)).fetchone()
+            actor = db.execute("SELECT username FROM users WHERE username=? AND active=1", (args.actor,)).fetchone()
             if not actor:
-                parser.error("활성 운영자 또는 운영 관리자 계정이 필요합니다.")
+                parser.error("활성 업무 계정이 필요합니다.")
             case = db.execute("SELECT selected_session_id FROM cases WHERE case_id=?", (args.case_id,)).fetchone()
             if not case:
                 parser.error("참가자를 찾을 수 없습니다.")
@@ -117,9 +117,9 @@ def main():
         try:
             if args.command == "backup":
                 with store.connect() as db:
-                    actor = db.execute("SELECT * FROM users WHERE username=? AND role='admin' AND active=1", (args.actor,)).fetchone()
+                    actor = db.execute("SELECT * FROM users WHERE username=? AND active=1", (args.actor,)).fetchone()
                     if not actor:
-                        parser.error("활성 운영 관리자 계정이 필요합니다.")
+                        parser.error("활성 업무 계정이 필요합니다.")
                 result = maintenance.backup(store, args.destination, args.actor)
             elif args.command == "restore":
                 result = maintenance.restore(store, args.source, args.destination)

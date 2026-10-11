@@ -104,9 +104,8 @@ class SheetsV4Tests(unittest.TestCase):
             with self.assertRaises(HTTPException) as caught:
                 self.view(one, who)
             self.assertEqual(caught.exception.status_code, 403)
-        self.assertEqual(len(sheets.list_sheets(self.store, self.case_id, self.session_id, self.people["reviewer"])), 1)
-        with self.assertRaises(HTTPException):
-            sheets.list_sheets(self.store, self.case_id, self.session_id, self.people["developer"])
+        for who in ("reviewer", "developer"):
+            self.assertEqual(len(sheets.list_sheets(self.store, self.case_id, self.session_id, self.people[who])), 2)
         with self.store.connect(write=True) as db:
             row = self.store.case(db, self.case_id)
             manifest = self.store.manifest(row)
@@ -175,9 +174,7 @@ class SheetsV4Tests(unittest.TestCase):
         with self.assertRaises(HTTPException):
             self.save(submitted, [])
         reason = model(sheets.SheetReasonV4, expected_revision=submitted["revision"], reason="근거 정정")
-        with self.assertRaises(HTTPException):
-            sheets.revise(self.store, row["sheet_id"], reason, self.people["reviewer"], "reopen")
-        opened = sheets.revise(self.store, row["sheet_id"], reason, self.people["operator"], "reopen")
+        opened = sheets.revise(self.store, row["sheet_id"], reason, self.people["reviewer"], "reopen")
         updated = self.save(opened, [self.observe(value=1)])
         with self.assertRaises(HTTPException) as caught:
             self.save(opened, [self.observe(value=2)])

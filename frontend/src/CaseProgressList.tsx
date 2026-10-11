@@ -14,7 +14,7 @@ export function CaseProgressList({ cases, user, filters, open, openLabel }: {
   const visible = cases.filter(item => matchesCase(item, filters.search, filters.eventFilter)
     && (!stage || currentProgress(item)?.stage === stage) && (!mine || isMine(item, user.role)))
     .sort((a, b) => (a.sequence_no ?? 1e9) - (b.sequence_no ?? 1e9) || a.participant_id.localeCompare(b.participant_id));
-  const stageOptions = user.role === 'reviewer' ? ['recording', 'preprocess', 'scoring', 'complete'] : ['recording', 'preprocess', 'scoring', 'final', 'report', 'complete'];
+  const stageOptions = ['recording', 'preprocess', 'scoring', 'final', 'report', 'complete'];
   return <>
     <CaseFilters cases={cases} {...filters} />
     <div className="toolbar">

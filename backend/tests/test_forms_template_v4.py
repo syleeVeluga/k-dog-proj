@@ -63,7 +63,7 @@ class FormsTemplateV4Tests(AppCase):
         response = self.client.get("/api/forms/template?kind=full&format=xlsx")
         self.assertEqual(response.status_code, 200)
         self.assertIn("kdog-roster-survey.xlsx", response.headers["content-disposition"])
-        for role, status in ((None, 401), ("reviewer", 403), ("developer", 403)):
+        for role, status in ((None, 401), ("reviewer", 200), ("developer", 200)):
             self.assertEqual(self.client_for(role).get("/api/forms/template?kind=roster").status_code, status)
         self.assertEqual(self.client.get("/api/forms/template?kind=other").status_code, 422)
 

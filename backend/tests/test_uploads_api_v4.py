@@ -59,7 +59,7 @@ class UploadApiV4Tests(AppCase):
         receipt = self.receive(1, b"synthetic INSV", filename="source.insv")
         self.assertFalse(receipt["analysis_ready"])
         self.assertEqual(receipt["media_status"], "storage_only")
-        for role, status in ((None, 401), ("reviewer", 403), ("developer", 403)):
+        for role, status in ((None, 401), ("reviewer", 200), ("developer", 200)):
             client = self.client_for(role)
             for path in ("/api/uploads", f"/api/uploads/{receipt['upload_id']}/content"):
                 self.assertEqual(client.get(path).status_code, status)

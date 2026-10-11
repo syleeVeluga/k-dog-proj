@@ -20,8 +20,8 @@ DERIVED_ACTIONS = ("preprocess.", "sheet.", "basic.", "ai.", "run.", "run_v3.",
 
 
 def _actor(db, actor):
-    if not db.execute("SELECT 1 FROM users WHERE username=? AND role='admin' AND active=1", (actor,)).fetchone():
-        raise HTTPException(403, "초기화에는 활성 운영 관리자 계정이 필요합니다.")
+    if not db.execute("SELECT 1 FROM users WHERE username=? AND active=1", (actor,)).fetchone():
+        raise HTTPException(403, "초기화에는 활성 업무 계정이 필요합니다.")
 
 
 def _record(db, reset_id, action):

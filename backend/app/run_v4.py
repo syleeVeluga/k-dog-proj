@@ -71,7 +71,7 @@ def check_access(store, db, row):
     case = store.case(db, snapshot.case_id, expected=snapshot.input_revision)
     manifest = store.manifest(case)
     account = db.execute("SELECT active,role FROM users WHERE username=?", (snapshot.requested_by,)).fetchone()
-    if not account or not account["active"] or account["role"] not in ("operator", "admin"):
+    if not account or not account["active"]:
         raise HTTPException(403, "S1 실행 요청자의 권한이 변경되었습니다.")
     if not isinstance(manifest, ManifestV4) or manifest.consents.analysis_feedback != "confirmed":
         raise HTTPException(403, "분석·피드백 동의가 확인된 S1 입력만 실행할 수 있습니다.")
@@ -192,7 +192,7 @@ def view(store, run_id, user):
     """Operational status excludes observations, output refs, prompts and provider text."""
     with store.connect() as db:
         account = db.execute("SELECT active,role FROM users WHERE username=?", (user.username,)).fetchone()
-        if not account or not account["active"] or account["role"] not in ("operator", "reviewer", "admin"):
+        if not account or not account["active"]:
             raise HTTPException(403, "S1 실행 상태 조회 권한이 없습니다.")
         row = row_for(store, db, run_id)
         case = store.case(db, row["case_id"])

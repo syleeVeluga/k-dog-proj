@@ -3,7 +3,7 @@ import type { RecordingV4 } from './recordingTypesV4';
 export type Role = 'operator' | 'reviewer' | 'admin' | 'developer';
 export type User = { username: string; role: Role; active: boolean };
 export type Run = (work: () => Promise<void>) => Promise<void>;
-export const roleNames: Record<Role, string> = { operator: '운영자', reviewer: '교수 / 검토자', admin: '운영 관리자', developer: '개발자' };
+export const roleNames: Record<Role, string> = { operator: '업무 계정', reviewer: '업무 계정', admin: '업무 계정', developer: '개발자' };
 export const formFields = (form: HTMLFormElement) => Object.fromEntries(new FormData(form));
 export type Video = {
   video_id: string; original_name: string;

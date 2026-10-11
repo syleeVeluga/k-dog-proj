@@ -21,12 +21,12 @@ class ProgressV4(Model):
     recording: bool
     preprocess: Literal["none", "running", "done", "outdated", "failed"]
     scoring: Literal["none", "partial", "done"]
-    sheets_total: int | None = None       # 교수/검토자에게는 None
-    sheets_submitted: int | None = None   # 교수/검토자에게는 None
+    sheets_total: int | None = None
+    sheets_submitted: int | None = None
     my_sheet: Literal["none", "draft", "submitted"] = "none"
-    assigned: list[str] = []              # 운영자·관리자에게만
-    final: bool | None = None             # 교수/검토자에게는 None
-    report: bool | None = None            # 교수/검토자에게는 None(최종 결과·리포트 진행은 다른 평가자의 완료를 드러낸다)
+    assigned: list[str] = []
+    final: bool | None = None
+    report: bool | None = None
     videos_total: int = 0
     videos_usable: int = 0
 
@@ -47,7 +47,6 @@ def _usable_videos(root: str, ref: str) -> frozenset[str]:
 
 def build(store, db, views, user) -> dict[str, ProgressV4]:
     """views: 현재 선택 회차를 가진 사례 보기 목록. 한 번의 요청에서 필요한 표를 한꺼번에 읽는다."""
-    reviewer = user.role == "reviewer"
     latest: dict[tuple[str, str], tuple[str, dict]] = {}
     completed: dict[tuple[str, str], dict] = {}
     for row in db.execute("SELECT target,action,detail_json FROM changes WHERE action IN (?,?,?,?) ORDER BY rowid", PREPROCESS_ACTIONS):
@@ -81,18 +80,16 @@ def build(store, db, views, user) -> dict[str, ProgressV4]:
         mine = next((row for row in rows if row["assigned_username"] == user.username), None)
         my_sheet = "none" if mine is None else "submitted" if mine["state"] == "submitted" else "draft"
         submitted = sum(row["state"] == "submitted" for row in rows)
-        scoring = ("none" if mine is None else "done" if my_sheet == "submitted" else "partial") if reviewer \
-            else "none" if not rows else "done" if submitted == len(rows) else "partial"
+        scoring = "none" if not rows else "done" if submitted == len(rows) else "partial"
         final = key in finals
         report = key in reports
-        steps = [("recording", recording), ("preprocess", preprocess in ("done", "outdated")), ("scoring", scoring == "done")]
-        if not reviewer:
-            steps += [("final", final), ("report", report)]
+        steps = [("recording", recording), ("preprocess", preprocess in ("done", "outdated")), ("scoring", scoring == "done"),
+                 ("final", final), ("report", report)]
         stage = next((name for name, done in steps if not done), "complete")
         result[view.case_id] = ProgressV4(
             session_id=session_id, stage=stage, recording=recording, preprocess=preprocess, scoring=scoring,
-            sheets_total=None if reviewer else len(rows), sheets_submitted=None if reviewer else submitted,
-            my_sheet=my_sheet, assigned=[] if reviewer else sorted({row["assigned_username"] for row in rows}),
-            final=None if reviewer else final, report=None if reviewer else report,
+            sheets_total=len(rows), sheets_submitted=submitted,
+            my_sheet=my_sheet, assigned=sorted({row["assigned_username"] for row in rows}),
+            final=final, report=report,
             videos_total=len(videos), videos_usable=sum(video.video_id in usable for video in videos))
     return result

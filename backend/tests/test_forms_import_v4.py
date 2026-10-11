@@ -210,7 +210,7 @@ class FormsImportV4Tests(unittest.TestCase):
 
     def test_permissions_are_rechecked_even_for_completed_requests(self):
         staged = self.stage()
-        self.expect_http(403, self.apply, staged, actor="reviewer")
+        self.apply(staged, actor="reviewer")
         self.apply(staged)
         with self.store.connect(write=True) as db:
             db.execute("UPDATE users SET active=0 WHERE username='operator'")

@@ -28,11 +28,11 @@ class Login(Model):
 
 
 class UserCreate(Login):
-    role: Role
+    role: Role = "operator"
 
 
 class UserEdit(Model):
-    role: Role
+    role: Role | None = None
     active: bool
 
 

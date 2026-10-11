@@ -27,7 +27,7 @@ class SettingsTests(AppCase):
         self.base = f"/api/cases/{self.item['case_id']}"
 
 
-    def test_every_developer_route_denies_staff_and_data_routes_deny_developer(self):
+    def test_every_developer_route_denies_normal_accounts_and_developer_can_work(self):
         for role in ("operator", "reviewer", "admin"):
             self.login(role)
             for method, url, value in [
@@ -42,8 +42,8 @@ class SettingsTests(AppCase):
                 self.assertEqual(response.status_code, 403, (role, url, response.text))
         self.login("developer")
         for url in (self.base, "/api/cases", "/api/admin/recovery"):
-            self.assertEqual(self.client.get(url).status_code, 403)
-        self.assertEqual(self.client.post("/api/admin/backups").status_code, 403)
+            self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertEqual(self.client.post("/api/admin/backups").status_code, 201)
 
 
     @unittest.skipUnless(os.name == "nt", "DPAPI requires Windows")
