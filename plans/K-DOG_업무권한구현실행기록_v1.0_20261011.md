@@ -20,7 +20,7 @@ PR 최종 head·merge SHA는 PR 메타데이터로 확인하고 병합 후 다�
 
 ## 2 AR01 구현과 검증
 
-브랜치: `veluga/ar01-common-business-access`. 요구사항: AR-R01·AR-R02·AR-R08·AR-R12의 계정 공통화 범위.
+브랜치: `veluga/ar01-common-business-access`. [PR #75](https://github.com/syleeVeluga/k-dog-proj/pull/75), 구현 head `5480da6`. 요구사항: AR-R01·AR-R02·AR-R08·AR-R12의 계정 공통화 범위.
 
 - API reader/writer/administrator와 영상·업로드·촬영·Forms·전처리·분석·채점·비교 내부의 업무 역할 제한을 제거했다. 요청 actor의 활성 계정·세션·CSRF/host와 hash·판본 검사는 유지한다.
 - 웹 신규 일반 계정은 `operator`로 저장한다. 역할 선택 UI를 제거하고 기존 reviewer/admin의 role/password hash는 활성 상태 저장과 앱 재시작 후에도 보존한다. 모든 계정이 일반 업무 계정을 생성·활성 관리하며 개발자 생성/승격/변경과 현재 로그인 계정의 비활성화는 거절한다.
@@ -38,6 +38,7 @@ PR 최종 head·merge SHA는 PR 메타데이터로 확인하고 병합 후 다�
 | 내부 권한 영향 회귀 11개 모듈 | 최초 152개에서 옛 권한 기대 14건 수정, 재실행 151개 통과/후보 수 기대 1건 수정. 수정한 comparisons는 최종 추가 회귀에 포함한다 |
 | `uv run --locked python -X utf8 -m unittest tests.test_ai_api_v4 tests.test_recording_api_v4 tests.test_forms_presets_v4 tests.test_forms_template_v4 tests.test_comparisons_v4 tests.test_progress_v4 -v` | 최종 54개, 47.599초 통과. 앞선 후보 수 기대 1건과 교수 영상 등록·preset 이름 충돌 기대도 이 재실행에서 해결 확인 |
 | `git diff --check` | 통과 |
+| 계획 상대 링크와 Git index 확인 | 89개 링크, 누락 0개 |
 
 AI 회귀는 교수 계정 요청 → 다른 업무 계정 stop/retry → fake provider 42항목군 Worker 완료를 검증한다. 실제 유료 호출은 없다. 요청 ID의 actor 귀속·preset 이름 중복·stale revision의 409는 유지하며 일반 역할에 의한 거절과 구별한다. 실제 운영 DB의 S1 초기화는 하지 않았다.
 
