@@ -20,7 +20,7 @@ type Props = {
 
 // 접수 메뉴: 참가자 단건 등록과 원입력 상세. 저장 후에도 폼에 머물러 다음 참가자를 이어서 받는다.
 // 파일 일괄 등록은 「일괄 등록」 메뉴에서 한다.
-export function Intake({ user, cases, selected, writable, busy, run, reload, select, status, notify, filters, goTo }: Props) {
+export function Intake({ cases, selected, writable, busy, run, reload, select, status, notify, filters, goTo }: Props) {
   const [filter, setFilter] = useState('all');
   const [dirty, setDirty] = useState(false);
   const [formOpen, setFormOpen] = useState<boolean | null>(null);
@@ -85,7 +85,7 @@ export function Intake({ user, cases, selected, writable, busy, run, reload, sel
   }
 
   return <>
-    <section className="page-heading"><div><p className="eyebrow">INTAKE</p><h1>접수</h1><p className="muted">{user.role === 'reviewer' ? '접수된 참가자와 자료 상태를 확인하세요.' : '참가자·반려견 정보를 등록하고 순번을 확인하세요. 명단·설문 파일은 「일괄 등록」으로 올립니다.'}</p></div>
+    <section className="page-heading"><div><p className="eyebrow">INTAKE</p><h1>접수</h1><p className="muted">참가자·반려견 정보를 등록하고 순번을 확인하세요. 명단·설문 파일은 「일괄 등록」으로 올립니다.</p></div>
       <div className="count"><strong>{cases.length.toString().padStart(2, '0')}</strong><span>등록된 참가자</span></div></section>
     <CaseFilters cases={cases} {...filters} /><div className="toolbar">
       <label>자료 상태<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">전체</option><option value="ready">설문·영상 등록됨</option><option value="missing">설문·영상 보완 필요</option><option value="survey_missing">설문 미등록</option><option value="video_missing">영상 없음</option></select></label>

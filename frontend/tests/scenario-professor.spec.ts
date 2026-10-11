@@ -53,7 +53,7 @@ test('일반 계정 생성 후 공통 메뉴·진행·접수·촬영·리포트�
     await expect(nav.getByText('리포트 발급', { exact: true })).toHaveCount(1);
     await expect(prof.getByText('참가자 등록', { exact: true })).toBeVisible();
 
-    // 「미완료만」: 배정된 시트가 없으므로 내 할 일은 없고, 전체 보기에서는 참가자가 보인다.
+    // 원평가자 배정과 무관하게 공통 미완료 작업을 표시한다.
     await openMenu(prof, '독립 채점');
     const rows = prof.getByRole('row').filter({ hasText: EVENT });
     await expect(rows).toHaveCount(2);
@@ -64,7 +64,7 @@ test('일반 계정 생성 후 공통 메뉴·진행·접수·촬영·리포트�
     await prof.getByLabel('미완료만', { exact: true }).uncheck();
     await expect(rows).toHaveCount(2);
 
-    // 참가자를 열면 선행 조건이 「운영자에게 요청할 일」로 안내되고, 이동 버튼 등 쓰기 동작은 없다.
+    // 모든 업무 계정은 같은 선행 작업 안내와 이동 버튼을 사용한다.
     await prof.getByRole('button', { name: 'P1 독립 채점 열기', exact: true }).click();
     const check = prof.getByRole('region', { name: '선행 조건', exact: true });
     await expect(check.getByRole('heading', { name: '채점을 시작하려면', exact: true })).toBeVisible();
