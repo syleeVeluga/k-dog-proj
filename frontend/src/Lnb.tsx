@@ -32,7 +32,15 @@ export function Lnb({ role, current, go, visible, drawer, close }: Props) {
   useEffect(() => {
     if (!modal) return;
     root.current?.querySelector<HTMLButtonElement>('button.lnb-item')?.focus();
-    const key = (event: KeyboardEvent) => { if (event.key === 'Escape') close(); };
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+      if (event.key !== 'Tab') return;
+      const buttons = root.current?.querySelectorAll<HTMLButtonElement>('button');
+      if (!buttons?.length) return;
+      const first = buttons[0], last = buttons[buttons.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', key);

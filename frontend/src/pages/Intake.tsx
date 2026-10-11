@@ -8,7 +8,7 @@ import { CaseDetail } from './CaseDetail';
 import { CaseFilters, matchesCase } from '../CaseFilters';
 import type { CaseFilterProps } from '../CaseFilters';
 import type { Route } from '../navigation';
-import { videoCounts } from '../progressText';
+import { currentProgress, videoCounts } from '../progressText';
 import { SURVEY_TOTAL, segmentState, sessionOf, surveyHandled } from '../types';
 import type { Case, Run, User } from '../types';
 
@@ -92,13 +92,13 @@ export function Intake({ user, cases, selected, writable, busy, run, reload, sel
       <button onClick={() => void run(() => reload())}>새로고침</button></div>
     <p className="fine" role="status">{status} · 표시 {visible.length}명</p>
     <div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자 / 행사</th><th>반려견 / 보호자</th><th>동의</th><th>설문</th><th>영상</th><th>구간</th><th>자료</th></tr></thead>
-      <tbody>{visible.map(c => { const s = sessionOf(c); const count = surveyHandled(s);
+      <tbody>{visible.map(c => { const s = sessionOf(c); const count = surveyHandled(s); const progress = currentProgress(c);
         return <tr key={c.case_id} className="clickable" onClick={() => open(c)}><td data-label="순번"><strong className="mono">{c.sequence_no ?? '—'}</strong></td>
           <td data-label="참가자 / 행사"><strong className="mono">{c.participant_id}</strong><small>{c.event_id}</small></td>
           <td data-label="반려견 / 보호자">{c.dog_name}<small>{c.guardian_name ? `${c.guardian_name} 님` : '보호자명 없음'}{c.dog.breed ? ` · ${c.dog.breed}` : ''}</small></td>
           <td data-label="동의"><span className={c.consent_confirmed ? 'tag green' : 'tag'}>{c.consent_confirmed ? '확인' : '미확인'}</span></td>
           <td data-label="설문"><span className={count === SURVEY_TOTAL ? 'tag green' : 'tag'}>{count}/{SURVEY_TOTAL}</span>{s.survey_version === 'survey-20260929-v3' && <small>빈칸 사유 {Object.keys(s.survey_blank_reasons ?? {}).length}개 · 완료 기준 미확정</small>}</td><td data-label="영상">{videoCounts(c)}</td>
-          <td data-label="구간">{({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(s)]}{c.scoring_status === 'reanalysis_required' && <small>채점 전</small>}</td>
+          <td data-label="구간">{({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(s)]}{progress && <small>{progress.scoring === 'done' ? '채점 제출 완료' : progress.scoring === 'partial' ? '채점 진행 중' : '채점 전'}</small>}</td>
           <td data-label="자료"><button aria-label={`${c.participant_id} 상세 열기`} onClick={e => { e.stopPropagation(); open(c); }}>열기</button></td></tr>;
       })}</tbody></table>{!visible.length && <div className="empty"><h2>{cases.length ? '조건에 맞는 참가자가 없습니다.' : '첫 참가자를 등록하세요.'}</h2><p>행사와 참가자 ID를 먼저 확인한 뒤 자료를 연결합니다.</p></div>}</div>
     {writable && <div className="panel toolbar"><p>CSV·Excel 파일로 참가자와 설문을 한꺼번에 등록할 수 있습니다.</p><button onClick={() => goTo('intake/upload')}>일괄 등록으로 이동</button></div>}

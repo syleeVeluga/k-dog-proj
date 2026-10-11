@@ -34,7 +34,7 @@ async function fixture(request: APIRequestContext, participant: string) {
   return { item, base, final: await final.json(), sheet: submitted, observations };
 }
 
-test('S17 합성 확인만으로 범위를 검증하며 명시 외부 비교의 HTML/PDF·연구 출력을 철회한다', async ({ page, request, browser }, info) => {
+test('S17 합성 확인만으로 범위를 검증하며 명시 외부 비교의 HTML/PDF·연구 출력을 철회한다', async ({ page, request, browser, baseURL }, info) => {
   test.setTimeout(180000); page.setDefaultTimeout(15000);
   const data = await fixture(request, 'external-only-synthetic');
   const prior = await fixture(request, 'external-blocked-prior');
@@ -177,7 +177,7 @@ with store.connect() as db:
     const rendered = await operator.context().newPage();
     try {
       const externalRequests: string[] = [];
-      rendered.on('request', value => { if (/^https?:/.test(value.url()) && !value.url().startsWith('http://127.0.0.1:8765/')) externalRequests.push(value.url()); });
+      rendered.on('request', value => { if (/^https?:/.test(value.url()) && !value.url().startsWith(new URL(baseURL!).origin + '/')) externalRequests.push(value.url()); });
       await rendered.setViewportSize({ width: 360, height: 800 });
       await rendered.goto(htmlPath + '?inline=true'); await rendered.evaluate(() => document.fonts.ready);
       await expect(rendered.locator('main > section')).toHaveCount(6);
