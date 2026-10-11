@@ -58,6 +58,16 @@ test('S14 reference workbook preserves raw cells, formulas, unknown identity and
   expect(requests).toHaveLength(2); expect(requests[0].config.request_id).toBe(requests[1].config.request_id);
   const list = await (await page.request.get('/api/validation-data-s1')).json(); expect(list.filter((row: any) => row.filename === 'synthetic-reference.xlsx')).toHaveLength(1);
   const detail = await (await page.request.get(`/api/validation-data-s1/${list.find((row: any) => row.filename === 'synthetic-reference.xlsx').reference.validation_id}`)).json(); expect(detail.document.source.hash).toBe(preview.source_sha256);
+  await panel.getByRole('button', { name: /^참고 기록 열기 / }).click();
+  const opened = panel.getByRole('region', { name: '보존한 검수 참고 기록', exact: true });
+  await expect(opened).toContainText('reference-only · 동명이견 · 1차 촬영');
+  const visibleRecord = await opened.innerText();
+  expect(visibleRecord).not.toContain(item.case_id);
+  expect(visibleRecord).not.toContain(item.selected_session_id);
+  expect(visibleRecord).not.toContain(detail.document.source.hash);
+  await opened.getByText('연결 기술 정보', { exact: true }).click();
+  await expect(opened).toContainText(item.selected_session_id);
+  await opened.getByText('연결 기술 정보', { exact: true }).click();
   expect((await page.request.get(`/api/cases/${item.case_id}/sessions/${item.selected_session_id}/sheets-s1`)).status()).toBe(403);
   expect((await (await page.request.get(`/api/cases/${item.case_id}`)).json()).input_revision).toBe(item.input_revision);
   await page.setViewportSize({ width: 360, height: 800 }); await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); await panel.screenshot({ path: info.outputPath('validation-s1-360.png') });

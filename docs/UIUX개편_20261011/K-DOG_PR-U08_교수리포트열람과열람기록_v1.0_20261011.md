@@ -110,3 +110,14 @@ U06에서 교수/검토자(`reviewer`)에게 리포트 「조회만」 여는 �
 | 9 | 낮음 | 교수가 채점 중 차단을 알 수 없음 | 수용 | 리포트 화면에 교수용 안내 문구 |
 
 재검증: backend 전체 690개 통과(skip 2), `npm run build` 통과, e2e 전체 105개 통과(PowerShell), `git diff --check`·`graft build` → `graft check` OK.
+
+### 2026-10-11 main 병합 충돌 해결
+
+- 사용자 지시에 따라 PR #71 → #73 순서로 병합한다. U08에 `origin/main`의 `ba0874f`를 병합했다.
+- 유일한 수동 충돌은 `ReportRunsV4.tsx` 미리보기 iframe이다. main의 제목 「관찰 리포트 미리보기」와 U08의 `onLoad` 열람 기록 갱신을 함께 보존했다. 자동 병합된 시험은 main의 UUID 숨김·설문 집계 확인과 U08의 교수 리포트·기록 확인을 함께 유지한다.
+- 병합 diff 추가 cold review: 화면 제목·미리보기 로드·manifest 명시 열기/저장·반복 조회 미기록·교수 생성/열람 경계 및 API 의존성을 재검토했다. 기존 독립 리뷰의 수용 수정이 보존되며 추가 수정 사항은 없다. 이번 추가 검토는 병합 담당자의 재검토로, 기존 독립 리뷰와 구분한다.
+- 관련 backend 회귀: `uv run --locked python -X utf8 -m unittest tests.test_report_runs_v4 tests.test_comparisons_v4 tests.test_comparisons_api_v4 -v` 46개 통과(88.561초). 이번 병합으로 backend 코드는 바뀌지 않아 이전 전체 690개 검증에 관련 회귀를 추가했다.
+- `npm run build` 통과. 기존 번들 크기 경고는 유지되며 이번 변경 범위에서 분할하지 않는다.
+- 전체 브라우저 회귀 `npm run test:e2e -- --reporter=dot`: 105개 통과(5.3분). `git diff --check`·`git diff --cached --check` 통과, 충돌 인덱스 항목 없음. 브랜치 변경으로 stale이던 Graft는 `graft build` 후 `graft check` OK.
+- 2026-10-11 공식 npm 레지스트리 최신 안정 버전 확인: React 19.3.0, Vite 8.3.4, Playwright 1.64.0, TypeScript 7.0.2. 선택은 기존 lock의 React 19.2.8, Vite 8.2.2, Playwright 1.63.0, TypeScript 7.0.2다. 브랜치 통합 회귀를 기존 환경에서 검증하기 위해 관련 없는 의존성 갱신은 하지 않았다. Node 24.13.0은 확인된 각 엔진 조건을 만족한다.
+  출처: [React registry](https://registry.npmjs.org/react/latest), [Vite registry](https://registry.npmjs.org/vite/latest), [Playwright registry](https://registry.npmjs.org/@playwright/test/latest), [TypeScript registry](https://registry.npmjs.org/typescript/latest), [Vite 실행 조건](https://vite.dev/guide/), [Playwright 시험 CLI](https://playwright.dev/docs/test-cli).

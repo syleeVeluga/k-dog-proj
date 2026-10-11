@@ -56,3 +56,11 @@
   | 6 | 정보 | 접근성 이름 검사가 `S1.1`도 잡고 범위가 `main` aria-label·title뿐 | 기록만 | 의도된 동작으로 「범위와 결정」에 적음 |
 
 - 계획과 다른 점: 없음. 남은 후속: AI 설정 화면 안내의 「S16」(`AiSettingsV4.tsx` 50행) 등 문구 점검이 열지 않는 화면의 개발 코드.
+
+### 2026-10-11 U08 병합 후 main 통합
+
+- 사용자 지정 순서에 따라 PR #71을 먼저 병합한 `origin/main / 7ee28f1`을 U09에 병합했다.
+- 앱 코드는 자동 병합됐다. 수동 충돌은 `report-v4.spec.ts`의 합성 실행 ID 한 줄이다. 최신 발급 ID는 main의 `'a1'.repeat(16)`을 유지하고 이전 발급 ID는 `'b2'.repeat(16)`으로 했다. main의 실제 UUID 형태 숨김 시험과 U09의 앞 8자리 실행 카드 이름 구분 시험을 함께 보존한다. 앞선 「issued-synthetic-run / previous-synthetic-run」은 당시 검증 이력이며 이번 통합 fixture로 대체한다.
+- 추가 cold review는 병합 담당자의 재검토다. 기존 cold review 수용 수정과 함께, 자동 병합된 메뉴·문구·CSS 선택자·리포트 열람 기록 갱신을 확인했다. 접근성 이름/title에 단독 `S1`이 남지 않음을 Graft 전체 검색으로 확인했고, API/저장 값/backend의 main 대비 변경은 없다. 추가 제품 수정 사항은 발견하지 않았다.
+- `npm run build` 통과. 라이브러리 최신 안정 버전·선택 버전·Node 호환 확인은 같은 실행 환경에서 수행한 [U08 main 병합 기록](K-DOG_PR-U08_교수리포트열람과열람기록_v1.0_20261011.md#2026-10-11-main-병합-충돌-해결)을 따른다. 의존성은 갱신하지 않았다.
+- 전체 브라우저 회귀 `npm run test:e2e -- --reporter=dot`: 109개 통과(5.3분). 690·800·1000·1023px 집계·가로 넘침, 접근성 이름 점검, UUID 숨김 및 리포트·교수 흐름을 포함한다. `git diff --check`·`git diff --cached --check`, `graft build` → `graft check` 통과, 미해결 충돌 없음. main 대비 backend 변경이 없어 U08에서 완료한 backend 회귀를 다시 실행하지 않았다.

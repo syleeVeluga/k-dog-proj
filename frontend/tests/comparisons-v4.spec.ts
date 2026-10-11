@@ -69,7 +69,12 @@ test('S1 cohort drafts retain stale pins until explicit replacement and reports 
   const report = page.getByRole('region', { name: '리포트 실행', exact: true });
   await report.getByLabel('리포트에 고정할 최종본', { exact: true }).selectOption(final.final_id); await expect(report.getByLabel('리포트 자체 비교집단', { exact: true })).toHaveValue('');
   await report.getByRole('button', { name: '선택한 최종본으로 리포트 생성', exact: true }).click(); await expect.poll(() => starts.length).toBe(1); expect(starts[0].comparison).toBeNull();
-  await report.getByLabel('리포트 자체 비교집단', { exact: true }).selectOption(saved.reference.snapshot_id); await report.getByRole('button', { name: '선택한 최종본으로 리포트 생성', exact: true }).click(); await expect.poll(() => starts.length).toBe(2); expect(starts[1].comparison).toEqual(saved.reference);
+  await report.getByLabel('리포트 자체 비교집단', { exact: true }).selectOption(saved.reference.snapshot_id);
+  const displayed = await report.innerText();
+  expect(displayed).toContain('판본 충돌 합성 집단');
+  expect(displayed).not.toContain(saved.reference.snapshot_id);
+  expect(displayed).not.toContain(saved.reference.hash);
+  await report.getByRole('button', { name: '선택한 최종본으로 리포트 생성', exact: true }).click(); await expect.poll(() => starts.length).toBe(2); expect(starts[1].comparison).toEqual(saved.reference);
   expect(current.input_revision).toBe(data.item.input_revision + 1);
   const added = await page.request.post(`/api/cases/${data.item.case_id}/sessions`, { headers, data: { expected_revision: current.input_revision, note: '비교 후 추가 회차' } }); expect(added.status()).toBe(200); const next = await added.json();
   await page.getByRole('button', { name: '현재 접수 입력 새로고침', exact: true }).click(); await expect(page.getByLabel('리포트 회차', { exact: true })).toHaveValue(next.selected_session_id);

@@ -68,7 +68,7 @@ test('S1 report publication UI opens guarded cards and offline HTML, marks histo
   const previewDir = testInfo.outputPath('rendered');
   execFileSync('uv', ['run', '--locked', 'python', '-X', 'utf8', '-m', 'tests.build_report_preview_v4', '--output', previewDir], { cwd: path.resolve('../backend') });
   const html = readFileSync(path.join(previewDir, 'filled.html'), 'utf8');
-  const runId = 'issued-synthetic-run', oldId = 'previous-synthetic-run';
+  const runId = 'a1'.repeat(16), oldId = 'b2'.repeat(16);
   const row = { run_id: runId, case_id: data.item.case_id, session_id: data.item.selected_session_id, kind: 'report_v4', input_revision: data.item.input_revision, status: 'succeeded', updated_at: '2026-10-04T01:00:00Z', outdated: false, result_available: true, is_latest_issued: true, publication_state: 'issued', normal_publish_available: true, pending_reasons: ['G02'], final: data.final.reference, steps: [{ stage: 'content_v4', attempt: 1, status: 'succeeded', code: null, timing: { total_seconds: 0.25 }, reused: true, provider_calls: 0 }] };
   const manifest = { artifact_kind: 'report-publication', report_id: 'synthetic-publication', run_id: runId, case_id: data.item.case_id, session_id: data.item.selected_session_id, input_revision: data.item.input_revision, input_hash: '1'.repeat(64), config_hash: '2'.repeat(64), final: data.final.reference, created_at: row.updated_at, publication_state: 'issued', normal_publish_available: true, pending_reasons: ['G02'], header: { dog_name: '합성 발급견', guardian_name: '합성 보호자', event_name: 'S1', participant_id: 'print', generated_at: row.updated_at }, profile: { status: 'partial', source_hash: '3'.repeat(64), cards: ['보호자 교육태도', '반려견과 보호자의 애착관계', '사회성', '함께걷기'].map((title, index) => ({ key: String(index), title, status: 'insufficient', label: null, claims: [{ claim_id: String(index), text: '확인된 관찰이 부족합니다.', fact_ids: [] }] })), validation_issues: [] }, output: { html: { ref: 'synthetic.html', hash: '4'.repeat(64) }, pdf: { ref: 'synthetic.pdf', hash: '5'.repeat(64) }, image_issues: {} } };
   row.pending_reasons = [];
@@ -96,6 +96,10 @@ test('S1 report publication UI opens guarded cards and offline HTML, marks histo
   await expect(current).toContainText('비용 미확인');
   await current.getByRole('button', { name: '발급 요약·HTML·PDF 열기', exact: true }).click();
   const output = panel.getByRole('region', { name: '권한 확인된 리포트 발급본', exact: true }); await expect(output.getByRole('heading', { name: '합성 발급견 · 발급 결과', exact: true })).toBeVisible();
+  expect(await output.innerText()).not.toContain(runId);
+  await output.getByText('기술 정보', { exact: true }).click();
+  await expect(output).toContainText(runId);
+  await output.getByText('기술 정보', { exact: true }).click();
   await expect(output.getByRole('heading', { level: 4 })).toHaveCount(4);
   await expect(page.frameLocator('iframe[title="관찰 리포트 미리보기"]').locator('.sheet')).toHaveCount(6);
   const download = page.waitForEvent('download'); await output.getByRole('button', { name: 'PDF 저장', exact: true }).click(); const downloaded = await download; await downloaded.saveAs(testInfo.outputPath('downloaded.pdf')); expect(downloaded.suggestedFilename()).toBe(`kdog-s1-${runId}.pdf`); expect(readFileSync(testInfo.outputPath('downloaded.pdf'), 'utf8')).toContain('Synthetic UI download fixture');

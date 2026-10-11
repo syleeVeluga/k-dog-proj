@@ -8,10 +8,11 @@ const EVENT = 'U07-FIELD';
 const csvFile = (name: string, text: string) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(text) });
 
 // 합성 현장 리허설: 행사 스태프의 하루 흐름. 합성 바이트 파일만 쓰고 이 앱 서버 밖으로는 요청하지 않는다.
-test('행사 스태프: 명단 양식 → 10명 일괄 등록 → 현장 1명 접수 → 설문 파일(갱신 확인·오류 1행 제외) → 원본1~3 연결 → 촬영 기록', async ({ page }) => {
+test('행사 스태프: 명단 양식 → 10명 일괄 등록 → 현장 1명 접수 → 설문 파일(갱신 확인·오류 1행 제외) → 원본1~3 연결 → 촬영 기록', async ({ page, baseURL }) => {
   test.setTimeout(120000);
   const outside: string[] = [];
-  page.on('request', value => { if (!value.url().startsWith('http://127.0.0.1:8765/') && !value.url().startsWith('data:') && !value.url().startsWith('blob:')) outside.push(value.url()); });
+  const origin = new URL(baseURL!).origin + '/';
+  page.on('request', value => { if (!value.url().startsWith(origin) && !value.url().startsWith('data:') && !value.url().startsWith('blob:')) outside.push(value.url()); });
   await page.goto('/');
   await page.getByLabel('계정', { exact: true }).fill('operator');
   await page.getByLabel('비밀번호', { exact: true }).fill(password);

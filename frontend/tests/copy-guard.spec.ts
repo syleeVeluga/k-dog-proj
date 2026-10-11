@@ -7,7 +7,7 @@ const headers = { 'X-KDOG-Request': '1' };
 
 // 운영자·교수 화면에 개발 진행 코드와 내부 식별자가 기본으로 노출되지 않는지 점검한다. 닫힌 「기술 정보」 접기는 보이는 텍스트가 아니므로 제외된다.
 const DEV_CODES = /\bS1(?![-\w])|S1\.1|\bS16\b|\bS17\b|\bG0[1-5]\b|\bD0[1-6]\b|공급자 호출|교수 테스트|확인 대기입니다/;
-const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+const UUID = /\b(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/;
 const HASH = /\b[0-9a-f]{64}\b/;
 
 async function login(page: Page, username: string) {
@@ -43,8 +43,15 @@ async function walk(page: Page, labels: string[]) {
 test.describe('화면 문구 점검', () => {
   test.beforeAll(async ({ request }) => {
     await request.post('/api/auth/login', { headers, data: { username: 'operator', password } });
-    for (const [id, sequence] of [['CG1', 1], ['CG2', 2]] as const)
-      expect((await request.post('/api/cases', { headers, data: { event_id: 'U07-GUARD', participant_id: id, dog_name: `문구견${id}`, sequence_no: sequence } })).status()).toBe(201);
+    for (const [id, sequence] of [['CG1', 1], ['CG2', 2]] as const) {
+      const created = await request.post('/api/cases', { headers, data: { event_id: 'U07-GUARD', participant_id: id, dog_name: `문구견${id}`, sequence_no: sequence, consents: { analysis_feedback: 'confirmed' } } });
+      expect(created.status()).toBe(201);
+      const item = await created.json();
+      expect((await request.put(`/api/cases/${item.case_id}/survey`, { headers, data: {
+        expected_revision: item.input_revision, session_id: item.selected_session_id, survey_version: 'survey-20260929-v3',
+        answers: Object.fromEntries(Array.from({ length: 28 }, (_, index) => [`s${String(index + 1).padStart(2, '0')}`, 3])),
+      } })).status()).toBe(200);
+    }
   });
   test.afterAll(async ({ request }) => {
     await request.post('/api/auth/login', { headers, data: { username: 'operator', password } });
