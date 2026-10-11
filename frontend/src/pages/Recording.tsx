@@ -5,9 +5,9 @@ import { UploadInbox } from '../UploadInbox';
 import { CaseFilters, matchesCase } from '../CaseFilters';
 import type { CaseFilterProps } from '../CaseFilters';
 import { segmentState, sessionOf } from '../types';
-import type { Case, Run } from '../types';
+import type { Case, Run, User } from '../types';
 
-type Props = { view: 'inbox' | 'record'; cases: Case[]; selected: Case | null; select: (item: Case | null) => void; filters: CaseFilterProps; writable: boolean; run: Run; reload: (id?: string) => Promise<void>; notify: (message: string) => void };
+type Props = { view: 'inbox' | 'record'; user: User; cases: Case[]; selected: Case | null; select: (item: Case | null) => void; filters: CaseFilterProps; writable: boolean; run: Run; reload: (id?: string) => Promise<void>; notify: (message: string) => void };
 
 export function toClock(seconds: number) {
   const rounded = Math.round(seconds * 10) / 10;  // round first so 59.96 becomes 1:00.0, never 0:60.0
@@ -21,12 +21,12 @@ export function fromClock(text: string): number | null {
 }
 
 // 촬영 메뉴: 영상 수신·연결(inbox)과 실제 8구간·사건·관찰창 기록(record)을 하위 메뉴로 나눈다.
-export function Recording({ view, cases, selected, select, filters, writable, run, reload, notify }: Props) {
+export function Recording({ view, user, cases, selected, select, filters, writable, run, reload, notify }: Props) {
   const sorted = cases.filter(c => matchesCase(c, filters.search, filters.eventFilter)).sort((a, b) => (a.sequence_no ?? 1e9) - (b.sequence_no ?? 1e9) || a.participant_id.localeCompare(b.participant_id));
   const confirmed = cases.filter(c => segmentState(sessionOf(c)) === 'confirmed').length;
   if (view === 'inbox') return <>
     <section className="page-heading"><div><p className="eyebrow">RECORDING</p><h1>영상 수신·연결</h1><p className="muted">현장 PC가 보낸 영상 파일을 참가자·회차·카메라에 연결합니다.</p></div></section>
-    {writable && <UploadInbox cases={cases} selected={selected} run={run} refresh={async message => { await reload(); if (message) notify(message); }} />}
+    {writable && <UploadInbox cases={cases} selected={selected} user={user} run={run} refresh={async message => { await reload(); if (message) notify(message); }} />}
   </>;
   return <>
     <section className="page-heading"><div><p className="eyebrow">RECORDING</p><h1>촬영</h1><p className="muted">영상 파일을 등록하고 8구간의 시작·끝 시각을 기록합니다. 구간 경계는 마이크 음성과 진행자 신호로 잡습니다. 확정 전에는 채점을 시작하지 않습니다.</p></div>
@@ -40,10 +40,10 @@ export function Recording({ view, cases, selected, select, filters, writable, ru
           <td data-label="구간"><span className={state === 'confirmed' ? 'tag green' : 'tag'}>{({ none: '없음', draft: '초안', confirmed: '확정' })[state]}</span></td>
           <td data-label="작업"><button aria-label={`${c.participant_id} 촬영 열기`} onClick={() => { if (mayLeave()) select(c); }}>열기 ↗</button></td></tr>;
       })}</tbody></table>{!sorted.length && <div className="empty"><h2>표시할 참가자가 없습니다.</h2><p>검색·행사 필터 또는 접수 등록을 확인하세요.</p></div>}</div></>}
-    {selected && <PreservedMediaRegistration item={selected} writable={writable} run={run}
-      refresh={async message => { await reload(); if (message) notify(message); }} />}
     {selected && <RecordingPanelV4 key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run}
       refresh={async message => { await reload(); if (message) notify(message); }} close={() => { if (mayLeave()) select(null); }} />}
+    {selected && <PreservedMediaRegistration item={selected} writable={writable} run={run}
+      refresh={async message => { await reload(); if (message) notify(message); }} />}
 
   </>;
 }

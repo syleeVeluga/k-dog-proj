@@ -87,10 +87,12 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
   await page.getByRole('button', { name: '파일 수신 시작·재시도', exact: true }).click();
   for (const index of [1, 2]) {
     const receipt = page.getByRole('article', { name: `수신물 synthetic-file-${index}.mp4`, exact: true });
-    await expect(receipt.getByText('수신 완료 · 연결 대기', { exact: true })).toBeVisible();
+    await expect(receipt.getByText('수신 완료', { exact: true })).toBeVisible();
     await receipt.getByLabel('카메라 ID', { exact: true }).fill(`CAM${index}`);
-    await receipt.getByRole('button', { name: '대상 연결·충돌 재시도', exact: true }).click();
-    await expect(receipt.getByText('대상 연결 완료', { exact: true })).toBeVisible();
+    await receipt.getByRole('button', { name: '연결', exact: true }).click();
+    const linkedSection = page.locator('details').filter({ has: page.getByText(/^연결 완료한 파일/) }).last();
+    if (await linkedSection.getAttribute('open') === null) await linkedSection.getByText(/^연결 완료한 파일/).click();
+    await expect(receipt.getByText('연결됨 · 영상 읽기 확인 대기', { exact: true })).toBeVisible();
   }
   await openMenu(page, '촬영 기록 (8구간)');
   await expect(page.getByRole('combobox', { name: '기준 영상', exact: true }).locator('option')).toHaveCount(3);
@@ -130,7 +132,8 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
   await openMenu(page, '촬영 기록 (8구간)');
   await page.getByRole('button', { name: '0001 촬영 열기' }).click();
   await openMenu(page, '영상 수신·연결');
-  await expect(page.getByRole('article', { name: '수신물 synthetic-file-2.mp4', exact: true }).getByText('대상 연결 완료', { exact: true })).toBeVisible();
+  await page.getByText(/^연결 완료한 파일/).click();
+  await expect(page.getByRole('article', { name: '수신물 synthetic-file-2.mp4', exact: true }).getByText('연결됨 · 영상 읽기 확인 대기', { exact: true })).toBeVisible();
   await openMenu(page, '촬영 기록 (8구간)');
   await page.getByText('재촬영 세션 추가', { exact: true }).click();
   await page.getByRole('button', { name: '새 촬영 시작' }).click();

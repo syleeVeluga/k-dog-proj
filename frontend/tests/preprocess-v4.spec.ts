@@ -130,6 +130,14 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   await expect(panel.getByRole('combobox', { name: '대표 오디오 선택', exact: true })).toBeDisabled();
   const denied = await page.request.post(endpoint, { headers, data: { request_id: 'reviewer-denied', expected_revision: completed.input_revision } });
   expect(denied.status()).toBe(403);
+  // 촬영 기록 화면의 「사용 가능」은 전처리 결과에서 실제 클립(완성·일부)이 만들어진 영상만 센다.
+  const made = new Set((completed.clips as { video_id: string; status: string }[]).filter(clip => ['complete', 'partial'].includes(clip.status)).map(clip => clip.video_id)).size;
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openMenu(page, '촬영 기록 (8구간)');
+  // 선택한 참가자가 유지되므로 촬영 기록 패널이 바로 열린다.
+  await expect(page.getByRole('region', { name: 'S1 촬영 기록', exact: true })
+    .getByText(`1차 촬영 · 연결된 영상 3개 · 사용 가능 ${made} · 영상 읽기 확인 대기 ${3 - made}`, { exact: false })).toBeVisible();
+  expect(made).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });
 
