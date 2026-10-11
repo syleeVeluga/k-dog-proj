@@ -173,7 +173,7 @@ with store.connect() as db:
     const htmlPath = `${data.base}/report-runs-s1/${job.run_id}/files/html`;
     const html = await operator.request.get(htmlPath); expect(html.status()).toBe(200); expect(await html.text()).toContain('외부 유효 표본');
     const pdf = await operator.request.get(htmlPath.replace(/html$/, 'pdf')); expect(pdf.status()).toBe(200); expect((await pdf.body()).subarray(0, 5).toString()).toBe('%PDF-');
-    await expect(operator.frameLocator('iframe[title="S1 관찰 리포트 미리보기"]').getByText('본인 설문 평균 0', { exact: false })).toBeVisible();
+    await expect(operator.frameLocator('iframe[title="관찰 리포트 미리보기"]').getByText('본인 설문 평균 0', { exact: false })).toBeVisible();
     const rendered = await operator.context().newPage();
     try {
       const externalRequests: string[] = [];
