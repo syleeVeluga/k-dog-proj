@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { openMenu } from './menu';
 
 test('S1 파일 묶음의 부분 실패·응답 유실 재시도는 완료 수신물을 다시 전송하지 않는다', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('계정', { exact: true }).fill('operator');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page.getByRole('button', { name: '촬영', exact: true }).click();
+  await openMenu(page, '영상 수신·연결');
   const inbox = page.getByRole('region', { name: 'S1 영상 수신 보관함', exact: true });
   const names = ['partial-ok.mp4', 'partial-retry.mp4', 'partial-response-lost.mp4'];
   const transmissions: Record<string, number> = {};
@@ -34,7 +35,7 @@ test('S1 파일 묶음의 부분 실패·응답 유실 재시도는 완료 수�
   expect(retried.every((value: { state: string }) => value.state === 'complete')).toBe(true);
   expect(retried.map((value: { upload_id: string }) => value.upload_id).sort()).toEqual(received.map((value: { upload_id: string }) => value.upload_id).sort());
   await page.reload();
-  await page.getByRole('button', { name: '촬영', exact: true }).click();
+  await openMenu(page, '영상 수신·연결');
   for (const name of names) await expect(inbox.getByRole('article', { name: `수신물 ${name}`, exact: true }).getByText('수신 완료 · 연결 대기', { exact: true })).toBeVisible();
 });
 
@@ -65,7 +66,7 @@ test('세 브라우저 수신·연결 충돌·재접속은 파일 재전송 없�
       await client.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
       await client.getByRole('button', { name: '로그인', exact: true }).click();
       await expect(client.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
-      await client.getByRole('button', { name: '촬영', exact: true }).click();
+      await openMenu(client, '영상 수신·연결');
       await client.getByLabel('수신 파일', { exact: true }).setInputFiles({ name: `three-browser-cam${i + 1}.mp4`, mimeType: 'video/mp4', buffer: Buffer.from(`synthetic video camera ${i + 1}`) });
       await client.getByRole('button', { name: '파일 수신 시작·재시도', exact: true }).click();
       const card = client.getByRole('article', { name: `수신물 three-browser-cam${i + 1}.mp4`, exact: true });
@@ -101,7 +102,7 @@ test('세 브라우저 수신·연결 충돌·재접속은 파일 재전송 없�
     expect(videos).toHaveLength(3);
     expect(Object.fromEntries(videos.map((video: { camera_id: string; source_original_number: string }) => [video.camera_id, video.source_original_number]))).toEqual({ CAM1: '1', CAM2: '3', CAM3: '2' });
     await pages[0].reload();
-    await pages[0].getByRole('button', { name: '촬영', exact: true }).click();
+    await openMenu(pages[0], '영상 수신·연결');
     for (let i = 0; i < 3; i++) await expect(pages[0].getByRole('article', { name: `수신물 three-browser-cam${i + 1}.mp4`, exact: true }).getByText('대상 연결 완료', { exact: true })).toBeVisible();
     expect(transmissions).toBe(3);
     await pages[0].getByLabel('수신 파일', { exact: true }).setInputFiles({ name: 'synthetic-source.insv', mimeType: 'application/octet-stream', buffer: Buffer.from('synthetic INSV storage only') });

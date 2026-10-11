@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { FormsImporter } from '../FormsImporter';
 import type { FormEvent } from 'react';
 import { api } from '../api';
 import { mayLeave, useUnsaved } from '../Editing';
@@ -8,16 +7,17 @@ import { CaseDetail } from './CaseDetail';
 import { CaseFilters, matchesCase } from '../CaseFilters';
 import type { CaseFilterProps } from '../CaseFilters';
 import { SURVEY_TOTAL, protocolName, segmentState, sessionOf, surveyHandled } from '../types';
+import type { Route } from '../navigation';
 import type { Case, Run, User } from '../types';
 
 type Props = {
   user: User; cases: Case[]; selected: Case | null; writable: boolean; run: Run;
   reload: (id?: string) => Promise<void>; select: (item: Case | null) => void; status: string; notify: (message: string) => void;
-  filters: CaseFilterProps;
+  filters: CaseFilterProps; goTo: (route: Route) => void;
 };
 
-// 접수 메뉴: 참가자 등록과 Forms 일괄 등록, 원입력 상세.
-export function Intake({ user, cases, selected, writable, run, reload, select, status, notify, filters }: Props) {
+// 접수 메뉴: 참가자 단건 등록과 원입력 상세. 파일 일괄 등록은 「일괄 등록」 메뉴에서 한다.
+export function Intake({ user, cases, selected, writable, run, reload, select, status, notify, filters, goTo }: Props) {
   const [filter, setFilter] = useState('all');
   const [dirty, setDirty] = useState(false);
   useUnsaved(dirty);
@@ -45,7 +45,7 @@ export function Intake({ user, cases, selected, writable, run, reload, select, s
   }
 
   return <>
-    <section className="page-heading"><div><p className="eyebrow">INTAKE</p><h1>접수</h1><p className="muted">{user.role === 'reviewer' ? '접수된 참가자와 자료 상태를 확인하세요.' : '참가자·반려견 정보를 등록하고 동의와 순번을 확인하세요. 설문은 「자료 가져오기」로 등록합니다.'}</p></div>
+    <section className="page-heading"><div><p className="eyebrow">INTAKE</p><h1>접수</h1><p className="muted">{user.role === 'reviewer' ? '접수된 참가자와 자료 상태를 확인하세요.' : '참가자·반려견 정보를 등록하고 동의와 순번을 확인하세요. 명단·설문 파일은 「일괄 등록」으로 올립니다.'}</p></div>
       <div className="count"><strong>{cases.length.toString().padStart(2, '0')}</strong><span>등록된 참가자</span></div></section>
     <CaseFilters cases={cases} {...filters} /><div className="toolbar">
       <label>자료 상태<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">전체</option><option value="ready">설문·영상 등록됨</option><option value="missing">설문·영상 보완 필요</option><option value="consent_missing">동의 미확인</option><option value="survey_missing">설문 미등록</option><option value="video_missing">영상 없음</option></select></label>
@@ -61,7 +61,7 @@ export function Intake({ user, cases, selected, writable, run, reload, select, s
           <td data-label="구간">{({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(s)]}<small>{protocolName(s)}</small>{c.manifest.schema_version === 'intake-4.0' && <small>S1 재분석 필요</small>}</td>
           <td data-label="자료"><button aria-label={`${c.participant_id} 상세 열기`} onClick={() => { if (mayLeave()) { setDirty(false); void run(async () => select(await api<Case>(`/cases/${c.case_id}`))); } }}>열기 ↗</button></td></tr>;
       })}</tbody></table>{!visible.length && <div className="empty"><h2>{cases.length ? '조건에 맞는 참가자가 없습니다.' : '첫 참가자를 등록하세요.'}</h2><p>행사와 참가자 ID를 먼저 확인한 뒤 자료를 연결합니다.</p></div>}</div>
-    {writable && <details className="panel"><summary>Forms 참가자·설문 함께 등록</summary><FormsImporter cases={cases} run={run} done={async message => { notify(message); await reload(); }} /></details>}
+    {writable && <div className="panel toolbar"><p>CSV·Excel 파일로 참가자와 설문을 한꺼번에 등록할 수 있습니다.</p><button onClick={() => goTo('intake/upload')}>일괄 등록으로 이동</button></div>}
     {writable && <details className="panel" open={!cases.length}><summary>참가자 등록</summary>
       <form onSubmit={register} onChange={() => setDirty(true)}>
         <div className="form-grid"><label>행사 ID<input aria-label="행사 ID" name="event_id" placeholder="KDOG-2026" pattern="[A-Za-z0-9_\-]+" required /><small>필수 · 같은 행사에는 같은 ID. 예: KDOG-2026. 영문·숫자·밑줄·하이픈.</small></label>

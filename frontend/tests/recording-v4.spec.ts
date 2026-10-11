@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 
@@ -17,7 +18,7 @@ test('S1 preserved video registers its camera and source without replacing raw m
   expect(uploaded.status(), await uploaded.text()).toBe(201);
   item = await uploaded.json();
   const original = item.manifest.sessions[0].videos[0];
-  await page.getByRole('button', { name: '촬영', exact: true }).click();
+  await openMenu(page, '촬영 기록 (8구간)');
   await page.getByRole('button', { name: 's1preserved 촬영 열기' }).click();
   const registration = page.getByRole('region', { name: '보존 영상 출처 등록', exact: true });
   await registration.getByLabel('보존 영상 카메라', { exact: true }).fill('CAM2');
@@ -61,7 +62,7 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
   }
   const endpoint = `/api/cases/${item.case_id}/sessions/${item.selected_session_id}/recording-s1`;
   const videos = item.manifest.sessions[0].videos;
-  await page.getByRole('button', { name: '촬영', exact: true }).click();
+  await openMenu(page, '촬영 기록 (8구간)');
   await page.getByRole('button', { name: 's1rec 촬영 열기' }).click();
   const panel = page.getByLabel('S1 촬영 기록', { exact: true });
   await panel.getByRole('combobox', { name: '기준 영상', exact: true }).selectOption(videos[0].video_id);
@@ -184,7 +185,7 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
   await page.getByLabel('계정', { exact: true }).fill('reviewer');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page.getByRole('button', { name: '촬영', exact: true }).click();
+  await openMenu(page, '촬영 기록 (8구간)');
   await page.getByRole('button', { name: 's1rec 촬영 열기' }).click();
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toBeDisabled();
   await expect(panel.getByRole('button', { name: '촬영 기록 확정', exact: true })).toHaveCount(0);

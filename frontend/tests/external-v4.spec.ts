@@ -1,6 +1,7 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
+import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' }, password = 'Browser-test-only-42';
 const sourceId = 'us2026-stranger-fear';
@@ -46,8 +47,7 @@ test('S17 합성 확인만으로 범위를 검증하며 명시 외부 비교의 
   expect(temporaryBackup.status()).toBe(201);
   const dataRoot = path.join(path.dirname(path.dirname((await temporaryBackup.json()).path)), 'data');
   expect(path.basename(path.dirname(dataRoot))).toMatch(/^kdog-browser-/);
-  await page.getByRole('button', { name: '리포트', exact: true }).click();
-  await page.getByText('자체 집단과 외부 비교 조건', { exact: true }).click();
+  await openMenu(page, '비교 조건');
   await page.getByText('외부 비교 연구 확인·활성화 관리', { exact: true }).click();
   const research = page.getByRole('region', { name: '외부 비교 연구 확인', exact: true });
   await research.getByLabel('연구 출처', { exact: true }).selectOption(sourceId);
@@ -56,8 +56,7 @@ test('S17 합성 확인만으로 범위를 검증하며 명시 외부 비교의 
   try {
     const operator = await client.newPage(); operator.setDefaultTimeout(15000); await login(operator, 'operator');
     let inventoryReads = 0; operator.on('request', value => { if (value.url().endsWith('/comparisons-s1/research')) inventoryReads++; });
-    await operator.getByRole('button', { name: '리포트', exact: true }).click();
-    await operator.getByText('자체 집단과 외부 비교 조건', { exact: true }).click();
+    await openMenu(operator, '비교 조건');
     await operator.getByText('외부 비교 연구 확인·활성화 관리', { exact: true }).click();
     await expect(operator.getByText('연구 확인자료 등록과 기술 활성화는 운영 관리자 계정에서 수행합니다.', { exact: true })).toBeVisible();
     expect(inventoryReads).toBe(0);
@@ -113,7 +112,7 @@ test('S17 합성 확인만으로 범위를 검증하며 명시 외부 비교의 
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await research.screenshot({ path: info.outputPath('external-admin-360.png') });
 
-    await operator.getByText('자체 집단과 외부 비교 조건', { exact: true }).click();
+    await openMenu(operator, '리포트 발급');
     await operator.getByRole('button', { name: 'external-only-synthetic 리포트 열기', exact: true }).click();
     const report = operator.getByRole('region', { name: 'S1 리포트 실행', exact: true });
     await report.getByLabel('리포트에 고정할 최종본', { exact: true }).selectOption(data.final.reference.final_id);
@@ -194,7 +193,7 @@ with store.connect() as db:
     await expect.poll(() => operator.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await publication.screenshot({ path: info.outputPath('external-report-360.png') });
 
-    await operator.getByRole('button', { name: '독립 채점', exact: true }).click();
+    await openMenu(operator, '독립 채점');
     const exportHistory = await operator.request.get('/api/exports-s1');
     expect(exportHistory.status(), await exportHistory.text()).toBe(200);
     expect((await exportHistory.json()).find((value: { export_id: string }) => value.export_id === priorExport.export_id)).toMatchObject({ status: 'blocked', reason: expect.any(String) });
@@ -231,7 +230,7 @@ with store.connect() as db:
     await expect(exporter.getByRole('button', { name: `연구 파일 다운로드 ${exportedRow.export_id.slice(0, 8)}`, exact: true })).toHaveCount(0);
     await expect(exporter.getByRole('status').filter({ hasText: '연구 파일 준비 완료' })).toHaveCount(0);
     expect((await operator.request.get(htmlPath)).ok()).toBe(false);
-    await operator.getByRole('button', { name: '리포트', exact: true }).click();
+    await openMenu(operator, '리포트 발급');
     await expect(report.getByText(/외부 비교 제공 차단:/)).toBeVisible();
     await expect(report.getByRole('button', { name: '발급 요약·HTML·PDF 열기', exact: true })).toHaveCount(0);
     await expect(report.getByRole('region', { name: '권한 확인된 리포트 발급본', exact: true })).toHaveCount(0);

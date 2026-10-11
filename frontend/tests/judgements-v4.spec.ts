@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 
@@ -47,7 +48,7 @@ test('S1 basic calculation preserves input, automatic decisions, manual evidence
   const submitted = await page.request.post(sheetPath + '/submit', { headers, data: { expected_revision: summary.revision, reason: '합성 고정 원자료 제출' } });
   expect(submitted.status(), await submitted.text()).toBe(200); summary = await submitted.json();
   const sourceBefore = await (await page.request.get(sheetPath)).json();
-  await page.getByRole('button', { name: '독립 채점', exact: true }).click();
+  await openMenu(page, '독립 채점');
   await page.getByRole('button', { name: 's1judgement 독립 채점 열기', exact: true }).click();
   await page.getByRole('button', { name: '내 시트 열기', exact: true }).click();
   const panel = page.getByRole('region', { name: 'S1 기본 결과', exact: true });

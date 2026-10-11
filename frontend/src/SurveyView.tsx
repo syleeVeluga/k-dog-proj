@@ -1,7 +1,7 @@
 import { SURVEY_TOTAL, surveyDomains, surveyHandled } from './types';
 import type { Catalog, Session } from './types';
 
-// Surveys are registered from CSV/Excel in 자료 가져오기; this panel only shows what was registered.
+// Surveys are registered from CSV/Excel in 일괄 등록; this panel only shows what was registered.
 export function SurveyView({ session, catalog }: { session: Session; catalog: Catalog }) {
   if (session.survey_version !== catalog.version) return <p className="fine">설문 판본: {session.survey_version} · 이 판본의 원응답 화면은 설문 연결 단계에서 제공됩니다.</p>;
   const domains = [...new Set(catalog.items.map(q => q.print_section ?? q.domain ?? ''))];

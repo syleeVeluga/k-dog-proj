@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
-import { FormsImporter } from '../FormsImporter';
 import { SurveyView } from '../SurveyView';
 import { CaseFilters, matchesCase } from '../CaseFilters';
 import type { CaseFilterProps } from '../CaseFilters';
 import { SURVEY_TOTAL, sessionOf, surveyDomains, surveyHandled } from '../types';
-import type { Case, Catalog, Run, SurveyResult, SurveyResultV3, SurveyResultV4 } from '../types';
+import type { Route } from '../navigation';
+import type { Case, Catalog, SurveyResult, SurveyResultV3, SurveyResultV4 } from '../types';
 
-type Props = { cases: Case[]; selected: Case | null; select: (item: Case | null) => void; filters: CaseFilterProps; catalog: Catalog | null; writable: boolean; run: Run; reload: (id?: string) => Promise<void>; notify: (message: string) => void };
+type Props = { cases: Case[]; selected: Case | null; select: (item: Case | null) => void; filters: CaseFilterProps; catalog: Catalog | null; writable: boolean; goTo: (route: Route) => void };
 
 // 원응답과 S1의 확정 집계 정책을 분리해 보여 준다.
-export function Survey({ cases, selected, select, filters, catalog, writable, run, reload, notify }: Props) {
+export function Survey({ cases, selected, select, filters, catalog, writable, goTo }: Props) {
   const [result, setResult] = useState<SurveyResult | SurveyResultV3 | SurveyResultV4 | null>(null);
   const [resultError, setResultError] = useState('');
   const session = selected ? sessionOf(selected) : null;
@@ -27,7 +27,7 @@ export function Survey({ cases, selected, select, filters, catalog, writable, ru
   return <>
     <section className="page-heading"><div><p className="eyebrow">SURVEY</p><h1>설문</h1><p className="muted">보호자 설문 28문항은 CSV·Excel 파일로 등록합니다. 여기서는 등록 현황, 판본별 집계와 빈칸 사유를 확인합니다. 등록 완료·비교 자격의 미확정 기준은 별도로 표시합니다.</p></div>
       <div className="count"><strong>{registered.toString().padStart(2, '0')}</strong><span>모두 응답 / {cases.length}명</span></div></section>
-    {!selected && writable && <details className="panel" open={registered < cases.length}><summary>Forms 참가자·설문 함께 등록</summary><FormsImporter cases={cases} run={run} done={async message => { notify(message); await reload(); }} /></details>}
+    {!selected && writable && <div className="panel toolbar"><p>설문 응답 파일은 「일괄 등록」에서 올립니다.</p><button onClick={() => goTo('intake/upload')}>일괄 등록으로 이동</button></div>}
     {!selected && <><CaseFilters cases={cases} {...filters} /><div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자</th><th>반려견 / 보호자</th><th>설문</th><th>미응답</th><th>해당 없음</th><th>현황</th></tr></thead>
       <tbody>{sorted.map(c => { const s = sessionOf(c); const count = surveyHandled(s); const missing = SURVEY_TOTAL - count;
         return <tr key={c.case_id}><td data-label="순번"><strong className="mono">{c.sequence_no ?? '—'}</strong></td>

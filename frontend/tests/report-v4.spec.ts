@@ -2,6 +2,7 @@ import { test, expect, type APIRequestContext, type Page } from '@playwright/tes
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' }, password = 'Browser-test-only-42';
 async function login(page: Page, username = 'operator') {
@@ -9,7 +10,7 @@ async function login(page: Page, username = 'operator') {
   await page.getByRole('button', { name: '로그인', exact: true }).click(); await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
 }
 async function open(page: Page, participant: string) {
-  await page.getByRole('button', { name: '리포트', exact: true }).click(); await page.getByRole('button', { name: `${participant} 리포트 열기`, exact: true }).click();
+  await openMenu(page, '리포트 발급'); await page.getByRole('button', { name: `${participant} 리포트 열기`, exact: true }).click();
 }
 async function fixture(request: APIRequestContext, participant: string) {
   await request.post('/api/auth/login', { headers, data: { username: 'operator', password } });
@@ -58,7 +59,7 @@ test('S1 report uses explicit final pins, recovers a lost create response and st
   await panel.getByRole('button', { name: '이 리포트 실행 중지', exact: true }).click(); await expect(panel.getByRole('heading', { name: '중지', exact: true })).toBeVisible();
   await panel.getByRole('button', { name: '고정 입력으로 리포트 재시도', exact: true }).click(); await expect(panel.getByRole('heading', { name: '대기', exact: true })).toBeVisible();
   await panel.getByRole('button', { name: '이 리포트 실행 중지', exact: true }).click(); await expect(panel.getByRole('heading', { name: '중지', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '접수', exact: true }).click(); await page.getByRole('button', { name: '리포트', exact: true }).click();
+  await openMenu(page, '참가자 접수'); await openMenu(page, '리포트 발급');
   expect(await (await page.request.get(data.base + '/report-runs-s1')).json()).toHaveLength(1);
 });
 
@@ -128,5 +129,5 @@ test('S1 report final disclosure is explicit and reviewer menu stays unavailable
   await expect(panel.getByRole('button', { name: '선택한 최종본으로 리포트 생성', exact: true })).toBeEnabled();
   const after = await (await page.request.get(sheetPath)).json(); expect(after.document.interpretation_exposures).toHaveLength(1); expect(after.document.initial_submission.revision).toBe(submitted.revision);
   await panel.getByRole('button', { name: '선택한 최종본으로 리포트 생성', exact: true }).click(); await expect(panel.getByRole('heading', { name: '대기', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '로그아웃', exact: true }).click(); await login(page, 'reviewer'); await expect(page.getByRole('button', { name: '리포트', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '로그아웃', exact: true }).click(); await login(page, 'reviewer'); await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '리포트 발급', exact: true })).toHaveCount(0);
 });
