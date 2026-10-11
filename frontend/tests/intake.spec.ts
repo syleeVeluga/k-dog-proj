@@ -153,7 +153,7 @@ test('360px: Forms duplicate row errors, corrected atomic save and detail access
     await form.getByRole('button', { name: 'Forms 등록 미리보기', exact: true }).click();
     if (duplicate) {
       await expect(form.getByRole('heading', { name: '원행 1개 · 오류 1개', exact: true })).toBeVisible();
-      await expect(form.getByRole('button', { name: 'Forms 전체 확정', exact: true })).toBeDisabled();
+      await expect(form.getByRole('button', { name: '정상 1행 등록 · 오류 1행 제외', exact: true })).toBeEnabled();
       expect((await (await page.request.get('/api/cases')).json()).filter((c: { event_id: string }) => c.event_id === 'MOBILE')).toHaveLength(0);
     }
   }

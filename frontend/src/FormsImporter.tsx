@@ -3,11 +3,15 @@ import type { DragEvent } from 'react';
 import { api } from './api';
 import { autoMap, itemLabel, parseLabelLines, parseQuestionRange, profileFields, questionKeys, requiredKeys } from './formsAutoMap';
 import type { AutoMap } from './formsAutoMap';
+import { errorFileName, errorRowsCsv, hasErrorRows } from './formsCsv';
+import { FormsPresets } from './FormsPresets';
+import type { Preset } from './FormsPresets';
 import type { Case, Run } from './types';
 
 type Target = { row_number: number; case_id: string; session_id: string; expected_revision: number };
-type PreviewRow = { row_number: number; action: 'create' | 'update'; case_id: string; session_id: string; event_id: string; participant_id: string; dog_name: string; answers: Record<string, number | null>; previous_answers: Record<string, number | null>; blank_reasons: Record<string, string>; previous_blank_reasons: Record<string, string>; changed_questions: string[]; registration_status: string };
-type Preview = { preview_id: string; preview_hash: string; source_hash: string; already_committed: boolean; rows: PreviewRow[]; errors: { row_number: number | null; message: string }[] };
+type PreviewRow = { row_number: number; action: 'create' | 'update'; matched_by: 'id' | 'explicit' | null; case_id: string; session_id: string; event_id: string; participant_id: string; dog_name: string; answers: Record<string, number | null>; previous_answers: Record<string, number | null>; blank_reasons: Record<string, string>; previous_blank_reasons: Record<string, string>; changed_questions: string[]; registration_status: string };
+type Issue = { row_number: number | null; message: string; raw_values: Record<string, string | number | boolean | null> | null };
+type Preview = { preview_id: string; preview_hash: string; source_hash: string; original_headers: string[]; already_committed: boolean; rows: PreviewRow[]; errors: Issue[] };
 const questions = questionKeys;
 const templates = [['roster', '명단만'], ['full', '명단 + 설문 28문항']] as const;
 const EVENT_KEY = 'kdog.forms.eventId';
@@ -51,8 +55,10 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
   const [commitId, setCommitId] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [confirmUpdates, setConfirmUpdates] = useState(false);
+  const [outcome, setOutcome] = useState<{ registered: number; excluded: number } | null>(null);
 
-  function invalidate() { setResult(null); setRequestId(crypto.randomUUID()); setCommitId(crypto.randomUUID()); }
+  function invalidate() { setResult(null); setConfirmUpdates(false); setOutcome(null); setRequestId(crypto.randomUUID()); setCommitId(crypto.randomUUID()); }
   function clearColumns() { setColumns([]); setMapping({}); setAuto(null); setLabels({}); setTargets([]); setBulkMessage(''); }
   async function work(action: () => Promise<void>) {
     setBusy(true);
@@ -97,7 +103,7 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
     if (!file) return;
     const config = { request_id: requestId, event_id: eventId.trim(), filename: file.name, format: fileFormat(file),
       mapping: { version, source_profile: profile, survey_version: historical ? historicalVersion : 'survey-20260929-v3',
-        sheet: sheet || null, layout, historical_reference_only: historical, columns: mapping, answer_labels: parsedLabels() }, targets };
+        sheet: sheet || null, layout, historical_reference_only: historical, columns: mapping, answer_labels: parsedLabels() }, targets, match_existing_ids: true };
     setResult(await api<Preview>('/forms/preview', 'POST', { config, file_base64: await encodedFile(file) }));
     rememberEvent(eventId.trim());
   }
@@ -114,6 +120,31 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
     setLabels({ ...labels, ...Object.fromEntries(linked.map(q => [q, bulkLabels])) });
     setBulkMessage(`${linked.length}개 문항에 같은 라벨을 적용했습니다. 미리보기에서 결과를 확인하세요.`); invalidate();
   }
+  function currentMapping() {
+    return { columns: mapping, answer_labels: parsedLabels(), layout, source_profile: profile, version };
+  }
+  // 저장한 연결을 자동 연결 위에 덮어쓴다. 파일에 없는 헤더는 연결 안 됨으로 두고 알려 준다.
+  function applyPreset(preset: Preset) {
+    const present = new Set(columns), next = { ...(auto?.mapping ?? {}) }, missing: string[] = [];
+    const claimed = new Set(Object.values(preset.mapping.columns));
+    for (const [key, header] of Object.entries(next)) if (claimed.has(header) && preset.mapping.columns[key] !== header) delete next[key];
+    for (const [key, header] of Object.entries(preset.mapping.columns)) {
+      if (present.has(header)) next[key] = header; else { delete next[key]; missing.push(`${itemLabel(key)}(${header})`); }
+    }
+    const nextLabels: Record<string, string> = {};
+    for (const [question, values] of Object.entries(preset.mapping.answer_labels)) if (next[question])
+      nextLabels[question] = Object.entries(values).map(([label, value]) => `${label}=${value}`).join('\n');
+    setMapping(next); setLabels(nextLabels); setProfile(preset.mapping.source_profile); setVersion(preset.mapping.version); invalidate();
+    const note = preset.mapping.layout !== layout ? ` 이 설정은 ${preset.mapping.layout === 'rows' ? '일반' : '전치'} 배치용입니다. 「고급 설정」에서 배치를 확인하세요.` : '';
+    return `‘${preset.name}’ 연결을 적용했습니다.${missing.length ? ` 파일에 없는 열 ${missing.length}개는 연결 안 됨: ${missing.join(', ')}.` : ''}${note}`;
+  }
+  function downloadErrors() {
+    if (!result) return;
+    const url = URL.createObjectURL(new Blob([errorRowsCsv(result.original_headers, result.errors)], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url; link.download = errorFileName(eventId); link.click();
+    URL.revokeObjectURL(url);
+  }
   function setTarget(index: number, caseId: string) {
     const item = cases.find(c => c.case_id === caseId);
     setTargets(targets.map((target, i) => i !== index ? target : { ...target, case_id: caseId, session_id: item?.selected_session_id ?? '', expected_revision: item?.input_revision ?? 1 })); invalidate();
@@ -124,10 +155,19 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
     }}><option value="">연결 안 함</option>{columns.map(column => <option key={column} value={column}>{column}</option>)}</select></label>;
   }
 
-  const missingRequired = requiredKeys.filter(key => !mapping[key] && !(key === 'dog_name' && targets.length));
+  // 참가자 ID 열이 있으면 이미 접수된 ID의 행은 이름 없이도 기존 참가자로 연결되므로 이름 열을 막지 않는다(새로 만들 행만 서버가 오류로 알린다).
+  const missingRequired = requiredKeys.filter(key => !mapping[key] && !(key === 'dog_name' && (targets.length || mapping.participant_id)));
   const previewBlock = !file ? '파일을 올리세요.' : !columns.length ? '파일의 열을 읽는 중이거나 파일을 확인하세요.'
     : !eventId.trim() ? '행사 ID를 입력하세요.' : missingRequired.length ? `${missingRequired.map(itemLabel).join('·')} 열을 연결하세요.`
     : historical && !historicalVersion ? '고급 설정에서 원문 설문 판본을 입력하세요.' : !version || !profile ? '고급 설정에서 원자료 프로필과 매핑 버전을 입력하세요.' : '';
+  const idRows = result?.rows.filter(row => row.action === 'update' && row.matched_by === 'id') ?? [];
+  const unchanged = idRows.filter(row => !row.changed_questions.length).length;
+  const commitBlock = !result ? '' : !result.rows.length ? '등록할 정상 행이 없습니다. 오류를 고쳐 다시 올리세요.'
+    : idRows.length && !confirmUpdates && !result.already_committed ? '「기존 참가자 갱신 확인」을 체크하세요.' : '';
+  const commitReady = !!result && !!result.rows.length && !commitBlock;
+  const sessionNumber = (row: PreviewRow) => (cases.find(item => item.case_id === row.case_id)?.manifest.sessions.findIndex(item => item.session_id === row.session_id) ?? -1) + 1;
+  const rowLabel = (row: PreviewRow) => row.action === 'create' ? '신규' : row.matched_by === 'id'
+    ? `기존 참가자 갱신 · ${row.participant_id} ${row.dog_name}${sessionNumber(row) ? ` · ${sessionNumber(row)}차 촬영` : ''}${row.changed_questions.length ? '' : ' · 변경 없음'}` : '기존 응답 변경';
   const linkedProfile = profileFields.filter(([key]) => mapping[key]);
   const answerCount = questions.filter(q => mapping[q]).length, reasonCount = questions.filter(q => mapping[`${q}_reason`]).length;
 
@@ -160,11 +200,13 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
       {auto && <p role="status">자동 연결 {Object.keys(auto.mapping).length}개 · 확인 필요 {auto.review.length + auto.conflicts.length}개 · 연결 안 됨 {auto.unmatched.length}개</p>}
       {!!missingRequired.length && <div className="warning" role="alert">{missingRequired.map(key => <div key={key}>
         {columnSelect(key, `필수: ${itemLabel(key)} 열을 고르세요`, `폼 필수 열 ${key}`)}</div>)}</div>}
+      {!mapping.dog_name && !!mapping.participant_id && !targets.length && <p className="warning">반려견 이름 열이 연결되지 않았습니다. 이미 접수된 참가자 ID의 행만 기존 참가자에 연결되고, 그 외 행은 새로 등록할 수 없어 오류로 표시됩니다.</p>}
       {!mapping.participant_id && <p className="warning">참가자 ID 열이 연결되지 않았습니다. 이 파일을 올리면 참가자마다 새 ID를 발급하며, 고친 파일을 다시 올리면 같은 사람이 중복 등록됩니다. ID 열이 있다면 「모든 연결 보기」에서 연결하세요.</p>}
       {layout !== 'rows' && <p className="warning">전치 파일(첫 열이 항목)로 읽는 중입니다. 일반 파일이면 「고급 설정」에서 파일 배치를 바꾸세요.</p>}
       {!!auto?.review.length && <ul className="warning">{auto.review.map(item => <li key={item.column}>‘{item.column}’ 열은 {item.keys.map(itemLabel).join('·')} 중 무엇인지 알 수 없어 연결하지 않았습니다. 「모든 연결 보기」에서 직접 고르세요.</li>)}</ul>}
       {!!auto?.conflicts.length && <ul className="warning">{auto.conflicts.map(item => <li key={item.key}>{itemLabel(item.key)}에 맞는 열이 여러 개입니다({item.columns.join(', ')}). 연결하지 않았으니 「모든 연결 보기」에서 하나를 고르세요.</li>)}</ul>}
       <p className="fine">연결된 항목: {linkedProfile.length ? linkedProfile.map(([key, label]) => `${label} ← ${mapping[key]}`).join(' · ') : '참가자 항목 없음'}{answerCount ? ` · 설문 응답 ${answerCount}문항` : ''}{reasonCount ? ` · 빈칸 사유 ${reasonCount}개` : ''}</p>
+      <FormsPresets current={currentMapping} canSave={Object.keys(mapping).length > 0} apply={applyPreset} run={run} disabled={busy} />
       <details><summary>모든 연결 보기</summary>
         <div className="form-grid">{profileFields.filter(([key]) => !missingRequired.includes(key)).map(([key, label]) => columnSelect(key, label))}</div>
         <details><summary>28문항과 빈칸 사유 연결</summary><div className="form-grid">{questions.map((q, i) => <div key={q}>
@@ -201,15 +243,23 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
     </fieldset>
     {result && <section aria-label="Forms 등록 미리보기 결과"><h3>원행 {result.rows.length}개 · 오류 {result.errors.length}개</h3>
       {result.already_committed && <p role="status">이미 확정한 파일입니다. 재확정해도 참가자가 추가되지 않습니다.</p>}
-      {!!result.errors.length && <div role="alert">{result.errors.map((error, i) => <p key={i}>{error.row_number ? `${error.row_number}행: ` : ''}{error.message}</p>)}<p>오류를 모두 해결한 후 파일 전체를 확정합니다.</p></div>}
-      {result.rows.map(row => <details key={row.row_number}><summary>{row.row_number}행 · {row.action === 'create' ? '신규' : '기존 응답 변경'} · {row.event_id}/{row.participant_id} · {row.dog_name} · {row.registration_status === 'reference_only' ? '원자료 참고' : `응답 ${Object.values(row.answers).filter(v => v !== null).length}/28`}</summary>
+      {!!idRows.length && <div className="panel">
+        <label className="check"><input type="checkbox" aria-label="기존 참가자 갱신 확인" checked={confirmUpdates} disabled={result.already_committed} onChange={e => setConfirmUpdates(e.target.checked)} />기존 참가자 {idRows.length}명 갱신 확인</label>
+        <p className="fine">참가자 ID가 이미 접수된 ID와 정확히 같은 행입니다. 이름·견명으로는 연결하지 않았습니다. 설문 응답만 갱신하며 이름·동의 등 접수 정보는 바꾸지 않습니다. 행을 펼치면 바뀌는 문항을 전후 값으로 볼 수 있습니다.{unchanged ? ` 바뀌는 문항이 없는 행이 ${unchanged}명 있습니다.` : ''}</p></div>}
+      {!!result.errors.length && <div role="alert">{result.errors.map((error, i) => <p key={i}>{error.row_number ? `${error.row_number}행: ` : ''}{error.message}</p>)}
+        <p>{result.rows.length ? `오류가 있는 ${result.errors.length}행을 빼고 정상 ${result.rows.length}행만 등록할 수 있습니다. 제외한 행은 오류 사유를 붙인 CSV로 내려받아 고친 뒤 다시 올리세요.` : '오류를 모두 해결한 후 다시 확인하세요.'}</p>
+        {hasErrorRows(result.errors) && <div className="toolbar"><button onClick={downloadErrors}>오류 행 CSV 내려받기</button><span className="fine">참가자 정보가 들어 있습니다. 현장 PC에만 보관하고 작업 후 삭제하세요.</span></div>}</div>}
+      {result.rows.map(row => <details key={row.row_number}><summary>{row.row_number}행 · {rowLabel(row)} · {row.event_id}/{row.participant_id} · {row.dog_name} · {row.registration_status === 'reference_only' ? '원자료 참고' : `응답 ${Object.values(row.answers).filter(v => v !== null).length}/28`}</summary>
         <div className="table-wrap"><table><thead><tr><th>문항</th><th>이전 원응답</th><th>반영 원응답</th><th>이전 빈칸 사유</th><th>반영 빈칸 사유</th></tr></thead><tbody>{questions.filter(q => row.changed_questions.includes(q) || row.answers[q] !== null || row.blank_reasons[q]).map(q => <tr key={q}><td>{q}</td><td>{row.previous_answers[q] ?? '빈칸'}</td><td>{row.answers[q] ?? '빈칸'}</td><td>{row.previous_blank_reasons[q] ?? '—'}</td><td>{row.blank_reasons[q] ?? '—'}</td></tr>)}</tbody></table></div>
       </details>)}
-      <div className="toolbar"><button className="primary" disabled={busy || !!result.errors.length || !result.rows.length} onClick={() => void work(async () => {
-        const committed = await api<{ rows: { case_id: string }[] }>('/forms/commit', 'POST', { request_id: commitId, preview_id: result.preview_id, preview_hash: result.preview_hash });
-        setResult({ ...result, already_committed: true }); await done(`${committed.rows.length}개 원행의 참가자·설문 등록을 확인했습니다.`);
-      })}>Forms 전체 확정</button>
-        {(result.errors.length > 0 || !result.rows.length) && <span className="fine">{result.errors.length ? '오류를 모두 해결해야 확정할 수 있습니다.' : '등록할 행이 없습니다.'}</span>}</div>
+      <div className="toolbar"><button className="primary" disabled={busy || !commitReady} onClick={() => void work(async () => {
+        const partial = result.errors.length > 0;
+        const committed = await api<{ rows: { case_id: string }[]; excluded: Issue[] }>('/forms/commit', 'POST', { request_id: commitId, preview_id: result.preview_id, preview_hash: result.preview_hash, accept_partial: partial });
+        setResult({ ...result, already_committed: true }); setOutcome({ registered: committed.rows.length, excluded: committed.excluded.length });
+        await done(`${committed.rows.length}개 원행의 참가자·설문 등록을 확인했습니다.${committed.excluded.length ? ` 오류 ${committed.excluded.length}행은 제외했습니다.` : ''}`);
+      })}>{result.errors.length && result.rows.length ? `정상 ${result.rows.length}행 등록 · 오류 ${result.errors.length}행 제외` : 'Forms 전체 확정'}</button>
+        {commitBlock && <span className="fine" aria-live="polite">{commitBlock}</span>}</div>
+      {outcome && <p role="status">등록 결과: 정상 {outcome.registered}행 등록{outcome.excluded ? ` · 오류 ${outcome.excluded}행 제외` : ''}</p>}
     </section>}
   </section>;
 }

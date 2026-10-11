@@ -89,6 +89,8 @@ class FormsPreviewRequestV4(Model):
     format: Literal["csv", "xlsx"]
     mapping: FormsMappingV4
     targets: list[FormsTargetV4] = Field(default_factory=list)
+    # 참가자 ID가 (행사 ID, 참가자 ID)로 정확히 같은 기존 참가자를 갱신 대상으로 고정한다. 이름·견명·시각은 쓰지 않는다.
+    match_existing_ids: bool = False
 
     @model_validator(mode="after")
     def unique_targets(self) -> Self:
@@ -102,12 +104,15 @@ class FormsPreviewRequestV4(Model):
 class FormsIssueV4(Model):
     row_number: int | None = None
     message: Text
+    # 오류 행의 원본 값. 화면에서 「오류 행 CSV」를 만드는 데 쓰며 별도 저장은 하지 않는다(미리보기 기록에 이미 있는 원행).
+    raw_values: dict[str, Cell] | None = None
 
 
 class FormsPreviewRowV4(Model):
     row_number: int
     source_location: Text
     action: Literal["create", "update"]
+    matched_by: Literal["id", "explicit"] | None = None
     case_id: Key
     session_id: Key
     event_id: Key
@@ -145,6 +150,8 @@ class FormsCommitRequestV4(Model):
     request_id: Key
     preview_id: Key
     preview_hash: Hash
+    # true이면 오류 행을 제외하고 정상 행만 한 번에 반영한다. 제외 행은 결과에 사유와 함께 돌려준다.
+    accept_partial: bool = False
 
 
 class FormsCommitRowV4(Model):
@@ -161,6 +168,7 @@ class FormsCommitResultV4(Model):
     schema_version: Literal["forms-commit-4.0"] = "forms-commit-4.0"
     preview_id: Key
     rows: list[FormsCommitRowV4]
+    excluded: list[FormsIssueV4] = Field(default_factory=list)
 
 
 def _digest(value) -> str:
@@ -398,11 +406,22 @@ def _case_associations(store, db, rows, request):
     return sorted(case_ids), [{"event_id": event, "participant_id": participant} for event, participant in sorted(participants)]
 
 
+def _raw(headers, cells):
+    values = {}
+    for header, value in zip(headers, cells):
+        try:
+            values[header] = _scalar(value)
+        except ValueError:
+            values[header] = str(value)
+    return values
+
+
 def _build_rows(store, db, rows, request, catalog, sheet_name):
     mapping = request.mapping
     labels = _labels(mapping, catalog) if not mapping.historical_reference_only else {}
     targets = {target.row_number: target for target in request.targets}
     planned, errors, identities, sequences, encountered = [], [], set(), set(), set()
+    claimed = {target.case_id for target in request.targets}
     headers = rows[0]
     for number, cells in enumerate(rows[1:], 2):
         if not any(value not in (None, "") for value in cells):
@@ -416,6 +435,18 @@ def _build_rows(store, db, rows, request, catalog, sheet_name):
             if mapped.get("event_id") not in (None, "", request.event_id):
                 raise ValueError("원행의 행사 ID가 선택한 행사와 다릅니다.")
             target = targets.get(number)
+            matched_by = "explicit" if target else None
+            written_id = mapped.get("participant_id")
+            if target is None and request.match_existing_ids and isinstance(written_id, str) and written_id:
+                found = db.execute("SELECT case_id,input_revision,selected_session_id FROM cases WHERE event_id=? AND participant_id=?",
+                                   (request.event_id, written_id)).fetchone()
+                if found:
+                    if found["case_id"] in claimed:
+                        raise ValueError("같은 기존 참가자를 가리키는 행이 둘 이상입니다.")
+                    claimed.add(found["case_id"])
+                    target = FormsTargetV4(row_number=number, case_id=found["case_id"], session_id=found["selected_session_id"],
+                                           expected_revision=found["input_revision"])
+                    matched_by = "id"
             before, previous_reasons = dict.fromkeys(SURVEY_IDS), {}
             if target:
                 current = store.case(db, target.case_id, expected=target.expected_revision)
@@ -436,6 +467,9 @@ def _build_rows(store, db, rows, request, catalog, sheet_name):
                 participant_id = mapped.get("participant_id") or "F_" + uid()
                 if not isinstance(participant_id, str):
                     raise ValueError("참가자 ID는 텍스트여야 합니다. 숫자 ID를 자동 변환하지 않습니다.")
+                written_name = mapped.get("dog_name")
+                if written_name is None or isinstance(written_name, str) and not written_name.strip():
+                    raise ValueError("반려견 이름이 없는 행은 새 참가자로 등록할 수 없습니다. 이미 접수된 참가자 ID가 아니면 이름이 필요합니다.")
                 participant = participant_row({**mapped, "event_id": request.event_id, "participant_id": participant_id,
                                                "dog_name": mapped.get("dog_name")})
                 if db.execute("SELECT 1 FROM cases WHERE event_id=? AND participant_id=?", (request.event_id, participant_id)).fetchone():
@@ -479,7 +513,7 @@ def _build_rows(store, db, rows, request, catalog, sheet_name):
             count = sum(value is not None for value in answers.values())
             planned.append(FormsPreviewRowV4(row_number=number,
                 source_location=f"{sheet_name or 'CSV'} {'열' if mapping.layout == 'transposed' else '행'} {number}",
-                action=action, case_id=case_id, session_id=session_id, event_id=request.event_id,
+                action=action, matched_by=matched_by, case_id=case_id, session_id=session_id, event_id=request.event_id,
                 participant_id=participant_id, dog_name=dog_name, expected_revision=revision, participant=participant,
                 answers=answers, previous_answers=before, previous_blank_reasons=previous_reasons, blank_reasons=reasons,
                 changed_questions=[] if mapping.historical_reference_only else [q for q in SURVEY_IDS
@@ -490,7 +524,7 @@ def _build_rows(store, db, rows, request, catalog, sheet_name):
         except (ValueError, HTTPException) as exc:
             message = ("; ".join(".".join(map(str, error["loc"])) + ": " + error["msg"] for error in exc.errors())
                        if isinstance(exc, ValidationError) else str(exc.detail) if isinstance(exc, HTTPException) else str(exc))
-            errors.append(FormsIssueV4(row_number=number, message=message[:200]))
+            errors.append(FormsIssueV4(row_number=number, message=message[:200], raw_values=_raw(headers, cells)))
     for missing in set(targets) - encountered:
         errors.append(FormsIssueV4(row_number=missing, message="연결 대상에 지정한 원본 행이 없거나 비어 있습니다."))
     if not planned and not errors:
@@ -502,8 +536,11 @@ def preview(store, data: bytes, request: FormsPreviewRequestV4, actor: str) -> F
     request = FormsPreviewRequestV4.model_validate_json(request.model_dump_json())
     source_hash = _digest(data)
     request_hash = _digest({"request": request.model_dump(mode="json"), "source_hash": source_hash})
-    fingerprint = _digest({"event_id": request.event_id, "mapping": request.mapping.model_dump(mode="json"),
-                           "targets": [t.model_dump(mode="json") for t in request.targets], "source_hash": source_hash})
+    identity = {"event_id": request.event_id, "mapping": request.mapping.model_dump(mode="json"),
+                "targets": [t.model_dump(mode="json") for t in request.targets], "source_hash": source_hash}
+    if request.match_existing_ids:
+        identity["match_existing_ids"] = True
+    fingerprint = _digest(identity)
     with store.connect(write=True) as db:
         _writer(db, actor)
         receipt = _check_request(db, "forms.preview_request", actor, request.request_id, request_hash)
@@ -584,8 +621,10 @@ def commit(store, request: FormsCommitRequestV4, actor: str) -> FormsCommitResul
                 store.audit(db, actor, _request_target(actor, request.request_id), "forms.commit_request",
                             {"request_hash": request_hash, "preview_id": request.preview_id})
             return result
-        if frozen.errors or not frozen.rows:
-            raise HTTPException(422, "미리보기 오류를 모두 수정해야 전체 파일을 확정할 수 있습니다.")
+        if not frozen.rows:
+            raise HTTPException(422, "등록할 정상 행이 없습니다. 오류를 수정해 다시 올리세요.")
+        if frozen.errors and not request.accept_partial:
+            raise HTTPException(422, "미리보기 오류를 모두 수정하거나, 정상 행만 등록을 선택해야 확정할 수 있습니다.")
         # Validate every row and existing state before the first participant write.
         for row in frozen.rows:
             if row.action == "create":
@@ -630,7 +669,8 @@ def commit(store, request: FormsCommitRequestV4, actor: str) -> FormsCommitResul
                     registration_status="reference_only" if source_request.mapping.historical_reference_only else "registered"))
         except sqlite3.IntegrityError as exc:
             raise HTTPException(409, "등록 중 참가자 ID·순번 충돌이 발생했습니다. 전체 작업을 취소했습니다.") from exc
-        result = FormsCommitResultV4(preview_id=request.preview_id, rows=results)
+        result = FormsCommitResultV4(preview_id=request.preview_id, rows=results,
+                                     excluded=frozen.errors if request.accept_partial else [])
         link = _write(store, "receipt", result.model_dump_json().encode("utf-8"))
         store.audit(db, actor, request.preview_id, "forms.commit", link)
         store.audit(db, actor, _request_target(actor, request.request_id), "forms.commit_request",
@@ -663,3 +703,73 @@ def purge_case_imports(store, db, case_id: str, *, identity: dict | None = None)
         store.audit(db, actor[0], fingerprint, "forms.purged", {"source_hash": source_hash})
         db.execute("DELETE FROM changes WHERE target=? AND action IN ('forms.preview','forms.commit')", (preview_id,))
         db.execute("DELETE FROM changes WHERE target=? AND action='forms.fingerprint'", (fingerprint,))
+
+
+class FormsPresetMappingV4(Model):
+    """저장하는 열 연결 설정. 파일·행사에 묶이지 않고, 불러올 때 현재 파일의 헤더와 다시 대조한다."""
+
+    columns: dict[str, Text]
+    answer_labels: dict[str, dict[str, Annotated[int, Field(ge=0, le=5)]]] = Field(default_factory=dict)
+    layout: Literal["rows", "transposed"] = "rows"
+    source_profile: Text
+    version: Key
+
+    @model_validator(mode="after")
+    def valid_mapping(self) -> Self:
+        # 기존 연결 규칙을 그대로 쓴다(표준 열만, 한 열 중복 금지, 라벨 모호성 금지).
+        FormsMappingV4(version=self.version, source_profile=self.source_profile, survey_version=SURVEY_VERSION,
+                       columns=self.columns, answer_labels=self.answer_labels, layout=self.layout)
+        return self
+
+
+class FormsPresetEditV4(Model):
+    name: Annotated[str, Field(min_length=1, max_length=60)]
+    mapping: FormsPresetMappingV4
+
+
+class FormsPresetViewV4(Model):
+    preset_id: Key
+    name: str
+    mapping: FormsPresetMappingV4
+    created_by: str
+    created_at: str
+    can_delete: bool
+
+
+def _preset_view(row, actor: str, role: str) -> FormsPresetViewV4:
+    return FormsPresetViewV4(preset_id=row["preset_id"], name=row["name"],
+        mapping=FormsPresetMappingV4.model_validate_json(row["mapping_json"]), created_by=row["created_by"],
+        created_at=row["created_at"], can_delete=role == "admin" or row["created_by"] == actor)
+
+
+def list_presets(store, actor: str, role: str) -> list[FormsPresetViewV4]:
+    with store.connect() as db:
+        return [_preset_view(row, actor, role) for row in db.execute(
+            "SELECT * FROM forms_mapping_presets ORDER BY name COLLATE NOCASE").fetchall()]
+
+
+def save_preset(store, value: FormsPresetEditV4, actor: str, role: str) -> FormsPresetViewV4:
+    name = value.name.strip()
+    if not name:
+        raise HTTPException(422, "설정 이름을 입력하세요.")
+    with store.connect(write=True) as db:
+        _writer(db, actor)
+        if db.execute("SELECT 1 FROM forms_mapping_presets WHERE name=? COLLATE NOCASE", (name,)).fetchone():
+            raise HTTPException(409, "같은 이름의 열 연결 설정이 있습니다. 다른 이름을 쓰거나 기존 설정을 삭제하세요.")
+        preset_id = uid()
+        db.execute("INSERT INTO forms_mapping_presets VALUES (?,?,?,?,?)",
+                   (preset_id, name, value.mapping.model_dump_json(), actor, now()))
+        store.audit(db, actor, preset_id, "forms.preset.save", {"name": name})
+        return _preset_view(db.execute("SELECT * FROM forms_mapping_presets WHERE preset_id=?", (preset_id,)).fetchone(), actor, role)
+
+
+def delete_preset(store, preset_id: str, actor: str, role: str) -> None:
+    with store.connect(write=True) as db:
+        _writer(db, actor)
+        row = db.execute("SELECT * FROM forms_mapping_presets WHERE preset_id=?", (preset_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "열 연결 설정을 찾을 수 없습니다.")
+        if role != "admin" and row["created_by"] != actor:
+            raise HTTPException(403, "만든 사람 또는 관리자만 삭제할 수 있습니다.")
+        db.execute("DELETE FROM forms_mapping_presets WHERE preset_id=?", (preset_id,))
+        store.audit(db, actor, preset_id, "forms.preset.delete", {"name": row["name"]})

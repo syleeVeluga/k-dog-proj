@@ -489,5 +489,141 @@ class FormsImportV4Tests(unittest.TestCase):
         self.restore_preview_before_case_existed(failed_first=False)
 
 
+    # --- U03: 정확한 ID 일치 갱신과 정상 행만 등록 ---
+    def id_request(self, request_id="id-preview", **changes):
+        request = self.request.model_copy(deep=True)
+        request.request_id = request_id
+        request.mapping.columns["participant_id"] = "ID"
+        for key, value in changes.items():
+            setattr(request, key, value)
+        return request
+
+    def register_existing(self, participant_id="0001", dog="기존견"):
+        data = csv_bytes([["ID", "반려견", "문항1", "두려움"], [participant_id, dog, "3", "0"]])
+        return self.apply(self.stage(data, self.id_request(f"first-{participant_id}")), f"first-commit-{participant_id}")
+
+    def test_exact_id_match_updates_the_existing_participant_only_when_requested(self):
+        done = self.register_existing()
+        case_id = done.rows[0].case_id
+        data = csv_bytes([["ID", "반려견", "문항1", "두려움"], ["0001", "다른이름", "5", "2"]])
+        default = self.stage(data, self.id_request("default-match"))
+        self.assertIn("이미 등록된 ID", default.errors[0].message)
+        staged = self.stage(data, self.id_request("matched", match_existing_ids=True))
+        self.assertFalse(staged.errors)
+        row = staged.rows[0]
+        self.assertEqual((row.action, row.matched_by, row.case_id, row.dog_name), ("update", "id", case_id, "기존견"))
+        self.assertEqual(row.expected_revision, 1)
+        self.assertEqual((row.previous_answers["s01"], row.answers["s01"]), (3, 5))
+        self.assertNotEqual(staged.preview_id, default.preview_id)
+        result = self.apply(staged, "matched-commit")
+        self.assertEqual(result.rows[0].input_revision, 2)
+        manifest = self.manifest(case_id)
+        self.assertEqual(manifest.sessions[0].survey["s01"], 5)
+        with self.store.connect() as db:
+            self.assertEqual(db.execute("SELECT dog_name FROM cases WHERE case_id=?", (case_id,)).fetchone()[0], "기존견")
+        self.assertEqual(self.count(), 1)
+
+    def test_same_name_with_a_different_id_is_a_new_participant(self):
+        self.register_existing("0001", "같은이름")
+        data = csv_bytes([["ID", "반려견", "문항1", "두려움"], ["0002", "같은이름", "5", "2"]])
+        staged = self.stage(data, self.id_request("other-id", match_existing_ids=True))
+        self.assertEqual((staged.rows[0].action, staged.rows[0].matched_by), ("create", None))
+        self.apply(staged, "other-commit")
+        self.assertEqual(self.count(), 2)
+
+    def test_matched_update_is_blocked_by_a_revision_change_or_deletion_after_preview(self):
+        done = self.register_existing()
+        data = csv_bytes([["ID", "반려견", "문항1", "두려움"], ["0001", "무관", "5", "2"]])
+        staged = self.stage(data, self.id_request("revision", match_existing_ids=True))
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE cases SET input_revision=input_revision+1 WHERE case_id=?", (done.rows[0].case_id,))
+        self.expect_http(409, self.apply, staged, "revision-commit")
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (done.rows[0].case_id,))
+        self.expect_http(403, self.apply, staged, "deleted-commit")
+
+    def test_deleted_participant_is_still_refused_when_matching_is_requested(self):
+        done = self.register_existing()
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (done.rows[0].case_id,))
+        data = csv_bytes([["ID", "반려견", "문항1", "두려움"], ["0001", "무관", "5", "2"]])
+        self.expect_http(403, self.stage, data, self.id_request("deleted", match_existing_ids=True))
+
+    def test_explicit_target_wins_and_two_rows_cannot_claim_one_participant(self):
+        first = self.register_existing("0001", "첫째")
+        self.register_existing("0002", "둘째")
+        data = csv_bytes([["ID", "반려견", "문항1", "두려움"], ["0002", "무관", "5", "2"]])
+        request = self.id_request("explicit-wins", match_existing_ids=True)
+        request.targets = [FormsTargetV4(row_number=2, case_id=first.rows[0].case_id, session_id=first.rows[0].session_id, expected_revision=1)]
+        staged = self.stage(data, request)
+        self.assertIn("명시적으로 연결한 대상과 다릅니다", staged.errors[0].message)
+        data = csv_bytes([["ID", "반려견", "문항1", "두려움"], ["", "첫째", "4", "1"], ["0001", "중복", "5", "2"]])
+        request = self.id_request("double-claim", match_existing_ids=True)
+        request.targets = [FormsTargetV4(row_number=2, case_id=first.rows[0].case_id, session_id=first.rows[0].session_id, expected_revision=1)]
+        staged = self.stage(data, request)
+        self.assertEqual([row.row_number for row in staged.rows], [2])
+        self.assertEqual(staged.errors[0].row_number, 3)
+        self.assertIn("둘 이상", staged.errors[0].message)
+
+    def test_numeric_or_blank_ids_are_never_matched(self):
+        self.register_existing("0001")
+        data = csv_bytes([["ID", "반려견", "문항1", "두려움"], ["", "빈ID견", "5", "2"], ["1", "짧은ID견", "5", "2"]])
+        staged = self.stage(data, self.id_request("blank-numeric", match_existing_ids=True))
+        self.assertEqual([(row.action, row.matched_by) for row in staged.rows], [("create", None), ("create", None)])
+        self.assertFalse(staged.errors)
+
+    def test_error_rows_keep_their_original_values_for_a_correction_file(self):
+        staged = self.stage(csv_bytes([["반려견", "문항1", "두려움"], ["정상합성", "3", "0"], ["오류합성", "maybe", "0"]]))
+        self.assertEqual(staged.errors[0].raw_values, {"반려견": "오류합성", "문항1": "maybe", "두려움": "0"})
+
+    def test_partial_commit_registers_only_normal_rows_once_and_reports_exclusions(self):
+        staged = self.stage(csv_bytes([["반려견", "문항1", "두려움"], ["정상합성", "3", "0"], ["오류합성", "maybe", "0"]]))
+        request = FormsCommitRequestV4(request_id="partial-1", preview_id=staged.preview_id, preview_hash=staged.preview_hash, accept_partial=True)
+        self.expect_http(422, self.apply, staged)
+        self.assertEqual(self.count(), 0)
+        result = commit(self.store, request, "operator")
+        self.assertEqual([row.row_number for row in result.rows], [2])
+        self.assertEqual([(item.row_number, item.raw_values["반려견"]) for item in result.excluded], [(3, "오류합성")])
+        self.assertEqual(self.count(), 1)
+        self.assertEqual(commit(self.store, request, "operator"), result)
+        retry = request.model_copy(update={"request_id": "partial-retry"})
+        self.assertEqual(commit(self.store, retry, "operator"), result)
+        self.assertEqual(self.count(), 1)
+        self.assertEqual(len(self.audit("forms.source_row")), 1)
+        self.expect_http(409, commit, self.store, request.model_copy(update={"accept_partial": False}), "operator")
+
+    def test_partial_commit_needs_a_normal_row_and_rolls_back_on_failure(self):
+        bad = self.stage(csv_bytes([["반려견", "문항1", "두려움"], ["오류합성", "maybe", "0"]]))
+        request = FormsCommitRequestV4(request_id="partial-none", preview_id=bad.preview_id, preview_hash=bad.preview_hash, accept_partial=True)
+        self.expect_http(422, commit, self.store, request, "operator")
+        second = self.request.model_copy(deep=True)
+        second.request_id = "partial-second"
+        staged = self.stage(csv_bytes([["반려견", "문항1", "두려움"], ["정상1", "3", "0"], ["정상2", "3", "0"], ["오류합성", "maybe", "0"]]), second)
+        import app.forms_v4 as module
+        original, calls = module._create_case, []
+
+        def failing(*args, **kwargs):
+            calls.append(1)
+            if len(calls) == 2:
+                raise HTTPException(409, "synthetic failure on the second row")
+            return original(*args, **kwargs)
+
+        request = FormsCommitRequestV4(request_id="partial-fail", preview_id=staged.preview_id, preview_hash=staged.preview_hash, accept_partial=True)
+        with patch.object(module, "_create_case", failing):
+            self.expect_http(409, commit, self.store, request, "operator")
+        self.assertEqual(self.count(), 0)
+        self.assertFalse(self.audit("forms.source_row"))
+
+    def test_new_rows_without_a_dog_name_get_a_clear_error_but_existing_ids_do_not_need_one(self):
+        self.register_existing("0001")
+        request = self.id_request("no-name", match_existing_ids=True)
+        del request.mapping.columns["dog_name"]
+        data = csv_bytes([["ID", "문항1", "두려움"], ["0001", "5", "2"], ["0002", "4", "1"]])
+        staged = self.stage(data, request)
+        self.assertEqual([(row.participant_id, row.action) for row in staged.rows], [("0001", "update")])
+        self.assertEqual(staged.errors[0].row_number, 3)
+        self.assertIn("반려견 이름이 없는 행은 새 참가자로 등록할 수 없습니다", staged.errors[0].message)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -53,6 +53,10 @@ CREATE TABLE IF NOT EXISTS cases (
     UNIQUE(event_id, participant_id),
     FOREIGN KEY(display_run_id) REFERENCES runs(run_id)
 );
+CREATE TABLE IF NOT EXISTS forms_mapping_presets (
+    preset_id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE, mapping_json TEXT NOT NULL,
+    created_by TEXT NOT NULL REFERENCES users(username), created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS runs (
     run_id TEXT PRIMARY KEY, case_id TEXT NOT NULL REFERENCES cases(case_id),
     session_id TEXT NOT NULL, input_revision INTEGER NOT NULL,

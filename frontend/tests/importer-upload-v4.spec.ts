@@ -68,7 +68,7 @@ test('미리보기 버튼이 막혀 있으면 옆에 빠진 조건을 쓴다', a
   const button = form.getByRole('button', { name: 'Forms 등록 미리보기', exact: true });
   await expect(button).toBeDisabled();
   await expect(form.getByText('파일을 올리세요.', { exact: true })).toBeVisible();
-  await form.getByLabel('Forms 파일', { exact: true }).setInputFiles(csvFile('no-dog.csv', '참가자 ID,보호자 이름\n0401,보호자\n'));
+  await form.getByLabel('Forms 파일', { exact: true }).setInputFiles(csvFile('no-dog.csv', '보호자 이름\n보호자\n'));
   await expect(form.getByText('행사 ID를 입력하세요.', { exact: true })).toBeVisible();
   await form.getByLabel('폼 행사 ID', { exact: true }).fill('U02-REASON');
   await expect(form.getByText('반려견 이름 열을 연결하세요.', { exact: true })).toBeVisible();
