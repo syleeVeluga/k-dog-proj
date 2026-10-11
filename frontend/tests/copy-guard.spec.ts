@@ -30,6 +30,7 @@ async function walk(page: Page, labels: string[]) {
   for (const label of labels) {
     await openMenu(page, label);
     await expect(page.locator('main h1').first()).toBeVisible();
+    await expect(page.getByText(/조회 중…|불러오는 중…/)).toHaveCount(0);
     await page.waitForTimeout(300);
     found.push(...await offenders(page, label));
   }
@@ -48,6 +49,24 @@ test.describe('화면 문구 점검', () => {
         answers: Object.fromEntries(Array.from({ length: 28 }, (_, index) => [`s${String(index + 1).padStart(2, '0')}`, 3])),
       } })).status()).toBe(200);
     }
+  });
+  test.afterAll(async ({ request }) => {
+    await request.post('/api/auth/login', { headers, data: { username: 'operator', password } });
+    for (const item of (await (await request.get('/api/cases')).json()).filter((c: { event_id: string }) => c.event_id === 'U07-GUARD'))
+      await request.post(`/api/cases/${item.case_id}/deletion`, { headers, data: { expected_revision: item.input_revision } });
+  });
+
+  test('점검 자체가 실제로 걸러 낸다(카나리: 개발 코드·UUID·해시를 심으면 모두 잡는다)', async ({ page }) => {
+    await login(page, 'operator');
+    await page.locator('main').evaluate(main => {
+      const probe = document.createElement('p');
+      probe.textContent = 'S1 판본 · G03 확인 · 3f2b8c1e-1a2b-4c3d-8e4f-5a6b7c8d9e0f · ' + 'ab12'.repeat(16);
+      main.append(probe);
+    });
+    const found = await offenders(page, '카나리');
+    expect(found.some(line => line.includes('개발 코드'))).toBe(true);
+    expect(found.some(line => line.includes('UUID'))).toBe(true);
+    expect(found.some(line => line.includes('64자리 해시'))).toBe(true);
   });
 
   test('운영자 메뉴 전체에 개발 코드·UUID·해시가 기본 노출되지 않는다', async ({ page }) => {

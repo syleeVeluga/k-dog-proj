@@ -57,6 +57,8 @@ test('관리자가 교수 계정을 추가하면 교수는 「내가 할 일만�
     await expect(rows).toHaveCount(2);
     await prof.getByLabel('내가 할 일만', { exact: true }).check();
     await expect(rows).toHaveCount(0);
+    await expect(prof.getByRole('heading', { name: '독립 채점', level: 1 })).toBeVisible();
+    await expect(prof.getByRole('columnheader').first()).toBeVisible();
     await prof.getByLabel('내가 할 일만', { exact: true }).uncheck();
     await expect(rows).toHaveCount(2);
 
