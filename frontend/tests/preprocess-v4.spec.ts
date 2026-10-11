@@ -72,7 +72,10 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   await panel.getByRole('combobox', { name: '클립 제작 방식', exact: true }).selectOption('ai');
   const preview = panel.getByRole('article', { name: '전처리 클립 미리보기', exact: true });
   await expect(preview.getByText(/AI용: 1초마다 실제 프레임 최대 1장 · 4프레임/)).toBeVisible();
+  const opened = page.waitForResponse(response => response.url().endsWith('/ai/open') && response.request().method() === 'POST');
   await preview.getByRole('button', { name: '영상 열기', exact: true }).click();
+  expect((await opened).status()).toBe(204);
+  await expect(preview.locator('video')).toBeVisible();
   await expect.poll(() => preview.locator('video').evaluate((video: HTMLVideoElement) => video.readyState), { timeout: 15000 }).toBeGreaterThanOrEqual(1);
   await preview.getByLabel('확인할 실제 프레임 번호', { exact: true }).fill('3');
   await expect(preview.getByText(/클립 2초 → 원본 2초 → 기준 영상 2초/)).toBeVisible();

@@ -19,5 +19,6 @@ export async function api<T>(path: string, method = 'GET', data?: unknown): Prom
   if (path === '/cases' && method === 'GET') {
     window.dispatchEvent(new CustomEvent('kdog-unavailable-cases', { detail: Number(response.headers.get('X-KDOG-Unavailable-Cases') ?? 0) }));
   }
+  if (response.status === 204) return undefined as T;
   return response.json();
 }

@@ -120,12 +120,15 @@ def validate(base, generated):
 
 
 def request(worker, row, step, group, profile, guard):
+    from .run_v4 import execution_actor
     expected = stage()
     if group != expected:
         raise ValueError("narrative stage instructions/schema changed")
     context = context_for(profile)
     info = {key: value for key, value in context.items() if key != "instruction_snapshot"}
-    info.update(audit_actor=json.loads(row["input_snapshot_json"])["requested_by"], run_id=row["run_id"])
+    with worker.store.connect() as db:
+        actor = execution_actor(db, row["run_id"], json.loads(row["input_snapshot_json"])["requested_by"], "report.s1.retry")
+    info.update(audit_actor=actor, run_id=row["run_id"])
     if step["attempt"] > 1:
         from .scoring_ai_v4 import repair_instruction
         with worker.store.connect() as db:

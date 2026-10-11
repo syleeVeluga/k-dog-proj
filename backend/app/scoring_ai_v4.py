@@ -175,9 +175,9 @@ def clips_for(snapshot, group):
     return tuple(clip for clip in snapshot.batch.clips if clip.clip_id in ids and clip.status in ("complete", "partial") and getattr(clip, group.input_variant) is not None)
 
 
-def context(snapshot, group, row):
+def context(snapshot, group, row, audit_actor):
     clips = clips_for(snapshot, group)
-    return {"run_id": row["run_id"], "audit_actor": snapshot.requested_by,
+    return {"run_id": row["run_id"], "audit_actor": audit_actor,
         "identity": {"case_id": snapshot.case_id, "session_id": snapshot.session_id, "batch_id": snapshot.batch.batch_id},
         "catalog_version": CATALOG.version, "items": [item.model_dump(mode="json") for item in CATALOG.rated_items() if item.code in group.item_codes],
         "windows": [window.model_dump(mode="json") for window in snapshot.batch.windows if window.window.window_id in group.window_ids],
@@ -401,6 +401,7 @@ def basic_data(worker, row, calculation):
 
 
 def publish(worker, row, snapshot, calculation):
+    from .run_v4 import execution_actor
     from . import run_v4
     started = time.monotonic()
     data = basic_data(worker, row, calculation)
@@ -429,7 +430,7 @@ def publish(worker, row, snapshot, calculation):
         db.execute("INSERT INTO score_sheets VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", (doc.sheet.sheet_id, snapshot.case_id, snapshot.session_id,
             AI_ACCOUNT, doc.sheet.rater_id, doc.rater_name, doc.source_hash, doc.purpose, "submitted", 1, 1, model.input.ref, model.input.hash))
         db.execute("INSERT INTO basic_results VALUES (?,?,?,?,?,?,?)", (model.result_id, doc.sheet.sheet_id, snapshot.case_id, snapshot.session_id, 1, result_ref, result_hash))
-        worker.store.audit(db, snapshot.requested_by, snapshot.case_id, "ai.publish", {"run_id": row["run_id"], "sheet_id": doc.sheet.sheet_id,
+        worker.store.audit(db, execution_actor(db, row["run_id"], snapshot.requested_by, "run_v4.retry"), snapshot.case_id, "ai.publish", {"run_id": row["run_id"], "sheet_id": doc.sheet.sheet_id,
             "ref": result_ref, "hash": result_hash, "input": model.input.model_dump(mode="json")})
     return {"sheet_id": doc.sheet.sheet_id, "basic_result": {"result_id": model.result_id, "revision": 1, "ref": result_ref, "hash": result_hash},
             "usage": {"program_merge": True, "timing": {"publish_seconds": time.monotonic()-started}}}
@@ -494,7 +495,10 @@ def handler(worker, snapshot, group, row):
         program = program_group(snapshot, group)
         if program is not None:
             return {**program, "usage": {"program_merge": True}}
-        info = context(snapshot, group, row)
+        from .run_v4 import execution_actor
+        with worker.store.connect() as db:
+            actor = execution_actor(db, row["run_id"], snapshot.requested_by, "run_v4.retry")
+        info = context(snapshot, group, row, actor)
         config = {"model": group.model, "prompt": group.prompt, "fps": group.request_fps, "processing_mode": group.processing_mode,
             "media_resolution": group.media_resolution, "thinking_level": group.thinking_level, "max_output_tokens": group.max_output_tokens}
         if step["attempt"] > 1:
