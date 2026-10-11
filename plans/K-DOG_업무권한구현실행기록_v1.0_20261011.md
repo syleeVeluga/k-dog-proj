@@ -10,8 +10,8 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | AR01 | [x] | [x] | [x] | [x] | [x] | [x] PR #75 |
 | AR02 | [x] | [x] | [x] | [x] | [x] | [x] PR #76 |
-| AR03 | [x] | [x] | [x] | [x] | [x] | 대기 |
-| AR04 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
+| AR03 | [x] | [x] | [x] | [x] | [x] | [x] PR #77 |
+| AR04 | [x] | [x] | [x] | [x] 발견 없음 | [x] | [ ] |
 | AR05 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
 | AR06 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
 | AR07 | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] |
@@ -116,7 +116,7 @@ FastAPI 최신판의 breaking-change 항목은 이번 정책 PR에서 자동 교
 
 ## 6 AR03 공유 채점과 해석
 
-기준 `main / c8fb891`, 브랜치 `veluga/ar03-shared-scoring`, [PR #77](https://github.com/syleeVeluga/k-dog-proj/pull/77), 구현 커밋 `4b76a59`. 구현일 2026-10-11~12. 의존성은 §4 공식 검증·잠금판을 유지하고 신규 의존성 없이 정책과 계약을 변경했다.
+기준 `main / c8fb891`, 브랜치 `veluga/ar03-shared-scoring`, [PR #77](https://github.com/syleeVeluga/k-dog-proj/pull/77), 구현 커밋 `4b76a59`, 최종 head `79335c6eac52656dfb0160f92787ebb88d1a412b`, merge `1986e227ec5b4b6d325b39e3ba08c8256669935e` (2026-10-11 15:22:28 UTC). 구현일 2026-10-11~12. 의존성은 §4 공식 검증·잠금판을 유지하고 신규 의존성 없이 정책과 계약을 변경했다.
 
 - 활성 업무 계정은 모든 시트 현재/보존 판본·기본 결과·의견·최종을 조회하고 수정한다. 배정 없이 채점을 시작하며 원평가자 정보는 출처다. 소유 계정 비활성·옛 배정 active false·grant 없음도 업무 접근을 막지 않는다.
 - 운영 grant/reveal/배정 취소/시트 재개방 API와 실행 함수/고아 DTO를 제거했다. 제출본 수정 저장은 자동 새 draft revision이며 최초 제출 참조·이전 파일 bytes·original rater_id/rater_kind는 보존하고 실제 저장 actor를 기록한다. 완료/사용 중단 의견도 새 판본으로 다시 작성한다.
@@ -153,3 +153,31 @@ A가 배정 없이 생성 → B가 제출/제출본 수정 → C가 본인 시�
 AR04 동의/삭제/보관 및 AR05 리포트/내보내기 소유 조건은 해당 계획으로 인계한다. 이 PR만으로 통합 운영 전환 완료를 표시하지 않는다.
 
 최종 독립 재검토는 추가 AI 노출 재현에서 읽기 표시 True·원본 상태/bytes 보존·제출/계산 ai_exposed=True·최초 AI bytes 보존을 확인했다. 독립 회귀40개(23.883초) 통과, 신규 actionable0. 앞선 재검토의 52개 통과와 원평가 출처/FK 검토도 기록하며 중복 시험 수를 총합 성공 수로 과장하지 않는다.
+
+## 7 AR04 구현·검증·독립 cold review
+
+2026-10-12, 브랜치 `veluga/ar04-consent-retention`, 기준 `1986e22` (AR03 merge), [PR #78](https://github.com/syleeVeluga/k-dog-proj/pull/78), 구현 head `3f88726`. 요구사항 AR-R06·AR-R07·AR-R10·AR-R11. 의존성은 §4 공식 확인과 같은 잠금판이며 추가/업그레이드 없음. 최종 head·merge는 병합 후 기록한다.
+
+- 목록/영상/업로드/촬영/전처리/AI/채점/리포트/비교/검수/export/Worker/benchmark의 live·frozen 동의·삭제 차단을 제거했다. product 삭제 API·버튼·상태와 identity/Forms/검수 source tombstone을 제거했다. 역사 Manifest·DB·대장 metadata는 보존하며 새 정상 DTO/화면의 조건에서 제외한다. 생략한 사례 수정은 옛 동의값을 유지한다.
+- clean은 참조 hash 전체 검증 후 현재 참조하지 않는 관리 경로의 고아파일만 제거한다. 연쇄 DB 삭제·purge·VACUUM은 없다. restore는 백업 시점 DB/자료/changes만 복원하며 현재 삭제대장·백업 이후 event를 추출·병합하거나 lease를 다시 쓰지 않는다. 세션 초기화·S1 초기화 경계·hash/FK/offline/목적지 검사는 유지한다.
+- 연결된 receipt 취소는 원자료를 연쇄 제거하지 않는다. 실제 활성 계정·세션·대상·입력 판본·hash·중지·lease/token 검사는 유지하며 원격 임시 파일/만료한 미연결 수신 정리는 유지한다. 옛 CLI `--purge-deleted`는 code 2 사용 오류이고 자료는 그대로다.
+- export의 시트 읽기에 남은 AR03 공개 허가 조건은 영향 회귀에서 발견해 공통 자료 접근으로 맞췄다. 최초 제출 후 다른 사람이 읽은 원평가본의 독립성은 유지하며 후속 편집판은 review로 구분한다. export 생성자·U08 리포트 조건·외부 기준 결재는 AR05, 일괄 입력의 동의 열은 AR06에서 제거한다.
+
+| 검증 | 결과 |
+| --- | --- |
+| settings/deletion_restore/uploads/preprocess/run/forms/exports/validation 핵심 | 최종 152개 중 151통과(153.800초), 남은 옛 후행 열람 독립성 기대를 최초 제출/후속 편집 분리로 수정 후 아래 최종 8개에서 통과 확인 |
+| 영향 회귀 intake/recording/upload/forms/comparison/report/research/benchmark/history | 172개 중 168통과(227.975초), 옛 차단 기대·중복 영상·로그인 세션 fixture·후행 편집 fixture 4건을 수정 후 아래 최종 8개에서 재검증. 앞선 222개 실행의 구 기대 실패도 갱신 |
+| `tests.test_retention_v4` 초기 종단 4개 | 114.680초 통과. 12개 상태 조합 목록·영상·채점·최종·리포트·집단·export·clean·반복 restore, flag 변경 Worker, 옛 CLI 오류 |
+| 누락 참조/고아파일 보존 추가 1개 | 1.381초 통과. 유실을 성공 복구로 표시하지 않고 참조 검사 실패 시 고아파일도 보존 |
+| 최종 exports/intake/benchmark/history/preserved_media 회귀 8개 | 9.488초 통과. 위 두 실행의 남은 기대 수정, 원본/부모 hash·세션 폐기·신규 후속 편집 분류 확인 |
+| 실제 AI handler 상태 행렬 + 전처리 flag/판본 채택 2개 | 242.520초 통과. 12조합×42항목군 fake provider, 각 86개 관찰/기본 결과 실제 채택; 옛 flag 비차단·실제 revision 충돌 차단 |
+| `npm run build` | 통과, 기존 500kB chunk 안내 유지 |
+| `npm run test:e2e -- business-access-v4.spec.ts retention-v4.spec.ts` | 2개, 8.0초 통과. 동의 입력/삭제 버튼 없는 접수·상세/공통 계정 |
+| 최종 화면 캡처 E2E | retention 1개, 5.8초 통과. 유한 CSS 애니메이션 종료 상태 캡처·육안 확인 |
+| diff check·Graft build·계획 Git index 링크 | 통과·그래프 최신·95개 링크 누락0 |
+
+초기 실패는 합성 fixture와 종전 정책 기대를 바꾸는 과정으로 기록한다. 최종 집중 재검증과 초기 묶음 실행을 단일 전부 통과 실행으로 합산하지 않는다. 유료 공급자 호출·실제 운영 DB/자료 초기화·삭제·중간 배포는 하지 않았다.
+
+`ar01_cold_review`가 Graft 호출 관계와 diff를 읽기 전용으로 독립 검토했다. actionable 0건으로 수용 수정이 필요한 발견은 없었다. 동의/삭제 차단 제거·고정 판본·Worker lease/token·참조 보존 후 고아 정리·snapshot 복원·시험 무결성을 확인하고 독립 합성 회귀 13개(19.584초)를 통과했다. AR05/AR06 후속 범위와 구분했다.
+
+![동의·삭제 절차 없는 상세 — 합성 참가자](images/ar04-retention-detail.png)

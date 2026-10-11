@@ -24,7 +24,6 @@ INVENTORY = {"184b1f8a58624fe0f34a0669f08410d4a3b7b072776a859c2e65feb5382a5178":
     "8f5848f6f4479383778e0487decc69d69f80feb446e0a85f39f7974594b586ea": "SRC07"}
 RECHECK = frozenset(("개8", "개10", "개12", "개30", "개34"))
 ACTION = "validation.s1.register"
-DELETED_SOURCE = "validation.s1.deleted_source"
 
 
 class ValidationImportV4(Model):
@@ -96,25 +95,10 @@ def _account(db, user):
     manager(user, db)
 
 
-def deletion_sources(db):
-    deleted = {row[0] for row in db.execute("SELECT case_id FROM cases WHERE deletion_requested=1")}
-    hashes = {json.loads(row[0])["source_sha256"] for row in db.execute("SELECT detail_json FROM changes WHERE action=?",(DELETED_SOURCE,))}
-    for row in db.execute("SELECT detail_json FROM changes WHERE action=?",(ACTION,)):
-        record = json.loads(row[0])
-        if deleted.intersection(record.get("case_ids",())):
-            hashes.add(record["source_sha256"])
-    return hashes
 
 
-def remember_deleted_sources(db, hashes, actor):
-    known = {row[0] for row in db.execute("SELECT target FROM changes WHERE action=?",(DELETED_SOURCE,))}
-    for digest in set(hashes)-known:
-        db.execute("INSERT INTO changes VALUES(?,?,?,?,?,?)",(uid(),actor,now(),digest,DELETED_SOURCE,encode({"source_sha256":digest})))
 
 
-def _source_allowed(db, digest):
-    if digest in deletion_sources(db):
-        raise HTTPException(403,"삭제 대상이 포함된 전체 참고 원본은 다시 등록하거나 열 수 없습니다.")
 
 
 def _bindings(store, db, bindings, *, expected=False):
@@ -132,8 +116,6 @@ def _classify(selection, cell, binding, inventory):
     status = selection.confirmation
     if binding is None:
         reasons.append("unmatched_subject")
-    elif binding.participation != "active":
-        reasons.append("participant_"+binding.participation)
     if selection.evaluator_status != "identified":
         reasons.append("evaluator_unknown")
     if selection.exposure != "independent_claimed":
@@ -168,7 +150,6 @@ def preview(store, data: bytes, value: ValidationImportV4, user):
         raise HTTPException(409, "참고 원본의 SHA-256이 요청과 다릅니다.")
     with store.connect() as db:
         _account(db, user)
-        _source_allowed(db,digest)
         _bindings(store, db, value.bindings, expected=True)
     try:
         workbook = s1_workbook.reference_cells(data, include_sheets=True)
@@ -215,7 +196,6 @@ def _readable(store, db, doc, user):
     _account(db, user)
     if doc.actor != user.username:
         raise HTTPException(403, "본인이 등록한 참고 원본만 열 수 있습니다.")
-    _source_allowed(db,doc.source.hash)
     _bindings(store, db, doc.bindings)
 
 
@@ -284,7 +264,7 @@ def list_records(store, user):
             if isinstance(exc,HTTPException) and exc.status_code not in (403,404,409,422):
                 raise
             result.append(ValidationBlockedV4(validation_id=record_id,
-                reason="참고 원본 또는 현재 대상·삭제·접근 조건을 확인할 수 없어 제공을 보류합니다.").model_dump())
+                reason="참고 원본 또는 현재 대상·원자료 연결을 확인할 수 없어 제공을 보류합니다.").model_dump())
     with store.connect() as db:
         _account(db,user)
     return result
@@ -297,7 +277,7 @@ def candidates(store,user):
     with store.connect() as db:
         _account(db,user)
         result = []
-        for row in db.execute("SELECT * FROM cases WHERE deletion_requested=0 ORDER BY event_id,participant_id"):
+        for row in db.execute("SELECT * FROM cases ORDER BY event_id,participant_id"):
             manifest = store.manifest(row)
             if not isinstance(manifest,ManifestV4):continue
             result.append(CohortCandidateV4(case_id=row["case_id"],event_id=row["event_id"],participant_id=row["participant_id"],
@@ -306,18 +286,3 @@ def candidates(store,user):
                 sessions=[CohortSessionCandidateV4(session_id=session.session_id,note=session.note,survey_version=session.survey_version)
                     for session in manifest.sessions]))
         return result
-
-
-def purge_deleted(db):
-    deleted = {row[0] for row in db.execute("SELECT case_id FROM cases WHERE deletion_requested=1")}
-    hashes = deletion_sources(db)
-    revoked = set()
-    records = list(db.execute("SELECT actor,target,detail_json FROM changes WHERE action=?", (ACTION,)))
-    for row in records:
-        record = json.loads(row["detail_json"])
-        if deleted.intersection(record.get("case_ids", [])) or record["source_sha256"] in hashes:
-            revoked.add(row["target"])
-            remember_deleted_sources(db,(record["source_sha256"],),row["actor"])
-    for reference_id in revoked:
-        db.execute("DELETE FROM changes WHERE target=? AND action=?", (reference_id, ACTION))
-    return revoked

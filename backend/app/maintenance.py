@@ -143,9 +143,8 @@ def references(store, db):
 def status(store):
     with store.connect() as db:
         counts = {row[0]: row[1] for row in db.execute("SELECT status,COUNT(*) FROM runs GROUP BY status")}
-        deleted = db.execute("SELECT COUNT(*) FROM cases WHERE deletion_requested=1").fetchone()[0]
         last = db.execute("SELECT detail_json FROM changes WHERE action='backup.create' ORDER BY rowid DESC LIMIT 1").fetchone()
-    return {"runs": counts, "deletion_requests": deleted, "free_bytes": shutil.disk_usage(store.root).free,
+    return {"runs": counts, "free_bytes": shutil.disk_usage(store.root).free,
             "last_backup": json.loads(last[0]) if last else None,
             "message": "중단된 worker는 점유 만료 후 재개합니다. 복원·파일 정리는 API와 worker 종료 후 관리 명령을 사용하세요."}
 
@@ -185,95 +184,24 @@ def backup(store, destination, actor):
         return result
 
 
-def deletion_records(store):
-    with store.connect() as db:
-        records = {(r["case_id"], r["event_id"], r["participant_id"]) for r in db.execute("SELECT * FROM cases WHERE deletion_requested=1")}
-        records.update((r["target"], d["event_id"], d["participant_id"]) for r in db.execute("SELECT target,detail_json FROM changes WHERE action='deletion.record'") for d in [json.loads(r["detail_json"])])
-    return records
 
 
-def deleted_uploads(store):
-    from app.uploads import collect_case_upload_ids
-    with store.connect() as db:
-        ids = {json.loads(row[0])["upload_id"] for row in db.execute(
-            "SELECT detail_json FROM changes WHERE action='deletion.upload'")}
-        for row in db.execute("SELECT case_id FROM cases WHERE deletion_requested=1"):
-            ids.update(collect_case_upload_ids(db, row[0]))
-    return ids
 
 
-def clean(store, *, purge_deleted=False):
+def clean(store):
     with offline(store), store.connect(write=True) as db:
-        from app.uploads import collect_case_upload_ids, purge_upload_ids, recover_interrupted
+        from app.uploads import recover_interrupted
         recover_interrupted(db)
-        from app.comparisons_v4 import purge_deleted as purge_comparisons
-        from app.report_runs_v4 import purge_comparisons as purge_reports
-        revoked_cohorts = purge_comparisons(db)
-        revoked_reports = purge_reports(db, revoked_cohorts)
-        from app.external_comparisons_v4 import purge_case as purge_external
-        from app.report_runs_v4 import purge_external as purge_external_reports
-        revoked_external = set()
-        deleted_cases = {row[0] for row in db.execute("SELECT case_id FROM cases WHERE deletion_requested=1")}
-        deleted_cases.update(row[0] for row in db.execute("SELECT target FROM changes WHERE action='deletion.record'"))
-        for case_id in deleted_cases:
-            revoked_external.update(purge_external(db, case_id))
-        revoked_reports.update(purge_external_reports(db, revoked_external))
-        from app.validation_data_v4 import purge_deleted as purge_validation
-        revoked_validation = purge_validation(db)
-        from app.exports_v4 import purge_deleted as purge_exports
-        purge_exports(db, cohort_ids=revoked_cohorts, report_run_ids=revoked_reports, validation_ids=revoked_validation, external_snapshot_ids=revoked_external)
-        if purge_deleted:
-            db.execute("PRAGMA secure_delete=ON")
-            removed_uploads = {json.loads(row[0])["upload_id"] for row in db.execute(
-                "SELECT detail_json FROM changes WHERE action='deletion.upload'")}
-            purge_upload_ids(db, removed_uploads)
-            from app.forms_v4 import purge_case_imports
-            # A restored backup can predate the case creation but still contain
-            # its Forms preview. Apply the current ledger even without a case row.
-            for deletion in db.execute("SELECT target,detail_json FROM changes WHERE action='deletion.record'").fetchall():
-                purge_case_imports(store, db, deletion["target"], identity=json.loads(deletion["detail_json"]))
-            for case in db.execute("SELECT * FROM cases WHERE deletion_requested=1").fetchall():
-                purge_case_imports(store, db, case["case_id"])
-                actor = db.execute("SELECT username FROM users ORDER BY username LIMIT 1").fetchone()[0]
-                store.audit(db, actor, case["case_id"], "deletion.record", {"event_id": case["event_id"], "participant_id": case["participant_id"]})
-                ids = collect_case_upload_ids(db, case["case_id"])
-                for upload_id in ids:
-                    store.audit(db, actor, upload_id, "deletion.upload", {"upload_id": upload_id})
-                purge_upload_ids(db, ids)
-                runs = [r[0] for r in db.execute("SELECT run_id FROM runs WHERE case_id=?", (case["case_id"],))]
-                targets = {case["case_id"], *runs}
-                for change in db.execute("SELECT * FROM changes WHERE action='export.snapshot'").fetchall():
-                    link = json.loads(change["detail_json"])
-                    data = json.loads(store.path(link["ref"]).read_bytes())
-                    if any(m["case_id"] == case["case_id"] for m in data["members"]):
-                        targets.add(change["target"])
-                for target in targets:
-                    db.execute("DELETE FROM changes WHERE target=? AND action!='deletion.record'", (target,))
-                db.execute("UPDATE cases SET display_run_id=NULL WHERE case_id=?", (case["case_id"],))
-                for run_id in runs:
-                    db.execute("DELETE FROM steps WHERE run_id=?", (run_id,))
-                db.execute("DELETE FROM runs WHERE case_id=?", (case["case_id"],))
-                sheet_ids = [r[0] for r in db.execute("SELECT sheet_id FROM score_sheets WHERE case_id=?", (case["case_id"],))]
-                for sheet_id in sheet_ids:
-                    db.execute("DELETE FROM score_grants WHERE viewer_sheet_id=? OR target_sheet_id=?", (sheet_id, sheet_id))
-                db.execute("DELETE FROM basic_results WHERE case_id=?", (case["case_id"],))
-                db.execute("DELETE FROM score_sheets WHERE case_id=?", (case["case_id"],))
-                db.execute("DELETE FROM cases WHERE case_id=?", (case["case_id"],))
         refs = references(store, db)
         candidates = []
         for name in MANAGED:
             for path in store.path(name).rglob("*"):
                 if path.is_file() and path.relative_to(store.root).as_posix() not in refs:
-                    # Resolve once more before unlink; never follow a junction outside the store.
                     resolved = store.path(path.relative_to(store.root).as_posix())
                     candidates.append(resolved)
-        # Commit tombstones before deleting any bytes; interrupted cleanup is safe to rerun.
         db.commit()
         for path in candidates:
             path.unlink(missing_ok=True)
-        if purge_deleted:
-            db.execute("VACUUM")
-            db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         return {"removed_files": len(candidates), "retained_files": len(refs)}
 
 
@@ -296,12 +224,6 @@ def restore(store, source, destination):
                 raise HTTPException(409, "잘못된 백업 경로입니다.")
             if file_hash(path) != expected:
                 raise HTTPException(409, "백업 파일 해시가 일치하지 않습니다.")
-        # Reapply the current deletion ledger, even when restoring a backup from before the deletion request.
-        deleted = deletion_records(store)
-        deleted_files = deleted_uploads(store)
-        from app.validation_data_v4 import deletion_sources, remember_deleted_sources
-        with store.connect() as db:
-            deleted_sources = deletion_sources(db)
         destination.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix="kdog-restore-", dir=destination.parent) as staging:
             staged = Path(staging) / "data"
@@ -319,19 +241,6 @@ def restore(store, source, destination):
                 if db.execute("PRAGMA integrity_check").fetchone()[0] != "ok" or db.execute("PRAGMA foreign_key_check").fetchone():
                     raise HTTPException(409, "복원 DB 무결성 검사에 실패했습니다.")
                 db.execute("UPDATE users SET session_hash=NULL,session_expires=NULL")
-                actor = db.execute("SELECT username FROM users ORDER BY username LIMIT 1").fetchone()
-                if (deleted or deleted_files or deleted_sources) and not actor:
-                    raise HTTPException(409, "삭제 이력 기록용 계정이 없는 백업입니다.")
-                if deleted_sources:
-                    remember_deleted_sources(db, deleted_sources, actor[0])
-                for case_id, event, participant in deleted:
-                    db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=? OR (event_id=? AND participant_id=?)", (case_id, event, participant))
-                    # Preserve tombstones absent from this backup for any subsequent restore.
-                    restored.audit(db, actor[0], case_id, "deletion.record", {"event_id": event, "participant_id": participant})
-                for upload_id in deleted_files:
-                    restored.audit(db, actor[0], upload_id, "deletion.upload", {"upload_id": upload_id})
-                db.execute("UPDATE runs SET lease_expires_at=? WHERE status='running'", ("1970-01-01T00:00:00+00:00",))
                 references(restored, db)
-            clean(restored, purge_deleted=True)
             staged.rename(destination)
-        return {"path": str(destination), "message": "복원·삭제 목록 재적용 완료. 개발자가 새 PC의 키를 다시 등록하세요."}
+        return {"path": str(destination), "message": "백업 snapshot 복원 완료. 개발자가 새 PC의 키를 다시 등록하세요."}

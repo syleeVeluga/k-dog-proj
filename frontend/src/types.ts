@@ -46,10 +46,8 @@ export const sizeOptions: DogProfile['size'][] = ['미기재', '소형', '중형
 export const adoptionOptions: DogProfile['adoption_route'][] = ['미기재', '분양', '입양', '기타'];
 export type Case = {
   case_id: string; event_id: string; participant_id: string; dog_name: string;
-  reservation_at: string; sequence_no: number | null; consent_confirmed: boolean; guardian_name: string; dog: DogProfile;
+  reservation_at: string; sequence_no: number | null; guardian_name: string; dog: DogProfile;
   input_revision: number; selected_session_id: string;
-  deletion_requested: boolean;
-  consents: Consents;
   scoring_status?: 'reanalysis_required';
   progress?: Progress | null;
   manifest: { schema_version: string; sessions: Session[]; migration_note?: string | null };

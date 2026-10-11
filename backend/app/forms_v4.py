@@ -240,9 +240,6 @@ def _assert_live(store, db, preview, *, committed=False, associated_case_ids=(),
         current = db.execute("SELECT case_id FROM cases WHERE event_id=? AND participant_id=?", pair).fetchone()
         if current:
             case_ids.add(current["case_id"])
-        if db.execute("SELECT 1 FROM changes WHERE action='deletion.record' AND json_extract(detail_json,'$.event_id')=? "
-                      "AND json_extract(detail_json,'$.participant_id')=?", pair).fetchone():
-            raise HTTPException(409, "삭제된 참가자의 미리보기는 재사용할 수 없습니다.")
     for case_id in case_ids:
         store.case(db, case_id)
     for item in preview.rows:
@@ -398,11 +395,7 @@ def _case_associations(store, db, rows, request):
         current = db.execute("SELECT case_id FROM cases WHERE event_id=? AND participant_id=?", (event_id, participant_id)).fetchone()
         if current:
             case_ids.add(current["case_id"])
-        if db.execute("SELECT 1 FROM changes WHERE action='deletion.record' AND json_extract(detail_json,'$.event_id')=? "
-                      "AND json_extract(detail_json,'$.participant_id')=?", (event_id, participant_id)).fetchone():
-            raise HTTPException(409, "삭제 이력이 있는 원행은 가져올 수 없습니다.")
     for case_id in case_ids:
-        # No new preview/source blob may retain a participant whose deletion is already requested.
         store.case(db, case_id)
     return sorted(case_ids), [{"event_id": event, "participant_id": participant} for event, participant in sorted(participants)]
 
@@ -415,7 +408,7 @@ def _live_state(db, request, rows):
     index = headers.index(column)
     state = []
     for participant_id in sorted({cells[index] for cells in rows[1:] if len(cells) > index and isinstance(cells[index], str) and cells[index]}):
-        found = db.execute("SELECT case_id,input_revision,selected_session_id,deletion_requested FROM cases "
+        found = db.execute("SELECT case_id,input_revision,selected_session_id FROM cases "
                            "WHERE event_id=? AND participant_id=?", (request.event_id, participant_id)).fetchone()
         state.append([participant_id, None if found is None else list(tuple(found))])
     return state
@@ -493,10 +486,6 @@ def _build_rows(store, db, rows, request, catalog, sheet_name):
                                                "dog_name": mapped.get("dog_name")})
                 if db.execute("SELECT 1 FROM cases WHERE event_id=? AND participant_id=?", (request.event_id, participant_id)).fetchone():
                     raise ValueError("이미 등록된 ID입니다. 기존 참가자와 회차를 명시적으로 연결하세요.")
-                deleted = db.execute("SELECT 1 FROM changes WHERE action='deletion.record' AND json_extract(detail_json,'$.event_id')=? "
-                                     "AND json_extract(detail_json,'$.participant_id')=?", (request.event_id, participant_id)).fetchone()
-                if deleted:
-                    raise ValueError("삭제 이력이 있는 참가자 ID는 가져올 수 없습니다.")
                 case_id, session_id, dog_name, revision, action = uid(), uid(), participant.dog_name, None, "create"
                 if participant.sequence_no is not None:
                     key = (request.event_id, participant.sequence_no)
@@ -577,9 +566,6 @@ def preview(store, data: bytes, request: FormsPreviewRequestV4, actor: str) -> F
             identity["live"] = _live_state(db, request, parsed[0])
         fingerprint = _digest(identity)
         receipt = _check_request(db, "forms.preview_request", actor, request.request_id, request_hash)
-        if db.execute("SELECT 1 FROM changes WHERE action='forms.purged' AND json_extract(detail_json,'$.source_hash')=?",
-                      (source_hash,)).fetchone():
-            raise HTTPException(409, "삭제 대상이 포함된 가져오기 파일은 다시 등록할 수 없습니다.")
         existing = _find(db, "forms.fingerprint", fingerprint)
         if receipt or existing:
             preview_id = (receipt or existing)["preview_id"]
@@ -667,9 +653,6 @@ def commit(store, request: FormsCommitRequestV4, actor: str) -> FormsCommitResul
                         or participant.sequence_no is not None and db.execute(
                             "SELECT 1 FROM cases WHERE event_id=? AND sequence_no=?", (row.event_id, participant.sequence_no)).fetchone()):
                     raise HTTPException(409, "미리보기 이후 참가자 ID 또는 순번이 등록되었습니다. 다시 확인하세요.")
-                if db.execute("SELECT 1 FROM changes WHERE action='deletion.record' AND json_extract(detail_json,'$.event_id')=? "
-                              "AND json_extract(detail_json,'$.participant_id')=?", (row.event_id, row.participant_id)).fetchone():
-                    raise HTTPException(409, "미리보기 이후 삭제 이력이 기록되었습니다.")
         results = []
         try:
             for row in frozen.rows:
@@ -716,31 +699,6 @@ def commit(store, request: FormsCommitRequestV4, actor: str) -> FormsCommitResul
         return result
 
 
-def purge_case_imports(store, db, case_id: str, *, identity: dict | None = None) -> None:
-    """Called by maintenance before purging a case; retain other participants' row capsules."""
-    imports, affected_sources = [], set()
-    case = db.execute("SELECT event_id,participant_id FROM cases WHERE case_id=?", (case_id,)).fetchone()
-    if identity is None and case:
-        identity = {"event_id": case["event_id"], "participant_id": case["participant_id"]}
-    for audit in db.execute("SELECT target,detail_json FROM changes WHERE action='forms.preview'").fetchall():
-        link = json.loads(audit["detail_json"])
-        record = json.loads(_read(store, link))
-        source_hash = record["view"]["source_hash"]
-        imports.append((audit["target"], record["fingerprint"], source_hash))
-        if (case_id in record.get("associated_case_ids", [])
-                or identity is not None and identity in record.get("associated_participants", [])
-                or identity is not None and any((row["event_id"], row["participant_id"]) ==
-                    (identity["event_id"], identity["participant_id"]) for row in record["view"]["rows"])
-                or any(row["case_id"] == case_id for row in record["view"]["rows"])):
-            affected_sources.add(source_hash)
-    actor = db.execute("SELECT username FROM users ORDER BY username LIMIT 1").fetchone()
-    for preview_id, fingerprint, source_hash in imports:
-        if source_hash not in affected_sources:
-            continue
-        # Tombstones contain no rows, participant names, answers or live blob references.
-        store.audit(db, actor[0], fingerprint, "forms.purged", {"source_hash": source_hash})
-        db.execute("DELETE FROM changes WHERE target=? AND action IN ('forms.preview','forms.commit')", (preview_id,))
-        db.execute("DELETE FROM changes WHERE target=? AND action='forms.fingerprint'", (fingerprint,))
 
 
 class FormsPresetMappingV4(Model):

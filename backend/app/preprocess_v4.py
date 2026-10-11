@@ -72,8 +72,6 @@ def _case(store, db, case_id, session_id, actor, expected=None, *, write=False, 
     manifest = store.manifest(row)
     if manifest.schema_version != "intake-4.0":
         raise HTTPException(409, "S1 전환 후 전처리하세요.")
-    if manifest.consents.analysis_feedback == "declined":
-        raise HTTPException(403, "분석·피드백 동의가 거절된 자료입니다.")
     session = selected_session(manifest, session_id) if selected else next((value for value in manifest.sessions if value.session_id == session_id), None)
     if session is None:
         raise HTTPException(409, "촬영 회차가 더 이상 존재하지 않습니다.")

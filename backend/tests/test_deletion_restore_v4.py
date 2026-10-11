@@ -1,4 +1,4 @@
-"""Synthetic stable case identity survives deletion and repeated old-backup restores."""
+"""Synthetic restore retains the exact backup identity and excludes later events."""
 import json
 from pathlib import Path
 import unittest
@@ -34,7 +34,7 @@ class DeletionRestoreV4Tests(unittest.TestCase):
                             "after": {"participant_id": manifest.participant_id},
                         })
                     if cleaned_before_restore:
-                        maintenance.clean(store, purge_deleted=True)
+                        maintenance.clean(store)
                     # The second restore uses only the ledger left by the first.
                     # Neither ledger may lose the stable ID when the case is absent.
                     for number in (1, 2):
@@ -42,10 +42,12 @@ class DeletionRestoreV4Tests(unittest.TestCase):
                         maintenance.restore(store, root / "before-id-edit", destination)
                         store = Store(destination)
                         with store.connect() as db:
-                            self.assertEqual(db.execute("SELECT COUNT(*) FROM cases WHERE case_id=?", (case_id,)).fetchone()[0], 0)
-                            records = list(db.execute("SELECT target,detail_json FROM changes WHERE action='deletion.record'"))
-                            self.assertTrue(any(row["target"] == case_id for row in records))
-                            self.assertTrue(any(json.loads(row["detail_json"])["participant_id"] == "RENAMED-SYNTHETIC-ID" for row in records))
-                        self.assertFalse(store.path(original_ref).exists())
+                            restored = store.case(db, case_id)
+                            self.assertEqual(restored["participant_id"], old_participant_id)
+                            self.assertFalse(restored["deletion_requested"])
+                            self.assertFalse(db.execute("SELECT 1 FROM changes WHERE action='case.identity'").fetchone())
+                            self.assertFalse(db.execute("SELECT 1 FROM changes WHERE action='deletion.record'").fetchone())
+                            maintenance.references(store, db)
+                        self.assertTrue(store.path(original_ref).exists())
                 finally:
                     fixture.doCleanups()

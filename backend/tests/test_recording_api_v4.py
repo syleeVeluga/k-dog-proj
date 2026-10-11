@@ -139,8 +139,8 @@ class RecordingApiV4Tests(AppCase):
                 self.store.save(db, row, manifest, "operator", "test.decline")
             return value
         with patch("app.capture_v4.validate_recording_media_v4", side_effect=decline):
-            self.assertIn(self.save().status_code, (403, 409))
-        self.assertEqual(self.client.get(self.path).status_code, 403)
+            self.assertIn(self.save().status_code, (409,))
+        self.assertEqual(self.client.get(self.path).status_code, 200)
         self.item = self.get_case(self.item)
         self.delete_case(self.item)
-        self.assertEqual(self.client.get(self.path).status_code, 403)
+        self.assertEqual(self.client.get(self.path).status_code, 200)

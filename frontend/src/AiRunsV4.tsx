@@ -45,7 +45,7 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
     finally { working.current = false; if (alive.current) setBusy(false); }
   }
   const allowed = ready?.enabled && preprocess?.result_pointer && ['complete', 'partial'].includes(preprocess.status) && !preprocess.outdated
-    && preprocess.input_revision === item.input_revision && item.consents.analysis_feedback === 'confirmed';
+    && preprocess.input_revision === item.input_revision;
   async function start() {
     if (!allowed || !preprocess?.result_pointer || !ready) return;
     const fields = { expected_revision: item.input_revision, preprocess_ref: preprocess.result_pointer.ref, preprocess_hash: preprocess.result_pointer.hash,
@@ -66,7 +66,6 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
     {error && <p role="alert" className="error">{error}</p>}
     <button disabled={busy || loading} onClick={() => { void reload(true); }}>AI 실행 상태 새로고침</button>
     {!ready?.enabled && <p role="status">개발자가 AI 설정을 활성화해야 실행할 수 있습니다.</p>}
-    {item.consents.analysis_feedback !== 'confirmed' && <p role="status">분석·피드백 동의를 확인해야 실행할 수 있습니다.</p>}
     {(!preprocess?.result_pointer || preprocess.outdated) && <p role="status">현재 입력 기준의 전처리 결과가 필요합니다.</p>}
     {preprocess?.status === 'partial' && <p>전처리가 일부만 완성되었습니다. 없는 카메라·클립의 항목은 관찰 부족 사유를 유지합니다.</p>}
     {manager && <fieldset disabled={busy || loading}><legend>명시 실행과 재사용</legend>

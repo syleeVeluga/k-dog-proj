@@ -146,8 +146,6 @@ def _case(store, db, case_id, expected=None):
     manifest = store.manifest(row)
     if manifest.schema_version != "intake-4.0":
         raise HTTPException(409, "S1 초기화가 필요한 입력입니다.")
-    if manifest.consents.analysis_feedback == "declined":
-        raise HTTPException(403, "분석 동의가 거절된 자료입니다.")
     return row, manifest
 
 

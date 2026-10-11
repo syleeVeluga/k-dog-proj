@@ -255,10 +255,8 @@ class SheetsV4Tests(unittest.TestCase):
         self.store.path(row["manifest_ref"]).write_bytes(payload)
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (self.case_id,))
-        with self.assertRaises(HTTPException):
-            self.view(row)
-        with self.assertRaises(HTTPException):
-            self.save(row, [])
+        self.view(row)
+        self.save(row, [])
 
     def test_ai_original_cannot_claim_human_origin_or_be_overwritten(self):
         human = self.submit(self.assign())

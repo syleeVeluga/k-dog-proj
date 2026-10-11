@@ -136,8 +136,7 @@ class ReportAcceptanceV4Tests(unittest.TestCase):
             self.assertEqual(reports.download(restored, case_id, session_id, reused_id, "manifest", user, viewer["sheet_id"])[0], reused.model_dump_json().encode())
             with restored.connect(write=True) as db:
                 db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (case_id,))
-            with self.assertRaises(HTTPException):
-                reports.download(restored, case_id, session_id, run_id, "pdf", user, viewer["sheet_id"])
-            maintenance.clean(restored, purge_deleted=True)
+            self.assertEqual(reports.download(restored, case_id, session_id, run_id, "pdf", user, viewer["sheet_id"])[0], pdf)
+            maintenance.clean(restored)
             for ref in (publication.content.ref, publication.output.html.ref, publication.output.pdf.ref):
-                self.assertFalse(restored.path(ref).exists())
+                self.assertTrue(restored.path(ref).exists())

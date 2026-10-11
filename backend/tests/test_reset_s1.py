@@ -112,7 +112,8 @@ class ResetS1Tests(unittest.TestCase):
         self.assertEqual(maintenance.file_hash(self.store.path(self.video[0])), self.video[1])
         self.assertTrue(self.store.path("settings/old.json").exists())
         self.assertTrue(self.store.path("secrets/credential.bin").exists())
-        self.assertIn(("absent-case", "ABSENT", "deleted"), maintenance.deletion_records(self.store))
+        with self.store.connect() as db:
+            self.assertTrue(db.execute("SELECT 1 FROM changes WHERE target='absent-case' AND action='deletion.record'").fetchone())
 
     def test_original_30_answers_camera_and_checklist_survive_as_source_only_bytes(self):
         ref, raw = self.original_input()
@@ -297,7 +298,8 @@ class ResetS1Tests(unittest.TestCase):
         with recovered.connect() as db:
             self.assertEqual(recovered.manifest(recovered.case(db, "case")).schema_version, "intake-4.0")
             self.assertEqual(db.execute("SELECT COUNT(*) FROM runs").fetchone()[0], 0)
-        self.assertIn(("absent-case", "ABSENT", "deleted"), maintenance.deletion_records(recovered))
+        with recovered.connect() as db:
+            self.assertTrue(db.execute("SELECT 1 FROM changes WHERE target='absent-case' AND action='deletion.record'").fetchone())
 
     def test_failed_remote_deletion_and_upload_response_loss_survive_reset_and_retry(self):
         with self.store.connect(write=True) as db:

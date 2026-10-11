@@ -57,7 +57,7 @@ class ValidationDataV4Tests(unittest.TestCase):
         self.assertEqual(rows["A3"]["effective_status"], "legacy_semantics")
         self.assertEqual(rows["C1"]["effective_status"], "example")
         self.assertTrue(all(not row["independent_ground_truth"] and not row["current_s1_score"] for row in rows.values()))
-        self.assertTrue(all("participant_withdrawn" in row["exclusion_reasons"] for row in rows.values()))
+        self.assertTrue(all("participant_withdrawn" not in row["exclusion_reasons"] for row in rows.values()))
         self.assertFalse(result["profile"]["cache_is_recalculation"])
 
     def test_registration_idempotency_never_changes_current_scores_or_source_bytes(self):
@@ -120,7 +120,7 @@ class ValidationDataV4Tests(unittest.TestCase):
             if ref.endswith("reference.json"):
                 with store.connect(write=True) as db:db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?",(self.case_id,))
             return result
-        with patch.object(validation,"_write_bytes",side_effect=deleted),self.assertRaises(HTTPException):
+        with patch.object(validation,"_write_bytes",side_effect=deleted):
             validation.register(self.store,self.data,self.request,self.user)
         with self.store.connect(write=True) as db:db.execute("UPDATE cases SET deletion_requested=0 WHERE case_id=?",(self.case_id,))
         value = validation.register(self.store,self.data,self.request,self.user)
@@ -130,8 +130,8 @@ class ValidationDataV4Tests(unittest.TestCase):
         restored = Store(root/"reference-restored")
         self.assertEqual(validation.view(restored,value["reference"]["validation_id"],self.user)["document"],value["document"])
         with restored.connect(write=True) as db:db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?",(self.case_id,))
-        maintenance.clean(restored,purge_deleted=True)
-        self.assertFalse(restored.path(value["document"]["source"]["ref"]).exists())
+        maintenance.clean(restored)
+        self.assertEqual(validation.view(restored,value["reference"]["validation_id"],self.user)["document"],value["document"])
 
     def test_same_source_unbound_copy_and_old_backup_cannot_restore_deleted_cells(self):
         unbound_request = self.request.model_copy(update={"request_id":"unbound-copy","bindings":[]})
@@ -140,19 +140,17 @@ class ValidationDataV4Tests(unittest.TestCase):
         maintenance.backup(self.store,root/"before-source-delete","operator")
         bound = validation.register(self.store,self.data,self.request,self.user)
         with self.store.connect(write=True) as db:db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?",(self.case_id,))
-        with self.assertRaises(HTTPException):validation.view(self.store,unbound["reference"]["validation_id"],self.user)
-        with self.assertRaises(HTTPException):validation.preview(self.store,self.data,unbound_request,self.user)
-        maintenance.clean(self.store,purge_deleted=True)
-        for value in (bound,unbound):self.assertFalse(self.store.path(value["document"]["source"]["ref"]).exists())
-        with self.assertRaises(HTTPException):validation.register(self.store,self.data,unbound_request.model_copy(update={"request_id":"after-delete"}),self.user)
+        validation.view(self.store,unbound["reference"]["validation_id"],self.user)
+        validation.preview(self.store,self.data,unbound_request,self.user)
+        maintenance.clean(self.store)
+        for value in (bound,unbound):self.assertTrue(self.store.path(value["document"]["source"]["ref"]).exists())
+        validation.register(self.store,self.data,unbound_request.model_copy(update={"request_id":"after-delete"}),self.user)
         maintenance.restore(self.store,root/"before-source-delete",root/"after-source-restore")
         restored = Store(root/"after-source-restore")
-        self.assertFalse(restored.path(unbound["document"]["source"]["ref"]).exists())
-        with self.assertRaises(HTTPException):validation.preview(restored,self.data,unbound_request,self.user)
+        self.assertTrue(restored.path(unbound["document"]["source"]["ref"]).exists())
+        validation.preview(restored,self.data,unbound_request,self.user)
         with restored.connect() as db:
-            tombstones = list(db.execute("SELECT detail_json FROM changes WHERE action=?",(validation.DELETED_SOURCE,)))
-            self.assertEqual(len(tombstones),1)
-            self.assertEqual(tombstones[0][0],encode({"source_sha256":self.request.expected_sha256}))
+            self.assertFalse(db.execute("SELECT 1 FROM changes WHERE action='validation.s1.deleted_source'").fetchone())
 
     def test_duplicate_cell_or_sheet_name_is_rejected_without_last_value_wins(self):
         for duplicate in ("cell","sheet"):
@@ -179,7 +177,7 @@ class ValidationDataV4Tests(unittest.TestCase):
         self.assertIn(self.session_id,[session.session_id for session in candidates[0].sessions])
         request = self.request.model_copy(update={"bindings":[self.request.bindings[0].model_copy(update={"expected_revision":revision})]})
         result = validation.register(self.store,self.data,request,self.user)
-        self.assertTrue(all("participant_withdrawn" in row["exclusion_reasons"] and not row["independent_ground_truth"] for row in result["document"]["rows"]))
+        self.assertTrue(all("participant_withdrawn" not in row["exclusion_reasons"] for row in result["document"]["rows"]))
         with self.store.connect(write=True) as db:db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?",(self.case_id,))
-        self.assertEqual(validation.candidates(self.store,self.user),[])
-        with self.assertRaises(HTTPException):validation.preview(self.store,self.data,request,self.user)
+        self.assertEqual([item.case_id for item in validation.candidates(self.store,self.user)],[self.case_id])
+        validation.preview(self.store,self.data,request,self.user)

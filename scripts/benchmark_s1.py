@@ -246,12 +246,12 @@ def _run(store, pin, kind, trial):
 def _access(store, trial, user):
     with store.connect() as db:
         account = db.execute("SELECT active,role FROM users WHERE username=?", (user.username,)).fetchone()
-        if not account or not account["active"] or account["role"] not in ("operator", "admin"):
-            raise ValueError("active operator permission required")
+        if not account or not account["active"]:
+            raise ValueError("active business account required")
         case = store.case(db, trial.case_id)
         source = store.manifest(case)
-        if not isinstance(source, ManifestV4) or source.consents.analysis_feedback != "confirmed":
-            raise ValueError("current analysis consent must be confirmed")
+        if not isinstance(source, ManifestV4):
+            raise ValueError("current S1 input required")
         if not any(row.session_id == trial.session_id for row in source.sessions):
             raise ValueError("session no longer belongs to this case")
 

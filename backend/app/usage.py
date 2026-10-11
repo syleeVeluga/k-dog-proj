@@ -59,10 +59,10 @@ def summarize(store, *, event_id=None, prices=None):
         # Hold one read snapshot across run and attempt queries.
         db.execute("BEGIN")
         runs = db.execute("SELECT r.*,c.event_id,c.participant_id FROM runs r JOIN cases c ON c.case_id=r.case_id "
-                          "WHERE c.deletion_requested=0 AND (? IS NULL OR c.event_id=?) ORDER BY r.created_at,r.run_id",
+                          "WHERE (? IS NULL OR c.event_id=?) ORDER BY r.created_at,r.run_id",
                           (event_id, event_id)).fetchall()
         steps = db.execute("SELECT s.* FROM steps s JOIN runs r ON r.run_id=s.run_id JOIN cases c ON c.case_id=r.case_id "
-                           "WHERE c.deletion_requested=0 AND (? IS NULL OR c.event_id=?) ORDER BY s.created_at,s.step_id",
+                           "WHERE (? IS NULL OR c.event_id=?) ORDER BY s.created_at,s.step_id",
                            (event_id, event_id)).fetchall()
     by_run = {row["run_id"]: [] for row in runs}
     for step in steps:
@@ -125,7 +125,7 @@ def summarize(store, *, event_id=None, prices=None):
             "run_id": run["run_id"], "status": run["status"],
             "elapsed_to_last_update_sec": (datetime.fromisoformat(run["updated_at"]) - datetime.fromisoformat(run["created_at"])).total_seconds(),
             "attempts": records})
-    return {"generated_at": now(), "scope": "non-deleted operational runs; developer samples excluded",
+    return {"generated_at": now(), "scope": "operational runs; developer samples excluded",
         "runs": results, "run_statuses": dict(Counter(row["status"] for row in runs)),
         "groups": [{"provider": key[0], "model": key[1], "stage": key[2], **value} for key, value in sorted(groups.items())],
         "calls_reserved": reserved_count, "unreserved_ai_steps": unreserved_count, "reused_ai_steps": reused_count,

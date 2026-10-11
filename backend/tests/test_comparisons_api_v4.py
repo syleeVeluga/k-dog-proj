@@ -51,7 +51,7 @@ class ComparisonApiV4Tests(unittest.TestCase):
         self.login('operator')
         with self.store.connect(write=True) as db:
             db.execute('UPDATE cases SET deletion_requested=1 WHERE case_id=?', (f.ids[0],))
-        self.assertEqual(self.client.get('/api/comparisons-s1/cohorts/' + saved['reference']['snapshot_id']).status_code, 403)
+        self.assertEqual(self.client.get('/api/comparisons-s1/cohorts/' + saved['reference']['snapshot_id']).status_code, 200)
 
     def test_typed_research_and_cohort_backup_reapply_deleted_member(self):
         f = self.fixture
@@ -69,14 +69,14 @@ class ComparisonApiV4Tests(unittest.TestCase):
         maintenance.backup(self.store, backup, f.admin.username)
         with self.store.connect(write=True) as db:
             db.execute('UPDATE cases SET deletion_requested=1 WHERE case_id=?', (f.ids[0],))
-        maintenance.clean(self.store, purge_deleted=True)
-        self.assertFalse(self.store.path(cohort.reference.ref).exists())
+        maintenance.clean(self.store)
+        self.assertTrue(self.store.path(cohort.reference.ref).exists())
         maintenance.restore(self.store, backup, restored)
         target = Store(restored)
-        self.assertFalse(target.path(cohort.reference.ref).exists())
+        self.assertTrue(target.path(cohort.reference.ref).exists())
         self.assertTrue(target.path(research.ref).exists())
         with target.connect() as db:
-            self.assertFalse(db.execute("SELECT 1 FROM changes WHERE action='comparison.s1.snapshot'").fetchone())
+            self.assertTrue(db.execute("SELECT 1 FROM changes WHERE action='comparison.s1.snapshot'").fetchone())
 
     @staticmethod
     def _remove(path):

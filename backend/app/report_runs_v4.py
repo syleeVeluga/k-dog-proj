@@ -148,8 +148,8 @@ def _case(store, db, case_id, session_id, user):
     _actor(db, user.username)
     row = store.case(db, case_id)
     manifest = store.manifest(row)
-    if not isinstance(manifest, ManifestV4) or manifest.consents.analysis_feedback != "confirmed":
-        raise HTTPException(403, "분석·피드백 동의가 확인된 참가자만 리포트를 열 수 있습니다.")
+    if not isinstance(manifest, ManifestV4):
+        raise HTTPException(409, "S1 입력만 리포트에 사용할 수 있습니다.")
     if not any(session.session_id == session_id for session in manifest.sessions):
         raise HTTPException(404, "이 대상의 촬영 회차가 없습니다.")
     return row, manifest
@@ -780,33 +780,8 @@ def list_runs(store, case_id, session_id, user):
     return [view(store, run_id, user) for run_id in ids]
 
 
-def purge_comparisons(db, snapshot_ids):
-    """Remove dependent report references when a cohort member's data is deleted."""
-    revoked = set(snapshot_ids)
-    run_ids = set()
-    for row in db.execute("SELECT run_id,input_snapshot_json FROM runs WHERE kind=?", (KIND,)):
-        cohort = json.loads(row["input_snapshot_json"]).get("cohort")
-        if cohort and cohort["reference"]["snapshot_id"] in revoked:
-            run_ids.add(row["run_id"])
-    for run_id in run_ids:
-        db.execute("DELETE FROM steps WHERE run_id=?", (run_id,))
-        db.execute("DELETE FROM changes WHERE target=?", (run_id,))
-        db.execute("DELETE FROM runs WHERE run_id=?", (run_id,))
-    return run_ids
 
 
-def purge_external(db, snapshot_ids):
-    revoked = set(snapshot_ids)
-    run_ids = set()
-    for row in db.execute("SELECT run_id,input_snapshot_json FROM runs WHERE kind=?", (KIND,)):
-        external = json.loads(row["input_snapshot_json"]).get("profile", {}).get("external_comparison")
-        if external and external["reference"]["snapshot_id"] in revoked:
-            run_ids.add(row["run_id"])
-    for run_id in run_ids:
-        db.execute("DELETE FROM steps WHERE run_id=?", (run_id,))
-        db.execute("DELETE FROM changes WHERE target=?", (run_id,))
-        db.execute("DELETE FROM runs WHERE run_id=?", (run_id,))
-    return run_ids
 
 
 def action(store, run_id, value: ReportActionV4, user, *, retry=False):

@@ -132,5 +132,5 @@ class IntakeFieldConflictTests(AppCase):
         item = self.add("0001", 1).json()
         self.delete_case(item)
         for response, field in ((self.add("0001"), "participant_id"), (self.add("0009", 1), "sequence_no")):
-            self.assertEqual((response.status_code, response.json()["field"], response.json()["existing"]), (409, field, None))
-            self.assertIn("삭제 요청된 참가자", response.json()["detail"])
+            self.assertEqual((response.status_code, response.json()["field"], response.json()["existing"]), (409, field, {"participant_id":"0001", "dog_name":item["dog_name"]}))
+            self.assertNotIn("삭제 요청", response.json()["detail"])

@@ -83,11 +83,10 @@ class FormsApiV4Tests(AppCase):
         case_id = response.json()["rows"][0]["case_id"]
         item = self.client.get(f"/api/cases/{case_id}").json()
         self.delete_case(item)
-        clean(self.store, purge_deleted=True)
-        self.assertTrue(all(not self.store.path(ref).exists() for ref in refs))
+        clean(self.store)
+        self.assertTrue(all(self.store.path(ref).exists() for ref in refs))
         with self.store.connect() as db:
             tombstones = [json.loads(r[0]) for r in db.execute("SELECT detail_json FROM changes WHERE action='forms.purged'")]
-        self.assertTrue(tombstones)
-        self.assertNotIn("SyntheticGuardian", json.dumps(tombstones))
+        self.assertFalse(tombstones)
         config["request_id"] = "retry-deleted"
-        self.assertEqual(self.stage("ref,storage_ref,metadata_json\nSyntheticDog,SyntheticGuardian,unparsed raw label\n", config).status_code, 409)
+        self.assertEqual(self.stage("ref,storage_ref,metadata_json\nSyntheticDog,SyntheticGuardian,unparsed raw label\n", config).status_code, 200)

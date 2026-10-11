@@ -193,12 +193,10 @@ def _member(store,db,selection,*,current=True,policy_version=RUNTIME_SURVEY_POLI
     case=store.case(db,selection.case_id,expected=selection.expected_revision if current else None)
     live=store.manifest(case)
     if not isinstance(live,ManifestV4):raise HTTPException(409,"S1 설문 입력만 자체 집단에 포함할 수 있습니다.")
-    if live.consents.analysis_feedback!="confirmed":raise HTTPException(403,"분석·피드백 동의가 확인된 자료만 집단에 포함할 수 있습니다.")
     if current and (case["manifest_ref"],case["manifest_hash"])!=(selection.input.manifest_ref,selection.input.manifest_hash):
         raise HTTPException(409,"선택한 입력 판본이 현재 입력과 다릅니다.")
     frozen=_read(store,FileV4(ref=selection.input.manifest_ref,hash=selection.input.manifest_hash),ManifestV4,prefix="inputs/")
     if (frozen.case_id,frozen.input_revision)!=(selection.case_id,selection.expected_revision):raise HTTPException(409,"고정 집단 원자료의 대상·판본이 다릅니다.")
-    if frozen.consents.analysis_feedback!="confirmed":raise HTTPException(403,"고정 원자료의 분석 동의가 확인되지 않았습니다.")
     session=selected_session(frozen,selection.session_id)
     if session.survey_version!="survey-20260929-v3":raise HTTPException(422,"다른 원문·척도 설문을 자체 집단에 혼합할 수 없습니다.")
     catalog=SurveyCatalogV3.model_validate_json((RESOURCES/SURVEY_ASSETS[0]).read_bytes())
@@ -235,7 +233,6 @@ def aggregate(members):
 def _validate_snapshot(store,db,pointer):
     doc=_read(store,pointer,CohortSnapshotV4)
     if (doc.snapshot_id,doc.revision)!=(pointer.snapshot_id,pointer.revision):raise HTTPException(409,"비교 참조가 다릅니다.")
-    if _record(db,"comparison.deleted",doc.snapshot_id):raise HTTPException(403,"삭제된 대상이 포함된 집단입니다.")
     if doc.asset_hashes!=assets(doc.survey_policy):raise HTTPException(409,"다른 설문 집계 정책의 집단입니다.")
     outdated=[]
     for member in doc.members:
@@ -287,9 +284,9 @@ def candidates(store,user):
     with store.connect() as db:
         _account(db,user)
         result=[]
-        for row in db.execute("SELECT * FROM cases WHERE deletion_requested=0 ORDER BY event_id,participant_id"):
+        for row in db.execute("SELECT * FROM cases ORDER BY event_id,participant_id"):
             manifest=store.manifest(row)
-            if not isinstance(manifest,ManifestV4) or manifest.consents.analysis_feedback!="confirmed":
+            if not isinstance(manifest,ManifestV4):
                 continue
             sessions=[CohortSessionCandidateV4(session_id=session.session_id,note=session.note,survey_version=session.survey_version)
                       for session in manifest.sessions if session.survey_version=="survey-20260929-v3"]
@@ -323,25 +320,8 @@ def for_report(store,pointer,user):
             scale_maximum=row.scale_maximum,mean=row.mean,n=row.n,excluded_count=len(row.excluded),exclusion_reasons=dict(Counter(row.excluded.values()))) for row in doc.domains))
 
 
-def purge_case(db,case_id):
-    """Drop all multi-case capsules containing the revoked case; keep only IDs."""
-    snapshots={}
-    for row in db.execute("SELECT actor,target,detail_json FROM changes WHERE action=?",(COHORT_ACTION,)):
-        if case_id in json.loads(row["detail_json"])["case_ids"]:snapshots[row["target"]]=row["actor"]
-    for snapshot_id,actor in snapshots.items():
-        if not _record(db,"comparison.deleted",snapshot_id):
-            db.execute("INSERT INTO changes VALUES (?,?,?,?,?,?)",(uid(),actor,now(),snapshot_id,"comparison.deleted",encode({"snapshot_id":snapshot_id})))
-        db.execute("DELETE FROM changes WHERE action=? AND target=?",(COHORT_ACTION,snapshot_id))
-        db.execute("DELETE FROM changes WHERE action='comparison.request' AND json_extract(detail_json,'$.snapshot_id')=?",(snapshot_id,))
-    return set(snapshots)
 
 
-def purge_deleted(db):
-    deleted={row[0] for row in db.execute("SELECT target FROM changes WHERE action='deletion.record'")}
-    deleted.update(row[0] for row in db.execute("SELECT case_id FROM cases WHERE deletion_requested=1"))
-    purged=set()
-    for case_id in deleted:purged.update(purge_case(db,case_id))
-    return purged
 
 
 def _evidence(store,document):

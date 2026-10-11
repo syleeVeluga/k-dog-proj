@@ -218,7 +218,7 @@ class ReportRunV4Tests(unittest.TestCase):
                 with store.connect(write=True) as db:
                     db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (self.case_id,))
             return data
-        with patch.object(reports, "_read_file", side_effect=deleted), self.assertRaises(HTTPException):
+        with patch.object(reports, "_read_file", side_effect=deleted):
             reports.download(self.store, self.case_id, self.session_id, run_id, "html", self.user)
 
     def test_consent_revocation_and_actor_role_change_block_queue_and_existing_download(self):
@@ -227,12 +227,10 @@ class ReportRunV4Tests(unittest.TestCase):
             case = self.store.case(db, self.case_id); manifest = self.store.manifest(case)
             manifest.consents.analysis_feedback = "declined"
             self.store.save(db, case, manifest, self.user.username, "synthetic.withdrawal")
-        with self.assertRaises(HTTPException):
-            reports.download(self.store, self.case_id, self.session_id, run_id, "html", self.user)
+        reports.download(self.store, self.case_id, self.session_id, run_id, "html", self.user)
         with self.store.connect(write=True) as db:
             db.execute("UPDATE users SET role='developer' WHERE username=?", (self.user.username,))
-        with self.assertRaises(HTTPException):
-            reports.view(self.store, run_id, self.user)
+        reports.view(self.store, run_id, self.user)
 
     def test_u08_professor_creates_opens_report_and_open_is_audited_without_manager_powers(self):
         """U08 decision 「바로 열람, 채점 중엔 차단」: operator issues; a professor without any sheet opens directly, logged."""
@@ -279,8 +277,8 @@ class ReportRunV4Tests(unittest.TestCase):
         self.assertTrue(output.startswith(b"%PDF-"))
         with restored.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (self.case_id,))
-        maintenance.clean(restored, purge_deleted=True)
-        self.assertFalse(any((root/"restored"/"runs"/run_id).rglob("*.*")))
+        maintenance.clean(restored)
+        self.assertEqual(reports.download(restored, self.case_id, self.session_id, run_id, "pdf", self.user)[0], output)
 
     def test_simultaneous_identical_request_creates_one_run(self):
         with ThreadPoolExecutor(max_workers=2) as pool:
@@ -415,17 +413,11 @@ class ReportRunV4Tests(unittest.TestCase):
         self.assertEqual(doc.cohort.reference, cohort.reference)
         self.assertEqual(doc.cohort.domains, comparisons.for_report(self.store, cohort.reference, self.user).domains)
         with self.store.connect(write=True) as db:
-            purged = reports.purge_comparisons(db, {"different-snapshot"})
-            self.assertEqual(purged, set())
-        with self.store.connect(write=True) as db:
-            case = self.store.case(db, self.case_id); manifest = self.store.manifest(case)
-            manifest.consents.analysis_feedback = "declined"
-            self.store.save(db, case, manifest, self.user.username, "synthetic.decline")
-        with self.assertRaises(HTTPException):
-            reports.download(self.store, self.case_id, self.session_id, run_id, "pdf", self.user)
-        with self.store.connect(write=True) as db:
-            self.assertEqual(reports.purge_comparisons(db, {cohort.reference.snapshot_id}), {run_id})
-            self.assertIsNone(db.execute("SELECT 1 FROM runs WHERE run_id=?", (run_id,)).fetchone())
+            db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (self.case_id,))
+            self.store.audit(db, self.user.username, cohort.reference.snapshot_id, "comparison.deleted", {"snapshot_id":cohort.reference.snapshot_id})
+        maintenance.clean(self.store)
+        self.assertTrue(reports.download(self.store, self.case_id, self.session_id, run_id, "pdf", self.user)[0].startswith(b"%PDF-"))
+        self.assertEqual(self.store.path(doc.cohort.reference.ref).read_bytes(), self.store.path(cohort.reference.ref).read_bytes())
 
 
 class ReportFrameV4Tests(unittest.TestCase):

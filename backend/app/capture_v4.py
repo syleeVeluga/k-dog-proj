@@ -37,8 +37,6 @@ def _session(store, db, case_id, session_id, expected=None, *, selected=True):
     manifest = store.manifest(row)
     if not isinstance(manifest, ManifestV4):
         raise HTTPException(409, "S1 원입력 전환이 필요합니다.")
-    if manifest.consents.analysis_feedback == "declined":
-        raise HTTPException(403, "분석·피드백 동의가 거절된 자료입니다.")
     session = selected_session(manifest, session_id) if selected else next((value for value in manifest.sessions if value.session_id == session_id), None)
     if session is None:
         raise HTTPException(404, "촬영 회차를 찾을 수 없습니다.")

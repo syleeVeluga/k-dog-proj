@@ -40,7 +40,7 @@ export function Intake({ user, cases, selected, writable, busy, run, reload, sel
     const session = sessionOf(c);
     const ready = session.videos.length > 0 && surveyHandled(session) === SURVEY_TOTAL;
     const matches = filter === 'all' || (filter === 'ready' && ready) || (filter === 'missing' && !ready)
-      || (filter === 'consent_missing' && !c.consent_confirmed) || (filter === 'survey_missing' && surveyHandled(session) < SURVEY_TOTAL)
+      || (filter === 'survey_missing' && surveyHandled(session) < SURVEY_TOTAL)
       || (filter === 'video_missing' && session.videos.length === 0);
     return matchesCase(c, filters.search, filters.eventFilter) && matches;
   }).sort((a, b) => (a.sequence_no ?? 1e9) - (b.sequence_no ?? 1e9) || a.participant_id.localeCompare(b.participant_id));
@@ -85,18 +85,17 @@ export function Intake({ user, cases, selected, writable, busy, run, reload, sel
   }
 
   return <>
-    <section className="page-heading"><div><p className="eyebrow">INTAKE</p><h1>접수</h1><p className="muted">{user.role === 'reviewer' ? '접수된 참가자와 자료 상태를 확인하세요.' : '참가자·반려견 정보를 등록하고 동의와 순번을 확인하세요. 명단·설문 파일은 「일괄 등록」으로 올립니다.'}</p></div>
+    <section className="page-heading"><div><p className="eyebrow">INTAKE</p><h1>접수</h1><p className="muted">{user.role === 'reviewer' ? '접수된 참가자와 자료 상태를 확인하세요.' : '참가자·반려견 정보를 등록하고 순번을 확인하세요. 명단·설문 파일은 「일괄 등록」으로 올립니다.'}</p></div>
       <div className="count"><strong>{cases.length.toString().padStart(2, '0')}</strong><span>등록된 참가자</span></div></section>
     <CaseFilters cases={cases} {...filters} /><div className="toolbar">
-      <label>자료 상태<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">전체</option><option value="ready">설문·영상 등록됨</option><option value="missing">설문·영상 보완 필요</option><option value="consent_missing">동의 미확인</option><option value="survey_missing">설문 미등록</option><option value="video_missing">영상 없음</option></select></label>
+      <label>자료 상태<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">전체</option><option value="ready">설문·영상 등록됨</option><option value="missing">설문·영상 보완 필요</option><option value="survey_missing">설문 미등록</option><option value="video_missing">영상 없음</option></select></label>
       <button onClick={() => void run(() => reload())}>새로고침</button></div>
     <p className="fine" role="status">{status} · 표시 {visible.length}명</p>
-    <div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자 / 행사</th><th>반려견 / 보호자</th><th>동의</th><th>설문</th><th>영상</th><th>구간</th><th>자료</th></tr></thead>
+    <div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자 / 행사</th><th>반려견 / 보호자</th><th>설문</th><th>영상</th><th>구간</th><th>자료</th></tr></thead>
       <tbody>{visible.map(c => { const s = sessionOf(c); const count = surveyHandled(s); const progress = currentProgress(c);
         return <tr key={c.case_id} className="clickable" onClick={() => open(c)}><td data-label="순번"><strong className="mono">{c.sequence_no ?? '—'}</strong></td>
           <td data-label="참가자 / 행사"><strong className="mono">{c.participant_id}</strong><small>{c.event_id}</small></td>
           <td data-label="반려견 / 보호자">{c.dog_name}<small>{c.guardian_name ? `${c.guardian_name} 님` : '보호자명 없음'}{c.dog.breed ? ` · ${c.dog.breed}` : ''}</small></td>
-          <td data-label="동의"><span className={c.consent_confirmed ? 'tag green' : 'tag'}>{c.consent_confirmed ? '확인' : '미확인'}</span></td>
           <td data-label="설문"><span className={count === SURVEY_TOTAL ? 'tag green' : 'tag'}>{count}/{SURVEY_TOTAL}</span>{s.survey_version === 'survey-20260929-v3' && <small>빈칸 사유 {Object.keys(s.survey_blank_reasons ?? {}).length}개 · 완료 기준 미확정</small>}</td><td data-label="영상">{videoCounts(c)}</td>
           <td data-label="구간">{({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(s)]}{progress && <small>{progress.scoring === 'done' ? '채점 제출 완료' : progress.scoring === 'partial' ? '채점 진행 중' : '채점 전'}</small>}</td>
           <td data-label="자료"><button aria-label={`${c.participant_id} 상세 열기`} onClick={e => { e.stopPropagation(); open(c); }}>열기</button></td></tr>;

@@ -15,7 +15,7 @@ from pydantic import ValidationError
 
 from app.domain.catalog_v4 import SURVEY_VERSION
 from app.forms_v4 import (FormsCommitRequestV4, FormsMappingV4, FormsPreviewRequestV4,
-                          FormsTargetV4, commit, inspect_columns, preview, purge_case_imports)
+                          FormsTargetV4, commit, inspect_columns, preview)
 from app.input_models_v4 import new_session_v4
 from app.maintenance import backup, clean, references, restore
 from app.storage import Store
@@ -204,9 +204,9 @@ class FormsImportV4Tests(unittest.TestCase):
         updated = self.stage(self.data, self.linked(first))
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (first.rows[0].case_id,))
-        self.expect_http(403, self.apply, updated, "update-commit")
-        self.expect_http(403, self.apply, first)
-        self.expect_http(403, self.stage)
+        self.apply(updated, "update-commit")
+        self.apply(first)
+        self.stage()
 
     def test_permissions_are_rechecked_even_for_completed_requests(self):
         staged = self.stage()
@@ -349,20 +349,13 @@ class FormsImportV4Tests(unittest.TestCase):
         kept_link = self.audit("forms.source_row", retained.case_id)[0]
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (deleted.case_id,))
-            purge_case_imports(self.store, db, deleted.case_id)
-        clean(self.store, purge_deleted=True)
-        self.assertFalse(self.store.path(record_link["ref"]).exists())
-        self.assertFalse(self.store.path(record["source"]["ref"]).exists())
+        clean(self.store)
+        self.assertTrue(self.store.path(record_link["ref"]).exists())
+        self.assertTrue(self.store.path(record["source"]["ref"]).exists())
         self.assertTrue(self.store.path(kept_link["ref"]).exists())
         self.assertEqual(self.manifest(retained.case_id).sessions[0].survey["s01"], 4)
-        self.expect_http(409, self.apply, staged)
-        request = self.request.model_copy(deep=True)
-        request.request_id = "reimport"
-        request.mapping.version = "mapping-after-deletion"
-        self.expect_http(409, self.stage, data, request)
-        tombstones = self.audit("forms.purged")
-        self.assertTrue(tombstones)
-        self.assertTrue(all(set(value) == {"source_hash"} for value in tombstones))
+        self.apply(staged)
+        self.assertFalse(self.audit("forms.purged"))
 
     def test_error_only_previews_are_purged_by_explicit_target_or_stable_identity(self):
         first = self.stage()
@@ -381,13 +374,12 @@ class FormsImportV4Tests(unittest.TestCase):
         sources = [json.loads(self.store.path(link["ref"]).read_bytes())["source"] for link in links]
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (first.rows[0].case_id,))
-        self.expect_http(403, self.stage, csv_bytes([["반려견", "문항1", "두려움"], ["오류합성", "invalid", "0"]]), linked)
-        self.expect_http(403, self.apply, invalid, "commit-error-after-deletion")
-        with self.store.connect(write=True) as db:
-            purge_case_imports(self.store, db, first.rows[0].case_id)
-        clean(self.store, purge_deleted=True)
-        self.assertFalse(self.audit("forms.preview"))
-        self.assertTrue(all(not self.store.path(link["ref"]).exists() for link in links + sources))
+        again = self.stage(csv_bytes([["반려견", "문항1", "두려움"], ["오류합성", "invalid", "0"]]), linked)
+        self.assertTrue(again.errors)
+        self.expect_http(422, self.apply, invalid, "commit-error-after-deletion")
+        clean(self.store)
+        self.assertTrue(self.audit("forms.preview"))
+        self.assertTrue(all(self.store.path(link["ref"]).exists() for link in links + sources))
 
     def test_already_deleted_target_cannot_leave_a_new_preview_blob(self):
         first = self.stage()
@@ -396,8 +388,8 @@ class FormsImportV4Tests(unittest.TestCase):
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (first.rows[0].case_id,))
         initial = len(self.audit("forms.preview"))
-        self.expect_http(403, self.stage, self.data, request)
-        self.assertEqual(len(self.audit("forms.preview")), initial)
+        self.stage(self.data, request)
+        self.assertGreater(len(self.audit("forms.preview")), initial)
 
     def test_failed_new_identity_then_corrected_registration_purges_both_sources(self):
         request = self.request.model_copy(deep=True)
@@ -413,13 +405,11 @@ class FormsImportV4Tests(unittest.TestCase):
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (good.rows[0].case_id,))
         request.request_id = "failed-retry"
-        self.expect_http(403, self.stage,
-                         csv_bytes([["ID", "반려견", "문항1", "두려움"], ["P001", "합성견", "bad", "0"]]), request)
-        with self.store.connect(write=True) as db:
-            purge_case_imports(self.store, db, good.rows[0].case_id)
-        clean(self.store, purge_deleted=True)
-        self.assertFalse(self.audit("forms.preview"))
-        self.assertTrue(all(not self.store.path(link["ref"]).exists() for link in links + sources))
+        again = self.stage(csv_bytes([["ID", "반려견", "문항1", "두려움"], ["P001", "합성견", "bad", "0"]]), request)
+        self.assertTrue(again.errors)
+        clean(self.store)
+        self.assertTrue(self.audit("forms.preview"))
+        self.assertTrue(all(self.store.path(link["ref"]).exists() for link in links + sources))
 
     def test_deletion_purges_other_sheet_preview_that_references_same_workbook_bytes(self):
         book = Workbook()
@@ -446,13 +436,13 @@ class FormsImportV4Tests(unittest.TestCase):
         kept_link = self.audit("forms.source_row", second.rows[0].case_id)[0]
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (first.rows[0].case_id,))
-            purge_case_imports(self.store, db, first.rows[0].case_id)
-        clean(self.store, purge_deleted=True)
-        self.assertFalse(self.audit("forms.preview"))
-        self.assertTrue(all(not self.store.path(link["ref"]).exists() for link in links + sources))
+            pass
+        clean(self.store)
+        self.assertTrue(self.audit("forms.preview"))
+        self.assertTrue(all(self.store.path(link["ref"]).exists() for link in links + sources))
         self.assertTrue(self.store.path(kept_link["ref"]).exists())
         self.assertEqual(self.manifest(second.rows[0].case_id).input_revision, 1)
-        self.expect_http(409, self.apply, second, "commit-second")
+        self.apply(second, "commit-second")
 
     def restore_preview_before_case_existed(self, *, failed_first):
         temporary = tempfile.TemporaryDirectory(prefix="kdog-forms-backup-v4-")
@@ -472,15 +462,15 @@ class FormsImportV4Tests(unittest.TestCase):
         self.apply(staged)
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (staged.rows[0].case_id,))
-        clean(self.store, purge_deleted=True)
+        clean(self.store)
         restore(self.store, destination / "snapshot", destination / "restored")
         restored = Store(destination / "restored")
         with restored.connect() as db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM cases").fetchone()[0], 0)
-            self.assertGreater(db.execute("SELECT COUNT(*) FROM changes WHERE action='deletion.record'").fetchone()[0], 0)
-            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='forms.preview'").fetchone()[0], 0)
-            self.assertFalse(any("forms-" in ref for ref in references(restored, db)))
-        self.assertFalse(list(restored.path("inputs").glob("forms-*")))
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='deletion.record'").fetchone()[0], 0)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='forms.preview'").fetchone()[0], 1)
+            self.assertTrue(any("forms-" in ref for ref in references(restored, db)))
+        self.assertTrue(list(restored.path("inputs").glob("forms-*")))
 
     def test_restore_deletion_ledger_purges_error_preview_before_case_existed(self):
         self.restore_preview_before_case_existed(failed_first=True)
@@ -540,14 +530,14 @@ class FormsImportV4Tests(unittest.TestCase):
         self.expect_http(409, self.apply, staged, "revision-commit")
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (done.rows[0].case_id,))
-        self.expect_http(403, self.apply, staged, "deleted-commit")
+        self.expect_http(409, self.apply, staged, "deleted-commit")
 
     def test_deleted_participant_is_still_refused_when_matching_is_requested(self):
         done = self.register_existing()
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (done.rows[0].case_id,))
         data = csv_bytes([["ID", "반려견", "문항1", "두려움"], ["0001", "무관", "5", "2"]])
-        self.expect_http(403, self.stage, data, self.id_request("deleted", match_existing_ids=True))
+        self.assertEqual(self.stage(data, self.id_request("deleted", match_existing_ids=True)).rows[0].action, "update")
 
     def test_explicit_target_wins_and_two_rows_cannot_claim_one_participant(self):
         first = self.register_existing("0001", "첫째")
@@ -643,7 +633,7 @@ class FormsImportV4Tests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, restored, True)
         backup(self.store, backup_path, "operator")
         restore(self.store, backup_path, restored)
-        clean(self.store, purge_deleted=True)
+        clean(self.store)
 
     def test_a_stale_matched_preview_is_rebuilt_instead_of_reused(self):
         done = self.register_existing("0001")

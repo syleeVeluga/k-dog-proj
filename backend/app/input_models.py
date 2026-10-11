@@ -175,12 +175,10 @@ class CaseView(Model):
     dog_name: str
     reservation_at: str
     sequence_no: int | None
-    consent_confirmed: bool
     guardian_name: str
     dog: DogProfile
     input_revision: int
     selected_session_id: str
-    deletion_requested: bool
     manifest: Manifest
 
 

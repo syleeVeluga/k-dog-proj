@@ -63,4 +63,4 @@ class ReportApiV4Tests(unittest.TestCase):
             saved=self.store.manifest(case)
             saved.consents.analysis_feedback='declined'
             self.store.save(db,case,saved,'operator','synthetic revoke')
-        self.assertIn(self.client.get(file_url+'pdf').status_code,(403,409))
+        self.assertEqual(self.client.get(file_url+'pdf').status_code,200)
