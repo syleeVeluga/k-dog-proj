@@ -2,12 +2,12 @@ import { test, expect } from '@playwright/test';
 import { csvCell, errorFileName, errorRowsCsv, hasErrorRows } from '../src/formsCsv';
 
 test('오류 행 CSV는 BOM·따옴표·수식 방지를 지키고 원본 열 순서에 오류 사유를 붙인다', () => {
-  const csv = errorRowsCsv(['참가자 ID', '메모', 'Q1'], [
-    { message: '허용 숫자가 아닙니다, 확인하세요', raw_values: { '참가자 ID': '0002', '메모': '줄바꿈\n"인용"', Q1: 'maybe' } },
-    { message: '수식 방지', raw_values: { '참가자 ID': '0003', '메모': '=1+1', Q1: '-5' } },
+  const csv = errorRowsCsv(['참가자 ID', '+메모', 'Q1'], [
+    { message: '허용 숫자가 아닙니다, 확인하세요', raw_values: { '참가자 ID': '0002', '+메모': '줄바꿈\n"인용"', Q1: 'maybe' } },
+    { message: '수식 방지', raw_values: { '참가자 ID': '0003', '+메모': '=1+1', Q1: '-5' } },
     { message: '원행 없음', raw_values: null },
   ]);
-  expect(csv.startsWith('﻿참가자 ID,메모,Q1,오류 사유\r\n')).toBe(true);
+  expect(csv.startsWith('﻿참가자 ID,+메모,Q1,오류 사유\r\n')).toBe(true);
   expect(csv).toContain('0002,"줄바꿈\n""인용""",maybe,"허용 숫자가 아닙니다, 확인하세요"\r\n');
   expect(csv).toContain("0003,'=1+1,-5,수식 방지\r\n");
   expect(csv).not.toContain('원행 없음');

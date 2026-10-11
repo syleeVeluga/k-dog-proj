@@ -583,7 +583,9 @@ class FormsImportV4Tests(unittest.TestCase):
         self.assertEqual(self.count(), 0)
         result = commit(self.store, request, "operator")
         self.assertEqual([row.row_number for row in result.rows], [2])
-        self.assertEqual([(item.row_number, item.raw_values["반려견"]) for item in result.excluded], [(3, "오류합성")])
+        # 영수증에는 참가자의 원본 칸 값을 남기지 않는다(원행은 미리보기 기록에만 있다).
+        self.assertEqual([(item.row_number, item.raw_values) for item in result.excluded], [(3, None)])
+        self.assertIn("문항1", staged.errors[0].raw_values)
         self.assertEqual(self.count(), 1)
         self.assertEqual(commit(self.store, request, "operator"), result)
         retry = request.model_copy(update={"request_id": "partial-retry"})
@@ -623,6 +625,80 @@ class FormsImportV4Tests(unittest.TestCase):
         self.assertEqual([(row.participant_id, row.action) for row in staged.rows], [("0001", "update")])
         self.assertEqual(staged.errors[0].row_number, 3)
         self.assertIn("반려견 이름이 없는 행은 새 참가자로 등록할 수 없습니다", staged.errors[0].message)
+
+    def test_partial_receipt_with_hostile_headers_does_not_break_backup_clean_or_restore(self):
+        request = self.id_request("hostile")
+        request.mapping.columns = {"participant_id": "ID", "dog_name": "반려견", "s01": "문항1"}
+        data = csv_bytes([["ID", "반려견", "문항1", "ref", "storage_ref_json"], ["H1", "정상", "3", "", ""], ["H2", "오류", "maybe", "abc", "{not json"]])
+        staged = self.stage(data, request)
+        self.assertEqual(len(staged.errors), 1)
+        commit(self.store, FormsCommitRequestV4(request_id="hostile-commit", preview_id=staged.preview_id,
+                                                preview_hash=staged.preview_hash, accept_partial=True), "operator")
+        with self.store.connect() as db:
+            self.assertTrue(references(self.store, db))
+        backup_path = self.store.root.parent / (self.store.root.name + "-hostile-backup")
+        restored = self.store.root.parent / (self.store.root.name + "-hostile-restored")
+        import shutil
+        self.addCleanup(shutil.rmtree, backup_path, True)
+        self.addCleanup(shutil.rmtree, restored, True)
+        backup(self.store, backup_path, "operator")
+        restore(self.store, backup_path, restored)
+        clean(self.store, purge_deleted=True)
+
+    def test_a_stale_matched_preview_is_rebuilt_instead_of_reused(self):
+        done = self.register_existing("0001")
+        data = csv_bytes([["ID", "반려견", "문항1", "두려움"], ["0001", "무관", "5", "2"]])
+        first = self.stage(data, self.id_request("stale-1", match_existing_ids=True))
+        other = csv_bytes([["ID", "반려견", "문항1", "두려움"], ["0001", "무관", "1", "1"]])
+        self.apply(self.stage(other, self.id_request("stale-other", match_existing_ids=True)), "stale-other-commit")
+        self.assertEqual(self.manifest(done.rows[0].case_id).input_revision, 2)
+        self.expect_http(409, self.apply, first, "stale-first-commit")
+        fresh = self.stage(data, self.id_request("stale-2", match_existing_ids=True))
+        self.assertNotEqual(fresh.preview_id, first.preview_id)
+        self.assertEqual(fresh.rows[0].expected_revision, 2)
+        self.assertEqual(self.apply(fresh, "stale-fresh-commit").rows[0].input_revision, 3)
+
+    def test_an_id_registered_after_preview_turns_the_next_preview_into_an_update(self):
+        data = csv_bytes([["ID", "반려견", "문항1", "두려움"], ["0009", "새견", "5", "2"]])
+        first = self.stage(data, self.id_request("late-1", match_existing_ids=True))
+        self.assertEqual(first.rows[0].action, "create")
+        self.register_existing("0009", "먼저접수견")
+        self.expect_http(409, self.apply, first, "late-first-commit")
+        fresh = self.stage(data, self.id_request("late-2", match_existing_ids=True))
+        self.assertEqual((fresh.rows[0].action, fresh.rows[0].matched_by, fresh.rows[0].dog_name), ("update", "id", "먼저접수견"))
+        self.assertEqual(fresh.rows[0].file_dog_name, "새견")
+
+    def test_unchanged_matched_rows_keep_the_revision_and_blank_or_unmapped_answers_are_not_erased(self):
+        done = self.register_existing("0001")
+        case_id = done.rows[0].case_id
+        same = csv_bytes([["ID", "반려견", "문항1", "두려움"], ["0001", "기존견", "3", "0"]])
+        staged = self.stage(same, self.id_request("noop", match_existing_ids=True))
+        self.assertEqual(staged.rows[0].changed_questions, [])
+        self.assertIsNone(staged.rows[0].file_dog_name)
+        result = self.apply(staged, "noop-commit")
+        self.assertEqual(result.rows[0].input_revision, 1)
+        self.assertEqual(self.manifest(case_id).input_revision, 1)
+        self.assertEqual(len(self.audit("forms.source_row")), 2)
+        # 명단만 있는 파일과 파일의 빈 칸은 기존 응답을 지우지 않는다.
+        roster = self.id_request("roster", match_existing_ids=True)
+        roster.mapping.columns = {"participant_id": "ID", "dog_name": "반려견"}
+        staged = self.stage(csv_bytes([["ID", "반려견"], ["0001", "기존견"]]), roster)
+        self.assertEqual((staged.rows[0].changed_questions, staged.rows[0].answers["s01"], staged.rows[0].answers["s10"]), ([], 3, 0))
+        blank = csv_bytes([["ID", "반려견", "문항1", "두려움"], ["0001", "기존견", "", "4"]])
+        staged = self.stage(blank, self.id_request("blank", match_existing_ids=True))
+        self.assertEqual((staged.rows[0].answers["s01"], staged.rows[0].answers["s10"], staged.rows[0].changed_questions), (3, 4, ["s10"]))
+
+    def test_a_blank_with_a_written_reason_may_clear_an_answer_for_matched_rows(self):
+        done = self.register_existing("0001")
+        request = self.id_request("reason", match_existing_ids=True)
+        request.mapping.columns["s01_reason"] = "사유"
+        staged = self.stage(csv_bytes([["ID", "반려견", "문항1", "사유", "두려움"], ["0001", "기존견", "", "보호자가 응답하지 않음", "0"]]), request)
+        self.assertFalse(staged.errors)
+        self.assertEqual((staged.rows[0].answers["s01"], staged.rows[0].blank_reasons), (None, {"s01": "보호자가 응답하지 않음"}))
+        self.apply(staged, "reason-commit")
+        session = self.manifest(done.rows[0].case_id).sessions[0]
+        self.assertIsNone(session.survey["s01"])
+        self.assertEqual(session.survey_blank_reasons, {"s01": "보호자가 응답하지 않음"})
 
 
 if __name__ == "__main__":

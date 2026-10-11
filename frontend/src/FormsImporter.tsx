@@ -9,7 +9,7 @@ import type { Preset } from './FormsPresets';
 import type { Case, Run } from './types';
 
 type Target = { row_number: number; case_id: string; session_id: string; expected_revision: number };
-type PreviewRow = { row_number: number; action: 'create' | 'update'; matched_by: 'id' | 'explicit' | null; case_id: string; session_id: string; event_id: string; participant_id: string; dog_name: string; answers: Record<string, number | null>; previous_answers: Record<string, number | null>; blank_reasons: Record<string, string>; previous_blank_reasons: Record<string, string>; changed_questions: string[]; registration_status: string };
+type PreviewRow = { row_number: number; action: 'create' | 'update'; matched_by: 'id' | 'explicit' | null; file_dog_name: string | null; case_id: string; session_id: string; event_id: string; participant_id: string; dog_name: string; answers: Record<string, number | null>; previous_answers: Record<string, number | null>; blank_reasons: Record<string, string>; previous_blank_reasons: Record<string, string>; changed_questions: string[]; registration_status: string };
 type Issue = { row_number: number | null; message: string; raw_values: Record<string, string | number | boolean | null> | null };
 type Preview = { preview_id: string; preview_hash: string; source_hash: string; original_headers: string[]; already_committed: boolean; rows: PreviewRow[]; errors: Issue[] };
 const questions = questionKeys;
@@ -131,7 +131,7 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
     for (const [key, header] of Object.entries(preset.mapping.columns)) {
       if (present.has(header)) next[key] = header; else { delete next[key]; missing.push(`${itemLabel(key)}(${header})`); }
     }
-    const nextLabels: Record<string, string> = {};
+    const nextLabels: Record<string, string> = Object.fromEntries(Object.entries(labels).filter(([question]) => next[question]));
     for (const [question, values] of Object.entries(preset.mapping.answer_labels)) if (next[question])
       nextLabels[question] = Object.entries(values).map(([label, value]) => `${label}=${value}`).join('\n');
     setMapping(next); setLabels(nextLabels); setProfile(preset.mapping.source_profile); setVersion(preset.mapping.version); invalidate();
@@ -162,12 +162,13 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
     : historical && !historicalVersion ? '고급 설정에서 원문 설문 판본을 입력하세요.' : !version || !profile ? '고급 설정에서 원자료 프로필과 매핑 버전을 입력하세요.' : '';
   const idRows = result?.rows.filter(row => row.action === 'update' && row.matched_by === 'id') ?? [];
   const unchanged = idRows.filter(row => !row.changed_questions.length).length;
+  const mismatched = idRows.filter(row => row.file_dog_name);
   const commitBlock = !result ? '' : !result.rows.length ? '등록할 정상 행이 없습니다. 오류를 고쳐 다시 올리세요.'
     : idRows.length && !confirmUpdates && !result.already_committed ? '「기존 참가자 갱신 확인」을 체크하세요.' : '';
   const commitReady = !!result && !!result.rows.length && !commitBlock;
   const sessionNumber = (row: PreviewRow) => (cases.find(item => item.case_id === row.case_id)?.manifest.sessions.findIndex(item => item.session_id === row.session_id) ?? -1) + 1;
   const rowLabel = (row: PreviewRow) => row.action === 'create' ? '신규' : row.matched_by === 'id'
-    ? `기존 참가자 갱신 · ${row.participant_id} ${row.dog_name}${sessionNumber(row) ? ` · ${sessionNumber(row)}차 촬영` : ''}${row.changed_questions.length ? '' : ' · 변경 없음'}` : '기존 응답 변경';
+    ? `기존 참가자 갱신 · ${row.participant_id} ${row.dog_name}${sessionNumber(row) ? ` · ${sessionNumber(row)}차 촬영` : ''}${row.file_dog_name ? ` · 파일 이름 ${row.file_dog_name}과 다름` : ''}${row.changed_questions.length ? '' : ' · 변경 없음'}` : '기존 응답 변경';
   const linkedProfile = profileFields.filter(([key]) => mapping[key]);
   const answerCount = questions.filter(q => mapping[q]).length, reasonCount = questions.filter(q => mapping[`${q}_reason`]).length;
 
@@ -245,16 +246,18 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
       {result.already_committed && <p role="status">이미 확정한 파일입니다. 재확정해도 참가자가 추가되지 않습니다.</p>}
       {!!idRows.length && <div className="panel">
         <label className="check"><input type="checkbox" aria-label="기존 참가자 갱신 확인" checked={confirmUpdates} disabled={result.already_committed} onChange={e => setConfirmUpdates(e.target.checked)} />기존 참가자 {idRows.length}명 갱신 확인</label>
-        <p className="fine">참가자 ID가 이미 접수된 ID와 정확히 같은 행입니다. 이름·견명으로는 연결하지 않았습니다. 설문 응답만 갱신하며 이름·동의 등 접수 정보는 바꾸지 않습니다. 행을 펼치면 바뀌는 문항을 전후 값으로 볼 수 있습니다.{unchanged ? ` 바뀌는 문항이 없는 행이 ${unchanged}명 있습니다.` : ''}</p></div>}
+        <p className="fine">참가자 ID가 이미 접수된 ID와 정확히 같은 행입니다. 이름·견명으로는 연결하지 않았습니다. 설문 응답만 갱신하며 이름·동의 등 접수 정보는 바꾸지 않습니다. 파일의 빈 칸과 연결하지 않은 문항은 기존 응답을 지우지 않고, 값이 있는 문항만 바뀝니다. 행을 펼치면 바뀌는 문항을 전후 값으로 볼 수 있습니다.{unchanged ? ` 바뀌는 문항이 없는 행이 ${unchanged}명 있습니다(새 입력 버전을 만들지 않습니다).` : ''}</p>
+        {!!mismatched.length && <p className="warning">파일의 반려견 이름이 접수된 이름과 다른 행이 {mismatched.length}명 있습니다. 참가자 ID를 잘못 쓴 것은 아닌지 확인하세요: {mismatched.map(row => `${row.participant_id}(접수 ${row.dog_name} ↔ 파일 ${row.file_dog_name})`).join(', ')}</p>}</div>}
       {!!result.errors.length && <div role="alert">{result.errors.map((error, i) => <p key={i}>{error.row_number ? `${error.row_number}행: ` : ''}{error.message}</p>)}
         <p>{result.rows.length ? `오류가 있는 ${result.errors.length}행을 빼고 정상 ${result.rows.length}행만 등록할 수 있습니다. 제외한 행은 오류 사유를 붙인 CSV로 내려받아 고친 뒤 다시 올리세요.` : '오류를 모두 해결한 후 다시 확인하세요.'}</p>
-        {hasErrorRows(result.errors) && <div className="toolbar"><button onClick={downloadErrors}>오류 행 CSV 내려받기</button><span className="fine">참가자 정보가 들어 있습니다. 현장 PC에만 보관하고 작업 후 삭제하세요.</span></div>}</div>}
+        {hasErrorRows(result.errors) && <div className="toolbar"><button onClick={downloadErrors}>오류 행 CSV 내려받기</button><span className="fine">참가자 정보가 들어 있습니다. 현장 PC에만 보관하고 작업 후 삭제하세요.{layout !== 'rows' ? ' 전치 파일의 오류 행도 일반 배치(첫 행이 항목)로 내려받습니다. 다시 올릴 때 「고급 설정」의 파일 배치를 일반으로 바꾸세요.' : ''}{result.errors.some(error => !error.raw_values) ? ' 원행이 없는 오류는 CSV에 들어 있지 않습니다.' : ''}</span></div>}</div>}
       {result.rows.map(row => <details key={row.row_number}><summary>{row.row_number}행 · {rowLabel(row)} · {row.event_id}/{row.participant_id} · {row.dog_name} · {row.registration_status === 'reference_only' ? '원자료 참고' : `응답 ${Object.values(row.answers).filter(v => v !== null).length}/28`}</summary>
         <div className="table-wrap"><table><thead><tr><th>문항</th><th>이전 원응답</th><th>반영 원응답</th><th>이전 빈칸 사유</th><th>반영 빈칸 사유</th></tr></thead><tbody>{questions.filter(q => row.changed_questions.includes(q) || row.answers[q] !== null || row.blank_reasons[q]).map(q => <tr key={q}><td>{q}</td><td>{row.previous_answers[q] ?? '빈칸'}</td><td>{row.answers[q] ?? '빈칸'}</td><td>{row.previous_blank_reasons[q] ?? '—'}</td><td>{row.blank_reasons[q] ?? '—'}</td></tr>)}</tbody></table></div>
       </details>)}
       <div className="toolbar"><button className="primary" disabled={busy || !commitReady} onClick={() => void work(async () => {
         const partial = result.errors.length > 0;
-        const committed = await api<{ rows: { case_id: string }[]; excluded: Issue[] }>('/forms/commit', 'POST', { request_id: commitId, preview_id: result.preview_id, preview_hash: result.preview_hash, accept_partial: partial });
+        // 다른 변경으로 거절되면 미리보기를 비운다. 다시 미리보기를 누르면 최신 상태로 새로 만든다.
+        const committed = await api<{ rows: { case_id: string }[]; excluded: Issue[] }>('/forms/commit', 'POST', { request_id: commitId, preview_id: result.preview_id, preview_hash: result.preview_hash, accept_partial: partial }).catch(error => { invalidate(); throw error; });
         setResult({ ...result, already_committed: true }); setOutcome({ registered: committed.rows.length, excluded: committed.excluded.length });
         await done(`${committed.rows.length}개 원행의 참가자·설문 등록을 확인했습니다.${committed.excluded.length ? ` 오류 ${committed.excluded.length}행은 제외했습니다.` : ''}`);
       })}>{result.errors.length && result.rows.length ? `정상 ${result.rows.length}행 등록 · 오류 ${result.errors.length}행 제외` : 'Forms 전체 확정'}</button>

@@ -113,6 +113,7 @@ class FormsPreviewRowV4(Model):
     source_location: Text
     action: Literal["create", "update"]
     matched_by: Literal["id", "explicit"] | None = None
+    file_dog_name: str | None = None  # ID로 연결한 행에서 파일의 이름이 접수된 이름과 다를 때만 채운다(연결 기준이 아니라 확인용).
     case_id: Key
     session_id: Key
     event_id: Key
@@ -406,6 +407,20 @@ def _case_associations(store, db, rows, request):
     return sorted(case_ids), [{"event_id": event, "participant_id": participant} for event, participant in sorted(participants)]
 
 
+def _live_state(db, request, rows):
+    """파일의 참가자 ID가 지금 어떤 기존 참가자와 연결되는지. 미리보기 식별자에 넣어 오래된 미리보기를 재사용하지 않는다."""
+    headers, column = rows[0], request.mapping.columns.get("participant_id")
+    if column not in headers:
+        return []
+    index = headers.index(column)
+    state = []
+    for participant_id in sorted({cells[index] for cells in rows[1:] if len(cells) > index and isinstance(cells[index], str) and cells[index]}):
+        found = db.execute("SELECT case_id,input_revision,selected_session_id,deletion_requested FROM cases "
+                           "WHERE event_id=? AND participant_id=?", (request.event_id, participant_id)).fetchone()
+        state.append([participant_id, None if found is None else list(tuple(found))])
+    return state
+
+
 def _raw(headers, cells):
     values = {}
     for header, value in zip(headers, cells):
@@ -436,9 +451,10 @@ def _build_rows(store, db, rows, request, catalog, sheet_name):
                 raise ValueError("원행의 행사 ID가 선택한 행사와 다릅니다.")
             target = targets.get(number)
             matched_by = "explicit" if target else None
+            file_dog_name = None
             written_id = mapped.get("participant_id")
             if target is None and request.match_existing_ids and isinstance(written_id, str) and written_id:
-                found = db.execute("SELECT case_id,input_revision,selected_session_id FROM cases WHERE event_id=? AND participant_id=?",
+                found = db.execute("SELECT case_id,input_revision,selected_session_id,dog_name FROM cases WHERE event_id=? AND participant_id=?",
                                    (request.event_id, written_id)).fetchone()
                 if found:
                     if found["case_id"] in claimed:
@@ -447,6 +463,9 @@ def _build_rows(store, db, rows, request, catalog, sheet_name):
                     target = FormsTargetV4(row_number=number, case_id=found["case_id"], session_id=found["selected_session_id"],
                                            expected_revision=found["input_revision"])
                     matched_by = "id"
+                    written_name = mapped.get("dog_name")
+                    if isinstance(written_name, str) and written_name.strip() and written_name.strip() != found["dog_name"]:
+                        file_dog_name = written_name.strip()[:200]
             before, previous_reasons = dict.fromkeys(SURVEY_IDS), {}
             if target:
                 current = store.case(db, target.case_id, expected=target.expected_revision)
@@ -508,12 +527,23 @@ def _build_rows(store, db, rows, request, catalog, sheet_name):
                         if not isinstance(reason, str) or not reason.strip() or value is not None:
                             raise ValueError(f"{question}: 빈칸 사유는 실제 결측에만 기록하세요.")
                         reasons[question] = reason.strip()
+                if matched_by == "id":
+                    # ID로 자동 연결한 행은 파일에 값이 있는 문항만 바꾼다. 파일의 빈 칸과 연결하지 않은 문항은 기존 응답을 지우지 않는다.
+                    # 빈칸 사유가 적힌 문항만 「응답 없음」으로 바꿀 수 있다.
+                    merged, merged_reasons = before.copy(), previous_reasons.copy()
+                    for question in SURVEY_IDS:
+                        if answers[question] is not None:
+                            merged[question] = answers[question]
+                            merged_reasons.pop(question, None)
+                        elif question in reasons:
+                            merged[question], merged_reasons[question] = None, reasons[question]
+                    answers, reasons = merged, merged_reasons
                 SurveyEditV3(expected_revision=revision or 1, session_id=session_id,
                              survey_version=SURVEY_VERSION, answers=answers, blank_reasons=reasons)
             count = sum(value is not None for value in answers.values())
             planned.append(FormsPreviewRowV4(row_number=number,
                 source_location=f"{sheet_name or 'CSV'} {'열' if mapping.layout == 'transposed' else '행'} {number}",
-                action=action, matched_by=matched_by, case_id=case_id, session_id=session_id, event_id=request.event_id,
+                action=action, matched_by=matched_by, file_dog_name=file_dog_name, case_id=case_id, session_id=session_id, event_id=request.event_id,
                 participant_id=participant_id, dog_name=dog_name, expected_revision=revision, participant=participant,
                 answers=answers, previous_answers=before, previous_blank_reasons=previous_reasons, blank_reasons=reasons,
                 changed_questions=[] if mapping.historical_reference_only else [q for q in SURVEY_IDS
@@ -538,11 +568,14 @@ def preview(store, data: bytes, request: FormsPreviewRequestV4, actor: str) -> F
     request_hash = _digest({"request": request.model_dump(mode="json"), "source_hash": source_hash})
     identity = {"event_id": request.event_id, "mapping": request.mapping.model_dump(mode="json"),
                 "targets": [t.model_dump(mode="json") for t in request.targets], "source_hash": source_hash}
-    if request.match_existing_ids:
-        identity["match_existing_ids"] = True
-    fingerprint = _digest(identity)
+    parsed = None
     with store.connect(write=True) as db:
         _writer(db, actor)
+        if request.match_existing_ids:
+            identity["match_existing_ids"] = True
+            parsed = _table(data, request.format, request.mapping.sheet, request.mapping.layout)
+            identity["live"] = _live_state(db, request, parsed[0])
+        fingerprint = _digest(identity)
         receipt = _check_request(db, "forms.preview_request", actor, request.request_id, request_hash)
         if db.execute("SELECT 1 FROM changes WHERE action='forms.purged' AND json_extract(detail_json,'$.source_hash')=?",
                       (source_hash,)).fetchone():
@@ -559,7 +592,7 @@ def preview(store, data: bytes, request: FormsPreviewRequestV4, actor: str) -> F
                             {"request_hash": request_hash, "preview_id": preview_id})
             result.already_committed = committed
             return result
-        rows, metadata, original_rows = _table(data, request.format, request.mapping.sheet, request.mapping.layout)
+        rows, metadata, original_rows = parsed or _table(data, request.format, request.mapping.sheet, request.mapping.layout)
         if not set(request.mapping.columns.values()) <= set(rows[0]):
             raise HTTPException(422, "연결한 원본 헤더가 선택한 시트에 없습니다.")
         sheet_name = metadata.get("selected_sheet")
@@ -644,16 +677,20 @@ def commit(store, request: FormsCommitRequestV4, actor: str) -> FormsCommitResul
                     revision = _create_case(store, db, row, source_request, actor)
                 else:
                     current = store.case(db, row.case_id, expected=row.expected_revision)
-                    manifest = store.manifest(current)
-                    session = selected_session(manifest, row.session_id)
-                    if not source_request.mapping.historical_reference_only:
-                        if session.survey_version != source_request.mapping.survey_version:
-                            raise HTTPException(409, "대상 회차의 설문 판본이 변경되었습니다.")
-                        session.survey = row.answers
-                        session.survey_not_applicable = []
-                        session.survey_blank_reasons = row.blank_reasons
-                    store.save(db, current, manifest, actor, "forms.survey.update")
-                    revision = manifest.input_revision
+                    if row.matched_by == "id" and not row.changed_questions:
+                        # 바뀌는 문항이 없는 행은 새 입력 버전을 만들지 않는다(분석 결과 표시를 지우지 않기 위해). 출처 기록만 남긴다.
+                        revision = current["input_revision"]
+                    else:
+                        manifest = store.manifest(current)
+                        session = selected_session(manifest, row.session_id)
+                        if not source_request.mapping.historical_reference_only:
+                            if session.survey_version != source_request.mapping.survey_version:
+                                raise HTTPException(409, "대상 회차의 설문 판본이 변경되었습니다.")
+                            session.survey = row.answers
+                            session.survey_not_applicable = []
+                            session.survey_blank_reasons = row.blank_reasons
+                        store.save(db, current, manifest, actor, "forms.survey.update")
+                        revision = manifest.input_revision
                 capsule = {"schema_version": "forms-source-row-4.0", "preview_id": request.preview_id,
                            "case_id": row.case_id, "session_id": row.session_id, "source_hash": frozen.source_hash,
                            "source_filename": frozen.filename, "source_location": row.source_location,
@@ -670,7 +707,8 @@ def commit(store, request: FormsCommitRequestV4, actor: str) -> FormsCommitResul
         except sqlite3.IntegrityError as exc:
             raise HTTPException(409, "등록 중 참가자 ID·순번 충돌이 발생했습니다. 전체 작업을 취소했습니다.") from exc
         result = FormsCommitResultV4(preview_id=request.preview_id, rows=results,
-                                     excluded=frozen.errors if request.accept_partial else [])
+                                     excluded=[FormsIssueV4(row_number=issue.row_number, message=issue.message)
+                                               for issue in frozen.errors] if request.accept_partial else [])
         link = _write(store, "receipt", result.model_dump_json().encode("utf-8"))
         store.audit(db, actor, request.preview_id, "forms.commit", link)
         store.audit(db, actor, _request_target(actor, request.request_id), "forms.commit_request",
@@ -743,9 +781,14 @@ def _preset_view(row, actor: str, role: str) -> FormsPresetViewV4:
 
 
 def list_presets(store, actor: str, role: str) -> list[FormsPresetViewV4]:
+    views = []
     with store.connect() as db:
-        return [_preset_view(row, actor, role) for row in db.execute(
-            "SELECT * FROM forms_mapping_presets ORDER BY name COLLATE NOCASE").fetchall()]
+        for row in db.execute("SELECT * FROM forms_mapping_presets ORDER BY name COLLATE NOCASE").fetchall():
+            try:
+                views.append(_preset_view(row, actor, role))
+            except ValidationError:
+                continue  # 규칙이 바뀌어 더는 유효하지 않은 설정은 목록에서 빼고 나머지는 계속 보여 준다.
+    return views
 
 
 def save_preset(store, value: FormsPresetEditV4, actor: str, role: str) -> FormsPresetViewV4:
