@@ -5,7 +5,7 @@ import { openMenu } from './menu';
 const headers = { 'X-KDOG-Request': '1' };
 const password = 'Browser-test-only-42';
 
-test('S1 scoring preserves explicit zero, null states, source evidence, independent locks and exposure', async ({ page, request, browser }, testInfo) => {
+test('S1 scoring preserves explicit zero, null states, source evidence, independent locks and exposure', async ({ page, request, browser, baseURL }, testInfo) => {
   test.setTimeout(180000);
   page.setDefaultTimeout(15000);
   const errors: string[] = [];
@@ -124,7 +124,7 @@ test('S1 scoring preserves explicit zero, null states, source evidence, independ
   expect(view.document.sheet.observations.find((value: { code: string }) => value.code === '바54').value).toBeNull();
   const otherContext = await browser.newContext();
   try {
-    const other = otherContext.request; const base = 'http://127.0.0.1:8765';
+    const other = otherContext.request; const base = baseURL!;
     await other.post(base + '/api/auth/login', { headers, data: { username: 's1reviewer2', password } });
     const secondSave = await (await other.put(`${base}/api/score-sheets-s1/${second.sheet_id}`, { headers, data: { expected_revision: second.revision, observations: all, reason: '두 번째 합성 독립 입력' } })).json();
     const secondSubmit = await (await other.post(`${base}/api/score-sheets-s1/${second.sheet_id}/submit`, { headers, data: { expected_revision: secondSave.revision, reason: '두 번째 합성 독립 제출' } })).json();

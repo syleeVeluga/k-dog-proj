@@ -67,7 +67,7 @@ export function videoCounts(item: Case, sessionIndex?: number): string {
   const session = sessionIndex === undefined ? item.manifest.sessions.find(value => value.session_id === item.selected_session_id) : item.manifest.sessions[sessionIndex];
   const total = session?.videos.length ?? 0;
   const progress = currentProgress(item);
-  if (!progress) return `${total}개`;
+  if (!progress || session?.session_id !== progress.session_id) return `${total}개`;
   const kept = total - progress.videos_total;
   return `${total}개 · 사용 가능 ${progress.videos_usable} · 확인 대기 ${progress.videos_total - progress.videos_usable}${kept ? ` · 보관 전용 ${kept}` : ''}`;
 }

@@ -22,9 +22,11 @@ export function Prerequisites({ item, kind, user, goTo }: { item: Case; kind: Ki
     needs.push({ label: '분석·피드백 동의 확인', ok: item.consents.analysis_feedback === 'confirmed', staffHint: '접수 상세에서 동의를 확인합니다.', reviewerHint: '' });
     if (staff) needs.push({ label: '최종 결과 확정', ok: !!progress.final, staffHint: '독립 채점 화면에서 최종 결과를 만듭니다.', reviewerHint: '', go: { route: 'scoring', label: '독립 채점으로 이동' } });
   }
-  if (needs.every(need => need.ok)) return null;
+  const previousInput = progress.preprocess === 'outdated';
+  if (needs.every(need => need.ok) && !previousInput) return null;
   const title = kind === 'scoring' ? '채점을 시작하려면' : kind === 'preprocess' ? '전처리를 실행하려면' : '리포트를 발급하려면';
   return <section className="panel prerequisites" aria-label="선행 조건"><h2>{staff ? title : `${title} · 운영자에게 요청할 일`}</h2>
+    {previousInput && <p role="status">입력이 변경되어 이전 입력의 전처리 결과를 표시합니다. 기존 채점 시트는 보존된 입력으로 작업할 수 있습니다. 새 입력의 전처리 결과가 필요하면 운영자에게 재실행을 요청하세요.</p>}
     <ul>{needs.map(need => <li key={need.label} className={need.ok ? 'ok' : 'missing'}><span aria-hidden="true">{need.ok ? '✓' : '✗'}</span> <strong>{need.label}</strong>
       <span className="sr-only">{need.ok ? ' 완료' : ' 필요'}</span>
       {!need.ok && <span className="fine"> → {staff ? need.staffHint : need.reviewerHint}</span>}
