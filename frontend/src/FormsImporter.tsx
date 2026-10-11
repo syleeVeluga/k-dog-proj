@@ -126,9 +126,10 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
   // 저장한 연결을 자동 연결 위에 덮어쓴다. 파일에 없는 헤더는 연결 안 됨으로 두고 알려 준다.
   function applyPreset(preset: Preset) {
     const present = new Set(columns), next = { ...(auto?.mapping ?? {}) }, missing: string[] = [];
-    const claimed = new Set(Object.values(preset.mapping.columns));
-    for (const [key, header] of Object.entries(next)) if (claimed.has(header) && preset.mapping.columns[key] !== header) delete next[key];
-    for (const [key, header] of Object.entries(preset.mapping.columns)) {
+    const stored = Object.fromEntries(Object.entries(preset.mapping.columns).filter(([key]) => !key.startsWith('consent_')));
+    const claimed = new Set(Object.values(stored));
+    for (const [key, header] of Object.entries(next)) if (claimed.has(header) && stored[key] !== header) delete next[key];
+    for (const [key, header] of Object.entries(stored)) {
       if (present.has(header)) next[key] = header; else { delete next[key]; missing.push(`${itemLabel(key)}(${header})`); }
     }
     const nextLabels: Record<string, string> = Object.fromEntries(Object.entries(labels).filter(([question]) => next[question]));

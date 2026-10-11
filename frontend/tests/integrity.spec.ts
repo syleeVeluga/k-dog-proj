@@ -22,5 +22,4 @@ test('검증 실패 자료 안내와 정상 참가자 조회를 함께 유지한
   await page.getByRole('button', { name: 'VALID-01 상세 열기', exact: true }).click();
   await expect(page.getByRole('heading', { name: '정상 합성견', exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('integrity-warning.png'), fullPage: true });
-  expect((await page.request.post(`/api/cases/${item.case_id}/deletion`, { headers, data: { expected_revision: item.input_revision } })).status()).toBe(200);
 });

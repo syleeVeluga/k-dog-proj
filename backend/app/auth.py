@@ -34,7 +34,7 @@ def create_user(db, user: UserCreate):
 
 
 def provision_accounts(db, store, document: bytes) -> list[str]:
-    """Create the admin/developer accounts named in an issued package; never overwrite an existing account.
+    """Create business/developer accounts named in an issued package; never overwrite an existing account.
 
     An existing active account of the same role keeps its password. Anything else changes nothing.
     """
@@ -48,11 +48,11 @@ def provision_accounts(db, store, document: bytes) -> list[str]:
             and isinstance(accounts, list) and 1 <= len(accounts) <= 2
             and all(isinstance(account, dict) and set(account) == {"username", "role", "password_hash"}
                     and isinstance(account["username"], str) and re.fullmatch(r"[A-Za-z0-9_-]{1,100}", account["username"])
-                    and account["role"] in ("admin", "developer")
+                    and account["role"] in ("operator", "reviewer", "admin", "developer")
                     and isinstance(account["password_hash"], str)
                     and re.fullmatch(r"scrypt\$[0-9a-f]{32}\$[0-9a-f]{128}", account["password_hash"])
                     for account in accounts)
-            and sorted(account["role"] for account in accounts) in (["admin"], ["admin", "developer"])
+            and sum(account["role"] != "developer" for account in accounts) == 1
             and len({account["username"] for account in accounts}) == len(accounts)):
         raise ValueError("발행 계정 정보가 올바르지 않습니다.")
     messages, new = [], []

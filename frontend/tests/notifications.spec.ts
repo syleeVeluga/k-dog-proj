@@ -3,12 +3,6 @@ import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 
-test.afterEach(async ({ page }) => {
-  await page.request.post('/api/auth/login', { headers, data: { username: 'admin', password: 'Browser-test-only-42' } });
-  for (const item of (await (await page.request.get('/api/cases')).json()).filter((c: { event_id: string }) => c.event_id.startsWith('NOTE-'))) {
-    expect((await page.request.post(`/api/cases/${item.case_id}/deletion`, { headers, data: { expected_revision: item.input_revision } })).status()).toBe(200);
-  }
-});
 
 for (const width of [1440, 360]) {
   test(`action notifications stay in view after scrolling at ${width}px`, async ({ page }, testInfo) => {

@@ -42,6 +42,7 @@ export function visibleMenu(role: Role): MenuGroup[] {
 }
 
 export function defaultRoute(role: Role): Route {
+  if (role === 'developer') return 'developer/settings';
   return visibleMenu(role)[0]?.items[0]?.route ?? 'intake';
 }
 

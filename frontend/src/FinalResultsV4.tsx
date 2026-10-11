@@ -20,7 +20,6 @@ const sceneText = (scene: EvidenceV4) => `${scene.camera_id} · ${scene.window_i
 
 export function FinalResultsV4({ item, sheets }: { item: Case; sheets: SheetSummaryV4[] }) {
   const path = `/cases/${item.case_id}/sessions/${item.selected_session_id}`;
-  const viewer = '';
   const [metadata, setMetadata] = useState<OpinionMetadataV4 | null>(null);
   const [opinion, setOpinion] = useState<OpinionViewV4 | null>(null), [finals, setFinals] = useState<FinalSummaryV4[]>([]), [candidates, setCandidates] = useState<BasicSummaryV4[]>([]);
   const [basic, setBasic] = useState<BasicResultViewV4 | null>(null), [selectedFinal, setSelectedFinal] = useState<FinalViewV4 | null>(null);
@@ -30,24 +29,22 @@ export function FinalResultsV4({ item, sheets }: { item: Case; sheets: SheetSumm
   const opinionOpened = useRef(false);
   const alive = useRef(true), pending = useRef(false), sequence = useRef(0);
   const attachmentRequest = useRef<{ fingerprint: string; request_id: string } | null>(null);
-  const context = useRef(''); context.current = `${path}:${viewer}`;
-  const query = viewer ? `?viewer_sheet_id=${encodeURIComponent(viewer)}` : '';
+  const context = useRef(''); context.current = path;
   const selectedBasic = basic ? basicRef(basic) : null;
-  useEffect(() => { setAttachmentRun(null); }, [path, viewer, basic?.summary.manifest_hash, metadata?.reference?.hash]);
+  useEffect(() => { setAttachmentRun(null); }, [path, basic?.summary.manifest_hash, metadata?.reference?.hash]);
   async function reload() {
     const current = ++sequence.current, scope = context.current;
-    const [meta, list, available] = await Promise.all([api<OpinionMetadataV4>(path + '/opinions-s1/metadata'), api<FinalSummaryV4[]>(path + '/final-results-s1' + query), api<BasicSummaryV4[]>(path + '/final-results-s1/candidates' + query)]);
+    const [meta, list, available] = await Promise.all([api<OpinionMetadataV4>(path + '/opinions-s1/metadata'), api<FinalSummaryV4[]>(path + '/final-results-s1'), api<BasicSummaryV4[]>(path + '/final-results-s1/candidates')]);
     if (!alive.current || current !== sequence.current || scope !== context.current) return;
     setMetadata(meta); setFinals(list); setCandidates(available); setUnavailable(false); setOpinionError('');
-    if (meta.requires_reveal) setOpinion(null);
-    else {
-      try { const open = !opinionOpened.current && !!meta.reference; if (open) opinionOpened.current = true; const value = await api<OpinionViewV4>(path + '/opinions-s1' + query + (open ? '?purpose=open' : '')); if (alive.current && current === sequence.current && scope === context.current) setOpinion(value); }
+    {
+      try { const open = !opinionOpened.current && !!meta.reference; if (open) opinionOpened.current = true; const value = await api<OpinionViewV4>(path + '/opinions-s1' + (open ? '?purpose=open' : '')); if (alive.current && current === sequence.current && scope === context.current) setOpinion(value); }
       catch (reason) { if (alive.current && current === sequence.current && scope === context.current) { setOpinion(null); setOpinionError(message(reason)); } }
     }
     if (!alive.current || current !== sequence.current || scope !== context.current) return;
     if (basic && !available.some(row => row.result_id === basic.summary.result_id && row.revision === basic.summary.revision && row.manifest_hash === basic.summary.manifest_hash)) setBasic(null);
     if (selectedFinal) {
-      try { const value = await api<FinalViewV4>(path + `/final-results-s1/${selectedFinal.reference.final_id}` + query); if (alive.current && current === sequence.current && scope === context.current) setSelectedFinal(value); }
+      try { const value = await api<FinalViewV4>(path + `/final-results-s1/${selectedFinal.reference.final_id}`); if (alive.current && current === sequence.current && scope === context.current) setSelectedFinal(value); }
       catch (reason) { if (alive.current && current === sequence.current && scope === context.current) { setSelectedFinal(null); setError(message(reason)); } }
     }
   }
@@ -55,7 +52,7 @@ export function FinalResultsV4({ item, sheets }: { item: Case; sheets: SheetSumm
     alive.current = true;
     void reload().catch(reason => { if (alive.current) { setError(message(reason)); if (accessLost(reason)) { setUnavailable(true); setOpinion(null); setSelectedFinal(null); setBasic(null); } } });
     return () => { alive.current = false; sequence.current++; };
-  }, [path, viewer]);
+  }, [path]);
   async function work(operation: () => Promise<void>) {
     if (pending.current || editorBusy) return;
     pending.current = true; setBusy(true); setError('');
@@ -65,12 +62,12 @@ export function FinalResultsV4({ item, sheets }: { item: Case; sheets: SheetSumm
   }
   async function selectBasic(row: BasicSummaryV4) {
     const scope = context.current;
-    const value = await api<BasicResultViewV4>(path + `/final-results-s1/candidates/${row.result_id}/${row.revision}` + query + (query ? "&" : "?") + "purpose=open");
+    const value = await api<BasicResultViewV4>(path + `/final-results-s1/candidates/${row.result_id}/${row.revision}` + "?purpose=open");
     if (alive.current && scope === context.current) { setBasic(value); setDirty(false); }
   }
   async function startAttachment() {
     const scope = context.current;
-    const fields = { basic: selectedBasic, opinion: metadata?.reference, viewer_sheet_id: viewer || null };
+    const fields = { basic: selectedBasic, opinion: metadata?.reference };
     const fingerprint = JSON.stringify(fields);
     if (attachmentRequest.current?.fingerprint !== fingerprint || attachmentRun) {
       attachmentRequest.current = { fingerprint, request_id: crypto.randomUUID() };
@@ -95,21 +92,21 @@ export function FinalResultsV4({ item, sheets }: { item: Case; sheets: SheetSumm
       {metadata?.reference ? <p>의견 r{metadata.reference.revision} · {states[metadata.state ?? ''] ?? metadata.state} · 작성 계정 {metadata.actor}</p> : <p>저장된 행사 의견이 없습니다.</p>}
       {opinionError && <p role="status">{opinionError}</p>}
       {opinion?.document && !basic && <><p>평가자 {opinion.document.evaluator || '미입력'} · 실제 완료 {opinion.document.state === 'complete' ? '충족' : '미충족'}</p><p>연결된 기본 결과를 선택하면 의견과 근거를 확인·편집할 수 있습니다.</p><button disabled={busy || !candidates.some(row => row.result_id === opinion.document!.basic.result_id && row.revision === opinion.document!.basic.revision)} onClick={() => { const row = candidates.find(row => row.result_id === opinion.document!.basic.result_id && row.revision === opinion.document!.basic.revision); if (row) void work(() => selectBasic(row)); }}>현재 의견의 고정 기본 결과 선택</button></>}
-      {basic && opinion && !metadata?.requires_reveal && <OpinionEditor key={basic.summary.manifest_ref} basic={basic} latest={opinion} path={path} viewer={viewer} blocked={busy} saved={async () => { await reload(); }} invalidated={() => { setOpinion(null); setBasic(null); setSelectedFinal(null); }} onDirty={setDirty} onBusy={setEditorBusy} />}
+      {basic && opinion && <OpinionEditor key={basic.summary.manifest_ref} basic={basic} latest={opinion} path={path} blocked={busy} saved={async () => { await reload(); }} invalidated={() => { setOpinion(null); setBasic(null); setSelectedFinal(null); }} onDirty={setDirty} onBusy={setEditorBusy} />}
     </section>
     <fieldset disabled={busy || editorBusy || dirty}><legend>새 최종본 고정</legend>
       <p>현재 의견 {metadata?.reference ? `r${metadata.reference.revision} (${states[metadata.state ?? ''] ?? metadata.state})` : '없음'}을 함께 연결합니다. 철회·작성 중 의견도 출처로 고정하지만 완료 의견으로 적용하지 않습니다.</p>
-      {metadata?.basic && selectedBasic && !sameBasic(metadata.basic, selectedBasic) && <p role="status">현재 의견과 선택한 기본 결과가 다릅니다. 의견을 재개방하고 고정 기본 입력과 근거를 다시 연결하세요.</p>}
+      {metadata?.basic && selectedBasic && !sameBasic(metadata.basic, selectedBasic) && <p role="status">현재 의견과 선택한 기본 결과가 다릅니다. 의견을 수정해 고정 기본 입력과 근거를 다시 연결하세요.</p>}
       {opinion?.document?.state === 'complete' && opinion.document.domains.some(domain => domain.domain === 'attachment' && domain.text.trim() && domain.label === null) && <section aria-label="완료 애착 의견 AI 해석">
         <p>원문과 기본 결과를 보존하는 별도 실행입니다. 명시한 유형은 변경하지 않으며, 불명확한 의견은 보류합니다.</p>
         <button disabled={!selectedBasic || !metadata?.reference || !!metadata.basic && !sameBasic(metadata.basic, selectedBasic) || !!attachmentRun && ['queued', 'running', 'retry_wait'].includes(attachmentRun.status)} onClick={() => void work(startAttachment)}>완료 애착 의견을 AI로 해석</button>
         {attachmentRequest.current && !attachmentRun && <p role="status">응답 확인이 필요한 요청입니다. 같은 입력으로 다시 누르면 동일 요청 ID를 사용합니다.</p>}
         {attachmentRun && <><p>해석 실행 {attachmentRun.status} · 예약 호출 {attachmentRun.reserved_calls}회 · {attachmentRun.reference ? '이 해석 판본을 새 최종본에 연결합니다.' : '원채점 재호출 없이 처리 중이거나 보류·실패했습니다.'}</p>
-          <button onClick={() => void work(async () => { const scope = context.current; const value = await api<AttachmentRunV4>(path + `/opinions-s1/attachment-runs/${attachmentRun.run_id}` + query); if (alive.current && scope === context.current) setAttachmentRun(value); })}>애착 해석 상태 새로고침</button>
-          {['queued', 'running', 'retry_wait'].includes(attachmentRun.status) && <button onClick={() => void work(async () => { const scope = context.current; const value = await api<AttachmentRunV4>(path + `/opinions-s1/attachment-runs/${attachmentRun.run_id}/stop` + query, 'POST', { expected_updated_at: attachmentRun.updated_at, reason: '운영자 명시 중지' }); if (alive.current && scope === context.current) setAttachmentRun(value); })}>애착 해석 중지</button>}</>}
+          <button onClick={() => void work(async () => { const scope = context.current; const value = await api<AttachmentRunV4>(path + `/opinions-s1/attachment-runs/${attachmentRun.run_id}`); if (alive.current && scope === context.current) setAttachmentRun(value); })}>애착 해석 상태 새로고침</button>
+          {['queued', 'running', 'retry_wait'].includes(attachmentRun.status) && <button onClick={() => void work(async () => { const scope = context.current; const value = await api<AttachmentRunV4>(path + `/opinions-s1/attachment-runs/${attachmentRun.run_id}/stop`, 'POST', { expected_updated_at: attachmentRun.updated_at, reason: '사용자 명시 중지' }); if (alive.current && scope === context.current) setAttachmentRun(value); })}>애착 해석 중지</button>}</>}
       </section>}
       <label>최종본 고정 사유<input maxLength={4000} value={assembleReason} onChange={event => setAssembleReason(event.target.value)} /></label>
-      <button disabled={!basic || !metadata || metadata.requires_reveal || !!metadata.basic && !sameBasic(metadata.basic, selectedBasic) || !assembleReason.trim()} onClick={() => void work(async () => { const value = await api<FinalViewV4>(path + '/final-results-s1', 'POST', { basic: selectedBasic, opinion: metadata?.reference ?? null, attachment_inference: attachmentRun?.reference ?? null, viewer_sheet_id: viewer || null, reason: assembleReason.trim() }); await reload(); if (alive.current) { setSelectedFinal(value); setAssembleReason(''); } })}>선택한 판본으로 새 최종본 생성</button>
+      <button disabled={!basic || !metadata || !!metadata.basic && !sameBasic(metadata.basic, selectedBasic) || !assembleReason.trim()} onClick={() => void work(async () => { const value = await api<FinalViewV4>(path + '/final-results-s1', 'POST', { basic: selectedBasic, opinion: metadata?.reference ?? null, attachment_inference: attachmentRun?.reference ?? null, reason: assembleReason.trim() }); await reload(); if (alive.current) { setSelectedFinal(value); setAssembleReason(''); } })}>선택한 판본으로 새 최종본 생성</button>
       {dirty && <p>의견의 미저장 입력을 먼저 저장하거나 버리세요.</p>}
     </fieldset>
     <h3>보존 최종본</h3>{!finals.length && <p>생성된 최종본이 없습니다.</p>}
@@ -123,12 +120,11 @@ export function FinalResultsV4({ item, sheets }: { item: Case; sheets: SheetSumm
 type OpinionDraft = { evaluator: string; completion_requested: boolean; priority_help: string; domains: DomainOpinionV4[] };
 function draftOf(value: OpinionViewV4): OpinionDraft { return { evaluator: value.document?.evaluator ?? '', completion_requested: value.document?.completion_requested ?? false, priority_help: value.document?.priority_help ?? '', domains: domains.map(domain => value.document?.domains.find(item => item.domain === domain) ?? blankDomain(domain)) }; }
 
-function OpinionEditor({ basic, latest, path, viewer, blocked, saved, invalidated, onDirty, onBusy }: { basic: BasicResultViewV4; latest: OpinionViewV4; path: string; viewer: string; blocked: boolean; saved: () => Promise<void>; invalidated: () => void; onDirty: (value: boolean) => void; onBusy: (value: boolean) => void }) {
+function OpinionEditor({ basic, latest, path, blocked, saved, invalidated, onDirty, onBusy }: { basic: BasicResultViewV4; latest: OpinionViewV4; path: string; blocked: boolean; saved: () => Promise<void>; invalidated: () => void; onDirty: (value: boolean) => void; onBusy: (value: boolean) => void }) {
   const edit = useEditBase(latest), [draft, setDraft] = useState<OpinionDraft>(() => draftOf(latest)), [reason, setReason] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false);
   const pending = useRef(false), alive = useRef(true); const view = edit.view, value = edit.dirty ? draft : draftOf(view);
   useEffect(() => { onDirty(edit.dirty); }, [edit.dirty, onDirty]);
   useEffect(() => { alive.current = true; return () => { alive.current = false; onDirty(false); onBusy(false); }; }, [onDirty, onBusy]);
-  const locked = !!view.document && view.document.state !== 'draft';
   const available = basic.document.input_document.sheet.observations.filter(row => row.status === 'observed' && ['valid', 'caution'].includes(row.validity) && row.evidence.some(scene => Number(scene.observed_seconds) > 0));
   function change(patch: Partial<OpinionDraft>) { edit.change(); setDraft({ ...value, ...patch }); }
   function domainChange(domain: DomainKeyV4, patch: Partial<DomainOpinionV4>) { change({ domains: value.domains.map(item => item.domain === domain ? { ...item, ...patch } : item) }); }
@@ -143,7 +139,7 @@ function OpinionEditor({ basic, latest, path, viewer, blocked, saved, invalidate
     {error && <p role="alert" className="error">{error} 미저장 의견은 유지합니다.</p>}
     {edit.dirty && latest.reference?.hash !== view.reference?.hash && <p role="status">다른 의견 판본이 저장되었습니다. 편집 시작 판본과 입력을 유지합니다.</p>}
     {view.document?.completion_issues.map(issue => <p role="status" key={issue}>{issue}</p>)}
-    <fieldset disabled={blocked || busy || locked}><legend>평가자와 영역별 원문</legend>
+    <fieldset disabled={blocked || busy}><legend>평가자와 영역별 원문</legend>
       <label>의견 평가자<input maxLength={200} value={value.evaluator} onChange={event => change({ evaluator: event.target.value })} /></label>
       {value.domains.map(item => { const name = DOMAIN_NAMES_V4[item.domain]; const selected = available.filter(row => item.evidence_codes.includes(row.code)); const scenes = [...new Map(selected.flatMap(row => row.evidence.map(scene => [sceneKey(scene), scene] as const))).values()]; return <section className="panel" key={item.domain} aria-label={`${name} 의견`}>
         <h4>{name}</h4><label>{name} 의견 원문<textarea aria-label={`${name} 의견 원문`} rows={3} maxLength={12000} value={item.text} onChange={event => domainChange(item.domain, { text: event.target.value })} /></label>
@@ -164,9 +160,8 @@ function OpinionEditor({ basic, latest, path, viewer, blocked, saved, invalidate
       <label className="check"><input type="checkbox" checked={value.completion_requested} onChange={event => change({ completion_requested: event.target.checked })} />B40 의견 완료 요청</label>
     </fieldset>
     <label>의견 저장·상태 변경 사유<input disabled={busy || blocked} maxLength={4000} value={reason} onChange={event => setReason(event.target.value)} /></label>
-    <div className="toolbar">{!locked && <button disabled={busy || blocked || !reason.trim()} onClick={() => void work(() => api(path + '/opinions-s1', 'PUT', { expected_revision: view.reference?.revision ?? 0, basic: basicRef(basic), viewer_sheet_id: viewer || null, ...value, reason: reason.trim() }))}>의견 저장·완료 조건 확인</button>}
-      {locked && <button disabled={busy || blocked || !reason.trim()} onClick={() => void work(() => api(path + '/opinions-s1/reopen', 'POST', { expected_revision: view.reference!.revision, viewer_sheet_id: viewer || null, reason: reason.trim() }))}>의견 재개방</button>}
-      {view.document && view.document.state !== 'withdrawn' && <button disabled={busy || blocked || edit.dirty || !reason.trim()} onClick={() => void work(() => api(path + '/opinions-s1/withdraw', 'POST', { expected_revision: view.reference!.revision, viewer_sheet_id: viewer || null, reason: reason.trim() }))}>의견 철회</button>}
+    <div className="toolbar"><button disabled={busy || blocked || !reason.trim()} onClick={() => void work(() => api(path + '/opinions-s1', 'PUT', { expected_revision: view.reference?.revision ?? 0, basic: basicRef(basic), ...value, reason: reason.trim() }))}>의견 저장·완료 조건 확인</button>
+      {view.document && view.document.state !== 'withdrawn' && <button disabled={busy || blocked || edit.dirty || !reason.trim()} onClick={() => void work(() => api(path + '/opinions-s1/withdraw', 'POST', { expected_revision: view.reference!.revision, reason: reason.trim() }))}>의견 철회</button>}
       {edit.dirty && <button disabled={busy || blocked} onClick={() => { if (edit.discard()) { setReason(''); setError(''); } }}>미저장 의견 버리고 최신 조회</button>}
     </div>
     {view.reference && <details><summary>의견 판본과 해시</summary><p>{view.reference.ref}<br />SHA-256: {view.reference.hash}</p><p>이전 판본 {view.document?.previous.map(value => `r${value.revision}`).join(', ') || '없음'}</p></details>}

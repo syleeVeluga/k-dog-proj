@@ -2,11 +2,6 @@ import { test, expect } from '@playwright/test';
 import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
-test.afterEach(async ({ page }) => {
-  for (const item of (await (await page.request.get('/api/cases')).json()).filter((c: { event_id: string }) => c.event_id === 'S1-SYNTHETIC')) {
-    await page.request.post(`/api/cases/${item.case_id}/deletion`, { headers, data: { expected_revision: item.input_revision } });
-  }
-});
 
 test('S1 접수는 빈 채점 상태로 시작하고 구판 채점으로 연결하지 않는다', async ({ page }) => {
   await page.goto('/');

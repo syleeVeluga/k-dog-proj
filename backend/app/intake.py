@@ -93,14 +93,11 @@ def save_survey(store, db, case_id, value: SurveyEditV3, actor, catalog):
 
 
 PROFILE_COLUMNS = ("dog_breed", "dog_sex", "dog_age_years", "dog_size", "years_together", "adoption_route")
-TRUE_TOKENS = ("1", "Y", "y", "예", "동의", "true", "True", "O")
-FALSE_TOKENS = ("", "0", "N", "n", "아니오", "미확인", "false", "False", "X")
 
 
 def headers(kind, version=None):
     if kind == "participants":
-        return ["event_id", "participant_id", "dog_name", "reservation_at", "sequence_no", "consent_confirmed", "guardian_name", *PROFILE_COLUMNS,
-                "consent_analysis_feedback", "consent_stranger_contact"]
+        return ["event_id", "participant_id", "dog_name", "reservation_at", "sequence_no", "guardian_name", *PROFILE_COLUMNS]
     return ["event_id", "participant_id", "survey_version", *SURVEY_IDS,
             *([f"{question}_reason" for question in SURVEY_IDS] if version == SURVEY_VERSION else [])]
 
@@ -119,25 +116,10 @@ def participant_row(value):
             return int(raw)
         raise ValueError(f"{key}: 정수만 허용됩니다.")
 
-    consent = text("consent_confirmed")
-    if consent not in TRUE_TOKENS + FALSE_TOKENS:
-        raise ValueError("동의 확인(consent_confirmed): 확인은 예 또는 1, 미확인은 빈칸으로 고친 뒤 다시 검증하세요.")
-    def consent_state(key):
-        raw = text(key)
-        if raw in ("", "미확인", "unknown"):
-            return "unknown"
-        if raw in ("거절", "declined", "0", "N", "아니오"):
-            return "declined"
-        if raw in ("확인", "confirmed", "1", "Y", "예", "동의"):
-            return "confirmed"
-        raise ValueError(f"{key}: 미확인/거절/확인 값을 사용하세요.")
-
     return CaseCreateV3.model_validate({
         "event_id": value["event_id"], "participant_id": value["participant_id"], "dog_name": value["dog_name"],
         "reservation_at": text("reservation_at"), "sequence_no": integer("sequence_no"),
-        "consent_confirmed": consent in TRUE_TOKENS, "guardian_name": text("guardian_name"),
-        "consents": {"analysis_feedback": consent_state("consent_analysis_feedback"),
-                     "stranger_contact": consent_state("consent_stranger_contact")},
+        "guardian_name": text("guardian_name"),
         "dog": {"breed": text("dog_breed"), "sex": text("dog_sex") or "미기재", "age_years": integer("dog_age_years"),
                 "size": text("dog_size") or "미기재", "years_together": text("years_together"), "adoption_route": text("adoption_route") or "미기재"},
     })

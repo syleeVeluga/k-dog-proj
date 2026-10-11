@@ -10,8 +10,7 @@ from app.forms_v4 import TEMPLATE_PARTICIPANT, template, template_header
 from app.domain.catalog import SURVEY_IDS
 from tests.support import AppCase
 
-ROSTER_HEADERS = ["참가자 ID", "반려견 이름", "보호자 이름", "예약 시각", "순번", "기본 동의", "분석·피드백 동의",
-                  "낯선 사람 접촉 동의", "견종", "반려견 성별", "반려견 나이", "반려견 크기", "함께 산 기간", "입양 경로"]
+ROSTER_HEADERS = ["참가자 ID", "반려견 이름", "보호자 이름", "예약 시각", "순번", "견종", "반려견 성별", "반려견 나이", "반려견 크기", "함께 산 기간", "입양 경로"]
 SURVEY_HEADERS = [f"Q{index:02d}" for index in range(1, 29)]
 
 
@@ -43,11 +42,11 @@ class FormsTemplateV4Tests(AppCase):
         self.assertEqual(sheet["A2"].number_format, "@")
         self.assertEqual(sheet["A1000"].number_format, "@")
         rules = {str(rule.sqref): rule for rule in sheet.data_validations.dataValidation}
-        self.assertEqual(rules["J2:J1001"].formula1, '"암,수,중성화,미기재"')
+        self.assertEqual(rules["G2:G1001"].formula1, '"암,수,중성화,미기재"')
         self.assertTrue(all(rule.showErrorMessage and rule.error for rule in rules.values()))
         for column in ("A", "B", "C"):
             self.assertEqual(sheet[f"{column}500"].number_format, "@")
-        self.assertEqual(rules["K2:K1001"].type, "whole")
+        self.assertEqual(rules["H2:H1001"].type, "whole")
         # Q10~Q14 allow 0~4; the other questions 1~5.
         question = {name: rules[f"{sheet.cell(row=1, column=index).column_letter}2:{sheet.cell(row=1, column=index).column_letter}1001"]
                     for index, name in enumerate(ROSTER_HEADERS + SURVEY_HEADERS, 1) if name in ("Q01", "Q10")}
@@ -69,7 +68,7 @@ class FormsTemplateV4Tests(AppCase):
 
     def test_filled_template_previews_without_changing_any_column(self):
         header = template("full", "csv").decode("utf-8-sig").strip().split(",")
-        row = ["0001", "초코", "김보호", "", "1", "예", "확인", "미확인", "믹스", "수", "3", "소형", "2년", "입양"] + ["3"] * 28
+        row = ["0001", "초코", "김보호", "", "1", "믹스", "수", "3", "소형", "2년", "입양"] + ["3"] * 28
         row[header.index("Q10")] = "0"
         source = ",".join(header) + "\n" + ",".join(row) + "\n"
         keys = [key for key, _ in TEMPLATE_PARTICIPANT] + list(SURVEY_IDS)
@@ -89,7 +88,7 @@ class FormsTemplateV4Tests(AppCase):
     def test_filled_xlsx_opens_on_the_input_sheet_and_previews(self):
         workbook = load_workbook(BytesIO(template("roster", "xlsx")))
         sheet = workbook["입력"]
-        for column, value in enumerate(["0007", "보리", "", "", 7, "", "", "", "", "", "", "", "", ""], 1):
+        for column, value in enumerate(["0007", "보리", "", "", 7, "", "", "", "", "", ""], 1):
             if value != "":
                 sheet.cell(row=2, column=column, value=value)
         output = BytesIO()

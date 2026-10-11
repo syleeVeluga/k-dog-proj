@@ -3,8 +3,7 @@
 
 export const profileFields: [string, string][] = [
   ['event_id', '행사 ID'], ['participant_id', '참가자 ID'], ['dog_name', '반려견 이름'], ['guardian_name', '보호자 이름'],
-  ['reservation_at', '예약 시각'], ['sequence_no', '순번'], ['consent_confirmed', '기본 동의'],
-  ['consent_analysis_feedback', '분석·피드백 동의'], ['consent_stranger_contact', '낯선 사람 접촉 동의'],
+  ['reservation_at', '예약 시각'], ['sequence_no', '순번'],
   ['dog_breed', '견종'], ['dog_sex', '성별'], ['dog_age_years', '나이'], ['dog_size', '크기'], ['years_together', '함께 산 기간'], ['adoption_route', '입양 경로'],
 ];
 export const questionKeys = Array.from({ length: 28 }, (_, i) => `s${String(i + 1).padStart(2, '0')}`);
@@ -18,9 +17,6 @@ const aliases: Record<string, string[]> = {
   guardian_name: ['보호자 이름', '보호자명', '보호자', '성함', 'guardian_name'],
   reservation_at: ['예약 시각', '예약 일시', '예약 시간', 'reservation_at'],
   sequence_no: ['순번', '참가 순번', 'sequence_no'],
-  consent_confirmed: ['기본 동의', '동의 확인', '동의', 'consent_confirmed'],
-  consent_analysis_feedback: ['분석·피드백 동의', '분석 피드백 동의', 'consent_analysis_feedback'],
-  consent_stranger_contact: ['낯선 사람 접촉 동의', '낯선 요원 접근·접촉 동의', 'consent_stranger_contact'],
   dog_breed: ['견종', '품종', '반려견 견종', 'dog_breed'],
   dog_sex: ['반려견 성별', '강아지 성별', 'dog_sex'],
   dog_age_years: ['반려견 나이', '강아지 나이', '반려견 나이(세)', '강아지 나이(세)', 'dog_age_years'],

@@ -91,9 +91,3 @@ test('행사 스태프: 명단 양식 → 10명 일괄 등록 → 현장 1명 �
   expect(cases.find((c: { participant_id: string }) => c.participant_id === 'F02').manifest.sessions[0].survey.s01).toBeNull();
   expect(outside).toEqual([]);
 });
-
-test.afterAll(async ({ request }) => {
-  await request.post('/api/auth/login', { headers, data: { username: 'operator', password } });
-  for (const item of (await (await request.get('/api/cases')).json()).filter((c: { event_id: string }) => c.event_id === EVENT))
-    await request.post(`/api/cases/${item.case_id}/deletion`, { headers, data: { expected_revision: item.input_revision } });
-});

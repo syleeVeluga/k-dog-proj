@@ -24,10 +24,10 @@ test('표준 양식을 내려받아 채워 올리면 열 연결을 하나도 고
   expect(download.suggestedFilename()).toBe('kdog-roster-survey.csv');
   const header = (await readFile(await download.path(), 'utf8')).replace(/^﻿/, '').trim();
   expect(header.split(',').slice(0, 3)).toEqual(['참가자 ID', '반려견 이름', '보호자 이름']);
-  const row = ['0101', '양식견', '양식보호자', '', '101', '예', '확인', '미확인', '믹스', '수', '3', '소형', '2년', '입양', ...Array(28).fill('3')].join(',');
+  const row = ['0101', '양식견', '양식보호자', '', '101', '믹스', '수', '3', '소형', '2년', '입양', ...Array(28).fill('3')].join(',');
   await form.getByLabel('폼 행사 ID', { exact: true }).fill('U02-TEMPLATE');
   await form.getByLabel('Forms 파일', { exact: true }).setInputFiles(csvFile('kdog-roster-survey.csv', `${header}\n${row}\n`));
-  await expect(form.getByRole('status').filter({ hasText: '자동 연결 42개 · 확인 필요 0개 · 연결 안 됨 0개' })).toBeVisible();
+  await expect(form.getByRole('status').filter({ hasText: '자동 연결 39개 · 확인 필요 0개 · 연결 안 됨 0개' })).toBeVisible();
   await form.getByRole('button', { name: 'Forms 등록 미리보기', exact: true }).click();
   await expect(form.getByRole('heading', { name: '원행 1개 · 오류 0개', exact: true })).toBeVisible();
   await form.getByRole('button', { name: 'Forms 전체 확정', exact: true }).click();

@@ -19,7 +19,6 @@ const signed = (value: number) => value > 0 ? `+${value}` : String(value);
 const errorText = (error: unknown) => error instanceof Error ? error.message : '채점 작업을 완료하지 못했습니다.';
 
 export function ScoreSheetsV4({ item, user, run, refresh, close }: { item: Case; user: User; run: Run; refresh: (message?: string) => Promise<void>; close: () => void }) {
-  const manager = true;
   const [rows, setRows] = useState<SheetSummaryV4[]>([]);
   const [catalog, setCatalog] = useState<BehaviorCatalogV4 | null>(null);
   const [sheetId, setSheetId] = useState('');
@@ -40,7 +39,7 @@ export function ScoreSheetsV4({ item, user, run, refresh, close }: { item: Case;
     void poll();
     api<BehaviorCatalogV4>('/catalog/behavior-s1').then(value => { if (active) setCatalog(value); }).catch(reason => { if (active) setError(errorText(reason)); });
     return () => { active = false; clearTimeout(timer); };
-  }, [path, manager]);
+  }, [path]);
   async function work(action: () => Promise<unknown>) {
     setBusy(true); setError('');
     await run(async () => { try { await action(); await reload(); } catch (reason) { setError(errorText(reason)); } finally { setBusy(false); } });
@@ -48,11 +47,11 @@ export function ScoreSheetsV4({ item, user, run, refresh, close }: { item: Case;
   return <section className="scoring-s1 panel" aria-label="공유 채점">
     <div className="section-title"><h2>{item.dog_name} · 공유 채점</h2><button onClick={close}>닫기</button></div>
     <p>숫자 83개 · 메모 3개 · 자동 4개. 원값 0과 빈값을 구분하고 실제 관찰 근거를 기록합니다.</p>
-    {manager && <p role="status">Excel 가져오기는 준비 중인 기능입니다.</p>}
+    <p role="status">Excel 가져오기는 준비 중인 기능입니다.</p>
     {error && <p role="alert" className="error">{error}</p>}
-    <AiRunsV4 key={`${item.case_id}:${item.selected_session_id}`} item={item} manager={manager} />
-    {manager && <FinalResultsV4 key={`final:${item.case_id}:${item.selected_session_id}`} item={item} sheets={rows} />}
-    {manager && <details><summary>채점 시작</summary><form onChange={() => { assignmentBase.current ??= item.input_revision; setAssignmentDirty(true); }} onSubmit={event => {
+    <AiRunsV4 key={`${item.case_id}:${item.selected_session_id}`} item={item} />
+    <FinalResultsV4 key={`final:${item.case_id}:${item.selected_session_id}`} item={item} sheets={rows} />
+    <details><summary>채점 시트 만들기</summary><form onChange={() => { assignmentBase.current ??= item.input_revision; setAssignmentDirty(true); }} onSubmit={event => {
       event.preventDefault(); const values = formFields(event.currentTarget); const form = event.currentTarget;
       void work(async () => { await api(path, 'POST', { ...values, expected_revision: assignmentBase.current ?? item.input_revision, rater_id: values.rater_id || null, rater_name: values.rater_name || null, source_sheet_id: values.source_sheet_id || null }); form.reset(); assignmentBase.current = null; setAssignmentDirty(false); });
     }}><fieldset disabled={busy} className="form-grid">
@@ -62,11 +61,11 @@ export function ScoreSheetsV4({ item, user, run, refresh, close }: { item: Case;
       <button type="submit">채점 시작</button>
       <button type="button" onClick={() => void refresh()}>현재 접수 버전 새로고침</button>
       {assignmentDirty && <button type="button" onClick={event => { if (window.confirm('채점 입력을 버리고 최신 접수 버전을 사용할까요?')) { event.currentTarget.form?.reset(); assignmentBase.current = null; setAssignmentDirty(false); } }}>채점 입력 버리고 다시 시작</button>}
-    </fieldset><p className="fine">비교할 평가자는 동일한 고정 입력을 선택하세요. 새로운 batch나 재배정은 같은 촬영의 독립성을 초기화하지 않습니다.</p></form></details>}
+    </fieldset><p className="fine">비교할 평가자는 동일한 고정 입력을 선택하세요. 새 항목군이나 시트 생성은 같은 촬영의 독립성을 초기화하지 않습니다.</p></form></details>
     {!rows.length && <p role="status">채점 시트가 없습니다. 실제 촬영 기록을 확정한 뒤 채점을 시작하세요.</p>}
     <ul className="sheet-list">{rows.map(row => <li key={row.sheet_id}><strong>{row.rater_name}</strong> · {purposes[row.purpose]} · {row.state === 'submitted' ? '제출본' : '초안'} · r{row.revision}
       {<button onClick={() => { if (mayLeave()) setSheetId(row.sheet_id); }}>시트 열기</button>}
-      <details><summary>배정 출처</summary><p>평가자 {row.rater_id} · 계정 {row.assigned_username} · {row.rater_kind === 'ai' ? 'AI' : '사람'}</p><p>고정 입력 {row.source_hash}</p><p>시트 {row.sheet_id} · r{row.revision} · {row.manifest_hash}</p></details>
+      <details><summary>원평가자 출처</summary><p>평가자 {row.rater_id} · 계정 {row.assigned_username} · {row.rater_kind === 'ai' ? 'AI' : '사람'}</p><p>고정 입력 {row.source_hash}</p><p>시트 {row.sheet_id} · r{row.revision} · {row.manifest_hash}</p></details>
     </li>)}</ul>
     {sheetId && catalog && <SheetEditor key={sheetId} sheetId={sheetId} catalog={catalog} done={reload} />}
   </section>;
@@ -120,7 +119,7 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
     {!!view.interpretation_exposures?.length && <div role="status"><p>다른 평가자의 의견·최종 해석을 열람했습니다. 이 촬영의 후속 기록은 공개 후 검수로 구분하며 최초 독립 제출본은 보존됩니다.</p><details><summary>해석 열람 기록</summary><ul>{view.interpretation_exposures.map(exposure => <li key={exposure.exposure_id}>{exposure.target.kind === 'opinion' ? '의견' : '최종 결과'} · {exposure.source_actor} · {exposure.recorded_at} · {exposure.reason}</li>)}</ul></details></div>}
     {error && <p role="alert" className="error">{error}</p>}
     <p role="status">{doc.state === 'submitted' ? '제출본 · 수정 저장하면 원본을 보존한 새 초안을 만듭니다.' : '초안 · 저장 후 제출합니다.'} · 다른 완료본 노출 {doc.exposures.length}개 · {(historical ? doc.sheet.ai_exposed : view.effective_ai_exposed ?? doc.sheet.ai_exposed) ? 'AI 결과 노출됨' : 'AI 결과 미노출'}</p>
-    {view.outdated && <p role="status">접수·촬영 입력이 변경되었습니다. 배정 당시 고정한 영상과 실제 창을 사용합니다.</p>}
+    {view.outdated && <p role="status">접수·촬영 입력이 변경되었습니다. 시트에 고정한 영상과 실제 창을 사용합니다.</p>}
     {edit.dirty && latest && latest.summary.revision !== view.summary.revision && <p role="status">다른 변경이 저장되었습니다. 미저장 입력과 편집 시작 버전을 유지합니다.</p>}
     <p>직접 입력 86행 중 {entries.length}행 기록 · 필수 84행, 선택 바54·바55. 0은 관찰한 값이며 미기록·NA·관찰량 부족·규칙 대기와 다릅니다.</p>
     <p>저장본 필수 미기록 {view.missing_required_codes.length}개 · 규칙 대기 {view.policy_pending_codes.join(', ') || '없음'}</p>

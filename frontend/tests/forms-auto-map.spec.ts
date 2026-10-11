@@ -4,8 +4,7 @@ import { autoMap, candidatesFor, parseLabelLines, parseQuestionRange } from '../
 // 표준 양식(backend/app/forms_v4.py TEMPLATE_PARTICIPANT)의 머리글. 양식과 별칭 표가 어긋나면 이 시험이 깨진다.
 const templateHeaders: [string, string][] = [
   ['참가자 ID', 'participant_id'], ['반려견 이름', 'dog_name'], ['보호자 이름', 'guardian_name'], ['예약 시각', 'reservation_at'],
-  ['순번', 'sequence_no'], ['기본 동의', 'consent_confirmed'], ['분석·피드백 동의', 'consent_analysis_feedback'],
-  ['낯선 사람 접촉 동의', 'consent_stranger_contact'], ['견종', 'dog_breed'], ['반려견 성별', 'dog_sex'], ['반려견 나이', 'dog_age_years'],
+  ['순번', 'sequence_no'], ['견종', 'dog_breed'], ['반려견 성별', 'dog_sex'], ['반려견 나이', 'dog_age_years'],
   ['반려견 크기', 'dog_size'], ['함께 산 기간', 'years_together'], ['입양 경로', 'adoption_route'],
 ];
 
@@ -14,7 +13,7 @@ test('표준 양식 머리글은 모두 정확히 한 항목에 자동 연결된
   for (let n = 1; n <= 28; n++) expect(candidatesFor(`Q${String(n).padStart(2, '0')}`)).toEqual([`s${String(n).padStart(2, '0')}`]);
   const all = [...templateHeaders.map(([header]) => header), ...Array.from({ length: 28 }, (_, i) => `Q${String(i + 1).padStart(2, '0')}`)];
   const proposal = autoMap(all);
-  expect(Object.keys(proposal.mapping)).toHaveLength(42);
+  expect(Object.keys(proposal.mapping)).toHaveLength(39);
   expect(proposal.review).toEqual([]); expect(proposal.conflicts).toEqual([]); expect(proposal.unmatched).toEqual([]);
 });
 

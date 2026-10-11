@@ -34,18 +34,17 @@ MAX_BYTES = 32 * 1024 * 1024
 # 표준 양식의 머리글은 화면 항목 이름과 같다. 행사 ID는 업로드 화면에서 받으므로 양식에 넣지 않는다.
 TEMPLATE_PARTICIPANT = (
     ("participant_id", "참가자 ID"), ("dog_name", "반려견 이름"), ("guardian_name", "보호자 이름"),
-    ("reservation_at", "예약 시각"), ("sequence_no", "순번"), ("consent_confirmed", "기본 동의"),
-    ("consent_analysis_feedback", "분석·피드백 동의"), ("consent_stranger_contact", "낯선 사람 접촉 동의"),
+    ("reservation_at", "예약 시각"), ("sequence_no", "순번"),
     ("dog_breed", "견종"), ("dog_sex", "반려견 성별"), ("dog_age_years", "반려견 나이"), ("dog_size", "반려견 크기"),
     ("years_together", "함께 산 기간"), ("adoption_route", "입양 경로"),
 )
 TEMPLATE_TEXT_COLUMNS = {"participant_id", "dog_name", "guardian_name", "reservation_at", "dog_breed", "years_together"}
 TEMPLATE_CHOICES = {
-    "consent_confirmed": ("예",), "consent_analysis_feedback": ("확인", "미확인", "거절"),
-    "consent_stranger_contact": ("확인", "미확인", "거절"), "dog_sex": ("암", "수", "중성화", "미기재"),
+    "dog_sex": ("암", "수", "중성화", "미기재"),
     "dog_size": ("소형", "중형", "대형", "미기재"), "dog_age_years": None, "adoption_route": ("분양", "입양", "기타", "미기재"),
 }
 TEMPLATE_ROWS = 1000
+LEGACY_CONSENT_COLUMNS = {"consent_confirmed", "consent_analysis_feedback", "consent_stranger_contact"}
 
 
 class FormsMappingV4(Model):
@@ -62,7 +61,7 @@ class FormsMappingV4(Model):
     def explicit_mapping(self) -> Self:
         if not self.columns or set(self.columns) - CANONICAL_COLUMNS:
             raise ValueError("표준 참가자 열과 s01~s28만 연결하세요.")
-        columns = list(self.columns.values())
+        columns = [header for key, header in self.columns.items() if key not in LEGACY_CONSENT_COLUMNS]
         if len(set(columns)) != len(columns):
             raise ValueError("한 원본 열을 여러 표준 열에 중복 연결할 수 없습니다.")
         if set(self.answer_labels) - set(SURVEY_IDS):
@@ -326,7 +325,6 @@ def template(kind: Literal["roster", "full"], format: Literal["csv", "xlsx"]) ->
              "반려견 이름은 꼭 필요합니다. 참가자 ID는 비우면 새 ID가 발급되어 고친 파일을 다시 올릴 때 중복 등록되므로 꼭 적으세요. 나머지는 모르면 비워 둡니다.",
              "참가자 ID는 텍스트로 입력됩니다. 0001처럼 앞자리 0까지 그대로 적으세요.",
              "행사 ID는 파일이 아니라 업로드 화면에서 입력합니다.",
-             "기본 동의는 동의서를 확인했을 때만 「예」로 적고, 아니면 비웁니다. 나머지 동의는 확인·미확인·거절 중 하나입니다.",
              "연락처는 받지 않습니다."]
     if kind == "full":
         lines.append("설문 Q01~Q28은 응답 숫자를 적습니다. Q10~Q14는 0~4, 나머지는 1~5입니다. 응답하지 않은 문항은 비웁니다. "
@@ -439,7 +437,7 @@ def _build_rows(store, db, rows, request, catalog, sheet_name):
             if len(cells) != len(headers):
                 raise ValueError("열 수가 헤더와 다릅니다.")
             original = {header: _scalar(value) for header, value in zip(headers, cells)}
-            mapped = {key: original[header] for key, header in mapping.columns.items()}
+            mapped = {key: original[header] for key, header in mapping.columns.items() if key not in LEGACY_CONSENT_COLUMNS}
             if mapped.get("event_id") not in (None, "", request.event_id):
                 raise ValueError("원행의 행사 ID가 선택한 행사와 다릅니다.")
             target = targets.get(number)
@@ -579,7 +577,7 @@ def preview(store, data: bytes, request: FormsPreviewRequestV4, actor: str) -> F
             result.already_committed = committed
             return result
         rows, metadata, original_rows = parsed or _table(data, request.format, request.mapping.sheet, request.mapping.layout)
-        if not set(request.mapping.columns.values()) <= set(rows[0]):
+        if not {header for key, header in request.mapping.columns.items() if key not in LEGACY_CONSENT_COLUMNS} <= set(rows[0]):
             raise HTTPException(422, "연결한 원본 헤더가 선택한 시트에 없습니다.")
         sheet_name = metadata.get("selected_sheet")
         associated_case_ids, associated_participants = _case_associations(store, db, rows, request)
