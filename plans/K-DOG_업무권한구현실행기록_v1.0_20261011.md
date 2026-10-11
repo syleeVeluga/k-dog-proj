@@ -14,7 +14,7 @@
 | AR04 | [x] | [x] | [x] | [x] 발견 없음 | [x] | [x] PR #78 |
 | AR05 | [x] | [x] | [x] | [x] P2 2건 | [x] | [x] PR #79 |
 | AR06 | [x] | [x] | [x] | [x] P3 1건 | [x] | [x] PR #80 |
-| AR07 | [x] | [x] | [x] | [x] P2·204 | [x] | [ ] 병합 대기 |
+| AR07 | [x] | [x] | [x] | [x] P2·204 | [x] | [x] PR #81 |
 
 PR 최종 head·merge SHA는 PR 메타데이터로 확인하고 병합 후 다음 단계에서 표와 개별 계획에 기록한다. 계획 검증 대장의 v1.0/v1.1 기록은 당시 문서 검증 이력으로 유지한다.
 
@@ -255,7 +255,7 @@ AR06 최종 head `bd9f403a5182079f0223ec3559f63abd1586ce6d`, merge `f63ac2a6fa2d
 - 초기 E2E 전체 112개(8.6분): 102통과·10실패. 삭제 API·배정/역할·검토자 차단의 옛 기대, 공유 목록의 중복 선택자, 접힌 등록/백업 패널, 개발자 재로그인 전 남은 주소, 열람 버튼 없는 클립 대기 fixture를 수정했다. 영상 bytes/재생·명시 재사용·판본 충돌·미로그인/설정 경계 검증은 유지했다. 집중/최종 전체 결과는 아래 완료 인수에 별도로 기록했다.
 - S1 `app.import_catalogs --spec 20261002 --check` 통과: source manifest와 현재 8개 catalog/rules/mapping 검증. G01/G04 점수 입력 workbook은 미수령으로 주소/산식 미확정·실점수 Excel import 비활성 유지. 역사 v3 원본 bundle 부재의 2skip는 S1 통과와 구분한다.
 - `npm run build` 통과. 기존 chunk 안내 유지. 현재 기준/확인사항/추적표/인수대장·리포트 공통정책·UIUX 안내에 2026-10-11 결정 우선과 이전 시험의 날짜/판본을 명시했다. DEVELOPMENT/PILOT/AGENTS의 공통 운영 안내는 AR06 변경을 유지한다.
-- 릴리스 allowlist에 현행 plans Markdown·합성 PNG를 포함했다. verify_release는 ordinary operator 설치·발행, 일반 설정403·개발자 공유 업무/설정, 같은 자료 경로 재설치·기존 비밀번호 보존을 검사한다. 실제 ZIP 설치 결과·hash·검토 근거는 아래에 기록했다. 실제 병합 SHA는 병합 후 기록한다.
+- 릴리스 allowlist에 현행 plans Markdown·합성 PNG를 포함했다. verify_release는 ordinary operator 설치·발행, 일반 설정403·개발자 공유 업무/설정, 같은 자료 경로 재설치·기존 비밀번호 보존을 검사한다. 실제 ZIP 설치 결과·hash·검토 근거는 아래에 기록했다. 실제 병합 SHA는 아래 완료 기록에 기재했다.
 
 초기 구현 당시 독립 cold review·최종 전체/ZIP 검증은 준비 중이었으며 아래에 실제 완료 결과를 기록했다. 실제 provider 품질·교수 판단·물리 3PC/깨끗한 OS는 기존 후속 대장의 미실측 항목이며 이번 합성 인수로 완료하지 않는다.
 
@@ -303,3 +303,10 @@ cold review 전 전체 backend721개(1209.958초)는719통과·역사v3 원본 �
 | 링크·차이·Graft | 변경 Markdown/이미지 Git index 링크384개·계획104개 누락0, diff check 통과·Graft 최신. 최종 문서 반영 후 재확인 |
 
 최종 검증 로그는 로컬 ignored `releases/ar01-validation/ar07-backend-after-review-full.log`, `ar07-e2e-final-readiness-full.log`, `ar07-source-check.log`, `ar07-build-after-review.log`, `ar07-release-verify-after-review.log`, `ar07-online-verify-after-review.log`에 보관한다. 참조 hash·원본 snapshot·lease/token·stop·과금 미확인·최대 예산·재사용·동시 판본·세션·설정 보호를 유지했다. 검증은 합성 자료/격리 경로이며 실제 운영 DB 교체나 현장 배포를 수행한 것으로 기록하지 않는다. 기존 후속 대장의 실제 provider·교수 판단·물리3PC/깨끗한OS와 미수령 산식은 별도 실측 범위다.
+
+
+### AR07 병합 완료
+
+[PR #81](https://github.com/syleeVeluga/k-dog-proj/pull/81)의 최종 head `982c2d851857df101fd36bd748c65c6b6dc25e8e`, merge `2bba6e618eacdd523164f7668986a9851cd723e8`, 병합 시각 2026-10-11 18:04:05 UTC(2026-10-12 03:04:05 KST)를 GitHub 메타데이터로 확인했다. head 일치·CLEAN/MERGEABLE 확인 및 실제 최종 전체·설치·문서 독립 재검토 actionable0 이후 해당 head를 병합했다. 원격 자동 CI는 설정되어 있지 않아 위 실제 로컬 전체 검증을 사용했다.
+
+AR01~AR07의 구현 → 검증 → 독립 cold review → 수용 수정 → 문서 → 병합을 모두 완료했다. 병합 뒤 실제 SHA와 완료 체크만 반영하는 문서 전용 후속 PR도 링크/차이·독립 검토 후 병합한다. 최종 배포본은 완료 문서가 포함된 clean main에서 만들며 제품 bytes는 검증판 `14cebd8`과 동일하다. 최종 ZIP의 정확한 commit/hash와 설치 receipt는 ignored `releases/`에 제공해 ZIP 자기 hash를 내부 문서에 넣는 순환을 피한다. 운영 DB/유료 공급자/미수령 산식/물리 현장 실측은 기존 후속 범위로 유지한다.
