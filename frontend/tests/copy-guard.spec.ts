@@ -23,6 +23,9 @@ async function offenders(page: Page, where: string) {
   for (const [name, pattern] of [['개발 코드', DEV_CODES], ['UUID', UUID], ['64자리 해시', HASH]] as const)
     for (const match of text.matchAll(new RegExp(pattern.source, 'g')))
       found.push(`${where}: ${name} 「${text.slice(Math.max(0, match.index - 25), match.index + 45).replace(/\s+/g, ' ')}」`);
+  // 보조기술이 읽는 이름(aria-label·title)에도 단독 개발 코드 S1이 남지 않게 한다.
+  const names = await page.locator('main [aria-label], main [title]').evaluateAll(nodes => nodes.flatMap(node => [node.getAttribute('aria-label'), node.getAttribute('title')]).filter((value): value is string => !!value));
+  for (const name of names) if (/\bS1(?![-\w])/.test(name)) found.push(`${where}: 접근성 이름 「${name}」`);
   return found;
 }
 async function walk(page: Page, labels: string[]) {
@@ -55,11 +58,15 @@ test.describe('화면 문구 점검', () => {
       const probe = document.createElement('p');
       probe.textContent = 'S1 판본 · G03 확인 · 3f2b8c1e-1a2b-4c3d-8e4f-5a6b7c8d9e0f · ' + 'ab12'.repeat(16);
       main.append(probe);
+      const named = document.createElement('section');
+      named.setAttribute('aria-label', 'S1 카나리 영역');
+      main.append(named);
     });
     const found = await offenders(page, '카나리');
     expect(found.some(line => line.includes('개발 코드'))).toBe(true);
     expect(found.some(line => line.includes('UUID'))).toBe(true);
     expect(found.some(line => line.includes('64자리 해시'))).toBe(true);
+    expect(found.some(line => line.includes('접근성 이름'))).toBe(true);
   });
 
   test('운영자 메뉴 전체에 개발 코드·UUID·해시가 기본 노출되지 않는다', async ({ page }) => {

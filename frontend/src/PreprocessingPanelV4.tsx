@@ -73,7 +73,7 @@ export function PreprocessingPanelV4({ item, writable, run, refresh }: {
       } finally { running.current = false; if (alive.current) setBusy(false); }
     });
   }
-  return <section className="panel" aria-label="S1 다중 카메라 전처리" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+  return <section className="panel" aria-label="다중 카메라 전처리" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <div className="section-head"><h2>다중 카메라 전처리</h2><button type="button" disabled={busy || loading} onClick={() => { void run(async () => { await refresh(); await load(); }); }}>전처리 상태 새로고침</button></div>
     <p>촬영 기록의 실제 창을 카메라별 클립으로 만듭니다. 겹치는 클립은 함께 제작하고, 항목별 관찰창과 가림·손실 근거는 각각 유지합니다.</p>
     <p className="fine">카메라 배치는 아직 확정 전입니다. 오프셋이 확인되지 않은 카메라는 클립 제작에서 제외됩니다.</p>

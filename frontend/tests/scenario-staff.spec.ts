@@ -80,7 +80,7 @@ test('행사 스태프: 명단 양식 → 10명 일괄 등록 → 현장 1명 �
   // 5) 촬영 기록 화면: 연결한 영상이 한눈에 보인다.
   await openMenu(page, '촬영 기록 (8구간)');
   await page.getByRole('button', { name: 'F11 촬영 열기', exact: true }).click();
-  const panel = page.getByRole('region', { name: 'S1 촬영 기록', exact: true });
+  const panel = page.getByRole('region', { name: '촬영 기록', exact: true });
   await expect(panel.getByText('1차 촬영 · 연결된 영상 3개 · 사용 가능 0 · 영상 읽기 확인 대기 3', { exact: true })).toBeVisible();
   const videos = (await (await page.request.get('/api/cases')).json()).find((c: { participant_id: string; event_id: string }) => c.event_id === EVENT && c.participant_id === 'F11').manifest.sessions[0].videos;
   expect(Object.fromEntries(videos.map((video: { original_name: string; camera_id: string }) => [video.original_name, video.camera_id]))).toEqual({ '원본1.mp4': 'CAM1', '원본2.mp4': 'CAM3', '원본3.mp4': 'CAM2' });

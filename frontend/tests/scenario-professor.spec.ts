@@ -75,7 +75,7 @@ test('관리자가 교수 계정을 추가하면 교수는 「내가 할 일만�
     // U08: 리포트 화면을 열면(선택한 P1 유지) 리포트 실행 영역이 보인다(권한 안내 대신).
     await openMenu(prof, '리포트 발급');
     await expect(prof.getByText('운영자가 접수 상세에서 분석·피드백 동의를 확인해야 합니다.', { exact: false })).toBeVisible();
-    await expect(prof.getByRole('region', { name: 'S1 리포트 실행', exact: true })).toBeVisible();
+    await expect(prof.getByRole('region', { name: '리포트 실행', exact: true })).toBeVisible();
     await expect(prof.getByText('리포트 운영 권한이 필요합니다.', { exact: true })).toHaveCount(0);
   } finally { await client.close(); }
   expect(outside).toEqual([]);

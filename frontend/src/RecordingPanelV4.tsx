@@ -103,7 +103,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
   function tailChange(code: string, patch: Partial<TailV4>) {
     change({ ...record, tail_selections: record.tail_selections.map(value => value.code === code ? { ...value, ...patch } : value) });
   }
-  return <section className="panel" aria-label="S1 촬영 기록">
+  return <section className="panel" aria-label="촬영 기록">
     <div className="section-title"><h2>{item.dog_name} · {item.participant_id}</h2><button onClick={close}>닫기</button></div>
     <p role="status" className="video-summary"><strong>{sessionIndex}차 촬영 · 연결된 영상 {session.videos.length}개</strong>
       {session.videos.length ? ` · 사용 가능 ${usable} · 영상 읽기 확인 대기 ${videos.length - usable}${keptOnly ? ` · 원본 보관 전용 ${keptOnly}` : ''}${stale ? ' · 입력이 바뀌어 전처리를 다시 해야 합니다' : ''}` : writable ? ' · 「영상 수신·연결」 메뉴에서 영상을 연결하세요.' : ' · 연결된 영상이 없습니다.'}</p>

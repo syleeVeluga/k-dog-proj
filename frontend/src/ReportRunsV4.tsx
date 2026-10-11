@@ -127,7 +127,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
     setTimeout(() => URL.revokeObjectURL(url), 0); setLogTick(value => value + 1);
   }
   if (!reportUser) return <p role="status">리포트 권한이 필요합니다.</p>;
-  return <section aria-label="S1 리포트 실행" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+  return <section aria-label="리포트 실행" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <h3>고정 최종본으로 리포트 생성</h3>
     {professor && <p className="fine">발급된 리포트는 바로 열 수 있으며 열람 기록이 남습니다. 이 참가자의 독립 채점을 제출하기 전에는 결과가 노출되지 않도록 리포트를 열 수 없습니다.</p>}
     <p>확인된 프로그램 근거로 정상 발급합니다. 일부 관찰 부족은 사유를 표시합니다.</p>
@@ -171,7 +171,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       {Object.entries(opened.output.image_issues).map(([scene, note]) => <p key={scene}>장면 {scene}: {note}</p>)}
       <div className="toolbar"><button disabled={busy} onClick={() => void work(() => download('html'))}>HTML 저장</button><button disabled={busy} onClick={() => void work(() => download('pdf'))}>PDF 저장</button><button disabled={busy} onClick={() => void work(() => download('manifest'))}>출처 manifest 저장</button><a href={'/api' + filePath(opened.run_id, 'html', true)} target="_blank" rel="noopener noreferrer">HTML 새 창</a><button disabled={busy} onClick={() => void work(print)}>열린 리포트 인쇄</button></div>
       <p className="fine">다운로드·인쇄 시 동의와 공개 권한을 다시 확인합니다. 외부로 자동 발송하지 않습니다.</p>
-      <iframe ref={frame} title="S1 관찰 리포트 미리보기" src={'/api' + filePath(opened.run_id, 'html', true)} sandbox="allow-same-origin allow-modals" onLoad={() => setLogTick(value => value + 1)} style={{ width: '100%', height: 'min(80vh, 950px)', border: '1px solid #ccd8d2' }} />
+      <iframe ref={frame} title="관찰 리포트 미리보기" src={'/api' + filePath(opened.run_id, 'html', true)} sandbox="allow-same-origin allow-modals" onLoad={() => setLogTick(value => value + 1)} style={{ width: '100%', height: 'min(80vh, 950px)', border: '1px solid #ccd8d2' }} />
       <details><summary>기술 정보 · 불변 출력 출처</summary><p>입력 {opened.input_hash}</p><p>설정 {opened.config_hash}</p><p>최종본 {opened.final.hash}</p><p>HTML {opened.output.html.hash}</p><p>PDF {opened.output.pdf.hash}</p></details>
     </section>}
   </section>;

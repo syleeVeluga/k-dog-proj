@@ -25,7 +25,7 @@ test('RP02 completed attachment opinion starts a separate run and pins its resul
   });
   await page.route('**/opinions-s1/attachment-runs/synthetic-attachment', route => route.fulfill({ json: { ...view, status: 'succeeded', reserved_calls: 1, reference } }));
   await login(page, 'operator'); await open(page, 'rp02-opinion');
-  const panel = page.getByRole('region', { name: 'S1 의견과 최종 결과', exact: true });
+  const panel = page.getByRole('region', { name: '의견과 최종 결과', exact: true });
   await panel.getByLabel('행사에 사용할 고정 기본 결과', { exact: true }).selectOption(`${data.basicRef.result_id}:${data.basicRef.revision}`);
   const section = panel.getByRole('region', { name: '완료 애착 의견 AI 해석', exact: true });
   await section.getByRole('button', { name: '완료 애착 의견을 AI로 해석', exact: true }).click();
@@ -92,15 +92,15 @@ test('S1 opinions preserve completion gates, typed evidence, conflict drafts and
   test.setTimeout(180000); page.setDefaultTimeout(15000); const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   const data = await fixture(request, 's1opinion'); const { path, basic, basicRef } = data;
   await login(page, 'operator'); await open(page, 's1opinion');
-  const panel = page.getByRole('region', { name: 'S1 의견과 최종 결과', exact: true });
+  const panel = page.getByRole('region', { name: '의견과 최종 결과', exact: true });
   await panel.getByLabel('행사에 사용할 고정 기본 결과', { exact: true }).selectOption(`${basicRef.result_id}:${basicRef.revision}`);
-  const editor = panel.getByRole('region', { name: 'S1 의견 편집', exact: true }); await expect(editor).toBeVisible();
+  const editor = panel.getByRole('region', { name: '의견 편집', exact: true }); await expect(editor).toBeVisible();
   async function assemble(reason: string) {
     await panel.getByLabel('최종본 고정 사유', { exact: true }).fill(reason);
     const pending = page.waitForResponse(value => value.url().endsWith('/final-results-s1') && value.request().method() === 'POST');
     await panel.getByRole('button', { name: '선택한 판본으로 새 최종본 생성', exact: true }).click();
     const result = await pending; expect(result.status(), await result.text()).toBe(201);
-    await expect(panel.getByRole('region', { name: 'S1 보존 최종본', exact: true }).getByText(reason, { exact: false })).toBeVisible();
+    await expect(panel.getByRole('region', { name: '보존 최종본', exact: true }).getByText(reason, { exact: false })).toBeVisible();
     return result.json();
   }
   const noOpinion = await assemble('의견 없는 기본 우선순위 확인');
@@ -149,7 +149,7 @@ test('S1 opinions preserve completion gates, typed evidence, conflict drafts and
   expect((await (await page.request.get(path + `/final-results-s1/${completed.reference.final_id}`)).json())).toEqual(completed);
   expect((await (await page.request.get(`/api/basic-results-s1/${basicRef.result_id}/revisions/${basicRef.revision}`)).json()).document).toEqual(basic.document);
   await page.setViewportSize({ width: 360, height: 800 }); await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await panel.getByRole('region', { name: 'S1 보존 최종본', exact: true }).screenshot({ path: testInfo.outputPath('final-s1-360.png'), animations: 'disabled' });
+  await panel.getByRole('region', { name: '보존 최종본', exact: true }).screenshot({ path: testInfo.outputPath('final-s1-360.png'), animations: 'disabled' });
   expect(errors).toEqual([]);
 });
 
@@ -165,20 +165,20 @@ test('S1 other-author interpretations require explicit disclosure and preserve i
   const adminSubmit = await (await page.request.post(adminPath + '/submit', { headers, data: { expected_revision: adminDraft.revision, reason: '독립 완료' } })).json();
   const independent = (await (await page.request.get(adminPath)).json()).document;
   expect((await request.post(adminPath + '/grants', { headers, data: { expected_revision: adminSubmit.revision, target_sheet_id: sheet.sheet_id, target_revision: sheet.revision, reason: '독립 제출 이후 원자료 공개 허용' } })).status()).toBe(200);
-  await open(page, 's1disclosure'); const panel = page.getByRole('region', { name: 'S1 의견과 최종 결과', exact: true });
+  await open(page, 's1disclosure'); const panel = page.getByRole('region', { name: '의견과 최종 결과', exact: true });
   await panel.getByLabel('해석 공개를 기록할 본인 제출 시트', { exact: true }).selectOption(admin.sheet_id);
   await expect(panel.getByText('공개 전에는 숨겨야 하는 타인 의견', { exact: true })).toHaveCount(0);
   expect((await page.request.get(path + '/opinions-s1', { params: { viewer_sheet_id: admin.sheet_id } })).status()).toBe(403);
   expect((await page.request.get(path + `/final-results-s1/${final.reference.final_id}`, { params: { viewer_sheet_id: admin.sheet_id } })).status()).toBe(403);
   await page.getByRole('button', { name: '내 시트 열기', exact: true }).click();
-  const sheetEditor = page.getByRole('region', { name: '내 S1 채점 시트', exact: true });
+  const sheetEditor = page.getByRole('region', { name: '내 채점 시트', exact: true });
   await sheetEditor.getByText('명시 공개된 완료본', { exact: true }).click(); await sheetEditor.getByRole('button', { name: /공개 완료본 r.*열고 노출 기록/ }).click();
   await expect(sheetEditor.getByRole('heading', { name: '독립 행사 검토자 · 공개 후 검수', exact: true })).toBeVisible();
   const candidates = await page.request.get(path + '/final-results-s1/candidates', { params: { viewer_sheet_id: admin.sheet_id } });
   expect(candidates.status(), await candidates.text()).toBe(200); expect(await candidates.json()).toEqual(expect.arrayContaining([expect.objectContaining({ result_id: basicRef.result_id, revision: basicRef.revision })]));
   await panel.getByRole('button', { name: '의견·최종 목록 새로고침', exact: true }).click();
   await panel.getByLabel('행사에 사용할 고정 기본 결과', { exact: true }).selectOption(`${basicRef.result_id}:${basicRef.revision}`);
-  await expect(panel.getByRole('region', { name: 'S1 의견 편집', exact: true })).toHaveCount(0);
+  await expect(panel.getByRole('region', { name: '의견 편집', exact: true })).toHaveCount(0);
   await panel.getByLabel('해석 공개 사유', { exact: true }).fill('독립 제출 이후 행사 해석 확인');
   const reveal = page.waitForResponse(value => value.url().endsWith('/opinions-s1/reveal') && value.request().method() === 'POST');
   await panel.getByRole('button', { name: '현재 의견을 명시 공개하고 노출 기록', exact: true }).click();
@@ -188,7 +188,7 @@ test('S1 other-author interpretations require explicit disclosure and preserve i
   expect(after.document.initial_submission.revision).toBe(independent.revision);
   expect((await (await page.request.get(adminPath + `/revisions/${independent.revision}`)).json())).toEqual(independent);
   await panel.getByRole('button', { name: '이 최종본을 명시 공개하고 노출 기록', exact: true }).click();
-  const snapshot = panel.getByRole('region', { name: 'S1 보존 최종본', exact: true }); await expect(snapshot.getByText('공개 전에는 숨겨야 하는 타인 의견', { exact: true })).toBeVisible();
+  const snapshot = panel.getByRole('region', { name: '보존 최종본', exact: true }); await expect(snapshot.getByText('공개 전에는 숨겨야 하는 타인 의견', { exact: true })).toBeVisible();
   expect((await (await page.request.get(adminPath)).json()).document.interpretation_exposures).toHaveLength(2);
   await expect(sheetEditor.getByRole('heading', { name: '독립 행사 검토자 · 공개 후 검수', exact: true })).toBeVisible();
   await expect(sheetEditor.getByText(/다른 평가자의 의견·최종 해석을 열람했습니다/)).toBeVisible();
@@ -202,6 +202,6 @@ test('S1 other-author interpretations require explicit disclosure and preserve i
   const current = await (await request.get(`/api/score-sheets-s1/${sheet.sheet_id}`)).json();
   expect((await request.post(`/api/score-sheets-s1/${sheet.sheet_id}/assignment`, { headers, data: { expected_revision: current.summary.revision, active: false, reason: '기본 입력 권한 철회' } })).status()).toBe(200);
   await panel.getByRole('button', { name: '의견·최종 목록 새로고침', exact: true }).click();
-  await expect(snapshot).toHaveCount(0); await expect(panel.getByRole('region', { name: 'S1 의견 편집', exact: true })).toHaveCount(0);
+  await expect(snapshot).toHaveCount(0); await expect(panel.getByRole('region', { name: '의견 편집', exact: true })).toHaveCount(0);
   expect(errors).toEqual([]);
 });

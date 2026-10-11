@@ -7,7 +7,7 @@ test('S1 파일 묶음의 부분 실패·응답 유실 재시도는 완료 수�
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await openMenu(page, '영상 수신·연결');
-  const inbox = page.getByRole('region', { name: 'S1 영상 수신 보관함', exact: true });
+  const inbox = page.getByRole('region', { name: '영상 수신 보관함', exact: true });
   const names = ['partial-ok.mp4', 'partial-retry.mp4', 'partial-response-lost.mp4'];
   const transmissions: Record<string, number> = {};
   await page.route('**/api/uploads/*/content?*', async route => {

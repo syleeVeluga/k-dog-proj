@@ -38,7 +38,7 @@ test('S1 preserved video registers its camera and source without replacing raw m
   const source = await page.request.get(`/api/cases/${item.case_id}/videos/${original.video_id}`);
   expect(source.status()).toBe(200);
   expect(await source.body()).toEqual(bytes);
-  await expect(page.getByLabel('S1 촬영 기록', { exact: true }).getByRole('combobox', { name: '기준 영상', exact: true }))
+  await expect(page.getByLabel('촬영 기록', { exact: true }).getByRole('combobox', { name: '기준 영상', exact: true }))
     .toContainText('CAM2 · preserved-synthetic.mp4');
 });
 
@@ -64,7 +64,7 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
   const videos = item.manifest.sessions[0].videos;
   await openMenu(page, '촬영 기록 (8구간)');
   await page.getByRole('button', { name: 's1rec 촬영 열기' }).click();
-  const panel = page.getByLabel('S1 촬영 기록', { exact: true });
+  const panel = page.getByLabel('촬영 기록', { exact: true });
   await panel.getByRole('combobox', { name: '기준 영상', exact: true }).selectOption(videos[0].video_id);
   await panel.getByRole('combobox', { name: '실제 촬영 절차', exact: true }).selectOption('s1_confirmed');
   await panel.getByLabel('절차 확인 근거', { exact: true }).fill('합성 S1 순서 확인, 실제 시각 직접 기록');

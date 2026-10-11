@@ -42,7 +42,7 @@ test('72명 목록에서 업무 맥락 유지 및 교수의 회차 조회는 읽
     await expect(page.getByLabel('설문 현황')).toContainText('수치 응답 28/28 · 명시 빈칸 사유 0개 · 등록 완료 기준 미확정');
     await expect(context).toContainText('1차 촬영');
     await page.getByRole('button', { name: '촬영 자료 보기', exact: true }).click();
-    await expect(page.getByRole('region', { name: 'S1 촬영 기록', exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: '촬영 기록', exact: true })).toBeVisible();
     await expect(page.getByRole('combobox', { name: '실제 촬영 절차', exact: true })).toBeDisabled();
     await expect(page.getByRole('button', { name: '파일 수신 시작·재시도', exact: true })).toHaveCount(0);
     await page.setViewportSize({ width: 768, height: 1024 });

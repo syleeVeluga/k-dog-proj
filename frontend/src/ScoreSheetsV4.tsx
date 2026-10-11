@@ -47,7 +47,7 @@ export function ScoreSheetsV4({ item, user, run, refresh, close }: { item: Case;
     setBusy(true); setError('');
     await run(async () => { try { await action(); await reload(); } catch (reason) { setError(errorText(reason)); } finally { setBusy(false); } });
   }
-  return <section className="scoring-s1 panel" aria-label="S1 평가 배정">
+  return <section className="scoring-s1 panel" aria-label="평가 배정">
     <div className="section-title"><h2>{item.dog_name} · 독립 채점</h2><button onClick={close}>닫기</button></div>
     <p>숫자 83개 · 메모 3개 · 자동 4개. 원값 0과 빈값을 구분하고 실제 관찰 근거를 기록합니다.</p>
     {manager && <p role="status">Excel 가져오기는 준비 중인 기능입니다.</p>}
@@ -135,7 +135,7 @@ function SheetEditor({ sheetId, catalog, done }: { sheetId: string; catalog: Beh
     }
     if (!reason.trim()) throw new Error('저장·정정 사유를 기록하세요.');
   }
-  return <section className="scoring-editor" aria-label="내 S1 채점 시트"><h2>{doc.rater_name} · {purposes[historical ? doc.purpose : view.effective_purpose ?? doc.purpose]}</h2>
+  return <section className="scoring-editor" aria-label="내 채점 시트"><h2>{doc.rater_name} · {purposes[historical ? doc.purpose : view.effective_purpose ?? doc.purpose]}</h2>
     {!!view.interpretation_exposures?.length && <div role="status"><p>다른 평가자의 의견·최종 해석을 열람했습니다. 이 촬영의 후속 기록은 공개 후 검수로 구분하며 최초 독립 제출본은 보존됩니다.</p><details><summary>해석 열람 기록</summary><ul>{view.interpretation_exposures.map(exposure => <li key={exposure.exposure_id}>{exposure.target.kind === 'opinion' ? '의견' : '최종 결과'} · {exposure.source_actor} · {exposure.recorded_at} · {exposure.reason}</li>)}</ul></details></div>}
     {error && <p role="alert" className="error">{error}</p>}
     <p role="status">{doc.state === 'submitted' ? '제출본 잠금 · 원본은 보존됩니다.' : '초안 · 저장 후 제출합니다.'} · 다른 완료본 노출 {doc.exposures.length}개 · {doc.sheet.ai_exposed ? 'AI 결과 노출됨' : 'AI 결과 미노출'}</p>

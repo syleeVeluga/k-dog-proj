@@ -12,7 +12,7 @@ const sources = { completed_opinion: '완료 의견', completed_opinion_inferenc
 const choices: Partial<Record<DomainKeyV4, string[]>> = { attachment: ['곁에서 안심하는 사이', '가까이 있어도 안심이 어려운 사이', '거리를 두고 지내는 사이', '다가감과 물러섬이 함께 나오는 사이'], education_attitude: ['허용형', '조율형', '통제형'] };
 const domains = Object.keys(DOMAIN_NAMES_V4) as DomainKeyV4[];
 const blankDomain = (domain: DomainKeyV4): DomainOpinionV4 => ({ domain, text: '', label: null, reason: '', evidence_codes: [], counter_codes: [], counter_note: null, scene_refs: [] });
-const message = (error: unknown) => error instanceof Error ? error.message : 'S1 의견·최종 결과를 확인하지 못했습니다.';
+const message = (error: unknown) => error instanceof Error ? error.message : '의견·최종 결과를 확인하지 못했습니다.';
 const basicRef = (value: BasicResultViewV4): BasicReferenceV4 => ({ result_id: value.summary.result_id, revision: value.summary.revision, ref: value.summary.manifest_ref, hash: value.summary.manifest_hash });
 const sameBasic = (left: BasicReferenceV4 | null | undefined, right: BasicReferenceV4 | null | undefined) => !!left && !!right && left.result_id === right.result_id && left.revision === right.revision && left.ref === right.ref && left.hash === right.hash;
 const sceneKey = (scene: EvidenceV4) => JSON.stringify(scene);
@@ -87,8 +87,8 @@ export function FinalResultsV4({ item, sheets, refreshSheets }: { item: Case; sh
     await refreshSheets(); await reload();
     if (target.kind === 'final' && alive.current && scope === context.current) { const value = await api<FinalViewV4>(path + `/final-results-s1/${target.document_id}` + query); if (alive.current && scope === context.current) setSelectedFinal(value); }
   }
-  if (unavailable) return <section className="panel" aria-label="S1 의견과 최종 결과"><p role="alert">{error}</p></section>;
-  return <section className="panel" aria-label="S1 의견과 최종 결과" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+  if (unavailable) return <section className="panel" aria-label="의견과 최종 결과"><p role="alert">{error}</p></section>;
+  return <section className="panel" aria-label="의견과 최종 결과" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <h2>행사 의견과 최종 결과</h2>
     <p>영역별 완료 의견 → 유효 수동 선택 → 고정 기본 결과 순서로 적용합니다. 원점수·자동 비율과 이전 최종본은 보존됩니다.</p>
     <p className="fine">여섯 영역 모두 작성하거나 사람 판정을 확정해야만 최종본을 만들 수 있는 것은 아닙니다. 유형 없는 완료 애착 의견은 별도 AI 실행으로 해석할 수 있습니다.</p>
@@ -153,7 +153,7 @@ function OpinionEditor({ basic, latest, path, viewer, blocked, saved, invalidate
     catch (failure) { if (alive.current) { setError(message(failure)); if (accessLost(failure)) invalidated(); } }
     finally { pending.current = false; if (alive.current) { setBusy(false); onBusy(false); } }
   }
-  return <section className="panel" aria-label="S1 의견 편집" style={{ minWidth: 0 }}>
+  return <section className="panel" aria-label="의견 편집" style={{ minWidth: 0 }}>
     <h3>여섯 영역 의견</h3><p>실제 완료: {view.document?.state === 'complete' ? '충족' : '미충족'} · {states[view.document?.state ?? 'draft']} · r{view.reference?.revision ?? 0}</p>
     {error && <p role="alert" className="error">{error} 미저장 의견은 유지합니다.</p>}
     {edit.dirty && latest.reference?.hash !== view.reference?.hash && <p role="status">다른 의견 판본이 저장되었습니다. 편집 시작 판본과 입력을 유지합니다.</p>}
@@ -190,7 +190,7 @@ function OpinionEditor({ basic, latest, path, viewer, blocked, saved, invalidate
 
 function FinalSnapshot({ value }: { value: FinalViewV4 }) {
   const doc = value.document;
-  return <section className="panel" aria-label="S1 보존 최종본" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+  return <section className="panel" aria-label="보존 최종본" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <h3>고정 최종본 · 읽기 전용</h3><p>{new Date(doc.recorded_at).toLocaleString()} · 작성 계정 {doc.actor} · {doc.change_reason}</p>
     <p>기본 r{doc.basic.revision} · 의견 {doc.opinion ? `r${doc.opinion.revision}` : '없음'} · {doc.independent_ai ? '독립 AI 기본 결과' : '선택한 입력과 의견을 적용한 행사 결과'}</p>
     {doc.opinion_document && <p>의견 평가자 {doc.opinion_document.evaluator || '미입력'} · 의견 작성 계정 {doc.opinion_document.actor} · {states[doc.opinion_document.state]}</p>}

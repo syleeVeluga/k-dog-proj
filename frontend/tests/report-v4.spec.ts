@@ -38,7 +38,7 @@ test.beforeEach(({ page }) => { page.setDefaultTimeout(15000); });
 
 test('S1 report uses explicit final pins, recovers a lost create response and stops/retries without duplicate creation', async ({ page, request }) => {
   test.setTimeout(120000); const data = await fixture(request, 's1report-run'); await login(page); await open(page, 's1report-run');
-  const panel = page.getByRole('region', { name: 'S1 리포트 실행', exact: true });
+  const panel = page.getByRole('region', { name: '리포트 실행', exact: true });
   await expect(panel.getByText('생성된 리포트 실행이 없습니다.', { exact: true })).toBeVisible();
   expect(await (await page.request.get(data.base + '/report-runs-s1')).json()).toEqual([]);
   await panel.getByLabel('리포트에 고정할 최종본', { exact: true }).selectOption(data.final.reference.final_id);
@@ -87,7 +87,7 @@ test('S1 report publication UI opens guarded cards and offline HTML, marks histo
     return route.fulfill({ contentType: 'application/pdf', body: '%PDF-1.4\nSynthetic UI download fixture', headers: { 'Content-Disposition': 'attachment; filename="synthetic-report.pdf"' } });
   });
   await login(page); await open(page, 's1report-issued');
-  const panel = page.getByRole('region', { name: 'S1 리포트 실행', exact: true });
+  const panel = page.getByRole('region', { name: '리포트 실행', exact: true });
   await expect(panel.getByRole('region', { name: '권한 확인된 리포트 발급본', exact: true })).toHaveCount(0);
   await expect(panel.getByRole('heading', { name: '발급 완료 · 이전 발급본 · 이전 입력·기준', exact: true })).toBeVisible();
   const current = panel.getByRole('article', { name: '리포트 실행 ' + runId, exact: true });
@@ -97,7 +97,7 @@ test('S1 report publication UI opens guarded cards and offline HTML, marks histo
   await current.getByRole('button', { name: '발급 요약·HTML·PDF 열기', exact: true }).click();
   const output = panel.getByRole('region', { name: '권한 확인된 리포트 발급본', exact: true }); await expect(output.getByRole('heading', { name: '합성 발급견 · 발급 결과', exact: true })).toBeVisible();
   await expect(output.getByRole('heading', { level: 4 })).toHaveCount(4);
-  await expect(page.frameLocator('iframe[title="S1 관찰 리포트 미리보기"]').locator('.sheet')).toHaveCount(6);
+  await expect(page.frameLocator('iframe[title="관찰 리포트 미리보기"]').locator('.sheet')).toHaveCount(6);
   const download = page.waitForEvent('download'); await output.getByRole('button', { name: 'PDF 저장', exact: true }).click(); const downloaded = await download; await downloaded.saveAs(testInfo.outputPath('downloaded.pdf')); expect(downloaded.suggestedFilename()).toBe(`kdog-s1-${runId}.pdf`); expect(readFileSync(testInfo.outputPath('downloaded.pdf'), 'utf8')).toContain('Synthetic UI download fixture');
   await page.frameLocator('iframe').locator('body').evaluate(() => { window.print = () => { document.body.dataset.printed = 'yes'; }; });
   await output.getByRole('button', { name: '열린 리포트 인쇄', exact: true }).click(); await expect(page.frameLocator('iframe').locator('body')).toHaveAttribute('data-printed', 'yes');
@@ -124,7 +124,7 @@ test('S1 report final disclosure is explicit and a professor (reviewer) issues t
   expect((await request.post(sheetPath + '/grants', { headers, data: { expected_revision: submitted.revision, target_sheet_id: data.sheet.sheet_id, target_revision: data.sheet.revision, reason: '원자료 공개 허용' } })).status()).toBe(200);
   const before = await (await page.request.get(sheetPath)).json();
   expect((await page.request.post(sheetPath + '/reveal-ai-s1', { headers, data: { expected_revision: before.summary.revision, ref: data.sheet.manifest_ref } })).status()).toBe(200);
-  await open(page, 's1report-disclosure'); const panel = page.getByRole('region', { name: 'S1 리포트 실행', exact: true });
+  await open(page, 's1report-disclosure'); const panel = page.getByRole('region', { name: '리포트 실행', exact: true });
   await panel.getByLabel('리포트에 고정할 최종본', { exact: true }).selectOption(data.final.reference.final_id);
   await expect(panel.getByRole('button', { name: '선택한 최종본으로 리포트 생성', exact: true })).toBeDisabled();
   await panel.getByLabel('리포트 공개 맥락의 본인 제출 시트', { exact: true }).selectOption(admin.sheet_id);
