@@ -73,7 +73,7 @@ class IntakeV4Tests(AppCase):
             self.assertEqual(result.status_code, 401, result.text)
             self.assertEqual(result.headers["Cache-Control"], "no-store")
             self.assertEqual(result.headers["X-Content-Type-Options"], "nosniff")
-        self.assertEqual(self.client_for("developer").get("/api/cases").status_code, 403)
+        self.assertEqual(self.client_for("developer").get("/api/cases").status_code, 409)
         result = self.client_for("operator").get("/api/cases")
         self.assertEqual(result.status_code, 409)
         self.assertEqual(result.headers["Cache-Control"], "no-store")

@@ -118,12 +118,11 @@ class CohortComparisonV4Tests(ComparisonFixture):
         self.assertEqual(next(r.mean for r in newer.document.domains if r.domain=='낯선 사람 두려움'),3.5)
         self.assertEqual(self.store.path(old.reference.ref).read_bytes(),data)
 
-    def test_unknown_consent_and_review_role_are_rejected(self):
+    def test_unknown_consent_blocks_creation_but_reviewer_can_manage_candidates(self):
         self.edit(0,lambda manifest:setattr(manifest.consents,'analysis_feedback','unknown'))
         with self.assertRaises(HTTPException):self.create()
-        # U08: 교수는 리포트 화면에서 고정 비교를 고를 수 있으나 집단 구성(후보·생성)은 운영자 전용이다.
         compare.list_snapshots(self.store,self.reviewer)
-        with self.assertRaises(HTTPException):compare.candidates(self.store,self.reviewer)
+        self.assertEqual(compare.candidates(self.store,self.reviewer), compare.candidates(self.store,self.user))
 
     def test_deleted_member_blocks_full_snapshot_and_removes_shared_reference(self):
         value=self.create()
@@ -208,7 +207,7 @@ class ExternalComparisonGateV4Tests(ComparisonFixture):
         for number in ('0.66','0.91','42926','1.03','0.78','42764','43517'):
             self.assertNotIn(number,payload)
         self.assertNotIn('values',self.gate().model_dump(exclude_none=True))
-        with self.assertRaises(HTTPException):compare.research_inventory(self.store,self.user)
+        self.assertEqual(compare.research_inventory(self.store,self.user), compare.research_inventory(self.store,self.admin))
         source=compare.research_inventory(self.store,self.admin)['sources']
         self.assertEqual(source[0]['reference_values'],{'mean':0.66,'standard_deviation':0.91,'valid_n':42926,'total_n':43517})
         self.assertEqual(source[1]['reference_values']['valid_n'],42764)
@@ -255,14 +254,15 @@ class ExternalComparisonGateV4Tests(ComparisonFixture):
         self.assertEqual(self.gate().status,'blocked')
         self.assertEqual(old.values.mean,0.66)
 
-    def test_damaged_research_evidence_and_nonadmin_activation_block(self):
+    def test_damaged_research_evidence_blocks_output_and_normal_account_can_disable(self):
         pointer=self.confirmation();self.activate(pointer)
         self.store.path('comparison-evidence/synthetic.txt').write_bytes(b'changed')
         self.assertEqual(self.gate().status,'blocked')
         disabled=self.activate(pointer,enabled=False,revision=1)
         self.assertFalse(disabled.enabled)
-        with self.assertRaises(HTTPException):compare.activate_external(self.store,compare.ActivateExternalV4(source_id='us2026-stranger-fear',
-            expected_revision=2,confirmation=pointer,enabled=False,reason='unauthorized'),self.user)
+        result=compare.activate_external(self.store,compare.ActivateExternalV4(source_id='us2026-stranger-fear',
+            expected_revision=2,confirmation=pointer,enabled=False,reason='common business account'),self.user)
+        self.assertFalse(result.enabled)
 
     def test_stale_activation_revision_cannot_overwrite_revocation(self):
         pointer=self.confirmation();self.activate(pointer)

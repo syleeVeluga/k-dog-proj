@@ -151,9 +151,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             return user
         return check
 
-    reader = roles("operator", "reviewer", "admin")
-    writer = roles("operator", "admin")
-    administrator = roles("admin")
+    reader = writer = administrator = roles("operator", "reviewer", "admin", "developer")
     developer = roles("developer")
 
 
@@ -280,6 +278,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def add_user(value: UserCreate, user=Depends(administrator)):
         if value.role == "developer":
             raise HTTPException(403, "개발자 계정은 별도 로컬 관리 경로로 발급합니다.")
+        value = value.model_copy(update={"role": "operator"})
         with store.connect(write=True) as db:
             create_user(db, value)
             store.audit(db, user.username, value.username, "user.create", {"role": value.role})
@@ -291,8 +290,11 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             row = db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
             if row is None:
                 raise HTTPException(404, "계정이 없습니다.")
-            if row["role"] == "developer" or value.role == "developer" or username == user.username:
-                raise HTTPException(403, "개발자 계정 또는 자신의 권한을 변경할 수 없습니다.")
+            if row["role"] == "developer" or value.role == "developer":
+                raise HTTPException(403, "개발자 계정은 별도 로컬 관리 경로로 변경합니다.")
+            if username == user.username and not value.active:
+                raise HTTPException(403, "현재 로그인 계정을 비활성화할 수 없습니다.")
+            value = value.model_copy(update={"role": row["role"]})
             db.execute("UPDATE users SET role=?,active=?,session_hash=NULL,session_expires=NULL WHERE username=?",
                        (value.role, value.active, username))
             store.audit(db, user.username, username, "user.update", value.model_dump())
@@ -430,9 +432,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             if size == 0:
                 raise HTTPException(422, "빈 영상 파일은 등록할 수 없습니다.")
             with store.connect(write=True) as db:
-                current_user = authenticate(db, request.cookies.get(COOKIE))
-                if current_user["role"] not in ("operator", "admin"):
-                    raise HTTPException(403, "업로드 권한이 변경되었습니다.")
+                authenticate(db, request.cookies.get(COOKIE))
                 row = store.case(db, case_id, expected=expected_revision)
                 manifest = store.manifest(row)
                 session = selected_session(manifest, session_id)
@@ -471,9 +471,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 if hashlib.file_digest(handle, "sha256").hexdigest() != video.sha256:
                     raise HTTPException(409, "영상 파일 해시가 일치하지 않습니다.")
             # Hashing a large file can take time; refresh access immediately before serving.
-            current_user = authenticate(db, request.cookies.get(COOKIE))
-            if current_user["role"] not in ("operator", "reviewer", "admin"):
-                raise HTTPException(403, "영상 열람 권한이 변경되었습니다.")
+            authenticate(db, request.cookies.get(COOKIE))
             current_manifest = store.manifest(store.case(db, case_id))
             if current_manifest.schema_version == "intake-4.0" and current_manifest.consents.analysis_feedback == "declined":
                 raise HTTPException(403, "분석·피드백 동의가 거절된 자료입니다.")
@@ -857,7 +855,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.get("/api/scoring/accounts", response_model=list[UserView])
     def scoring_accounts(user=Depends(writer)):
         with store.connect() as db:
-            return [user_view(row) for row in db.execute("SELECT * FROM users WHERE active=1 AND role IN ('operator','reviewer','admin') ORDER BY username")]
+            return [user_view(row) for row in db.execute("SELECT * FROM users WHERE active=1 ORDER BY username")]
 
 
     @app.get("/api/templates/{kind}")

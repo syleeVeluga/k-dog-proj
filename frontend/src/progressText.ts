@@ -7,7 +7,7 @@ export type Step = { key: string; label: string; state: StepState };
 const staffSteps = ['recording', 'preprocess', 'scoring', 'final', 'report'] as const;
 const stepLabels: Record<string, string> = { recording: '촬영 확정', preprocess: '전처리', scoring: '채점', final: '최종 결과', report: '리포트' };
 
-export const isStaff = (role: Role) => role === 'operator' || role === 'admin';
+export const isStaff = (_role: Role) => true;
 
 // 서버 요약은 사례의 저장된 선택 회차 기준이다. 화면이 다른 회차를 보고 있으면(조회 회차 선택) 쓰지 않는다.
 export const currentProgress = (item: Case): Progress | null => item.progress && item.progress.session_id === item.selected_session_id ? item.progress : null;

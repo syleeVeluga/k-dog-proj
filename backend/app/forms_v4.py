@@ -178,7 +178,7 @@ def _digest(value) -> str:
 
 def _writer(db, actor: str) -> None:
     user = db.execute("SELECT role,active FROM users WHERE username=?", (actor,)).fetchone()
-    if not user or not user["active"] or user["role"] not in ("operator", "admin"):
+    if not user or not user["active"]:
         raise HTTPException(403, "현재 활성 운영자 또는 관리자 권한이 필요합니다.")
 
 

@@ -53,7 +53,7 @@ export function App() {
   const [menuOpen, setMenuOpen] = useState(() => window.innerWidth >= 768);
   const menuToggle = useRef<HTMLButtonElement>(null);
   const modal = drawer && menuOpen;
-  const writable = user?.role === 'operator' || user?.role === 'admin';
+  const writable = !!user;
   const filters = { search, eventFilter, setSearch, setEventFilter };
   useEffect(() => { setContextExpanded(false); contextTitle.current?.focus(); }, [route, selected?.case_id, selected?.selected_session_id]);
   useEffect(() => {
@@ -87,17 +87,15 @@ export function App() {
   }
   // 로그인·세션 확인 직후 hash를 역할에 맞게 확정한다. 권한 없는 경로는 첫 메뉴로 보낸다.
   function enter(next: User) {
-    if (next.role !== 'developer') {
-      const target = parseHash(window.location.hash, next.role) ?? defaultRoute(next.role);
-      historyIndex.current = stateIndex() ?? 0;
-      window.history.replaceState({ idx: historyIndex.current }, '', hashOf(target));
-      routeRef.current = target; setRoute(target);
-    }
+    const target = parseHash(window.location.hash, next.role) ?? defaultRoute(next.role);
+    historyIndex.current = stateIndex() ?? 0;
+    window.history.replaceState({ idx: historyIndex.current }, '', hashOf(target));
+    routeRef.current = target; setRoute(target);
     setUser(next);
   }
   useEffect(() => { setMenuOpen(!drawer); }, [drawer, user]);
   useEffect(() => {
-    if (!user || user.role === 'developer') return;
+    if (!user) return;
     const role = user.role;
     // 뒤로가기·주소 직접 수정도 미저장 입력 보호를 거친다. 취소하면 기록 위치째로 원래 항목으로 되돌린다.
     const onHash = () => {
@@ -130,13 +128,13 @@ export function App() {
     return () => { window.removeEventListener('kdog-session-expired', clear); window.removeEventListener('kdog-unavailable-cases', unavailable); };
   }, []);
   useEffect(() => {
-    if (user && user.role !== 'developer') void run(async () => {
+    if (user) void run(async () => {
       setCases(await api<Case[]>('/cases'));
     });
   }, [user]);
   const surveyVersion = selected ? sessionOf(selected).survey_version : '';
   useEffect(() => {
-    if (!user || user.role === 'developer') return;
+    if (!user) return;
     let active = true;
     setCatalog(null);
     api<Catalog>(`/catalog/survey${surveyVersion ? `?version=${encodeURIComponent(surveyVersion)}` : ''}`).then(value => { if (active) setCatalog(value); })
@@ -144,7 +142,7 @@ export function App() {
     return () => { active = false; };
   }, [user, surveyVersion]);
   useEffect(() => {
-    if (!user || user.role === 'developer') return;
+    if (!user) return;
     let active = true; let timer: ReturnType<typeof setTimeout>;
     async function poll() {
       try { const items = await api<Case[]>('/cases'); if (active) { setCases(items); setUpdatedAt(new Date().toLocaleTimeString()); setConnectionError(''); } }
@@ -167,19 +165,18 @@ export function App() {
     <p className="fine">직원 전용 · 계정은 운영 관리자에게 문의하세요.</p>
   </main>;
 
-  const hasMenu = user.role !== 'developer';
   return <>
-    <header inert={modal}>{hasMenu && <button ref={menuToggle} className="menu-toggle" aria-controls="lnb" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>메뉴</button>}
+    <header inert={modal}><button ref={menuToggle} className="menu-toggle" aria-controls="lnb" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>메뉴</button>
       <button className="wordmark plain" onClick={() => go('intake')}>K-DOG<span>FIELD NOTES</span></button>
       <div className="account"><span>{user.username} · {roleNames[user.role]}</span><button disabled={busy} onClick={() => void run(async () => {
         if (!mayLeave()) return; await api('/auth/logout', 'POST'); setUser(null); setSelected(null); setCases([]);
       })}>로그아웃</button></div></header>
     <div className="shell">
-      {hasMenu && <Lnb role={user.role} current={route} go={go} visible={wide || menuOpen} drawer={drawer} close={closeMenu} />}
+      <Lnb role={user.role} current={route} go={go} visible={wide || menuOpen} drawer={drawer} close={closeMenu} />
     <main inert={modal}>
       <Notification message={error} kind="error" onClose={() => setError('')} />
       <Notification message={notice} onClose={() => setNotice('')} />
-      {unavailableCases > 0 && user.role !== 'developer' && <p role="alert">입력 자료 검증에 실패한 참가자 {unavailableCases}명은 목록에서 제외되었습니다. 운영 관리자에게 원본 저장소 확인을 요청하세요. 다른 참가자는 계속 사용할 수 있습니다.</p>}
+      {unavailableCases > 0 && <p role="alert">입력 자료 검증에 실패한 참가자 {unavailableCases}명은 목록에서 제외되었습니다. 원본 저장소를 확인하세요. 다른 참가자는 계속 사용할 수 있습니다.</p>}
       {busy && <Notification kind="working" message="처리 중입니다… 파일 업로드 중에는 이 화면을 유지하세요." />}
       {selected && fieldRoutes.includes(route) && <section className="panel participant-context" aria-label="선택 참가자">
         <h2 ref={contextTitle} tabIndex={-1}>{selected.event_id} / {selected.participant_id} / {selected.dog_name} / {selected.manifest.sessions.findIndex(s => s.session_id === selected.selected_session_id) + 1}차 촬영</h2>
@@ -198,7 +195,7 @@ export function App() {
         </div>
       </section>}
       <fieldset disabled={busy} className="workspace">
-        {user.role === 'developer' ? <section><p className="eyebrow">개발자 전용</p><h1>개발 설정</h1>
+        {route === 'developer/settings' ? <section><p className="eyebrow">개발자 전용</p><h1>개발 설정</h1>
           <DeveloperSettings />
           <button onClick={() => void run(async () => setNotice((await api<{ message: string }>('/developer/status')).message))}>인증 상태 확인</button>
         </section>

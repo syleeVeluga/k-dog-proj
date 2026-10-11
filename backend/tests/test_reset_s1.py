@@ -172,6 +172,8 @@ class ResetS1Tests(unittest.TestCase):
     def test_offline_lock_permissions_and_tampered_input_stop_before_reset(self):
         with maintenance.runtime_lock(self.store, "worker"), self.assertRaises(HTTPException):
             reset_s1.execute(self.store, "admin")
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE users SET active=0 WHERE username='operator'")
         with self.assertRaises(HTTPException) as denied:
             reset_s1.execute(self.store, "operator")
         self.assertEqual(denied.exception.status_code, 403)
@@ -303,6 +305,8 @@ class ResetS1Tests(unittest.TestCase):
             self.store.audit(db, "admin", "old-run", "v3.remote_cleanup_failed", {"remote_file_names": ["files/failed"], "credential_reference": "credential"})
         reset_s1.execute(self.store, "admin")
         self.assertEqual(len(reset_s1.pending_remote_cleanup(self.store)), 2)
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE users SET active=0 WHERE username='operator'")
         with self.assertRaises(HTTPException):
             reset_s1.retry_remote_cleanup(self.store, "operator", delete=lambda *args: None)
         failing = lambda *args: (_ for _ in ()).throw(ProviderError("delete_failed"))

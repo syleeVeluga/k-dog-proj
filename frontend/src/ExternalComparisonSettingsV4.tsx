@@ -26,7 +26,7 @@ export function ExternalComparisonSettingsV4({ user, onChanged }: { user: User; 
     try { await action(); } catch (value) { if (alive.current) { setError(value instanceof Error ? value.message : '연구 확인자료 처리에 실패했습니다.'); if (accessLost(value)) { setInventory(null); setDraft(null); } } }
     finally { working.current = false; if (alive.current) setBusy(false); }
   }
-  useEffect(() => { alive.current = true; if (user.role === 'admin') void work(reload); return () => { alive.current = false; sequence.current++; }; }, [user.username, user.role]);
+  useEffect(() => { alive.current = true; void work(reload); return () => { alive.current = false; sequence.current++; }; }, [user.username, user.role]);
   function choose(id: string) {
     if (dirty && !window.confirm('입력 중인 연구 확인 내용을 버리고 출처를 바꿀까요?')) return;
     const selected = inventory?.sources.find(row => row.source_id === id);
@@ -52,7 +52,6 @@ export function ExternalComparisonSettingsV4({ user, onChanged }: { user: User; 
     await api('/comparisons-s1/activation', 'POST', { source_id: sourceId, expected_revision: activation?.revision ?? 0, enabled, confirmation: inventory.confirmations[sourceId] ?? null, reason: activationReason.trim() });
     if (alive.current) { await reload(); setNotice(enabled ? '확인된 범위의 기술 활성화를 기록했습니다. 대상별 조건은 출력 전에 다시 검사합니다.' : '외부 비교를 비활성화했습니다. 해당 출처를 사용한 출력의 제공 조건에 반영됩니다.'); onChanged?.(); }
   }
-  if (user.role !== 'admin') return <p>연구 확인자료 등록과 기술 활성화는 운영 관리자 계정에서 수행합니다.</p>;
   return <section aria-label="외부 비교 연구 확인" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <h3>외부 비교 연구 확인과 활성화</h3><p>연구자 확인자료를 그대로 기록합니다. 파일 수령이나 관리자 버튼만으로 연구 승인으로 간주하지 않습니다. 실제 확인이 없으면 확인 대기를 유지하세요.</p>
     {error && <p role="alert" className="error">{error}</p>}{notice && <p role="status">{notice}</p>}

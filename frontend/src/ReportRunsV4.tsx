@@ -41,7 +41,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
   const request = useRef<{ fingerprint: string; request_id: string } | null>(null), openedId = useRef(''), frame = useRef<HTMLIFrameElement>(null);
   const context = useRef(''); context.current = `${path}:${viewer}`;
   const query = viewer ? `?viewer_sheet_id=${encodeURIComponent(viewer)}` : '';
-  const reportUser = ['operator', 'admin', 'reviewer'].includes(user.role), professor = user.role === 'reviewer';
+  const reportUser = true, professor = user.role === 'reviewer';
   const [logTick, setLogTick] = useState(0);
   const selected = finals.find(value => value.reference.final_id === finalId);
   const cohort = cohorts.find(value => value.reference.snapshot_id === cohortId);

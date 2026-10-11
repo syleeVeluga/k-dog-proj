@@ -188,8 +188,7 @@ class UploadsV4Tests(unittest.TestCase):
     def test_unlinked_inventory_permissions_and_manual_cleanup_are_explicit(self):
         receipt = self.received()
         self.assertEqual(uploads.list_receipts(self.store, "other")[0].upload_id, receipt.upload_id)
-        with self.assertRaises(HTTPException):
-            uploads.list_receipts(self.store, "review")
+        self.assertEqual(uploads.list_receipts(self.store, "review")[0].upload_id, receipt.upload_id)
         with self.assertRaises(HTTPException):
             uploads.begin_receive(self.store, receipt.upload_id, receipt.request_id, "other")
         with self.assertRaises(HTTPException):
@@ -481,9 +480,7 @@ class UploadsV4Tests(unittest.TestCase):
         linked = self.link(receipt, case)
         self.assertEqual(uploads.linked_video_path(self.store, case["case_id"], linked.video_id, "review").read_bytes(),
                          b"synthetic-media")
-        with self.assertRaises(HTTPException) as caught:
-            uploads.download_path(self.store, receipt.upload_id, "review")
-        self.assertEqual(caught.exception.status_code, 403)
+        self.assertEqual(uploads.download_path(self.store, receipt.upload_id, "review").read_bytes(), b"synthetic-media")
         with self.assertRaises(HTTPException) as caught:
             uploads.linked_video_path(self.store, self.case("other")["case_id"], linked.video_id, "review")
         self.assertEqual(caught.exception.status_code, 404)

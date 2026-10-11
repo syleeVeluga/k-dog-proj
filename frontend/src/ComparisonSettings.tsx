@@ -55,7 +55,6 @@ export function ComparisonSettings({ user, onSaved }: { user: User; onSaved?: ()
     opened.current = value.reference.snapshot_id; setView(value); setSelected({}); setTitle(''); setReason(''); request.current = null;
     await reload(); onSaved?.();
   }
-  if (!['operator', 'admin'].includes(user.role)) return <p role="status">집단 비교는 운영 권한으로 확인합니다.</p>;
   return <section className="panel" aria-label="자체 집단 비교" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <h2>같은 판본의 자체 비교집단</h2><p>분석 동의가 확인된 실제 설문을 선택합니다. 한 대상은 명시한 한 회차만 포함하며, 영역별 유효 평균과 표본수를 따로 계산합니다.</p>
     <p className="fine">카메라 수는 표본수가 아닙니다. 행사 간 같은 개체를 확인할 전역 ID가 없어 이름으로 합치지 않습니다. 이 집단을 전국 규준·백분위·정상 경계로 해석하지 않습니다.</p>

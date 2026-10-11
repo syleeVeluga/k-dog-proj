@@ -24,12 +24,12 @@ class FormsPresetsV4Tests(AppCase):
         self.assertEqual(view["mapping"]["columns"]["dog_name"], "강아지 이름")
         listed = self.client.get("/api/forms/presets").json()
         self.assertEqual([item["preset_id"] for item in listed], [view["preset_id"]])
-        for role, status in ((None, 401), ("reviewer", 403), ("developer", 403)):
+        for role, status in ((None, 401), ("reviewer", 200), ("developer", 200)):
             other = self.client_for(role)
             self.assertEqual(other.get("/api/forms/presets").status_code, status)
-            self.assertEqual(other.post("/api/forms/presets", json=self.preset("다른 이름")).status_code, status)
+            self.assertEqual(other.post("/api/forms/presets", json=self.preset(f"다른 이름 {role}")).status_code, 401 if role is None else 201)
         with self.store.connect() as db:
-            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='forms.preset.save'").fetchone()[0], 1)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='forms.preset.save'").fetchone()[0], 3)
 
     def test_invalid_mappings_and_duplicate_names_are_rejected(self):
         self.assertEqual(self.client.post("/api/forms/presets", json=self.preset()).status_code, 201)

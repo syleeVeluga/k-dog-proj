@@ -32,8 +32,7 @@ def init_schema(db):
 
 def _account(db, actor, *, linked_reader=False):
     account = db.execute("SELECT * FROM users WHERE username=?", (actor,)).fetchone()
-    allowed = ("operator", "admin", "reviewer") if linked_reader else ("operator", "admin")
-    if not account or not account["active"] or account["role"] not in allowed:
+    if not account or not account["active"]:
         raise HTTPException(403, "영상 수신·연결 권한이 없습니다.")
     return account
 

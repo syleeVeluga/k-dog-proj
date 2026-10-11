@@ -3,15 +3,15 @@ import type { Role } from './types';
 export type Route =
   | 'intake' | 'intake/upload' | 'survey' | 'recording/inbox' | 'recording/record'
   | 'preprocess' | 'scoring' | 'report' | 'report/comparison' | 'report/export'
-  | 'validation' | 'admin/users' | 'admin/backup';
+  | 'validation' | 'admin/users' | 'admin/backup' | 'developer/settings';
 
 export type MenuItem = { route: Route; label: string; roles: Role[]; parent?: string; roleLabels?: Partial<Record<Role, string>> };
 export type MenuGroup = { id: string; label: string; items: MenuItem[] };
 
-const everyone: Role[] = ['operator', 'reviewer', 'admin'];
-const staff: Role[] = ['operator', 'admin'];
+const everyone: Role[] = ['operator', 'reviewer', 'admin', 'developer'];
+const staff = everyone;
 
-// 현장 진행 → 분석·평가 → 자료 관리 순서. 역할별 노출은 항목의 roles가 정한다.
+// 업무 메뉴는 공통이며 개발 설정만 별도로 보호한다.
 export const menuTree: MenuGroup[] = [
   { id: 'field', label: '현장 운영', items: [
     { route: 'intake', label: '참가자 접수', roles: everyone },
@@ -23,15 +23,15 @@ export const menuTree: MenuGroup[] = [
   { id: 'analysis', label: '분석·평가', items: [
     { route: 'preprocess', label: '전처리', roles: everyone },
     { route: 'scoring', label: '독립 채점', roles: everyone },
-    // U08(Q03 결정): 교수/검토자도 리포트 발급 화면을 운영자와 같이 쓴다. 비교 조건·연구 내보내기는 운영자 전용.
     { route: 'report', label: '리포트 발급', roles: everyone, parent: '리포트' },
     { route: 'report/comparison', label: '비교 조건', roles: staff, parent: '리포트' },
     { route: 'report/export', label: '연구 내보내기', roles: staff, parent: '리포트' },
   ] },
   { id: 'data', label: '자료 관리', items: [
     { route: 'validation', label: '검수 자료', roles: staff },
-    { route: 'admin/users', label: '직원 계정', roles: ['admin'] },
-    { route: 'admin/backup', label: '백업·복구', roles: ['admin'] },
+    { route: 'admin/users', label: '직원 계정', roles: everyone },
+    { route: 'admin/backup', label: '백업·복구', roles: everyone },
+    { route: 'developer/settings', label: '개발 설정', roles: ['developer'] },
   ] },
 ];
 

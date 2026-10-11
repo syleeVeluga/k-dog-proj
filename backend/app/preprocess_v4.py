@@ -66,7 +66,7 @@ def _spans(window):
 
 def _case(store, db, case_id, session_id, actor, expected=None, *, write=False, selected=True):
     account = db.execute("SELECT role,active FROM users WHERE username=?", (actor,)).fetchone()
-    if not account or not account["active"] or account["role"] not in (("operator", "admin") if write else ("operator", "admin", "reviewer")):
+    if not account or not account["active"]:
         raise HTTPException(403, "전처리 자료 접근 권한이 없습니다.")
     row = store.case(db, case_id, expected=expected)
     manifest = store.manifest(row)

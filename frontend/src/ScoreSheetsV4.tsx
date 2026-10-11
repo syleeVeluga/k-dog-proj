@@ -19,7 +19,7 @@ const signed = (value: number) => value > 0 ? `+${value}` : String(value);
 const errorText = (error: unknown) => error instanceof Error ? error.message : '채점 작업을 완료하지 못했습니다.';
 
 export function ScoreSheetsV4({ item, user, run, refresh, close }: { item: Case; user: User; run: Run; refresh: (message?: string) => Promise<void>; close: () => void }) {
-  const manager = user.role === 'operator' || user.role === 'admin';
+  const manager = true;
   const [rows, setRows] = useState<SheetSummaryV4[]>([]);
   const [accounts, setAccounts] = useState<User[]>([]);
   const [catalog, setCatalog] = useState<BehaviorCatalogV4 | null>(null);

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openMenu } from './menu';
 
 test('developer keys: register, test, revoke without leaking the secret; staff never see the panel', async ({ page }, testInfo) => {
   const errors: string[] = [];
@@ -7,6 +8,7 @@ test('developer keys: register, test, revoke without leaking the secret; staff n
   await page.getByLabel('계정', { exact: true }).fill('developer');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await openMenu(page, '개발 설정');
   const panel = page.locator('.developer-settings');
   await expect(panel.getByRole('heading', { name: '공급자 키 관리' })).toBeVisible();
   await expect(panel.getByLabel('단계 프롬프트')).toHaveCount(0);
@@ -27,7 +29,7 @@ test('developer keys: register, test, revoke without leaking the secret; staff n
   await expect(page.getByRole('status').filter({ hasText: '키를 폐기했습니다.' })).toBeVisible();
   await panel.screenshot({ path: testInfo.outputPath('keys-desktop.png') });
   await page.setViewportSize({ width: 360, height: 800 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: '로그아웃' }).click();
   await page.getByLabel('계정', { exact: true }).fill('operator');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');

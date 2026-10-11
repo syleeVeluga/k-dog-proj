@@ -24,17 +24,15 @@ Reason = Annotated[str, Field(min_length=1, max_length=2000, pattern=r"\S")]
 
 
 def manager(user, db=None):
-    if user.role not in ("operator", "admin"):
-        raise HTTPException(403, "배정·공개·재개방은 운영자 권한입니다.")
     if db is not None:
         account = db.execute("SELECT role,active FROM users WHERE username=?", (user.username,)).fetchone()
-        if not account or not account["active"] or account["role"] not in ("operator", "admin"):
-            raise HTTPException(403, "운영 계정 권한이 변경되었습니다.")
+        if not account or not account["active"]:
+            raise HTTPException(403, "활성 업무 계정이 필요합니다.")
 
 
 def owner(db, row, user):
     account = db.execute("SELECT role,active FROM users WHERE username=?", (user.username,)).fetchone()
-    if not account or not account["active"] or account["role"] not in ("operator", "reviewer", "admin") or row["assigned_username"] != user.username or not row["active"]:
+    if not account or not account["active"] or row["assigned_username"] != user.username or not row["active"]:
         raise HTTPException(403, "활성 상태로 본인에게 배정된 시트만 조회·입력할 수 있습니다.")
 
 
@@ -152,7 +150,7 @@ def asset_hashes():
 
 def _account(db, user):
     row = db.execute("SELECT active,role FROM users WHERE username=?", (user.username,)).fetchone()
-    if not row or not row["active"] or row["role"] not in ("operator", "reviewer", "admin"):
+    if not row or not row["active"]:
         raise HTTPException(403, "채점 계정 권한이 없습니다.")
     return row
 
@@ -222,12 +220,12 @@ def summary(row, user):
 
 def list_sheets(store, case_id, session_id, user):
     with store.connect() as db:
-        account = _account(db, user)
+        _account(db, user)
         _, manifest = _case(store, db, case_id)
         if session_id not in {session.session_id for session in manifest.sessions}:
             raise HTTPException(404, "촬영 회차가 없습니다.")
         rows = db.execute("SELECT * FROM score_sheets WHERE case_id=? AND session_id=? ORDER BY rowid", (case_id, session_id))
-        return [summary(row, user) for row in rows if row["assigned_username"] == user.username or account["role"] in ("operator", "admin")]
+        return [summary(row, user) for row in rows]
 
 
 def missing_required(doc):
@@ -340,7 +338,7 @@ def assign(store, case_id, session_id, value: SheetAssignmentV4, user):
         case, manifest = _case(store, db, case_id, value.expected_revision)
         session = selected_session(manifest, session_id)
         account = db.execute("SELECT active,role FROM users WHERE username=?", (value.assigned_username,)).fetchone()
-        if not account or not account["active"] or account["role"] not in ("operator", "reviewer", "admin") or value.assigned_username == AI_ACCOUNT:
+        if not account or not account["active"] or value.assigned_username == AI_ACCOUNT:
             raise HTTPException(422, "활성 사람 평가 계정을 선택하세요.")
         if value.source_sheet_id:
             old = row_for(store, db, value.source_sheet_id)
@@ -384,7 +382,7 @@ def assign(store, case_id, session_id, value: SheetAssignmentV4, user):
         if inherited(db, case_id, session_id, value.assigned_username, value.rater_id, source) != interpreted:
             raise HTTPException(409, "배정 중 같은 촬영의 해석을 열었습니다. 노출 이력을 다시 확인하세요.")
         account = db.execute("SELECT active,role FROM users WHERE username=?", (value.assigned_username,)).fetchone()
-        if not account or not account["active"] or account["role"] not in ("operator", "reviewer", "admin"):
+        if not account or not account["active"]:
             raise HTTPException(409, "배정 계정 상태가 변경되었습니다.")
         for other in db.execute("SELECT * FROM score_sheets WHERE case_id=? AND session_id=?", (case_id, session_id)):
             if other["source_hash"] == digest and other["rater_id"] == value.rater_id and other["purpose"] == purpose:

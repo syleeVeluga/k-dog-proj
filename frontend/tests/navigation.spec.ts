@@ -40,34 +40,39 @@ test('위치가 hash에 남고 새로고침·뒤로가기·앞으로가기 후�
   await expect(page.getByRole('heading', { name: '리포트', exact: true })).toBeVisible();
 });
 
-test('LNB는 그룹과 하위 메뉴로 묶이고 역할별로 다르게 보인다', async ({ page }) => {
+test('LNB 업무 메뉴는 모든 계정에 같고 개발 설정만 개발자에게 보인다', async ({ page }) => {
   await login(page);
   for (const group of ['현장 운영', '분석·평가', '자료 관리']) await expect(menu(page).getByRole('group', { name: group, exact: true })).toBeVisible();
   await expect(menu(page).getByRole('group', { name: '촬영', exact: true })).toBeVisible();
   await expect(menu(page).getByRole('group', { name: '리포트', exact: true })).toBeVisible();
-  expect(await labels(page)).toEqual(['참가자 접수', '일괄 등록 (CSV·Excel)', '설문 현황', '영상 수신·연결', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급', '비교 조건', '연구 내보내기', '검수 자료']);
+  const common = ['참가자 접수', '일괄 등록 (CSV·Excel)', '설문 현황', '영상 수신·연결', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급', '비교 조건', '연구 내보내기', '검수 자료', '직원 계정', '백업·복구'];
+  expect(await labels(page)).toEqual(common);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await login(page, 'reviewer');
-  expect(await labels(page)).toEqual(['참가자 접수', '설문 현황', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급']);
+  expect(await labels(page)).toEqual(common);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await login(page, 'admin');
-  expect(await labels(page)).toEqual(['참가자 접수', '일괄 등록 (CSV·Excel)', '설문 현황', '영상 수신·연결', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급', '비교 조건', '연구 내보내기', '검수 자료', '직원 계정', '백업·복구']);
+  expect(await labels(page)).toEqual(common);
   await menu(page).getByRole('button', { name: '백업·복구', exact: true }).click();
   await expect(page).toHaveURL(/#\/admin\/backup$/);
   await expect(page.getByRole('heading', { name: '자료 관리', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await login(page, 'developer');
+  expect(await labels(page)).toEqual([...common, '개발 설정']);
+  await menu(page).getByRole('button', { name: '개발 설정', exact: true }).click();
   await expect(page.getByRole('heading', { name: '개발 설정' })).toBeVisible();
-  await expect(menu(page)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '메뉴', exact: true })).toHaveCount(0);
+  await menu(page).getByRole('button', { name: '직원 계정', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '직원 계정' })).toBeVisible();
 });
 
-test('권한 없는 hash와 알 수 없는 hash는 첫 메뉴로 보내고 hash를 고친다', async ({ page }) => {
+test('공통 업무 hash는 직접 열고 개발 설정과 알 수 없는 hash만 첫 메뉴로 보낸다', async ({ page }) => {
   await login(page, 'reviewer');
   await page.evaluate(() => { window.location.hash = '#/admin/users'; });
-  await expect(page).toHaveURL(/#\/intake$/);
-  await expect(page.getByRole('heading', { name: '접수', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/#\/admin\/users$/);
+  await expect(page.getByRole('heading', { name: '직원 계정', exact: true })).toBeVisible();
   await page.evaluate(() => { window.location.hash = '#/recording/inbox'; });
+  await expect(page).toHaveURL(/#\/recording\/inbox$/);
+  await page.evaluate(() => { window.location.hash = '#/developer/settings'; });
   await expect(page).toHaveURL(/#\/intake$/);
   await page.evaluate(() => { window.location.hash = '#/없는/경로%E0'; });
   await expect(page).toHaveURL(/#\/intake$/);
@@ -79,7 +84,7 @@ test('권한 없는 hash와 알 수 없는 hash는 첫 메뉴로 보내고 hash�
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
-  await expect(page).toHaveURL(/#\/intake$/);
+  await expect(page).toHaveURL(/#\/admin\/backup$/);
 });
 
 test('미저장 입력이 있으면 메뉴 이동과 뒤로가기를 확인하고 취소하면 hash를 되돌린다', async ({ page }) => {

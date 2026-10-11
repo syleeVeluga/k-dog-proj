@@ -65,14 +65,15 @@ class RecordingApiV4Tests(AppCase):
         value = {"request_id": "preserved-registration", "expected_revision": self.item["input_revision"], "camera_id": "CAM2"}
         self.assertEqual(self.client.put(path, json=value).status_code, 422)
         value["source_kind"] = "original"
-        response = self.client.put(path, json=value)
+        reviewer = self.client_for("reviewer")
+        response = reviewer.put(path, json=value)
         self.assertEqual(response.status_code, 200, response.text)
         current = response.json()["manifest"]["sessions"][0]["videos"][0]
         for field in ("video_id", "storage_ref", "sha256", "size_bytes", "original_name"):
             self.assertEqual(current[field], self.video[field])
         self.assertEqual((current["camera_id"], current["source_original_number"]), ("CAM2", "3"))
-        self.assertEqual(self.client.put(path, json=value).json()["input_revision"], response.json()["input_revision"])
-        self.assertEqual(self.client_for("reviewer").put(path, json=value).status_code, 403)
+        self.assertEqual(reviewer.put(path, json=value).json()["input_revision"], response.json()["input_revision"])
+        self.assertEqual(self.client.put(path, json=value).status_code, 409)
 
     def test_invalid_cross_session_and_beyond_media_times_do_not_publish(self):
         record = json.loads(json.dumps(self.record).replace(self.video["video_id"], "foreign-video"))
@@ -118,7 +119,7 @@ class RecordingApiV4Tests(AppCase):
         self.assertTrue(response.json()["manifest"]["sessions"][0]["recording_review_required"])
 
     def test_access_changes_during_probe_and_roles_are_rechecked(self):
-        for role, expected in ((None, 401), ("reviewer", 403), ("developer", 403)):
+        for role, expected in ((None, 401), ("reviewer", 422), ("developer", 422)):
             self.assertEqual(self.client_for(role).put(self.path, json={}).status_code, expected)
         def deactivate(*args):
             value = validate_recording_media_v4(*args)
