@@ -2,11 +2,6 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 const headers = { 'X-KDOG-Request': '1' };
-test.afterEach(async ({ page }) => {
-  for (const item of (await (await page.request.get('/api/cases')).json()).filter((c: { event_id: string }) => c.event_id.startsWith('U04-'))) {
-    await page.request.post(`/api/cases/${item.case_id}/deletion`, { headers, data: { expected_revision: item.input_revision } });
-  }
-});
 
 type Seed = [event: string, id: string, sequence: number | null, dog: string];
 async function openRegistration(page: Page, seeds: Seed[] = []) {
@@ -131,15 +126,10 @@ test('목록 행 전체를 눌러 상세를 열고 채점 전 상태는 판본 �
   await expect(page.getByText('촬영 기준:', { exact: false })).toContainText('S1.1 · 10월 2일');
 });
 
-test('동의 항목 세 개는 「동의서 확인」 묶음에 모이고 설명은 자세히 안에 있다', async ({ page }) => {
+test('신규 접수는 동의 입력 없이 등록한다', async ({ page }) => {
   const form = await openRegistration(page);
-  const group = form.getByRole('group', { name: '동의서 확인', exact: true });
-  await expect(group.getByLabel('촬영 영상·설문 사용 동의 확인')).toBeVisible();
-  await expect(group.getByRole('combobox', { name: '영상·설문 분석 및 피드백 동의' })).toBeVisible();
-  await expect(group.getByRole('combobox', { name: '낯선 요원 접근·접촉 동의' })).toBeVisible();
-  await expect(group.getByText('기존 기록에서 자동으로 확대하지 않습니다', { exact: false })).toBeHidden();
-  await group.getByText('자세히', { exact: true }).click();
-  await expect(group.getByText('기존 기록에서 자동으로 확대하지 않습니다', { exact: false })).toBeVisible();
+  await expect(form.getByRole('group', { name: '동의서 확인', exact: true })).toHaveCount(0);
+  await expect(form.locator('[name^="consent"]')).toHaveCount(0);
 });
 
 test('다음 순번 제안은 행사 ID와 저장 방식에 따라 갱신되고 직접 입력한 값이 우선한다', async ({ page }) => {

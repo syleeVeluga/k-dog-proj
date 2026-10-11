@@ -88,14 +88,14 @@ test('S1 report publication UI opens guarded cards and offline HTML, marks histo
   });
   await login(page); await open(page, 's1report-issued');
   const panel = page.getByRole('region', { name: '리포트 실행', exact: true });
-  await expect(panel.getByRole('region', { name: '권한 확인된 리포트 발급본', exact: true })).toHaveCount(0);
+  await expect(panel.getByRole('region', { name: '리포트 발급본', exact: true })).toHaveCount(0);
   await expect(panel.getByRole('heading', { name: '발급 완료 · 이전 발급본 · 이전 입력·기준', exact: true })).toBeVisible();
   const current = panel.getByRole('article', { name: '리포트 실행 기록 ' + runId.slice(0, 8), exact: true });
   await current.getByText('기술 정보 · 단계·시도·시간·재사용', { exact: true }).click();
   await expect(current).toContainText('공급자 호출 예약 1회');
   await expect(current).toContainText('비용 미확인');
   await current.getByRole('button', { name: '발급 요약·HTML·PDF 열기', exact: true }).click();
-  const output = panel.getByRole('region', { name: '권한 확인된 리포트 발급본', exact: true }); await expect(output.getByRole('heading', { name: '합성 발급견 · 발급 결과', exact: true })).toBeVisible();
+  const output = panel.getByRole('region', { name: '리포트 발급본', exact: true }); await expect(output.getByRole('heading', { name: '합성 발급견 · 발급 결과', exact: true })).toBeVisible();
   expect(await output.innerText()).not.toContain(runId);
   await output.getByText('기술 정보', { exact: true }).click();
   await expect(output).toContainText(runId);

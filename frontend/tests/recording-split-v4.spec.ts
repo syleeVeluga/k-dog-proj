@@ -4,11 +4,6 @@ import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/;
-test.afterEach(async ({ page }) => {
-  for (const item of (await (await page.request.get('/api/cases')).json()).filter((c: { event_id: string }) => c.event_id.startsWith('U05-'))) {
-    await page.request.post(`/api/cases/${item.case_id}/deletion`, { headers, data: { expected_revision: item.input_revision } });
-  }
-});
 
 async function start(page: Page, people: [string, string, number | null][]) {
   await page.goto('/');

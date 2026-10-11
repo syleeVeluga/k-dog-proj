@@ -53,22 +53,19 @@ test('채점한 참가자는 접수 목록에 채점 전으로 표시하지 않�
   } });
   expect(response.status()).toBe(201);
   const item = await response.json();
-  try {
-    await page.route('**/api/cases', async route => {
-      const upstream = await route.fetch();
-      const rows = await upstream.json();
-      await route.fulfill({ response: upstream, json: rows.map((row: Case) => row.case_id === item.case_id
-        ? { ...row, progress: { ...row.progress, scoring: 'done', preprocess: 'outdated' } } : row) });
-    });
-    await page.getByRole('button', { name: '새로고침', exact: true }).click();
-    const row = page.getByRole('row').filter({ hasText: 'SCORED' });
-    await expect(row).toBeVisible();
-    await expect(row).not.toContainText('채점 전');
-    await expect(row).toContainText('채점 제출 완료');
-    await row.getByRole('button', { name: 'SCORED 상세 열기', exact: true }).click();
-    await page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '독립 채점', exact: true }).click();
-    await expect(page.getByRole('region', { name: '선행 조건', exact: true })).toContainText('새 입력의 전처리 결과가 필요하면 운영자에게 재실행을 요청하세요.');
-  } finally {
-    await page.request.post(`/api/cases/${item.case_id}/deletion`, { headers, data: { expected_revision: item.input_revision } });
-  }
+  await page.route('**/api/cases', async route => {
+    const upstream = await route.fetch();
+    const rows = await upstream.json();
+    await route.fulfill({ response: upstream, json: rows.map((row: Case) => row.case_id === item.case_id
+      ? { ...row, progress: { ...row.progress, scoring: 'done', preprocess: 'outdated' } } : row) });
+  });
+  await page.getByRole('button', { name: '새로고침', exact: true }).click();
+  const row = page.getByRole('row').filter({ hasText: 'SCORED' });
+  await expect(row).toBeVisible();
+  await expect(row).not.toContainText('채점 전');
+  await expect(row).toContainText('채점 제출 완료');
+  await row.getByRole('button', { name: 'SCORED 상세 열기', exact: true }).click();
+  await page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '독립 채점', exact: true }).click();
+  await expect(page.getByRole('region', { name: '선행 조건', exact: true })).toContainText('새 입력으로 전처리를 다시 실행할 수 있습니다.');
+
 });

@@ -53,11 +53,6 @@ test.describe('화면 문구 점검', () => {
       } })).status()).toBe(200);
     }
   });
-  test.afterAll(async ({ request }) => {
-    await request.post('/api/auth/login', { headers, data: { username: 'operator', password } });
-    for (const item of (await (await request.get('/api/cases')).json()).filter((c: { event_id: string }) => c.event_id === 'U07-GUARD'))
-      await request.post(`/api/cases/${item.case_id}/deletion`, { headers, data: { expected_revision: item.input_revision } });
-  });
 
   test('점검 자체가 실제로 걸러 낸다(카나리: 개발 코드·UUID·해시를 심으면 모두 잡는다)', async ({ page }) => {
     await login(page, 'operator');
@@ -82,13 +77,13 @@ test.describe('화면 문구 점검', () => {
     expect(found).toEqual([]);
   });
 
-  test('교수/검토자 메뉴 전체에 개발 코드·UUID·해시가 기본 노출되지 않는다', async ({ page }) => {
+  test('검토자의 공통 업무 메뉴 전체에 개발 코드·UUID·해시가 기본 노출되지 않는다', async ({ page }) => {
     await login(page, 'reviewer');
     const found = await walk(page, ['참가자 접수', '설문 현황', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급']);
     expect(found).toEqual([]);
   });
 
-  test('관리자 전용 화면(직원 계정·백업·복구)도 같은 기준을 지킨다', async ({ page }) => {
+  test('공통 자료 관리 화면(직원 계정·백업·복구)도 같은 기준을 지킨다', async ({ page }) => {
     await login(page, 'admin');
     const found = await walk(page, ['직원 계정', '백업·복구']);
     expect(found).toEqual([]);

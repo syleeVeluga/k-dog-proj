@@ -4,12 +4,6 @@ import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 
-test.afterEach(async ({ page }) => {
-  await page.request.post('/api/auth/login', { headers, data: { username: 'operator', password: 'Browser-test-only-42' } });
-  for (const item of (await (await page.request.get('/api/cases')).json()).filter((c: { event_id: string }) => ['BROWSER-TEST', 'MOBILE'].includes(c.event_id))) {
-    expect((await page.request.post(`/api/cases/${item.case_id}/deletion`, { headers, data: { expected_revision: item.input_revision } })).status()).toBe(200);
-  }
-});
 
 async function login(page: Page, username = 'operator') {
   await page.goto('/');
@@ -66,14 +60,11 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
   await page.getByLabel('견종', { exact: true }).fill('보더콜리');
   await page.getByRole('combobox', { name: '성별' }).selectOption('암');
   await page.getByLabel('나이(세)', { exact: true }).fill('4');
-  await page.getByLabel('촬영 영상·설문 사용 동의 확인').check();
-  await page.getByRole('combobox', { name: '영상·설문 분석 및 피드백 동의' }).selectOption('confirmed');
-  await page.getByRole('combobox', { name: '낯선 요원 접근·접촉 동의' }).selectOption('declined');
   await page.getByRole('button', { name: '저장하고 상세 열기' }).click();
   await expect(page.getByRole('heading', { name: '검증용 가상견', exact: true })).toBeVisible();
   await expect(page.getByText('가상 보호자 님 · 보더콜리 · 암 · 4세', { exact: true })).toBeVisible();
-  await expect(page.getByText('동의 확인', { exact: true })).toBeVisible();
-  await expect(page.getByText('분석·피드백 동의: 확인 · 낯선 요원 접촉 동의: 거절', { exact: true })).toBeVisible();
+  await expect(page.getByText('동의 확인', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('분석·피드백 동의:', { exact: false })).toHaveCount(0);
   await page.getByText('기술 정보', { exact: true }).click();
   await expect(page.getByText('촬영 기준:', { exact: false })).toContainText('S1.1 · 10월 2일');
   await expect(page.getByText('입력 버전 1', { exact: true })).toBeVisible();
@@ -172,21 +163,19 @@ test('360px: Forms duplicate row errors, corrected atomic save and detail access
   await expect(page.getByRole('heading', { name: '모바일 가상견', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('mobile-detail.png'), fullPage: true, animations: 'disabled' });
-  await page.getByText('삭제 요청 접수', { exact: true }).click();
-  await page.getByLabel('삭제 요청됨', { exact: true }).check();
-  await page.getByRole('button', { name: '삭제 요청 저장' }).click();
-  await expect(page.getByRole('heading', { name: '접수', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '0002 상세 열기' })).toHaveCount(0);
+  await expect(page.getByText('삭제 요청 접수', { exact: true })).toHaveCount(0);
+  expect((await page.request.get('/api/cases')).ok()).toBe(true);
 });
 
-test('developer session cannot read participant data and reviewer cannot write', async ({ page }) => {
+test('developer and reviewer perform common work while settings remain protected', async ({ page }) => {
   await login(page, 'developer');
-  await expect(page.getByRole('heading', { name: '개발 설정' })).toBeVisible();
-  expect((await page.request.get('/api/cases')).status()).toBe(403);
+  await expect(page).toHaveURL(/#\/developer\/settings$/);
+  expect((await page.request.get('/api/cases')).status()).toBe(200);
   await page.getByRole('button', { name: '로그아웃' }).click();
   await login(page, 'reviewer');
   await expect(page.getByRole('heading', { name: '접수', exact: true })).toBeVisible();
-  await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '일괄 등록 (CSV·Excel)', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '일괄 등록 (CSV·Excel)', exact: true })).toHaveCount(1);
   await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toHaveCount(0);
-  expect((await page.request.post('/api/cases', { headers: { 'X-KDOG-Request': '1' }, data: {} })).status()).toBe(403);
+  expect((await page.request.post('/api/cases', { headers, data: { event_id: 'COMMON-INTAKE', participant_id: 'reviewer-new', dog_name: '검토자 접수' } })).status()).toBe(201);
+  expect((await page.request.get('/api/developer/settings')).status()).toBe(403);
 });

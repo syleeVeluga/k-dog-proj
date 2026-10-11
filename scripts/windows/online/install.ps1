@@ -39,7 +39,7 @@ try {
     & $python -X utf8 -m app.launcher --check
     if ($LASTEXITCODE -ne 0) { throw 'Installation check failed.' }
     if (-not $SkipAccounts) {
-        foreach ($role in @('admin', 'developer')) {
+        foreach ($role in @('operator', 'developer')) {
             $account = Read-Host "New $role account name (Enter to skip)"
             if ($account) {
                 & $python -X utf8 -m app.manage create-user $account --role $role

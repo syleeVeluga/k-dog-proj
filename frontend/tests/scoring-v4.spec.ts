@@ -37,7 +37,7 @@ test('S1 scoring preserves explicit zero, null states, source evidence, shared e
   }
   await login('reviewer'); await openScoring();
   await expect(page.getByText('Excel 가져오기는 준비 중인 기능입니다.', { exact: true })).toBeVisible();
-  await page.locator('summary').filter({ hasText: /^채점 시작$/ }).click();
+  await page.locator('summary').filter({ hasText: /^채점 시트 만들기$/ }).click();
   await page.getByLabel('평가자 ID', { exact: true }).fill('s1-one'); await page.getByLabel('평가자 표시 이름', { exact: true }).fill('S1 전문가1');
   const assigned = page.waitForResponse(value => value.url().endsWith('/sheets-s1') && value.request().method() === 'POST');
   await page.getByRole('button', { name: '채점 시작', exact: true }).click();
@@ -50,7 +50,7 @@ test('S1 scoring preserves explicit zero, null states, source evidence, shared e
   // 공통 화면은 내부 진행 코드를 표시하지 않는다.
   expect(await page.locator('main').innerText()).not.toMatch(/S16|G0[1-5]|D0[1-6]|공급자 호출|교수 테스트/);
   await expect(page.getByText(/AI 초안: /)).toBeVisible();
-  await expect(page.locator('summary').filter({ hasText: /^채점 시작$/ })).toBeVisible();
+  await expect(page.locator('summary').filter({ hasText: /^채점 시트 만들기$/ })).toBeVisible();
   await page.getByRole('button', { name: '시트 열기', exact: true }).first().click();
   const editor = page.getByLabel('채점 시트', { exact: true });
   await expect(editor.getByText('직접 입력 86행 중 0행 기록', { exact: false })).toBeVisible();

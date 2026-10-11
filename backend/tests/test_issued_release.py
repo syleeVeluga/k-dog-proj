@@ -90,6 +90,15 @@ class ProvisionTests(unittest.TestCase):
         with self.store.connect() as db:
             return {row["username"]: dict(row) for row in db.execute("SELECT * FROM users")}
 
+    def test_common_business_roles_can_be_provisioned_without_admin(self):
+        for role in ("operator","reviewer"):
+            name=f"issued-{role}"
+            self.provision(provision((name,role,"Issued-business-pass-1")))
+            before=self.users()[name]
+            self.assertEqual(before["role"],role)
+            self.provision(provision((name,role,"Different-business-pass-2")))
+            self.assertEqual(self.users()[name]["password_hash"],before["password_hash"])
+
     def test_creates_new_accounts_then_keeps_same_role_accounts_and_their_passwords(self):
         messages = self.provision(provision(("manager", "admin", "Issued-admin-pass-1"), ("keyman", "developer", "Issued-dev-pass-1")))
         self.assertEqual(len(messages), 2)
@@ -174,6 +183,19 @@ class IssueTests(unittest.TestCase):
             archive.writestr("release.json", json.dumps(manifest))
         return path
 
+    def test_issue_general_business_account_unseals_and_provisions(self):
+        result=self.issuer.issue(self.plain(),"GENERAL",[("worker","operator","Issued-business-pass-1")],self.root/"general")
+        with ZipFile(result["path"]) as issued:
+            _,product=installer.unseal(issued.read("payload.kdog"),installer.normalize_key(result["key"]))
+        with ZipFile(BytesIO(product)) as sealed:
+            document=sealed.read("provision.json")
+        store=Store(self.root/"general-data")
+        with store.connect(write=True) as db:
+            provision_accounts(db,store,document)
+            row=db.execute("SELECT * FROM users WHERE username='worker'").fetchone()
+            self.assertEqual(row["role"],"operator")
+            self.assertTrue(check_password("Issued-business-pass-1",row["password_hash"]))
+
     def test_issue_seals_product_and_accounts_and_records_no_secret(self):
         accounts = [("manager", "admin", "Issued-admin-pass-1"), ("keyman", "developer", "Issued-dev-pass-1")]
         result = self.issuer.issue(self.plain(), "SCHOOL-1", accounts, self.root / "out")
@@ -216,8 +238,8 @@ class IssueTests(unittest.TestCase):
                 (self.plain(variant="online"), "SCHOOL-1", good, "사용자 설치형"),
                 (self.plain(), "bad customer", good, "고객 ID"),
                 (self.plain(), "SCHOOL-1", [("manager", "admin", "short")], "비밀번호"),
-                (self.plain(), "SCHOOL-1", [("keyman", "developer", "Issued-dev-pass-1")], "관리자"),
-                (self.plain(), "SCHOOL-1", good + [("manager", "developer", "Issued-dev-pass-1")], "관리자")):
+                (self.plain(), "SCHOOL-1", [("keyman", "developer", "Issued-dev-pass-1")], "업무 계정"),
+                (self.plain(), "SCHOOL-1", good + [("manager", "developer", "Issued-dev-pass-1")], "업무 계정")):
             with self.assertRaisesRegex(ValueError, message):
                 self.issuer.issue(plain, customer, accounts, self.root / "rejected")
         self.assertFalse((self.root / "rejected").exists())

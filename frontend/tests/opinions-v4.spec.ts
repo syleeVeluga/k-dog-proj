@@ -129,7 +129,7 @@ test('S1 opinions preserve completion gates, typed evidence, conflict drafts and
   expect(completed.document.domains.filter((row: { source: string }) => row.source === 'completed_opinion')).toHaveLength(1);
   expect(completed.document.domains.find((row: { domain: string }) => row.domain === 'education_attitude')).toMatchObject({ label: '조율형', source: 'completed_opinion' });
   expect(completed.document.basic).toMatchObject(basicRef); expect(completed.document.basic_document.calculations).toEqual(basic.document.calculations);
-  await editor.getByLabel('의견 저장·상태 변경 사유', { exact: true }).fill('완료 후 재개방'); await editor.getByRole('button', { name: '의견 재개방', exact: true }).click();
+  await editor.getByLabel('B40 의견 완료 요청', { exact: true }).uncheck(); await editor.getByLabel('의견 저장·상태 변경 사유', { exact: true }).fill('완료 의견 직접 정정'); await editor.getByRole('button', { name: '의견 저장·완료 조건 확인', exact: true }).click();
   await expect(editor.getByText(/작성 중 · r3/)).toBeVisible(); await education.getByLabel('교육태도 의견 원문', { exact: true }).fill('미저장 지역 의견 원문');
   expect((await page.request.put(`/api/basic-results-s1/${basicRef.result_id}/judgements`, { headers, data: { expected_revision: basicRef.revision, reason: '의견 편집 중 새 기본 판본', decisions: [{ key: 'owner_type', label: '통제형', status: 'complete', evidence_codes: ['보23', '보16'], counter_codes: ['보16'], counter_note: '반대 근거를 유지한 새 판본', reason: '다른 창에서 기본 판정 근거 보완' }] } })).status()).toBe(200);
   await panel.getByRole('button', { name: '의견·최종 목록 새로고침', exact: true }).click();

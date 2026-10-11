@@ -2,11 +2,6 @@ import { test, expect } from '@playwright/test';
 import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
-test.afterEach(async ({ page }) => {
-  for (const item of (await (await page.request.get('/api/cases')).json()).filter((c: { event_id: string }) => c.event_id === 'GUIDE')) {
-    await page.request.post(`/api/cases/${item.case_id}/deletion`, { headers, data: { expected_revision: item.input_revision } });
-  }
-});
 
 test('신규 접수 입력은 이동 취소와 저장 오류 뒤에도 유지된다', async ({ page }) => {
   await page.goto('/');
