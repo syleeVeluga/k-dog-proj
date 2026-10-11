@@ -19,7 +19,7 @@ export function Prerequisites({ item, kind, user, goTo }: { item: Case; kind: Ki
     ? { label: '평가자 배정 완료', ok: !!progress.sheets_total, staffHint: '아래 「평가자 배정」에서 배정합니다.', reviewerHint: '' }
     : { label: '내 채점 시트 배정', ok: progress.my_sheet !== 'none', staffHint: '', reviewerHint: '운영자가 평가자로 배정해야 합니다.' });
   if (kind === 'report') {
-    needs.push({ label: '분석·피드백 동의 확인', ok: item.consents.analysis_feedback === 'confirmed', staffHint: '접수 상세에서 동의를 확인합니다.', reviewerHint: '' });
+    needs.push({ label: '분석·피드백 동의 확인', ok: item.consents.analysis_feedback === 'confirmed', staffHint: '접수 상세에서 동의를 확인합니다.', reviewerHint: '운영자가 접수 상세에서 분석·피드백 동의를 확인해야 합니다.' });
     if (staff) needs.push({ label: '최종 결과 확정', ok: !!progress.final, staffHint: '독립 채점 화면에서 최종 결과를 만듭니다.', reviewerHint: '', go: { route: 'scoring', label: '독립 채점으로 이동' } });
   }
   const previousInput = progress.preprocess === 'outdated';

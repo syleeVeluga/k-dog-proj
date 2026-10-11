@@ -46,7 +46,9 @@ class ComparisonApiV4Tests(unittest.TestCase):
         self.login('admin')
         self.assertEqual(self.client.get('/api/comparisons-s1/research').status_code, 200)
         self.login('reviewer')
-        self.assertEqual(self.client.get('/api/comparisons-s1/cohorts').status_code, 403)
+        # U08: 교수는 리포트 화면에서 고정 집단을 고를 수 있으나 집단 후보·생성은 운영자 전용이다.
+        self.assertEqual(self.client.get('/api/comparisons-s1/cohorts').status_code, 200)
+        self.assertEqual(self.client.get('/api/comparisons-s1/candidates').status_code, 403)
         self.login('operator')
         with self.store.connect(write=True) as db:
             db.execute('UPDATE cases SET deletion_requested=1 WHERE case_id=?', (f.ids[0],))

@@ -3,7 +3,7 @@ import { accessLost, api, ApiError } from './api';
 import type { Case, User } from './types';
 import type { FinalSummaryV4, FinalViewV4 } from './finalTypesV4';
 import type { SheetSummaryV4 } from './ScoringTypesV4';
-import type { ReportPublicationV4, ReportRunV4 } from './reportTypesV4';
+import type { ReportAccessV4, ReportPublicationV4, ReportRunV4 } from './reportTypesV4';
 import type { CohortSelectionV4, CohortSummaryV4 } from './comparisonTypesV4';
 import type { ExternalReferenceV4 } from './externalTypesV4';
 import { ExternalComparisonPickerV4 } from './ExternalComparisonPickerV4';
@@ -12,6 +12,23 @@ const active = new Set(['queued', 'running', 'retry_wait']);
 const states: Record<string, string> = { queued: '대기', running: '생성 중', retry_wait: '재시도 대기', succeeded: '발급 완료', failed: '실패·검토 필요', stopped: '중지', available: '관찰됨', partial: '일부 관찰', insufficient: '관찰 부족', held: '판단 보류' };
 const stages: Record<string, string> = { content_v4: '내용 작성', validate_content_v4: '내용 검증', render_v4: 'HTML·PDF 생성', validate_output_v4: '출력 검증', publish_report_v4: '게시' };
 const message = (value: unknown) => value instanceof Error ? value.message : '리포트 요청에 실패했습니다.';
+
+const accessLabels: Record<string, string> = { 'report.s1.create': '생성 요청', 'report.s1.issue': '발급', 'report.s1.stop': '중지', 'report.s1.retry': '재시도', 'report.s1.open': '열람' };
+
+// 누가 언제 이 리포트를 만들고·바꾸고·열었는지 보여 준다(U08). 펼칠 때만 불러온다.
+function AccessLog({ path, revision }: { path: string; revision: string }) {
+  const [open, setOpen] = useState(false), [rows, setRows] = useState<ReportAccessV4[] | null>(null), [error, setError] = useState('');
+  useEffect(() => {
+    if (!open) return;
+    let current = true;
+    void api<ReportAccessV4[]>(path).then(value => { if (current) { setRows(value); setError(''); } }).catch(value => { if (current) setError(message(value)); });
+    return () => { current = false; };
+  }, [open, path, revision]);
+  return <details onToggle={event => setOpen(event.currentTarget.open)}><summary>열람·수정 기록</summary>
+    {error && <p role="alert" className="error">{error}</p>}
+    {rows && (rows.length ? <ul aria-label="리포트 열람·수정 기록">{rows.map((row, index) => <li key={index}>{new Date(row.happened_at).toLocaleString()} · {row.actor} · {accessLabels[row.action] ?? row.action}{row.format ? ` (${row.format.toUpperCase()})` : ''}</li>)}</ul> : <p>기록이 없습니다.</p>)}
+  </details>;
+}
 
 export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Case; user: User; comparisonRevision?: number }) {
   const path = `/cases/${item.case_id}/sessions/${item.selected_session_id}`;
@@ -24,7 +41,8 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
   const request = useRef<{ fingerprint: string; request_id: string } | null>(null), openedId = useRef(''), frame = useRef<HTMLIFrameElement>(null);
   const context = useRef(''); context.current = `${path}:${viewer}`;
   const query = viewer ? `?viewer_sheet_id=${encodeURIComponent(viewer)}` : '';
-  const manager = ['operator', 'admin'].includes(user.role);
+  const reportUser = ['operator', 'admin', 'reviewer'].includes(user.role), professor = user.role === 'reviewer';
+  const [logTick, setLogTick] = useState(0);
   const selected = finals.find(value => value.reference.final_id === finalId);
   const cohort = cohorts.find(value => value.reference.snapshot_id === cohortId);
   const own = sheets.filter(value => value.own && value.active && value.rater_kind === 'human' && value.state === 'submitted');
@@ -39,7 +57,10 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
     return () => { current = false; };
   }, [path, viewer, selected?.reference.hash, selected?.requires_reveal]);
   function clearOutput() { openedId.current = ''; setOpened(null); }
-  function filePath(runId: string, format: string, inline = false) { return path + `/report-runs-s1/${runId}/files/${format}` + query + (inline ? `${query ? '&' : '?'}inline=true` : ''); }
+  function filePath(runId: string, format: string, inline = false, purpose = '') {
+    const extra = [inline ? 'inline=true' : '', purpose ? `purpose=${purpose}` : ''].filter(Boolean).join('&');
+    return path + `/report-runs-s1/${runId}/files/${format}` + query + (extra ? (query ? '&' : '?') + extra : '');
+  }
   async function reload(clearError = false) {
     if (timer.current) clearTimeout(timer.current);
     const current = ++sequence.current, scope = context.current; setLoading(true);
@@ -83,8 +104,8 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
   }
   async function openOutput(row: ReportRunV4) {
     clearOutput(); const scope = context.current;
-    const value = await api<ReportPublicationV4>(filePath(row.run_id, 'manifest'));
-    if (alive.current && scope === context.current) { openedId.current = row.run_id; setOpened(value); }
+    const value = await api<ReportPublicationV4>(filePath(row.run_id, 'manifest', false, 'open'));
+    if (alive.current && scope === context.current) { openedId.current = row.run_id; setOpened(value); setLogTick(value => value + 1); }
   }
   async function print() {
     const id = openedId.current, scope = context.current; if (!id) return;
@@ -93,7 +114,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
   }
   async function download(format: 'html' | 'pdf' | 'manifest') {
     const id = openedId.current, scope = context.current; if (!id) return;
-    const response = await fetch('/api' + filePath(id, format), { credentials: 'same-origin', headers: { 'X-KDOG-Request': '1' } });
+    const response = await fetch('/api' + filePath(id, format, false, format === 'manifest' ? 'save' : ''), { credentials: 'same-origin', headers: { 'X-KDOG-Request': '1' } });
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: '리포트 파일을 저장하지 못했습니다.' }));
       if (response.status === 401) window.dispatchEvent(new Event('kdog-session-expired'));
@@ -103,11 +124,12 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
     if (!alive.current || scope !== context.current || openedId.current !== id) return;
     const url = URL.createObjectURL(blob), link = document.createElement('a');
     link.href = url; link.download = `kdog-s1-${id}.${format === 'manifest' ? 'json' : format}`; link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+    setTimeout(() => URL.revokeObjectURL(url), 0); setLogTick(value => value + 1);
   }
-  if (!manager) return <p role="status">리포트 운영 권한이 필요합니다.</p>;
+  if (!reportUser) return <p role="status">리포트 권한이 필요합니다.</p>;
   return <section aria-label="S1 리포트 실행" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <h3>고정 최종본으로 리포트 생성</h3>
+    {professor && <p className="fine">발급된 리포트는 바로 열 수 있으며 열람 기록이 남습니다. 이 참가자의 독립 채점을 제출하기 전에는 결과가 노출되지 않도록 리포트를 열 수 없습니다.</p>}
     <p>확인된 프로그램 근거로 정상 발급합니다. 일부 관찰 부족은 사유를 표시합니다.</p>
     {error && <p role="alert" className="error">{error}</p>}
     <button disabled={busy || loading} onClick={() => void reload(true)}>리포트 상태 새로고침</button>
@@ -138,6 +160,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       <div className="toolbar">{active.has(row.status) && <button disabled={busy || !reason.trim()} onClick={() => void work(async () => { await api(`/report-runs-s1/${row.run_id}/stop`, 'POST', { expected_updated_at: row.updated_at, reason: reason.trim() }); })}>이 리포트 실행 중지</button>}
         {['failed', 'stopped'].includes(row.status) && <button disabled={busy || !reason.trim()} onClick={() => void work(async () => { await api(`/report-runs-s1/${row.run_id}/retry`, 'POST', { expected_updated_at: row.updated_at, reason: reason.trim() }); })}>고정 입력으로 리포트 재시도</button>}
         {row.normal_publish_available && <button disabled={busy} onClick={() => void work(() => openOutput(row))}>발급 요약·HTML·PDF 열기</button>}</div>
+      <AccessLog path={path + `/report-runs-s1/${row.run_id}/access`} revision={`${row.updated_at}:${logTick}`} />
       <details><summary>기술 정보 · 단계·시도·시간·재사용</summary><div className="table-wrap"><table><thead><tr><th>단계</th><th>시도·상태</th><th>시간·호출</th></tr></thead><tbody>{row.steps.map((step, index) => <tr key={index}><td>{stages[step.stage] ?? step.stage}</td><td>{step.attempt}차 · {states[step.status] ?? step.status}{step.reused && <p>명시 재사용</p>}{step.code && <p>{step.code}</p>}</td><td>{Object.entries(step.timing).map(([name, value]) => <p key={name}>{name}: {value.toFixed(2)}초</p>)}{!Object.keys(step.timing).length && '시간 미측정'}<p>공급자 호출 예약 {step.provider_calls}회</p>{step.billing_uncertain && <p>과금 여부 미확인</p>}{Object.entries(step.token_meters ?? {}).map(([name, value]) => <p key={name}>{name}: {value.toLocaleString()} 토큰</p>)}<p>비용 {step.cost_usd == null ? '미확인' : `$${step.cost_usd}`}</p></td></tr>)}</tbody></table></div></details>
     </article>)}
     {opened && <section className="panel" aria-label="권한 확인된 리포트 발급본"><div className="section-title"><h3>{opened.header.dog_name} · 발급 결과</h3><button onClick={clearOutput}>발급본 닫기</button></div>
@@ -148,7 +171,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       {Object.entries(opened.output.image_issues).map(([scene, note]) => <p key={scene}>장면 {scene}: {note}</p>)}
       <div className="toolbar"><button disabled={busy} onClick={() => void work(() => download('html'))}>HTML 저장</button><button disabled={busy} onClick={() => void work(() => download('pdf'))}>PDF 저장</button><button disabled={busy} onClick={() => void work(() => download('manifest'))}>출처 manifest 저장</button><a href={'/api' + filePath(opened.run_id, 'html', true)} target="_blank" rel="noopener noreferrer">HTML 새 창</a><button disabled={busy} onClick={() => void work(print)}>열린 리포트 인쇄</button></div>
       <p className="fine">다운로드·인쇄 시 동의와 공개 권한을 다시 확인합니다. 외부로 자동 발송하지 않습니다.</p>
-      <iframe ref={frame} title="관찰 리포트 미리보기" src={'/api' + filePath(opened.run_id, 'html', true)} sandbox="allow-same-origin allow-modals" style={{ width: '100%', height: 'min(80vh, 950px)', border: '1px solid #ccd8d2' }} />
+      <iframe ref={frame} title="관찰 리포트 미리보기" src={'/api' + filePath(opened.run_id, 'html', true)} sandbox="allow-same-origin allow-modals" onLoad={() => setLogTick(value => value + 1)} style={{ width: '100%', height: 'min(80vh, 950px)', border: '1px solid #ccd8d2' }} />
       <details><summary>기술 정보 · 불변 출력 출처</summary><p>입력 {opened.input_hash}</p><p>설정 {opened.config_hash}</p><p>최종본 {opened.final.hash}</p><p>HTML {opened.output.html.hash}</p><p>PDF {opened.output.pdf.hash}</p></details>
     </section>}
   </section>;

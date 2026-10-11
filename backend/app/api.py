@@ -726,9 +726,13 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def report_s1_retry(run_id: Key, value: report_runs_v4.ReportActionV4, user=Depends(reader)):
         return report_runs_v4.action(store, run_id, value, user, retry=True)
 
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/report-runs-s1/{run_id}/access", response_model=list[report_runs_v4.ReportAccessV4])
+    def report_s1_access(case_id: Key, session_id: Key, run_id: Key, user=Depends(reader)):
+        return report_runs_v4.access_log(store, case_id, session_id, run_id, user)
+
     @app.get("/api/cases/{case_id}/sessions/{session_id}/report-runs-s1/{run_id}/files/{format}")
-    def report_s1_file(case_id: Key, session_id: Key, run_id: Key, format: Literal["html", "pdf", "manifest"], viewer_sheet_id: Key | None = None, inline: bool = False, user=Depends(reader)):
-        data, mime, filename = report_runs_v4.download(store, case_id, session_id, run_id, format, user, viewer_sheet_id)
+    def report_s1_file(case_id: Key, session_id: Key, run_id: Key, format: Literal["html", "pdf", "manifest"], viewer_sheet_id: Key | None = None, inline: bool = False, purpose: Literal["open", "save"] | None = None, user=Depends(reader)):
+        data, mime, filename = report_runs_v4.download(store, case_id, session_id, run_id, format, user, viewer_sheet_id, inline=inline, purpose=purpose)
         headers = {"Content-Disposition": f'{"inline" if inline and format in ("html", "pdf") else "attachment"}; filename="{filename}"'}
         if format == "html":
             headers["Content-Security-Policy"] = "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"
@@ -739,7 +743,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         return comparisons_v4.candidates(store, user)
 
     @app.get("/api/comparisons-s1/cohorts", response_model=list[comparisons_v4.CohortSummaryV4])
-    def comparison_s1_list(user=Depends(writer)):
+    def comparison_s1_list(user=Depends(reader)):
         return comparisons_v4.list_snapshots(store, user)
 
     @app.post("/api/comparisons-s1/cohorts", response_model=comparisons_v4.CohortViewV4, status_code=201)
@@ -747,11 +751,11 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         return comparisons_v4.create(store, value, user)
 
     @app.get("/api/comparisons-s1/cohorts/{snapshot_id}", response_model=comparisons_v4.CohortViewV4)
-    def comparison_s1_view(snapshot_id: Key, user=Depends(writer)):
+    def comparison_s1_view(snapshot_id: Key, user=Depends(reader)):
         return comparisons_v4.view(store, snapshot_id, user)
 
     @app.get("/api/comparisons-s1/sources")
-    def comparison_s1_sources(user=Depends(writer)):
+    def comparison_s1_sources(user=Depends(reader)):
         return comparisons_v4.public_sources(store,user)
 
     @app.post("/api/comparisons-s1/evidence", response_model=external_comparisons_v4.FileV4, status_code=201)
@@ -763,15 +767,15 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         return external_comparisons_v4.upload_evidence(store,bytes(data),filename,user)
 
     @app.post("/api/comparisons-s1/external-snapshots", response_model=external_comparisons_v4.ExternalViewV4, status_code=201)
-    def comparison_s1_external_create(value:external_comparisons_v4.ExternalCreateV4,user=Depends(writer)):
+    def comparison_s1_external_create(value:external_comparisons_v4.ExternalCreateV4,user=Depends(reader)):
         return external_comparisons_v4.create(store,value,user)
 
     @app.get("/api/comparisons-s1/external-snapshots", response_model=list[external_comparisons_v4.ExternalSummaryV4])
-    def comparison_s1_external_list(user=Depends(writer)):
+    def comparison_s1_external_list(user=Depends(reader)):
         return external_comparisons_v4.list_snapshots(store,user)
 
     @app.get("/api/comparisons-s1/external-snapshots/{snapshot_id}", response_model=external_comparisons_v4.ExternalViewV4)
-    def comparison_s1_external_view(snapshot_id:Key,user=Depends(writer)):
+    def comparison_s1_external_view(snapshot_id:Key,user=Depends(reader)):
         return external_comparisons_v4.view(store,snapshot_id,user)
 
     @app.get("/api/comparisons-s1/research")

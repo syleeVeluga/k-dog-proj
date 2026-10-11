@@ -61,6 +61,13 @@ class ReportActionV4(Model):
     reason: Annotated[str, Field(min_length=1, max_length=2000, pattern=r"\S")]
 
 
+class ReportAccessV4(Model):
+    actor: str
+    happened_at: str
+    action: Literal["report.s1.create", "report.s1.issue", "report.s1.stop", "report.s1.retry", "report.s1.open"]
+    format: Literal["html", "pdf", "manifest"] | None = None
+
+
 class ReportStepViewV4(Model):
     stage: str
     attempt: int
@@ -112,10 +119,28 @@ def config(comparison=None, external_comparison=None):
         template_hashes=assets(True), content_hashes=hashes, comparison_snapshot=comparison, external_comparison=external_comparison)
 
 
+OPEN_ACTION = "report.s1.open"
+ACCESS_ACTIONS = ("report.s1.create", "report.s1.issue", "report.s1.stop", "report.s1.retry", OPEN_ACTION)
+
+
+def access_log(store, case_id, session_id, run_id, user):
+    """Who created/issued/stopped/retried/opened this run, oldest first."""
+    with store.connect() as db:
+        _case(store, db, case_id, session_id, user)
+        row = row_for(store, db, run_id)
+        if (row["case_id"], row["session_id"]) != (case_id, session_id):
+            raise HTTPException(404, "이 대상·회차의 리포트가 아닙니다.")
+        marks = ",".join("?" * len(ACCESS_ACTIONS))
+        rows = db.execute(f"SELECT actor,happened_at,action,detail_json FROM changes WHERE target=? AND action IN ({marks}) ORDER BY happened_at,rowid",
+            (run_id, *ACCESS_ACTIONS)).fetchall()
+    return [{"actor": item["actor"], "happened_at": item["happened_at"], "action": item["action"],
+        "format": json.loads(item["detail_json"]).get("format")} for item in rows]
+
+
 def _actor(db, username):
     row = db.execute("SELECT active,role FROM users WHERE username=?", (username,)).fetchone()
-    if not row or not row["active"] or row["role"] not in ("operator", "admin"):
-        raise HTTPException(403, "활성 리포트 운영 권한이 필요합니다.")
+    if not row or not row["active"] or row["role"] not in opinions.REPORT_ROLES:
+        raise HTTPException(403, "활성 리포트 권한이 필요합니다.")
     return SimpleNamespace(username=username, role=row["role"])
 
 
@@ -135,12 +160,24 @@ def _opinion_pin(store, db, case_id, session_id):
     return FileV4(ref=link.ref, hash=link.hash) if link else None
 
 
-def _source_access(store, db, snapshot, user, viewer_sheet_id=None):
+def _scoring_block(db, case_id, session_id, username):
+    """U08 decision: a professor still scoring this case/session independently may not see issued results."""
+    if db.execute("SELECT 1 FROM score_sheets WHERE case_id=? AND session_id=? AND assigned_username=? AND active=1 "
+            "AND purpose='independent' AND state='draft' LIMIT 1", (case_id, session_id, username)).fetchone():
+        raise HTTPException(403, "이 참가자·회차의 독립 채점을 제출하기 전에는 리포트를 열 수 없습니다. 채점을 먼저 제출하세요.")
+
+
+def _source_access(store, db, snapshot, user, viewer_sheet_id=None, *, issued_open=False):
     case, manifest = _case(store, db, snapshot.case_id, snapshot.session_id, user)
-    basic_row, basic = opinions.selected_basic(store, db, snapshot.case_id, snapshot.session_id,
-        snapshot.final_document.basic, user, viewer_sheet_id or snapshot.viewer_sheet_id)
-    disclosures_v4.require(db, snapshot.case_id, snapshot.session_id, user,
-        disclosures_v4.target("final", snapshot.final), snapshot.final_document.actor)
+    if issued_open and _actor(db, user.username).role == "reviewer":
+        # U08(2026-10-11 결정 「바로 열람, 채점 중엔 차단」): 발급본 열람은 공개 절차 없이 허용하고 기록만 남긴다.
+        _scoring_block(db, snapshot.case_id, snapshot.session_id, user.username)
+        basic_row, basic, _ = opinions.pinned_basic(store, db, snapshot.case_id, snapshot.session_id, snapshot.final_document.basic)
+    else:
+        basic_row, basic = opinions.selected_basic(store, db, snapshot.case_id, snapshot.session_id,
+            snapshot.final_document.basic, user, viewer_sheet_id or snapshot.viewer_sheet_id)
+        disclosures_v4.require(db, snapshot.case_id, snapshot.session_id, user,
+            disclosures_v4.target("final", snapshot.final), snapshot.final_document.actor)
     if basic != snapshot.final_document.basic_document:
         raise HTTPException(409, "고정한 최종 기본 입력이 변경되었습니다.")
     if _media_files(store, db, snapshot.final_document, user.username) != snapshot.media_sources:
@@ -777,7 +814,7 @@ def action(store, run_id, value: ReportActionV4, user, *, retry=False):
     with store.connect(write=True) as db:
         row = row_for(store, db, run_id)
         snapshot = snapshot_for(row)
-        _source_access(store, db, snapshot, user)
+        _source_access(store, db, snapshot, user, issued_open=True)
         if row["updated_at"] != value.expected_updated_at:
             raise HTTPException(409, "리포트 실행 상태가 변경되었습니다.")
         if retry:
@@ -792,7 +829,7 @@ def action(store, run_id, value: ReportActionV4, user, *, retry=False):
     return view(store, run_id, user)
 
 
-def download(store, case_id, session_id, run_id, format, user, viewer_sheet_id=None):
+def download(store, case_id, session_id, run_id, format, user, viewer_sheet_id=None, *, inline=False, purpose=None):
     if format not in ("html", "pdf", "manifest"):
         raise HTTPException(404, "지원하는 리포트 출력 형식이 아닙니다.")
     with store.connect() as db:
@@ -800,7 +837,7 @@ def download(store, case_id, session_id, run_id, format, user, viewer_sheet_id=N
         if (row["case_id"], row["session_id"]) != (case_id, session_id):
             raise HTTPException(404, "이 대상·회차의 리포트가 아닙니다.")
         snapshot = snapshot_for(row)
-        _source_access(store, db, snapshot, user, viewer_sheet_id)
+        _source_access(store, db, snapshot, user, viewer_sheet_id, issued_open=True)
         if row["status"] != "succeeded" or not row["result_ref"]:
             raise HTTPException(409, "검증을 마친 리포트 발급본이 아직 없습니다.")
     stamps = verify_files(store, snapshot)
@@ -821,10 +858,14 @@ def download(store, case_id, session_id, run_id, format, user, viewer_sheet_id=N
         raise HTTPException(409, "리포트 발급본의 고정 입력이 다릅니다.")
     stamps.update(validate_rendered(store, publication.output))
     data = raw if format == "manifest" else _read_file(store, getattr(publication.output, format), stamps)
-    with store.connect() as db:
+    logged = format != "manifest" or purpose in ("open", "save")
+    with store.connect(write=logged) as db:
         current = row_for(store, db, run_id)
-        _source_access(store, db, snapshot, user, viewer_sheet_id)
+        _source_access(store, db, snapshot, user, viewer_sheet_id, issued_open=True)
         if (current["result_ref"], current["result_hash"]) != (pointer.ref, pointer.hash):
             raise HTTPException(409, "다운로드 중 발급 참조가 변경되었습니다.")
         check_stamps(store, stamps)
+        if logged:
+            # 리포트를 연 사람을 남긴다. manifest는 명시적으로 열거나 저장할 때만(purpose) 기록하고 화면 갱신 재조회는 기록하지 않는다.
+            store.audit(db, user.username, run_id, OPEN_ACTION, {"format": format, "inline": bool(inline), "purpose": purpose, "ref": pointer.ref})
     return data, {"html":"text/html; charset=utf-8", "pdf":"application/pdf", "manifest":"application/json"}[format], f"kdog-s1-{run_id}.{'json' if format == 'manifest' else format}"

@@ -47,8 +47,10 @@ test('관리자가 교수 계정을 추가하면 교수는 「내가 할 일만�
 
     // 쓰기·관리 메뉴는 보이지 않는다.
     const nav = prof.getByRole('navigation').first();
-    for (const hidden of ['일괄 등록 (CSV·Excel)', '직원 계정', '백업·복구', '연구 내보내기', '리포트 발급'])
+    for (const hidden of ['일괄 등록 (CSV·Excel)', '직원 계정', '백업·복구', '연구 내보내기', '비교 조건'])
       await expect(nav.getByText(hidden, { exact: true })).toHaveCount(0);
+    // U08: 리포트 발급 메뉴는 교수에게도 열려 있다.
+    await expect(nav.getByText('리포트 발급', { exact: true })).toHaveCount(1);
     await expect(prof.getByText('참가자 등록', { exact: true })).toHaveCount(0);
 
     // 「내가 할 일만」: 배정된 시트가 없으므로 내 할 일은 없고, 전체 보기에서는 참가자가 보인다.
@@ -71,6 +73,11 @@ test('관리자가 교수 계정을 추가하면 교수는 「내가 할 일만�
     await openMenu(prof, '촬영 기록 (8구간)');
     await expect(prof.getByRole('button', { name: '촬영 기록 저장', exact: true })).toHaveCount(0);
     expect((await prof.request.post('/api/cases', { headers, data: { event_id: EVENT, participant_id: 'P9', dog_name: '쓰기시도' } })).status()).toBe(403);
+    // U08: 리포트 화면을 열면(선택한 P1 유지) 리포트 실행 영역이 보인다(권한 안내 대신).
+    await openMenu(prof, '리포트 발급');
+    await expect(prof.getByText('운영자가 접수 상세에서 분석·피드백 동의를 확인해야 합니다.', { exact: false })).toBeVisible();
+    await expect(prof.getByRole('region', { name: 'S1 리포트 실행', exact: true })).toBeVisible();
+    await expect(prof.getByText('리포트 운영 권한이 필요합니다.', { exact: true })).toHaveCount(0);
   } finally { await client.close(); }
   expect(outside).toEqual([]);
 });
