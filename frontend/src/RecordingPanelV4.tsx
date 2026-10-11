@@ -53,16 +53,18 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
   const path = `/cases/${item.case_id}/sessions/${session.session_id}/recording-s1`;
   const videos = session.videos.filter(video => video.media_status !== 'storage_only');
   const [verified, setVerified] = useState<Set<string>>(new Set());
+  const [stale, setStale] = useState(false);
   const sessionIndex = item.manifest.sessions.findIndex(value => value.session_id === session.session_id) + 1;
-  // 영상 읽기 확인은 전처리에서 이루어진다. 최신 전처리 결과가 이 입력 버전을 덮을 때만 해당 영상을 「사용 가능」으로 센다.
+  // 영상 읽기 확인은 전처리에서 이루어진다. 마지막 전처리 결과에서 실제 클립(완성·일부)이 만들어진 영상만 「사용 가능」으로 센다.
+  // 입력이 바뀌어 전처리가 낡았어도 영상 자체는 그대로이므로 세되, 다시 전처리가 필요함을 알린다.
   useEffect(() => {
     let active = true;
     void api<PreprocessStatusV4>(`/cases/${item.case_id}/sessions/${session.session_id}/preprocess-s1`)
-      .then(value => { if (active) setVerified(!value.outdated && value.result ? new Set(value.result.source_files.map(file => file.hash)) : new Set()); })
-      .catch(() => { if (active) setVerified(new Set()); });
+      .then(value => { if (active) { setVerified(new Set(value.result?.clips.filter(clip => clip.status === 'complete' || clip.status === 'partial').map(clip => clip.video_id) ?? [])); setStale(!!value.result && value.outdated); } })
+      .catch(() => { if (active) { setVerified(new Set()); setStale(false); } });
     return () => { active = false; };
   }, [item.case_id, session.session_id, item.input_revision]);
-  const usable = videos.filter(video => verified.has(video.sha256)).length;
+  const usable = videos.filter(video => verified.has(video.video_id)).length;
   const keptOnly = session.videos.length - videos.length;
   useEffect(() => {
     if (!edit.dirty) { setRecord(initial(item)); setEditing(!session.recording_s1?.confirmed); }
@@ -104,10 +106,10 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
   return <section className="panel" aria-label="S1 촬영 기록">
     <div className="section-title"><h2>{item.dog_name} · {item.participant_id}</h2><button onClick={close}>닫기</button></div>
     <p role="status" className="video-summary"><strong>{sessionIndex}차 촬영 · 연결된 영상 {session.videos.length}개</strong>
-      {session.videos.length ? ` · 사용 가능 ${usable} · 영상 읽기 확인 대기 ${videos.length - usable}${keptOnly ? ` · 원본 보관 전용 ${keptOnly}` : ''}` : ' · 「영상 수신·연결」 메뉴에서 영상을 연결하세요.'}</p>
-    <p>S1.1 촬영 · 입력 버전 {item.input_revision} · {session.recording_s1?.confirmed ? '확정' : '초안 / 미기록'}</p>
+      {session.videos.length ? ` · 사용 가능 ${usable} · 영상 읽기 확인 대기 ${videos.length - usable}${keptOnly ? ` · 원본 보관 전용 ${keptOnly}` : ''}${stale ? ' · 입력이 바뀌어 전처리를 다시 해야 합니다' : ''}` : writable ? ' · 「영상 수신·연결」 메뉴에서 영상을 연결하세요.' : ' · 연결된 영상이 없습니다.'}</p>
+    <p>입력 버전 {item.input_revision} · 촬영 기록 {session.recording_s1?.confirmed ? '확정' : '초안 / 미기록'}</p>
     {writable && <div className="toolbar recording-actions">{editing ? <><button disabled={!record.video_id} onClick={() => save(false)}>촬영 기록 초안 저장</button><button disabled={!record.video_id} onClick={() => save(true)}>촬영 기록 확정</button>
-      {(!record.video_id || !record.procedure_note.trim()) && <span className="fine" aria-live="polite">{!record.video_id ? '기준 영상을 고르세요.' : '실제 촬영 절차의 확인 근거를 기록해야 저장할 수 있습니다.'}</span>}</> : <button onClick={() => setEditing(true)}>확정본 수정 시작</button>}
+      {(!record.video_id || !record.procedure_note.trim()) && <span className="fine" aria-live="polite">{!record.video_id ? (videos.length ? '기준 영상을 고르세요.' : '읽을 수 있는 영상을 먼저 연결하세요.') : '실제 촬영 절차의 확인 근거를 기록해야 저장할 수 있습니다.'}</span>}</> : <button onClick={() => setEditing(true)}>확정본 수정 시작</button>}
       {edit.dirty && <><span role="status">촬영 기록 · 저장 전</span><button onClick={() => { if (edit.discard()) { setRecord(initial(item)); setEditing(!session.recording_s1?.confirmed); } }}>촬영 입력 버리고 최신 값 보기</button></>}</div>}
     <p>입장 → 기준 → 혼자 → 재회 → 무시 → 걷기 → 낯선 사람 → 퇴장</p>
     <details><summary>S1 진행 안내</summary>
