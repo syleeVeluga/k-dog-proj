@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from './api';
 import { useUnsaved } from './Editing';
+import { guessFromFilename } from './uploadGuess';
 import type { Case, Run } from './types';
 
 type Receipt = { upload_id: string; request_id: string; creator: string; filename: string; state: 'receiving' | 'complete' | 'failed' | 'linked'; expected_size: number; size_bytes: number | null; sha256: string | null; media_status: 'pending_probe' | 'storage_only'; source_kind: 'original' | 'received_conversion'; case_id: string | null; session_id: string | null; video_id: string | null; camera_id: string | null; linked_revision: number | null; failure_code: string | null };
 type Parent = { upload_id: string; sha256: string; video_id: string | null };
 type UploadRequest = { request_id: string; filename: string; expected_size: number; case_id: string | null; session_id: string | null; source_kind: 'original' | 'received_conversion'; parents: Parent[]; conversion: { tool: string; tool_version: string; settings: Record<string, unknown> } | null };
 type QueueEntry = { file: File; id: string; request?: UploadRequest; receipt?: Receipt; status: string; error: string };
-const stateName = { receiving: '수신 대기·진행 중', complete: '수신 완료 · 연결 대기', failed: '수신 실패·취소', linked: '대상 연결 완료' };
+const stateName = { receiving: '수신 대기·진행 중', complete: '수신 완료', failed: '수신 실패·취소', linked: '연결됨' };
+const sessionName = (item: Case | undefined, sessionId: string | null) => {
+  const index = item && sessionId ? item.manifest.sessions.findIndex(value => value.session_id === sessionId) : -1;
+  return index >= 0 ? `${index + 1}차 촬영` : '촬영 회차';
+};
 
 async function sendContent(receipt: Receipt, file: File, signal: AbortSignal): Promise<Receipt> {
   const response = await fetch(`/api/uploads/${receipt.upload_id}/content?request_id=${encodeURIComponent(receipt.request_id)}`, {
@@ -32,6 +37,7 @@ export function UploadInbox({ cases, selected, run, refresh }: { cases: Case[]; 
   const [settings, setSettings] = useState('{}');
   const controllers = useRef(new Map<string, AbortController>());
   useUnsaved(busy);
+  const waiting = receipts.filter(receipt => receipt.state !== 'linked'), linked = receipts.filter(receipt => receipt.state === 'linked');
   async function load() { setReceipts(await api<Receipt[]>('/uploads')); }
   useEffect(() => { let active = true; api<Receipt[]>('/uploads').then(r => { if (active) setReceipts(r); }).catch(e => { if (active) setError(e.message); }); return () => { active = false; }; }, [selected?.case_id, selected?.selected_session_id]);
 
@@ -82,41 +88,60 @@ export function UploadInbox({ cases, selected, run, refresh }: { cases: Case[]; 
     </fieldset>
     <ol className="upload-queue">{queue.map(entry => <li key={entry.id}><strong>{entry.file.name}</strong> · {(entry.file.size / 1048576).toFixed(1)} MiB · <span role="status">{entry.status}</span>{entry.error && <p className="error">{entry.error}</p>}
       {controllers.current.has(entry.id) && <button onClick={() => controllers.current.get(entry.id)?.abort()}>이 전송 중단</button>}
-      {!busy && <button onClick={() => setQueue(queue.filter(q => q.id !== entry.id))}>화면 대기 항목 제거</button>}
+      {!busy && <button onClick={() => setQueue(queue.filter(q => q.id !== entry.id))}>목록에서 숨기기</button>}
     </li>)}</ol>
     {error && <p role="alert" className="error">{error}</p>}
-    <p className="fine">원본1 → CAM1 · 원본3 → CAM2 · 원본2 → CAM3. 다른 카메라는 식별자를 직접 입력하세요. 자동 동기화나 임의 보관기간은 적용하지 않습니다.</p>
-    {receipts.map(receipt => <ReceiptCard key={receipt.upload_id} receipt={receipt} cases={cases} selected={selected} run={run} changed={async message => { await load(); await refresh(message); }} />)}
+    <p className="fine">파일명이 「원본1·원본2·원본3」이면 원본1 → CAM1 · 원본3 → CAM2 · 원본2 → CAM3으로 미리 채웁니다. 그 밖의 파일은 카메라 ID를 직접 입력하세요. 자동 동기화나 임의 보관기간은 적용하지 않습니다.</p>
+    {waiting.map(receipt => <ReceiptCard key={receipt.upload_id} receipt={receipt} cases={cases} selected={selected} run={run} changed={async message => { await load(); await refresh(message); }} />)}
     {!receipts.length && <p>수신물이 없습니다.</p>}
+    {!!receipts.length && !waiting.length && <p>연결을 기다리는 수신물이 없습니다.</p>}
+    {!!linked.length && <details><summary>연결 완료한 파일 ({linked.length})</summary>
+      {linked.map(receipt => <ReceiptCard key={receipt.upload_id} receipt={receipt} cases={cases} selected={selected} run={run} changed={async message => { await load(); await refresh(message); }} />)}</details>}
   </section>;
 }
 
 function ReceiptCard({ receipt, cases, selected, run, changed }: { receipt: Receipt; cases: Case[]; selected: Case | null; run: Run; changed: (message?: string) => Promise<void> }) {
+  const guess = guessFromFilename(receipt.filename);
   const [caseId, setCaseId] = useState(receipt.case_id ?? selected?.case_id ?? '');
-  const [camera, setCamera] = useState(receipt.camera_id ?? 'CAM1');
-  const [original, setOriginal] = useState(''); const [error, setError] = useState('');
+  const [camera, setCamera] = useState(receipt.camera_id ?? guess?.camera ?? '');
+  const [original, setOriginal] = useState(guess?.original ?? '');
+  const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(false);
   const target = cases.find(c => c.case_id === caseId);
+  const sessionId = receipt.session_id ?? target?.selected_session_id ?? null;
+  const taken = camera && target ? target.manifest.sessions.find(value => value.session_id === sessionId)?.videos.find(video => video.camera_id === camera) : undefined;
+  const choices = cases.filter(c => c.manifest.schema_version === 'intake-4.0').filter(c => c.case_id === caseId
+    || [c.sequence_no ?? '', c.participant_id, c.dog_name, c.event_id].join(' ').toLowerCase().includes(search.trim().toLowerCase()));
+  const block = !target ? '연결할 참가자를 고르세요.' : !camera ? '카메라 ID를 입력하세요.' : '';
   async function link() {
     setError('');
     try {
       const latest = await api<Case>(`/cases/${caseId}`);
-      const sessionId = receipt.session_id ?? target?.selected_session_id;
-      if (!sessionId || latest.selected_session_id !== sessionId) throw new Error('선택 회차가 변경되었습니다. 대상의 촬영 회차를 확인하세요.');
-      await api(`/uploads/${receipt.upload_id}/link`, 'POST', { case_id: caseId, session_id: sessionId,
+      const linkSession = receipt.session_id ?? target?.selected_session_id;
+      if (!linkSession || latest.selected_session_id !== linkSession) throw new Error('선택 회차가 변경되었습니다. 대상의 촬영 회차를 확인하세요.');
+      await api(`/uploads/${receipt.upload_id}/link`, 'POST', { case_id: caseId, session_id: linkSession,
         expected_revision: latest.input_revision, camera_id: camera, source_original_number: original || null });
       await changed('수신 완료 파일을 참가자·회차에 연결했습니다.');
-    } catch (e) { setError(e instanceof Error ? e.message : '연결에 실패했습니다.'); }
+    } catch (e) { setRetry(true); setError(e instanceof Error ? e.message : '연결에 실패했습니다.'); }
   }
+  const linkedCase = receipt.case_id ? cases.find(c => c.case_id === receipt.case_id) : undefined;
   return <article className="panel" aria-label={`수신물 ${receipt.filename}`}><h3>{receipt.filename}</h3>
-    <p><strong>{stateName[receipt.state]}</strong> · {receipt.media_status === 'storage_only' ? 'INSV 원본 보관 전용' : '영상 읽기 확인 전'} · 작성자 {receipt.creator}</p>
-    <p className="fine">수신 ID {receipt.upload_id} · {(receipt.expected_size / 1048576).toFixed(1)} MiB{receipt.sha256 && ` · SHA-256 ${receipt.sha256}`}</p>
+    <p><strong>{receipt.state === 'linked' ? (receipt.media_status === 'storage_only' ? '연결됨 · 원본 보관 전용' : '연결됨 · 영상 읽기 확인 대기') : stateName[receipt.state]}</strong>
+      {receipt.media_status === 'storage_only' && <> · <span className="tag">INSV 원본 보관 전용</span></>} · 작성자 {receipt.creator}</p>
     {receipt.failure_code && <p className="warning">실패 상태: {receipt.failure_code}. 중단된 수신은 파일 전체를 다시 선택하여 재시도합니다.</p>}
     {['complete', 'linked'].includes(receipt.state) && <a href={`/api/uploads/${receipt.upload_id}/content`}>보관 원본 내려받기</a>}
-    {receipt.state === 'complete' && <><div className="form-grid"><label>연결 참가자<select aria-label="연결 참가자" disabled={!!receipt.case_id} value={caseId} onChange={e => setCaseId(e.target.value)}><option value="">대상 선택</option>{cases.filter(c => c.manifest.schema_version === 'intake-4.0').map(c => <option key={c.case_id} value={c.case_id}>{c.event_id}/{c.participant_id} · {c.dog_name}</option>)}</select></label>
-      <label>카메라 ID<input aria-label="카메라 ID" value={camera} onChange={e => setCamera(e.target.value)} /></label><label>원본 번호<input aria-label="원본 번호" value={original} placeholder={({ CAM1: '1', CAM2: '3', CAM3: '2' } as Record<string, string>)[camera] ?? '확인한 경우 입력'} onChange={e => setOriginal(e.target.value)} /></label></div>
-      <p className="fine">연결 회차: {receipt.session_id ?? target?.selected_session_id ?? '대상을 먼저 선택하세요.'}</p>
-      <button className="primary" disabled={!target || !camera} onClick={() => void link()}>대상 연결·충돌 재시도</button></>}
-    {receipt.state === 'linked' && <p>카메라 {receipt.camera_id} · 회차 {receipt.session_id} · 연결 입력 버전 {receipt.linked_revision}</p>}
+    {receipt.state === 'complete' && <><div className="form-grid">
+      <label>참가자 찾기<input aria-label="참가자 검색" type="search" value={search} placeholder="순번·ID·반려견 이름" onChange={e => setSearch(e.target.value)} /></label>
+      <label>연결 참가자<select aria-label="연결 참가자" disabled={!!receipt.case_id} value={caseId} onChange={e => setCaseId(e.target.value)}><option value="">대상 선택</option>{choices.map(c => <option key={c.case_id} value={c.case_id}>{c.sequence_no ?? '—'}번 · {c.participant_id} · {c.dog_name} · {c.event_id}</option>)}</select></label>
+      <label>카메라 ID<input aria-label="카메라 ID" value={camera} aria-invalid={taken ? true : undefined} onChange={e => setCamera(e.target.value)} />
+        {guess && camera === guess.camera && <small>파일명 「원본{guess.original}」에 맞춰 채웠습니다. 다르면 고치세요.</small>}
+        {taken && <small className="field-error">{sessionName(target, sessionId)}에 카메라 {camera}이(가) 이미 연결되어 있습니다({taken.original_name}). 다른 카메라 ID인지 확인하세요.</small>}</label>
+      <label>원본 번호<input aria-label="원본 번호" value={original} placeholder={({ CAM1: '1', CAM2: '3', CAM3: '2' } as Record<string, string>)[camera] ?? '확인한 경우 입력'} onChange={e => setOriginal(e.target.value)} /></label></div>
+      <p className="fine">연결 회차: {target ? sessionName(target, sessionId) : '참가자를 먼저 고르세요.'}</p>
+      <div className="toolbar"><button className="primary" disabled={!!block} onClick={() => void link()}>{retry ? '다시 연결' : '연결'}</button>
+        {block && <span className="fine" aria-live="polite">{block}</span>}</div></>}
+    {receipt.state === 'linked' && <p>{linkedCase ? `${linkedCase.participant_id} ${linkedCase.dog_name} · ` : ''}{sessionName(linkedCase, receipt.session_id)} · 카메라 {receipt.camera_id}</p>}
     {(receipt.state === 'failed' || receipt.state === 'receiving') && <label>중단 파일 다시 선택<input aria-label="중단 파일 다시 선택" type="file" onChange={e => {
       const file = e.target.files?.[0]; if (!file) return;
       void run(async () => {
@@ -124,7 +149,9 @@ function ReceiptCard({ receipt, cases, selected, run, changed }: { receipt: Rece
         await sendContent(receipt, file, new AbortController().signal); await changed('수신을 완료했습니다.');
       }); e.target.value = '';
     }} /></label>}
-    {receipt.state !== 'linked' && <button onClick={() => void run(async () => { await api(`/uploads/${receipt.upload_id}`, 'DELETE'); await changed('수신물을 정리했습니다. 실제 파일 정리는 유지보수 때 적용됩니다.'); })}>미연결 수신물 정리</button>}
+    {receipt.state !== 'linked' && <button onClick={() => { if (!window.confirm(`‘${receipt.filename}’ 수신 파일을 삭제할까요? 연결하지 않은 파일만 삭제할 수 있으며 되돌릴 수 없습니다.`)) return;
+      void run(async () => { await api(`/uploads/${receipt.upload_id}`, 'DELETE'); await changed('수신 파일을 삭제했습니다. 실제 파일 정리는 유지보수 때 적용됩니다.'); }); }}>수신 파일 삭제</button>}
     {error && <p role="alert" className="error">{error} 수신 완료 파일은 보관되어 있으므로 연결만 재시도하세요.</p>}
+    <details><summary>기술 정보</summary><p className="fine mono">수신 ID {receipt.upload_id} · {(receipt.expected_size / 1048576).toFixed(1)} MiB{receipt.sha256 && ` · SHA-256 ${receipt.sha256}`}{receipt.linked_revision !== null && ` · 연결 입력 버전 ${receipt.linked_revision}`}{receipt.session_id && ` · 회차 ${receipt.session_id}`}</p></details>
   </article>;
 }

@@ -40,10 +40,10 @@ export function Recording({ view, cases, selected, select, filters, writable, ru
           <td data-label="구간"><span className={state === 'confirmed' ? 'tag green' : 'tag'}>{({ none: '없음', draft: '초안', confirmed: '확정' })[state]}</span></td>
           <td data-label="작업"><button aria-label={`${c.participant_id} 촬영 열기`} onClick={() => { if (mayLeave()) select(c); }}>열기 ↗</button></td></tr>;
       })}</tbody></table>{!sorted.length && <div className="empty"><h2>표시할 참가자가 없습니다.</h2><p>검색·행사 필터 또는 접수 등록을 확인하세요.</p></div>}</div></>}
-    {selected && <PreservedMediaRegistration item={selected} writable={writable} run={run}
-      refresh={async message => { await reload(); if (message) notify(message); }} />}
     {selected && <RecordingPanelV4 key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run}
       refresh={async message => { await reload(); if (message) notify(message); }} close={() => { if (mayLeave()) select(null); }} />}
+    {selected && <PreservedMediaRegistration item={selected} writable={writable} run={run}
+      refresh={async message => { await reload(); if (message) notify(message); }} />}
 
   </>;
 }
