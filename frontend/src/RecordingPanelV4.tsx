@@ -84,7 +84,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
       if (record.events.some(event => !event.note.trim() || event.status === 'observed' && event.seconds === null)) throw new Error('사건마다 실제 맥락·사유와 관찰 시각을 기록하세요.');
       if (record.coverage.some(value => !value.note.trim() || value.start_seconds === null || value.end_seconds === null || value.observed_seconds === null)) throw new Error('관찰 근거의 범위·실제 관찰 초·설명을 모두 기록하세요.');
       await api(path, 'PUT', { expected_revision: edit.view.input_revision, recording: { ...record, confirmed } });
-      edit.reset(); setEditing(!confirmed); await refresh(confirmed ? 'S1 촬영 기록을 확정했습니다.' : 'S1 촬영 기록을 초안 저장했습니다.');
+      edit.reset(); setEditing(!confirmed); await refresh(confirmed ? '촬영 기록을 확정했습니다.' : '촬영 기록을 초안 저장했습니다.');
     });
   }
   function addEvent(kind: string) {

@@ -43,7 +43,7 @@ export function AiSettingsV4() {
   if (unavailable) return <section className="panel" aria-label="AI 설정"><p role="alert">{error || 'AI 설정 접근 권한을 확인하세요.'}</p></section>;
   if (!view || !config || !stage || !specification) return <section className="panel" aria-label="AI 설정"><p role="status">{error || 'AI 설정 조회 중…'}</p><button disabled={busy} onClick={() => void work(async () => {})}>AI 설정 새로고침</button></section>;
   return <section className="panel" aria-label="AI 설정" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-    <h2>S1 관찰 원자료 AI 설정</h2>
+    <h2>관찰 원자료 AI 설정</h2>
     <p>숫자 83개 · 관찰 메모 3개 · {Object.keys(view.groups).length}개 항목군 · 기본 예정 공급자 호출 {view.planned_provider_calls}회</p>
     <p>활성 설정: {latest?.active_version === 'inactive' ? '없음' : latest?.active_version} · 비용: {view.price_estimate ?? '미측정'}</p>
     <p>자동 4개는 앱이 계산합니다. 개21 복수 사건 집계는 규칙 확인 대기입니다. AI 애착 판단 1회를 기본 호출 계획에 포함합니다. 실제 적절성은 교수 테스트 대기입니다.</p>
@@ -69,12 +69,12 @@ export function AiSettingsV4() {
         <label>단계 시도 상한<input type="number" min={1} max={3} value={config.max_attempts} onChange={event => change({ max_attempts: Number(event.target.value) })} /></label>
         <label>스키마 수리 상한<input type="number" min={0} max={1} value={config.max_schema_repairs} onChange={event => change({ max_schema_repairs: Number(event.target.value) })} /></label></div>
       <label className="check"><input type="checkbox" checked={config.raw_observation_scope_confirmed} onChange={event => change({ raw_observation_scope_confirmed: event.target.checked })} />관찰 원자료 적용 범위를 확인했습니다. 애착 판단의 실제 적절성은 교수 테스트 대기입니다.</label>
-      <div className="toolbar"><button onClick={() => void work(async () => { validate(); const next = await api<{ version: string }>('/settings-s1', 'POST', { expected_active: view.active_version, config }); const difference = await api<AiDifferenceV4>(`/settings-s1/${next.version}/diff`); if (alive.current) { setSaved(difference); edit.reset(); setNotice('S1 초안을 저장했습니다. 차이와 범위를 확인한 뒤 활성화하세요.'); } })}>S1 설정 초안 저장</button>
+      <div className="toolbar"><button onClick={() => void work(async () => { validate(); const next = await api<{ version: string }>('/settings-s1', 'POST', { expected_active: view.active_version, config }); const difference = await api<AiDifferenceV4>(`/settings-s1/${next.version}/diff`); if (alive.current) { setSaved(difference); edit.reset(); setNotice('설정 초안을 저장했습니다. 차이와 범위를 확인한 뒤 활성화하세요.'); } })}>설정 초안 저장</button>
         {edit.dirty && <button onClick={() => { if (edit.discard()) { setDraft(null); setError(''); } }}>미저장 설정 버리고 최신 조회</button>}</div>
       <label>보존 AI 설정<select aria-label="보존 AI 설정" disabled={edit.dirty} value={saved?.version ?? ''} onChange={event => { const version = event.target.value; void work(async () => { const next = version ? await api<AiDifferenceV4>(`/settings-s1/${version}/diff`) : null; if (alive.current) setSaved(next); }); }}><option value="">저장한 설정 선택</option>{latest?.versions.map(value => <option key={value.version} value={value.version}>{new Date(value.created_at).toLocaleString()} · {value.actor} · {value.version.slice(0, 8)}</option>)}</select></label>
       {saved && <><details open><summary>활성 설정과의 차이</summary><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{saved.diff || '차이 없음'}</pre></details>
         <p>초안 {saved.version} · 관찰 원자료 범위 {saved.config.raw_observation_scope_confirmed ? '확인' : '미확인'} · 애착 판단 구현 · 교수 테스트 대기</p>
-        <div className="toolbar"><button disabled={edit.dirty || !saved.config.raw_observation_scope_confirmed} onClick={() => void work(async () => { await api(`/settings-s1/${saved.version}/activate`, 'POST', { expected_active: saved.active_version }); if (alive.current) { setSaved(null); edit.reset(); setNotice('S1 관찰 원자료 설정을 활성화했습니다. 기존 실행의 고정 설정은 보존됩니다.'); } })}>선택한 S1 설정 활성화</button>
+        <div className="toolbar"><button disabled={edit.dirty || !saved.config.raw_observation_scope_confirmed} onClick={() => void work(async () => { await api(`/settings-s1/${saved.version}/activate`, 'POST', { expected_active: saved.active_version }); if (alive.current) { setSaved(null); edit.reset(); setNotice('관찰 원자료 설정을 활성화했습니다. 기존 실행의 고정 설정은 보존됩니다.'); } })}>선택한 설정 활성화</button>
           <button disabled={edit.dirty} onClick={() => void work(async () => { const result = await api<AiTrialV4>(`/settings-s1/${saved.version}/validate-s1`, 'POST', { group: selectedGroup, mode: 'schema' }); if (alive.current) setNotice(`합성 스키마 검증 완료 · 외부 호출 ${result.usage.provider_calls}회 · 실제 판독은 미측정`); })}>합성 스키마 검증 · 외부 호출 없음</button></div>
       </>}
     </fieldset>

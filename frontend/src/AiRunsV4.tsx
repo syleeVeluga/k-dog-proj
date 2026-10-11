@@ -77,7 +77,7 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
       <label>실행 제어 사유<input value={reason} onChange={event => setReason(event.target.value)} maxLength={2000} placeholder="중지 또는 재시도 이유" /></label>
     </fieldset>}
     {!runs.length && <p>생성된 AI 실행이 없습니다.</p>}
-    {runs.map(run => <article className="panel" key={run.run_id} aria-label={`실행 ${run.run_id}`}>
+    {runs.map(run => <article className="panel" key={run.run_id} aria-label={`AI 실행 기록 ${run.run_id.slice(0, 8)}`}>
       <h3>{states[run.status] ?? run.status}{run.outdated ? ' · 이전 입력 기준' : ''}</h3>
       <p>입력 {run.input_revision}판 · {new Date(run.updated_at).toLocaleString()}</p>
       {run.judgement_status !== 'implemented_professor_test_pending' && <p>이전 애착 판단 정책으로 만든 실행입니다.</p>}

@@ -64,8 +64,8 @@ for (const width of [360, 390, 768, 1440]) {
   });
 }
 
-// 768–1023px 중간 폭에서 머리글 집계 문구(.count span)가 쪼개지지 않고 한 줄로 남는지 확인한다.
-for (const width of [800, 1000]) {
+// 681–1023px 중간 폭(681–767px 서랍 메뉴 구간 포함)에서 머리글 집계 문구(.count span)가 한 줄로 남고 가로 넘침이 없는지 확인한다.
+for (const width of [690, 800, 1000, 1023]) {
   test(`layout: heading count label stays readable at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/');
@@ -81,6 +81,7 @@ for (const width of [800, 1000]) {
       expect(lines, `${label} 집계 문구 줄 수`).toBe(1);
       const heading = await page.locator('main .page-heading').boundingBox();
       expect(heading!.x + heading!.width).toBeLessThanOrEqual(width);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${label} 가로 넘침`).toBe(true);
     }
     await page.locator('main .page-heading').screenshot({ path: testInfo.outputPath(`count-${width}.png`) });
   });

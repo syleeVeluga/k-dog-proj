@@ -32,7 +32,7 @@ test('S1 AI settings use explicit raw scope, immutable activation, schema-only v
   const deferred = Object.keys(initial.groups).find(key => !initial.groups[key].provider_call)!;
   await panel.getByLabel('설정할 항목군', { exact: true }).selectOption(group);
   await panel.getByLabel('공급자 요청 FPS', { exact: true }).fill('2');
-  await panel.getByRole('button', { name: 'S1 설정 초안 저장', exact: true }).click();
+  await panel.getByRole('button', { name: '설정 초안 저장', exact: true }).click();
   await expect(panel.getByRole('alert')).toContainText('AI용 클립은 최대 1 FPS');
   await panel.getByLabel('입력 클립', { exact: true }).selectOption('original');
   await panel.getByLabel('공급자 요청 FPS', { exact: true }).fill('8');
@@ -44,14 +44,14 @@ test('S1 AI settings use explicit raw scope, immutable activation, schema-only v
   await panel.getByLabel('항목군 프롬프트', { exact: true }).fill(prompt);
   await panel.getByLabel('관찰 원자료 적용 범위를 확인했습니다. 애착 판단의 실제 적절성은 교수 테스트 대기입니다.', { exact: true }).check();
   const saved = page.waitForResponse(value => value.url().endsWith('/api/settings-s1') && value.request().method() === 'POST');
-  await panel.getByRole('button', { name: 'S1 설정 초안 저장', exact: true }).click();
+  await panel.getByRole('button', { name: '설정 초안 저장', exact: true }).click();
   const save = await saved; expect(save.status(), await save.text()).toBe(201); const version = (await save.json()).version;
   await expect(panel.getByText('활성 설정과의 차이', { exact: true })).toBeVisible();
   const trial = page.waitForResponse(value => value.url().endsWith(`/settings-s1/${version}/validate-s1`));
   await panel.getByRole('button', { name: '합성 스키마 검증 · 외부 호출 없음', exact: true }).click();
   const trialResult = await (await trial).json(); expect(trialResult.usage).toEqual({ provider_calls: 0 }); expect(trialResult.mode).toBe('schema');
   await expect(panel.getByRole('status')).toContainText('외부 호출 0회');
-  await panel.getByRole('button', { name: '선택한 S1 설정 활성화', exact: true }).click();
+  await panel.getByRole('button', { name: '선택한 설정 활성화', exact: true }).click();
   await expect(panel.getByText(`활성 설정: ${version} · 비용: 미측정`, { exact: true })).toBeVisible();
   await request.post('/api/auth/login', { headers, data: { username: 'operator', password } });
   expect((await (await request.get('/api/scoring-ai-s1/readiness')).json()).enabled).toBe(true);
@@ -65,7 +65,7 @@ test('S1 AI settings use explicit raw scope, immutable activation, schema-only v
   expect((await page.request.post(`/api/settings-s1/${next.version}/activate`, { headers, data: { expected_active: latest.active_version } })).status()).toBe(200);
   await panel.getByRole('button', { name: 'AI 설정 새로고침', exact: true }).click();
   await expect(panel.getByText(/다른 활성 설정이 저장되었습니다/)).toBeVisible();
-  await panel.getByRole('button', { name: 'S1 설정 초안 저장', exact: true }).click();
+  await panel.getByRole('button', { name: '설정 초안 저장', exact: true }).click();
   await expect(panel.getByRole('alert')).toContainText('활성 설정이 바뀌었습니다');
   await expect(panel.getByLabel('항목군 프롬프트', { exact: true })).toHaveValue(prompt + '\n미저장 원문');
   page.once('dialog', dialog => dialog.accept());
