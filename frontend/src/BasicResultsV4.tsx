@@ -41,7 +41,7 @@ export function BasicResultsV4({ sheetId, input, blocked }: { sheetId: string; i
       await reload(); setSelected(result.summary.result_id);
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   }
-  return <section className="panel basic-s1" aria-label="S1 기본 결과">
+  return <section className="panel basic-s1" aria-label="기본 결과 계산">
     <h3>계산과 기본 판정</h3><p>제출 원자료 {input.revision}판을 고정해 계산합니다. 수동 선택을 완료해도 자동 계산과 원자료는 보존됩니다.</p>
     <fieldset disabled={blocked || busy}><div className="form-grid"><label>입장·퇴장 같은 물건 확인<select value={sameObject} onChange={e => setSameObject(e.target.value)}><option value="">미확인</option><option value="yes">같은 물건</option><option value="no">다른 물건</option></select></label>
       <label>같은 물건 확인 근거<input value={basis} onChange={e => setBasis(e.target.value)} maxLength={2000} /></label></div>

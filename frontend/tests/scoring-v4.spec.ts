@@ -53,7 +53,7 @@ test('S1 scoring preserves explicit zero, null states, source evidence, independ
   await expect(page.getByText(/AI 초안: /)).toBeVisible();
   await expect(page.getByText('평가자 배정', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '내 시트 열기', exact: true }).click();
-  const editor = page.getByLabel('내 S1 채점 시트', { exact: true });
+  const editor = page.getByLabel('내 채점 시트', { exact: true });
   await expect(editor.getByText('직접 입력 86행 중 0행 기록', { exact: false })).toBeVisible();
   await expect(editor.getByLabel('개26 자동 계산', { exact: true }).getByRole('textbox')).toHaveCount(0);
   await expect(editor.getByLabel('8구간 필터', { exact: true }).locator('option')).toHaveCount(9);

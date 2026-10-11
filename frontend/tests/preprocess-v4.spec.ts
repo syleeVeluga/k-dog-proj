@@ -47,7 +47,7 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   item = await save.json();
   await openMenu(page, '전처리');
   await page.getByRole('button', { name: 's1preprocess 전처리 열기' }).click();
-  const panel = page.getByRole('region', { name: 'S1 다중 카메라 전처리', exact: true });
+  const panel = page.getByRole('region', { name: '다중 카메라 전처리', exact: true });
   const fresh = panel.getByRole('button', { name: '새 클립으로 전처리', exact: true });
   const reuse = panel.getByRole('button', { name: '검증된 결과 재사용', exact: true });
   await expect(fresh).toBeEnabled();
@@ -135,7 +135,7 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   await page.setViewportSize({ width: 1440, height: 900 });
   await openMenu(page, '촬영 기록 (8구간)');
   // 선택한 참가자가 유지되므로 촬영 기록 패널이 바로 열린다.
-  await expect(page.getByRole('region', { name: 'S1 촬영 기록', exact: true })
+  await expect(page.getByRole('region', { name: '촬영 기록', exact: true })
     .getByText(`1차 촬영 · 연결된 영상 3개 · 사용 가능 ${made} · 영상 읽기 확인 대기 ${3 - made}`, { exact: false })).toBeVisible();
   expect(made).toBeGreaterThan(0);
   expect(errors).toEqual([]);
@@ -153,7 +153,7 @@ test('S1 state refresh shows running, interrupted, failed and unavailable withou
   });
   await openMenu(page, '전처리');
   await page.getByRole('button', { name: 's1state 전처리 열기' }).click();
-  const panel = page.getByRole('region', { name: 'S1 다중 카메라 전처리', exact: true });
+  const panel = page.getByRole('region', { name: '다중 카메라 전처리', exact: true });
   const start = panel.getByRole('button', { name: '새 클립으로 전처리', exact: true });
   await expect(panel.getByRole('status')).toContainText('진행 중');
   await expect(start).toBeDisabled();

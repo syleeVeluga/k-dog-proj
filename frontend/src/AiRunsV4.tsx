@@ -30,7 +30,7 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
         if (list.some(run => active.has(run.status))) timer.current = setTimeout(() => { void reload(); }, 2000);
       }
     } catch (value) {
-      if (alive.current && current === sequence.current) { setReady(null); setPreprocess(null); if (accessLost(value)) setRuns([]); setError(value instanceof Error ? value.message : 'S1 실행 상태 조회에 실패했습니다.'); }
+      if (alive.current && current === sequence.current) { setReady(null); setPreprocess(null); if (accessLost(value)) setRuns([]); setError(value instanceof Error ? value.message : 'AI 실행 상태 조회에 실패했습니다.'); }
     } finally { if (alive.current && current === sequence.current) setLoading(false); }
   }
   useEffect(() => {
@@ -41,7 +41,7 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
     if (working.current) return;
     working.current = true; setBusy(true); setError('');
     try { await operation(); if (alive.current) await reload(true); }
-    catch (value) { if (alive.current) { setError(value instanceof Error ? value.message : 'S1 실행 요청에 실패했습니다.'); if (accessLost(value)) { setRuns([]); setReady(null); setPreprocess(null); } } }
+    catch (value) { if (alive.current) { setError(value instanceof Error ? value.message : 'AI 실행 요청에 실패했습니다.'); if (accessLost(value)) { setRuns([]); setReady(null); setPreprocess(null); } } }
     finally { working.current = false; if (alive.current) setBusy(false); }
   }
   const allowed = ready?.enabled && preprocess?.result_pointer && ['complete', 'partial'].includes(preprocess.status) && !preprocess.outdated
@@ -58,7 +58,7 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
   // 교수/검토자에게는 AI 초안 상태 한 줄만 보인다. 설정·호출 수·비용 같은 운영 정보는 운영자·관리자에게만 「기술 정보」로 보인다.
   const draft = !loaded && !error ? '확인 중' : runs.some(run => run.result_available && !run.outdated) ? '완료' : runs.some(run => active.has(run.status)) ? '실행 중' : '준비 안 됨';
   if (!manager) return <section className="panel" aria-label="AI 초안 상태"><p role="status">AI 초안: {draft}</p></section>;
-  return <section className="panel" aria-label="S1 AI 실행" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+  return <section className="panel" aria-label="AI 실행" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <h2>AI 관찰 원자료 실행</h2><p role="status">AI 초안: {draft}</p>
     <p>숫자 83개·관찰 메모 3개의 원자료를 요청하고 자동 4개는 앱이 계산합니다. 관찰·계산 뒤 근거 기반 AI 애착 판단을 별도로 수행합니다.</p>
     <details><summary>기술 정보</summary><p>입력 {item.input_revision}판 · 활성 설정 {ready?.active_version === 'inactive' ? '없음' : ready?.active_version ?? '확인 중'} · 기본 예정 공급자 호출 {ready?.planned_provider_calls ?? '—'}회</p>
@@ -77,7 +77,7 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
       <label>실행 제어 사유<input value={reason} onChange={event => setReason(event.target.value)} maxLength={2000} placeholder="중지 또는 재시도 이유" /></label>
     </fieldset>}
     {!runs.length && <p>생성된 AI 실행이 없습니다.</p>}
-    {runs.map(run => <article className="panel" key={run.run_id} aria-label={`S1 실행 ${run.run_id}`}>
+    {runs.map(run => <article className="panel" key={run.run_id} aria-label={`AI 실행 기록 ${run.run_id.slice(0, 8)}`}>
       <h3>{states[run.status] ?? run.status}{run.outdated ? ' · 이전 입력 기준' : ''}</h3>
       <p>입력 {run.input_revision}판 · {new Date(run.updated_at).toLocaleString()}</p>
       {run.judgement_status !== 'implemented_professor_test_pending' && <p>이전 애착 판단 정책으로 만든 실행입니다.</p>}
@@ -98,7 +98,7 @@ export function AiRunsV4({ item, manager }: { item: Case; manager: boolean }) {
 }
 
 export function AiRevealedResultsV4({ results }: { results: AiBasicResultV4[] }) {
-  return <section className="panel" aria-label="공개한 S1 AI 기본 결과" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+  return <section className="panel" aria-label="공개한 AI 기본 결과" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <h3>명시 공개한 AI 기본 결과 · 읽기 전용</h3><p>AI 열람 이력이 기록된 결과입니다. 독립 사람 원자료와 자동 계산은 보존되며, 유형과 근거·반대 근거·보류 사유를 확인하세요.</p>
     {!results.length && <p>공개한 원자료와 일치하는 기본 결과가 없습니다.</p>}
     {results.map(result => <article key={result.result_id}>

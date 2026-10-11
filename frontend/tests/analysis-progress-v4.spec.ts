@@ -110,10 +110,10 @@ test('연구 내보내기는 리포트 하위 메뉴로 옮겨지고 독립 채�
   await openMenu(page, '연구 내보내기');
   await expect(page).toHaveURL(/#\/report\/export$/);
   await expect(page.getByRole('heading', { name: '연구 내보내기', exact: true, level: 1 })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'S1 연구 내보내기', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: '연구 내보내기', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '← 참가자 목록', exact: true }).click();
   await page.getByRole('button', { name: 'X1 연구 내보내기 열기', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'S1 연구 내보내기', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: '연구 내보내기', exact: true })).toBeVisible();
 });
 
 test('목록·맥락 바의 영상 수는 사용 가능과 확인 대기로 나눠 쓴다', async ({ page, request }) => {

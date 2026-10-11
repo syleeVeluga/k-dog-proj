@@ -84,7 +84,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
       if (record.events.some(event => !event.note.trim() || event.status === 'observed' && event.seconds === null)) throw new Error('사건마다 실제 맥락·사유와 관찰 시각을 기록하세요.');
       if (record.coverage.some(value => !value.note.trim() || value.start_seconds === null || value.end_seconds === null || value.observed_seconds === null)) throw new Error('관찰 근거의 범위·실제 관찰 초·설명을 모두 기록하세요.');
       await api(path, 'PUT', { expected_revision: edit.view.input_revision, recording: { ...record, confirmed } });
-      edit.reset(); setEditing(!confirmed); await refresh(confirmed ? 'S1 촬영 기록을 확정했습니다.' : 'S1 촬영 기록을 초안 저장했습니다.');
+      edit.reset(); setEditing(!confirmed); await refresh(confirmed ? '촬영 기록을 확정했습니다.' : '촬영 기록을 초안 저장했습니다.');
     });
   }
   function addEvent(kind: string) {
@@ -103,7 +103,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
   function tailChange(code: string, patch: Partial<TailV4>) {
     change({ ...record, tail_selections: record.tail_selections.map(value => value.code === code ? { ...value, ...patch } : value) });
   }
-  return <section className="panel" aria-label="S1 촬영 기록">
+  return <section className="panel" aria-label="촬영 기록">
     <div className="section-title"><h2>{item.dog_name} · {item.participant_id}</h2><button onClick={close}>닫기</button></div>
     <p role="status" className="video-summary"><strong>{sessionIndex}차 촬영 · 연결된 영상 {session.videos.length}개</strong>
       {session.videos.length ? ` · 사용 가능 ${usable} · 영상 읽기 확인 대기 ${videos.length - usable}${keptOnly ? ` · 원본 보관 전용 ${keptOnly}` : ''}${stale ? ' · 입력이 바뀌어 전처리를 다시 해야 합니다' : ''}` : writable ? ' · 「영상 수신·연결」 메뉴에서 영상을 연결하세요.' : ' · 연결된 영상이 없습니다.'}</p>

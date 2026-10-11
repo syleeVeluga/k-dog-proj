@@ -38,7 +38,7 @@ test.beforeEach(({ page }) => { page.setDefaultTimeout(15000); });
 
 test('S1 report uses explicit final pins, recovers a lost create response and stops/retries without duplicate creation', async ({ page, request }) => {
   test.setTimeout(120000); const data = await fixture(request, 's1report-run'); await login(page); await open(page, 's1report-run');
-  const panel = page.getByRole('region', { name: 'S1 리포트 실행', exact: true });
+  const panel = page.getByRole('region', { name: '리포트 실행', exact: true });
   await expect(panel.getByText('생성된 리포트 실행이 없습니다.', { exact: true })).toBeVisible();
   expect(await (await page.request.get(data.base + '/report-runs-s1')).json()).toEqual([]);
   await panel.getByLabel('리포트에 고정할 최종본', { exact: true }).selectOption(data.final.reference.final_id);
@@ -68,7 +68,7 @@ test('S1 report publication UI opens guarded cards and offline HTML, marks histo
   const previewDir = testInfo.outputPath('rendered');
   execFileSync('uv', ['run', '--locked', 'python', '-X', 'utf8', '-m', 'tests.build_report_preview_v4', '--output', previewDir], { cwd: path.resolve('../backend') });
   const html = readFileSync(path.join(previewDir, 'filled.html'), 'utf8');
-  const runId = 'a1'.repeat(16), oldId = 'synthetic-previous-run';
+  const runId = 'a1'.repeat(16), oldId = 'b2'.repeat(16);
   const row = { run_id: runId, case_id: data.item.case_id, session_id: data.item.selected_session_id, kind: 'report_v4', input_revision: data.item.input_revision, status: 'succeeded', updated_at: '2026-10-04T01:00:00Z', outdated: false, result_available: true, is_latest_issued: true, publication_state: 'issued', normal_publish_available: true, pending_reasons: ['G02'], final: data.final.reference, steps: [{ stage: 'content_v4', attempt: 1, status: 'succeeded', code: null, timing: { total_seconds: 0.25 }, reused: true, provider_calls: 0 }] };
   const manifest = { artifact_kind: 'report-publication', report_id: 'synthetic-publication', run_id: runId, case_id: data.item.case_id, session_id: data.item.selected_session_id, input_revision: data.item.input_revision, input_hash: '1'.repeat(64), config_hash: '2'.repeat(64), final: data.final.reference, created_at: row.updated_at, publication_state: 'issued', normal_publish_available: true, pending_reasons: ['G02'], header: { dog_name: '합성 발급견', guardian_name: '합성 보호자', event_name: 'S1', participant_id: 'print', generated_at: row.updated_at }, profile: { status: 'partial', source_hash: '3'.repeat(64), cards: ['보호자 교육태도', '반려견과 보호자의 애착관계', '사회성', '함께걷기'].map((title, index) => ({ key: String(index), title, status: 'insufficient', label: null, claims: [{ claim_id: String(index), text: '확인된 관찰이 부족합니다.', fact_ids: [] }] })), validation_issues: [] }, output: { html: { ref: 'synthetic.html', hash: '4'.repeat(64) }, pdf: { ref: 'synthetic.pdf', hash: '5'.repeat(64) }, image_issues: {} } };
   row.pending_reasons = [];
@@ -87,10 +87,10 @@ test('S1 report publication UI opens guarded cards and offline HTML, marks histo
     return route.fulfill({ contentType: 'application/pdf', body: '%PDF-1.4\nSynthetic UI download fixture', headers: { 'Content-Disposition': 'attachment; filename="synthetic-report.pdf"' } });
   });
   await login(page); await open(page, 's1report-issued');
-  const panel = page.getByRole('region', { name: 'S1 리포트 실행', exact: true });
+  const panel = page.getByRole('region', { name: '리포트 실행', exact: true });
   await expect(panel.getByRole('region', { name: '권한 확인된 리포트 발급본', exact: true })).toHaveCount(0);
   await expect(panel.getByRole('heading', { name: '발급 완료 · 이전 발급본 · 이전 입력·기준', exact: true })).toBeVisible();
-  const current = panel.getByRole('article', { name: '리포트 실행 ' + runId, exact: true });
+  const current = panel.getByRole('article', { name: '리포트 실행 기록 ' + runId.slice(0, 8), exact: true });
   await current.getByText('기술 정보 · 단계·시도·시간·재사용', { exact: true }).click();
   await expect(current).toContainText('공급자 호출 예약 1회');
   await expect(current).toContainText('비용 미확인');
@@ -128,7 +128,7 @@ test('S1 report final disclosure is explicit and a professor (reviewer) issues t
   expect((await request.post(sheetPath + '/grants', { headers, data: { expected_revision: submitted.revision, target_sheet_id: data.sheet.sheet_id, target_revision: data.sheet.revision, reason: '원자료 공개 허용' } })).status()).toBe(200);
   const before = await (await page.request.get(sheetPath)).json();
   expect((await page.request.post(sheetPath + '/reveal-ai-s1', { headers, data: { expected_revision: before.summary.revision, ref: data.sheet.manifest_ref } })).status()).toBe(200);
-  await open(page, 's1report-disclosure'); const panel = page.getByRole('region', { name: 'S1 리포트 실행', exact: true });
+  await open(page, 's1report-disclosure'); const panel = page.getByRole('region', { name: '리포트 실행', exact: true });
   await panel.getByLabel('리포트에 고정할 최종본', { exact: true }).selectOption(data.final.reference.final_id);
   await expect(panel.getByRole('button', { name: '선택한 최종본으로 리포트 생성', exact: true })).toBeDisabled();
   await panel.getByLabel('리포트 공개 맥락의 본인 제출 시트', { exact: true }).selectOption(admin.sheet_id);

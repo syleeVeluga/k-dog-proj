@@ -77,7 +77,7 @@ export function UploadInbox({ cases, selected, user, run, refresh }: { cases: Ca
     finally { setBusy(false); }
   }
 
-  return <section className="panel" aria-label="S1 영상 수신 보관함"><div className="section-title"><h2>영상 수신 보관함</h2><button onClick={() => void run(load)}>보관함 새로고침</button></div>
+  return <section className="panel" aria-label="영상 수신 보관함"><div className="section-title"><h2>영상 수신 보관함</h2><button onClick={() => void run(load)}>보관함 새로고침</button></div>
     <p className="fine">파일을 먼저 수신하고 참가자·회차·카메라에 연결합니다. 수신 완료 파일은 연결 충돌 후에도 남으며 연결만 다시 시도합니다. 운영자·관리자가 현장 보관함을 공유하고 작성자·관리자가 미연결 수신물을 정리합니다.</p>
     <fieldset disabled={busy}><legend>{selected ? `${selected.participant_id} · 현재 회차에 수신` : '참가자 미등록 영상도 먼저 수신'}</legend>
       <div className="form-grid"><label>수신 파일<input aria-label="수신 파일" type="file" multiple accept=".mp4,.mov,.m4v,.avi,.mkv,.webm,.insv" onChange={e => {

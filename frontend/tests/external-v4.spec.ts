@@ -64,7 +64,7 @@ test('S17 합성 확인만으로 범위를 검증하며 명시 외부 비교의 
     const blockedSources = await (await operator.request.get('/api/comparisons-s1/sources')).json();
     expect(JSON.stringify(blockedSources)).not.toContain('reference_values');
     expect(JSON.stringify(blockedSources)).not.toContain('0.66');
-    await expect(operator.getByRole('region', { name: 'S1 자체 집단 비교', exact: true })).not.toContainText('0.66');
+    await expect(operator.getByRole('region', { name: '자체 집단 비교', exact: true })).not.toContainText('0.66');
 
     async function fillResearch(status: 'pending' | 'confirmed') {
       const evidenceResponse = page.waitForResponse(value => value.url().includes('/comparisons-s1/evidence?'));
@@ -114,7 +114,7 @@ test('S17 합성 확인만으로 범위를 검증하며 명시 외부 비교의 
 
     await openMenu(operator, '리포트 발급');
     await operator.getByRole('button', { name: 'external-only-synthetic 리포트 열기', exact: true }).click();
-    const report = operator.getByRole('region', { name: 'S1 리포트 실행', exact: true });
+    const report = operator.getByRole('region', { name: '리포트 실행', exact: true });
     await report.getByLabel('리포트에 고정할 최종본', { exact: true }).selectOption(data.final.reference.final_id);
     const picker = report.getByRole('group', { name: '이 출력의 외부 비교', exact: true });
     await expect(picker.getByRole('combobox', { name: '이 출력의 외부 비교', exact: true })).toHaveValue('');
@@ -198,7 +198,7 @@ with store.connect() as db:
     expect(exportHistory.status(), await exportHistory.text()).toBe(200);
     expect((await exportHistory.json()).find((value: { export_id: string }) => value.export_id === priorExport.export_id)).toMatchObject({ status: 'blocked', reason: expect.any(String) });
     await openMenu(operator, '연구 내보내기');
-    const exporter = operator.getByRole('region', { name: 'S1 연구 내보내기', exact: true });
+    const exporter = operator.getByRole('region', { name: '연구 내보내기', exact: true });
     await expect(exporter.getByRole('region', { name: '내가 생성한 연구 파일', exact: true }).getByText(new RegExp(`연구 파일 ${priorExport.export_id.slice(0, 8)} · 제공 차단:`))).toBeVisible();
     await expect(exporter.getByRole('button', { name: `연구 파일 다운로드 ${priorExport.export_id.slice(0, 8)}`, exact: true })).toHaveCount(0);
     await exporter.getByLabel('기준 본인 시트', { exact: true }).selectOption(data.sheet.sheet_id);
