@@ -14,7 +14,6 @@ from .input_models import Model
 from .storage import encode, now, uid
 
 ACTION = "comparison.external.snapshot"
-DELETED = "comparison.external.deleted"
 IMPACT = "comparison.external.impact"
 
 
@@ -81,8 +80,6 @@ def _population(case, requirements):
 def _entries(store, target, source_ids, user, db):
     comparisons._account(db, user, reader=True)
     member, case = comparisons._member(store, db, target, current=False)
-    if not case["consent_confirmed"]:
-        raise HTTPException(403, "외부 비교 대상의 동의 확인이 필요합니다.")
     entries = []
     for source_id in source_ids:
         source, _ = comparisons._source(source_id)
@@ -113,8 +110,6 @@ def document(store, pointer):
         record = comparisons._record(db, ACTION, pointer.snapshot_id)
         if record is None or record["reference"] != pointer.model_dump(mode="json"):
             raise HTTPException(409, "채택되지 않은 외부 비교 snapshot입니다.")
-        if comparisons._record(db, DELETED, pointer.snapshot_id):
-            raise HTTPException(403, "삭제된 대상의 외부 비교입니다.")
     return doc
 
 
@@ -181,7 +176,7 @@ def view(store, snapshot_id, user):
     with store.connect() as db:
         comparisons._account(db, user, reader=True)
         record = comparisons._record(db, ACTION, snapshot_id)
-        if record is None or comparisons._record(db, DELETED, snapshot_id):
+        if record is None:
             raise HTTPException(404, "외부 비교 snapshot이 없습니다.")
         store.case(db, record["case_id"])
         history = [json.loads(row[0]) for row in db.execute("SELECT detail_json FROM changes WHERE action=? AND target=? ORDER BY rowid", (IMPACT, snapshot_id))]
@@ -225,12 +220,3 @@ def record_impacts(store, db, source_id, actor, reason):
             store.audit(db, actor, row["target"], IMPACT, {"source_id": source_id, "reason": reason, "recorded_at": now(),
                 "research": comparisons._record(db, comparisons.RESEARCH_ACTION, source_id),
                 "activation": comparisons._record(db, comparisons.ACTIVATION_ACTION, source_id)})
-
-
-def purge_case(db, case_id):
-    removed = set()
-    for row in db.execute("SELECT target,detail_json FROM changes WHERE action=?", (ACTION,)).fetchall():
-        if json.loads(row["detail_json"])["case_id"] == case_id:
-            removed.add(row["target"])
-            db.execute("DELETE FROM changes WHERE target=? AND action IN (?,?)", (row["target"], ACTION, IMPACT))
-    return removed

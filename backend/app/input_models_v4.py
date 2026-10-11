@@ -102,7 +102,6 @@ class ManifestV4(Model):
 
 class CaseViewV4(CaseView):
     manifest: ManifestV4
-    consents: ConsentsV3
     scoring_status: Literal["reanalysis_required"] = "reanalysis_required"
     # 목록 응답(GET /api/cases)에서만 채우는 읽기 전용 단계 요약이다. 저장 형식은 아니다.
     progress: ProgressV4 | None = None

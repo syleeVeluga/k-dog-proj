@@ -49,8 +49,9 @@ class AppCase(unittest.TestCase):
         return self.client.get(f"/api/cases/{item['case_id']}").json()
 
     def delete_case(self, item):
-        response = self.client.post(f"/api/cases/{item['case_id']}/deletion", json={"expected_revision": item["input_revision"]})
-        self.assertEqual(response.status_code, 200, response.text)
+        # Synthetic legacy metadata, not a product deletion endpoint.
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (item["case_id"],))
 
     def upload(self, item, data=b"synthetic-video-one", name="source.mp4"):
         return self.client.post(f"/api/cases/{item['case_id']}/videos", content=data, params={

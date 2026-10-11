@@ -99,8 +99,7 @@ class FinalResultV4Tests(unittest.TestCase):
         value = assemble(self)
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (self.case_id,))
-        with self.assertRaises(HTTPException):
-            finals.view(self.store, self.case_id, self.session_id, value["reference"]["final_id"], self.user)
+        self.assertEqual(finals.view(self.store, self.case_id, self.session_id, value["reference"]["final_id"], self.user)["document"], value["document"])
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=0 WHERE case_id=?", (self.case_id,))
         self.store.path(self.basic_ref["ref"]).write_text("{}")
@@ -134,9 +133,9 @@ class FinalResultV4Tests(unittest.TestCase):
         self.assertEqual(shown["document"]["basic_document"], final["document"]["basic_document"])
         with restored.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (self.case_id,))
-        maintenance.clean(restored, purge_deleted=True)
+        maintenance.clean(restored)
         for ref in (opinion["reference"]["ref"], final["reference"]["ref"]):
-            self.assertFalse(restored.path(ref).exists())
+            self.assertTrue(restored.path(ref).exists())
 
     def test_source_mutation_after_validation_cannot_publish_final(self):
         write = finals.write_document

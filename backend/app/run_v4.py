@@ -73,8 +73,8 @@ def check_access(store, db, row):
     account = db.execute("SELECT active,role FROM users WHERE username=?", (snapshot.requested_by,)).fetchone()
     if not account or not account["active"]:
         raise HTTPException(403, "S1 실행 요청자의 권한이 변경되었습니다.")
-    if not isinstance(manifest, ManifestV4) or manifest.consents.analysis_feedback != "confirmed":
-        raise HTTPException(403, "분석·피드백 동의가 확인된 S1 입력만 실행할 수 있습니다.")
+    if not isinstance(manifest, ManifestV4):
+        raise HTTPException(409, "S1 입력만 실행할 수 있습니다.")
     session = selected_session(manifest, snapshot.session_id)
     if (case["manifest_ref"], case["manifest_hash"], session) != (snapshot.input.manifest_ref, snapshot.input.manifest_hash, snapshot.session):
         raise HTTPException(409, "S1 실행 중 선택 회차·입력·동기화가 변경되었습니다.")
@@ -115,11 +115,11 @@ def validate_reuse(store, db, snapshot, config, entries):
     return identities
 
 
-def _consented(store, db, case_id, session_id, expected=None):
+def _selected_input(store, db, case_id, session_id, expected=None):
     case = store.case(db, case_id, expected=expected)
     manifest = store.manifest(case)
-    if not isinstance(manifest, ManifestV4) or manifest.consents.analysis_feedback != "confirmed":
-        raise HTTPException(403, "분석·피드백 동의가 확인된 S1 입력이 필요합니다.")
+    if not isinstance(manifest, ManifestV4):
+        raise HTTPException(409, "S1 입력이 필요합니다.")
     return case, selected_session(manifest, session_id)
 
 
@@ -134,7 +134,7 @@ def enqueue(store, case_id, session_id, value, user, config, *, reuse=(), enable
                            "reuse": [entry.model_dump(mode="json") for entry in reuse], "actor": user.username})
     with store.connect() as db:
         manager(user, db)
-        case, session = _consented(store, db, case_id, session_id)
+        case, session = _selected_input(store, db, case_id, session_id)
         previous = db.execute("SELECT * FROM runs WHERE case_id=? AND session_id=? AND kind='s1' AND request_id=?", (case_id, session_id, value.request_id)).fetchone()
         if previous:
             if previous["request_hash"] != request_hash:
@@ -154,7 +154,7 @@ def enqueue(store, case_id, session_id, value, user, config, *, reuse=(), enable
         reuse_stamps = validate_reuse(store, db, snapshot, config, reuse)
     with store.connect(write=True) as db:
         manager(user, db)
-        current, current_session = _consented(store, db, case_id, session_id, value.expected_revision)
+        current, current_session = _selected_input(store, db, case_id, session_id, value.expected_revision)
         if (current["manifest_ref"], current["manifest_hash"], current_session) != (case["manifest_ref"], case["manifest_hash"], session):
             raise HTTPException(409, "실행 접수 중 S1 입력이 바뀌었습니다.")
         if config.active_settings_version is not None:

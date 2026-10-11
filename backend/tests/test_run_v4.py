@@ -262,8 +262,10 @@ class RunV4Tests(unittest.TestCase):
             self.store.save(db, case, manifest, "operator", "synthetic.withdraw")
         with self.assertRaises(HTTPException):
             self.action(run["run_id"], retry=True)
-        with self.assertRaises(HTTPException):
+        self.request.expected_revision = self.current()["input_revision"]
+        with self.assertRaises(HTTPException) as stale:
             self.enqueue(value=self.request.model_copy(update={"request_id": uid()}))
+        self.assertEqual(stale.exception.status_code, 409)
 
     def test_file_changed_after_validation_cannot_be_adopted(self):
         run = self.enqueue()

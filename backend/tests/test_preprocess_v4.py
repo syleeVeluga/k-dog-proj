@@ -216,6 +216,8 @@ class PreprocessV4Tests(unittest.TestCase):
                 video = self.upload("one" + change, data=self.samples["one"])
                 self.recording(video.video_id)
                 real = preprocess._ai_clip
+                with self.store.connect() as db:
+                    before_count = db.execute("SELECT COUNT(*) FROM changes WHERE action='preprocess_v4.completed'").fetchone()[0]
 
                 def interrupted(*args):
                     real(*args)
@@ -227,10 +229,12 @@ class PreprocessV4Tests(unittest.TestCase):
                             self.store.save(db, row, self.store.manifest(row), "op", "synthetic.edit")
 
                 with patch.object(preprocess, "_ai_clip", side_effect=interrupted):
-                    with self.assertRaises(HTTPException):
-                        self.run_batch("interrupted-" + change)
+                    if change == "revised":
+                        with self.assertRaises(HTTPException): self.run_batch("interrupted-" + change)
+                    else:
+                        self.assertTrue(self.run_batch("interrupted-" + change).clips)
                 with self.store.connect(write=True) as db:
-                    self.assertFalse(db.execute("SELECT 1 FROM changes WHERE action='preprocess_v4.completed'").fetchone())
+                    self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='preprocess_v4.completed'").fetchone()[0], before_count + int(change == "deleted"))
                     db.execute("UPDATE cases SET deletion_requested=0 WHERE case_id=?", (self.case_id,))
 
     def test_claim_loss_and_disabled_actor_reject_publication_and_retry(self):
@@ -328,10 +332,8 @@ class PreprocessV4Tests(unittest.TestCase):
             preprocess.verified_batch(self.store, self.case_id, self.session_id, state.result_pointer, "review", expected_input=batch.input)
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (self.case_id,))
-        with self.assertRaises(HTTPException) as removed:
-            preprocess.verified_batch(self.store, self.case_id, self.session_id, state.result_pointer, "review",
-                expected_input=batch.input, expected_revision=batch.input_revision)
-        self.assertEqual(removed.exception.status_code, 403)
+        self.assertEqual(preprocess.verified_batch(self.store, self.case_id, self.session_id, state.result_pointer, "review",
+            expected_input=batch.input, expected_revision=batch.input_revision).batch_id, batch.batch_id)
 
     def test_backup_restore_explicit_reuse_and_deletion_ledger_cover_typed_artifacts_only(self):
         parent = self.upload("raw", "CAM2", filename="raw.insv")
@@ -361,12 +363,11 @@ class PreprocessV4Tests(unittest.TestCase):
         self.assertEqual(after_restore.clips, batch.clips)
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (self.case_id,))
-        clean(self.store, purge_deleted=True)
+        clean(self.store)
         erased_path = self.store.root.parent / "restored-after-deletion"
         restore(self.store, destination, erased_path)
         erased = Store(erased_path)
+        self.assertEqual(preprocess.verified_batch(erased, self.case_id, self.session_id, pointer, "review").batch_id, reused.batch_id)
         with erased.connect() as db:
-            self.assertFalse(db.execute("SELECT 1 FROM cases").fetchone())
-            self.assertFalse(db.execute("SELECT 1 FROM upload_receipts").fetchone())
-        for directory in ("inputs", "videos", "clips"):
-            self.assertFalse([path for path in erased.path(directory).rglob("*") if path.is_file()])
+            self.assertTrue(erased.case(db, self.case_id))
+            references(erased, db)

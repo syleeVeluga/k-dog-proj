@@ -215,12 +215,12 @@ class BenchmarkPinnedSourceTests(unittest.TestCase):
 
     def test_consent_withdrawal_and_wrong_role_are_rechecked(self):
         with self.store.connect(write=True) as db:db.execute("UPDATE users SET role='reviewer' WHERE username=?",(self.user.username,))
-        with self.assertRaises(ValueError):bench.inspect_trial(self.store,self.trial,self.user,{})
+        bench.inspect_trial(self.store,self.trial,self.user,{})
         with self.store.connect(write=True) as db:
             db.execute("UPDATE users SET role='operator' WHERE username=?",(self.user.username,))
             case=self.store.case(db,self.fixture.case_id);doc=self.store.manifest(case);doc.consents.analysis_feedback="declined"
             self.store.save(db,case,doc,self.user.username,"synthetic.decline")
-        with self.assertRaises(ValueError):bench.inspect_trial(self.store,self.trial,self.user,{})
+        bench.inspect_trial(self.store,self.trial,self.user,{})
 
     def test_parallel_provider_claim_is_not_inferred_from_multi_pc_upload(self):
         bad=self.trial.model_copy(update={"provider_execution":"parallel","pc_upload_mode":"three_pc_concurrent"})
@@ -276,6 +276,9 @@ class BenchmarkQualityTests(unittest.TestCase):
 
     def test_human_after_ai_disclosure_is_excluded_and_reason_preserved(self):
         human=self.exposed["viewer"]
+        helper=self.fixture.fixture.helper
+        human=helper.save(human, helper.view(human,"operator")["document"]["sheet"]["observations"],"operator")
+        human=helper.submit(human,"operator")
         selection=export_fixtures.model(bench.exports_v4.ExportSelectionV4,case_id=self.fixture.case_id,session_id=self.fixture.session_id,
             sheet={"sheet_id":human["sheet_id"],"revision":human["revision"],"ref":human["manifest_ref"],"hash":human["manifest_hash"]})
         shown=self.fixture.create(self.request.model_copy(update={"request_id":"review-quality","members":[selection,self.request.members[1]]}))

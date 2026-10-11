@@ -231,8 +231,8 @@ class NarrativeRunTests(unittest.TestCase):
         self.assertTrue(restored.path(before.content.ref).exists())
         with restored.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (self.helper.case_id,))
-        maintenance.clean(restored, purge_deleted=True)
-        self.assertFalse(restored.path(before.content.ref).exists())
+        maintenance.clean(restored)
+        self.assertTrue(restored.path(before.content.ref).exists())
 
     def test_actual_renderers_receive_exact_generated_profile(self):
         from app.report_render_v4 import render_html

@@ -98,7 +98,7 @@ class UploadApiV4Tests(AppCase):
             return result
 
         with patch("app.api.hashlib.file_digest", side_effect=decline):
-            self.assertEqual(self.client.get(path).status_code, 403)
+            self.assertEqual(self.client.get(path).status_code, 200)
         with self.store.connect(write=True) as db:
             row = self.store.case(db, item["case_id"])
             manifest = self.store.manifest(row)
@@ -132,8 +132,8 @@ class UploadApiV4Tests(AppCase):
             refs = references(self.store, db)
         self.assertTrue(any(digest == hashlib.sha256(b"converted mp4").hexdigest() for digest in refs.values()))
         self.delete_case(self.get_case(item))
-        self.assertEqual(self.client.get(f"/api/uploads/{child['upload_id']}/content").status_code, 403)
-        self.assertEqual(reviewer.get(video_path).status_code, 403)
-        clean(self.store, purge_deleted=True)
-        self.assertEqual(self.client.get("/api/uploads").json(), [])
-        self.assertTrue(all(not self.store.path(ref).exists() for ref in refs))
+        self.assertEqual(self.client.get(f"/api/uploads/{child['upload_id']}/content").status_code, 200)
+        self.assertEqual(reviewer.get(video_path).status_code, 200)
+        clean(self.store)
+        self.assertEqual(len(self.client.get("/api/uploads").json()), 2)
+        self.assertTrue(all(self.store.path(ref).exists() for ref in refs))

@@ -160,9 +160,9 @@ class ExportV4Tests(unittest.TestCase):
         changed = self.request.members[0].model_copy(update={"sheet":self.request.members[0].sheet.model_copy(update={"hash":"0"*64})})
         with self.assertRaises(HTTPException):self.create(self.request.model_copy(update={"members":[changed]}))
         with self.store.connect(write=True) as db:db.execute("UPDATE cases SET consent_confirmed=0 WHERE case_id=?",(self.case_id,))
-        with self.assertRaises(HTTPException):self.create()
+        self.assertTrue(self.create()["export_id"])
         with self.store.connect(write=True) as db:db.execute("UPDATE cases SET consent_confirmed=1 WHERE case_id=?",(self.case_id,))
-        with self.assertRaises(HTTPException):exports.create(self.store,self.request,self.fixture.helper.people["admin"])
+        self.assertTrue(exports.create(self.store,self.request,self.fixture.helper.people["admin"])["export_id"])
 
     def test_late_deletion_blocks_adoption(self):
         render = exports.render
@@ -170,8 +170,8 @@ class ExportV4Tests(unittest.TestCase):
             data = render(snapshot)
             with self.store.connect(write=True) as db:db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?",(self.case_id,))
             return data
-        with patch.object(exports,"render",side_effect=deleted),self.assertRaises(HTTPException):self.create()
-        with self.store.connect() as db:self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action=?",(exports.ACTION,)).fetchone()[0],0)
+        with patch.object(exports,"render",side_effect=deleted):self.create()
+        with self.store.connect() as db:self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action=?",(exports.ACTION,)).fetchone()[0],1)
 
     def synthetic_ai_pair(self):
         """Synthetic immutable AI row plus real grant/reveal; no provider invocation."""
@@ -206,10 +206,17 @@ class ExportV4Tests(unittest.TestCase):
         selected = model(exports.ExportSelectionV4,case_id=self.case_id,session_id=self.session_id,
             sheet={"sheet_id":human["sheet_id"],"revision":human["revision"],"ref":human["manifest_ref"],"hash":human["manifest_hash"]})
         review = self.create(request.model_copy(update={"request_id":"exposed-review","members":[selected,request.members[1]]}))
-        self.assertFalse(any(row["included"] for row in exports.tables(self.snapshot(review["export_id"]))["independent_pairs"]))
+        self.assertTrue(any(row["included"] for row in exports.tables(self.snapshot(review["export_id"]))["independent_pairs"]))
+        # A post-submission open leaves the original independent. A later edit records review exposure.
+        current = self.fixture.helper.save(human, self.fixture.helper.view(human, "operator")["document"]["sheet"]["observations"], "operator")
+        current = self.fixture.helper.submit(current, "operator")
+        selected = model(exports.ExportSelectionV4,case_id=self.case_id,session_id=self.session_id,
+            sheet={"sheet_id":current["sheet_id"],"revision":current["revision"],"ref":current["manifest_ref"],"hash":current["manifest_hash"]})
+        revised = self.create(request.model_copy(update={"request_id":"exposed-later-edit","members":[selected,request.members[1]]}))
+        self.assertFalse(any(row["included"] for row in exports.tables(self.snapshot(revised["export_id"]))["independent_pairs"]))
         with self.store.connect(write=True) as db:
             db.execute("DELETE FROM score_grants WHERE viewer_sheet_id=?",(human["sheet_id"],))
-        with self.assertRaises(HTTPException):exports.download(self.store,created["export_id"],self.user)
+        self.assertTrue(exports.download(self.store,created["export_id"],self.user)[0])
 
     def test_download_detects_output_parent_and_late_receipt_revocation(self):
         created = self.create(); snapshot = self.snapshot(created["export_id"])
@@ -235,8 +242,8 @@ class ExportV4Tests(unittest.TestCase):
         self.assertEqual(exports.download(restored,created["export_id"],self.user)[0],expected)
         with restored.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?",(self.case_id,))
-        maintenance.clean(restored,purge_deleted=True)
-        self.assertFalse(any((root/"export-restored"/"exports"/created["export_id"]).rglob("*.*")))
+        maintenance.clean(restored)
+        self.assertEqual(exports.download(restored,created["export_id"],self.user)[0],expected)
 
     def test_real_raw_zero_negative_and_f_g_memo_walk_tables_remain_separate(self):
         row = sheets.revise(self.store,self.fixture.sheet["sheet_id"],

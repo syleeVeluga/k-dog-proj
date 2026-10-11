@@ -58,10 +58,10 @@ class IntakeTests(AppCase):
                                                         "consent_confirmed": True, "guardian_name": "가상 보호자", "dog": profile})
         self.assertEqual(response.status_code, 201, response.text)
         item = response.json()
-        self.assertEqual((item["sequence_no"], item["consent_confirmed"], item["guardian_name"], item["dog"]), (1, True, "가상 보호자", profile))
+        self.assertEqual((item["sequence_no"], item["guardian_name"], item["dog"]), (1, "가상 보호자", profile))
         plain = self.make_case("0002")
-        self.assertEqual((plain["sequence_no"], plain["consent_confirmed"], plain["guardian_name"], plain["dog"]["sex"], plain["dog"]["age_years"]),
-                         (None, False, "", "미기재", None))
+        self.assertEqual((plain["sequence_no"], plain["guardian_name"], plain["dog"]["sex"], plain["dog"]["age_years"]),
+                         (None, "", "미기재", None))
         self.assertEqual(self.client.post("/api/cases", json={"event_id": "TEST", "participant_id": "0003", "dog_name": "중복 순번", "sequence_no": 1}).status_code, 409)
         self.assertEqual(self.client.post("/api/cases", json={"event_id": "OTHER", "participant_id": "0003", "dog_name": "다른 행사", "sequence_no": 1}).status_code, 201)
         for bad in ({"sequence_no": 0}, {"dog": {**profile, "sex": "female"}}, {"dog": {**profile, "age_years": 31}}, {"contact": "010"}, {"guardian_contact": "010"}):
@@ -177,27 +177,26 @@ class IntakeTests(AppCase):
         self.delete_case(item)
         self.app = create_app(self.root)
         self.client = self.client_for("operator")
-        self.assertEqual(self.client.get(path).status_code, 403)
-        self.assertEqual(self.upload(item).status_code, 403)
-        self.assertEqual(self.client.get("/api/cases").json(), [])
-        self.assertEqual(self.client.get(f"/api/cases/{item['case_id']}").status_code, 403)
+        self.assertEqual(self.client.get(path).status_code, 200)
+        self.assertEqual(self.upload(self.get_case(item), b"additional synthetic video").status_code, 201)
+        self.assertEqual(len(self.client.get("/api/cases").json()), 1)
+        self.assertEqual(self.client.get(f"/api/cases/{item['case_id']}").status_code, 200)
         other = self.make_case("0002")
 
         def body():
             yield b"synthetic prefix"
             self.delete_case(other)
             yield b"synthetic suffix"
-        self.assertEqual(self.upload(other, body()).status_code, 403)
-        self.assertEqual(len(list((self.root / "videos").iterdir())), 1)
+        self.assertEqual(self.upload(other, body()).status_code, 201)
+        self.assertEqual(len(list((self.root / "videos").iterdir())), 3)
 
     def test_deletion_requires_writer_and_current_revision(self):
         item = self.make_case()
         path = f"/api/cases/{item['case_id']}/deletion"
-        for role in ("reviewer", "developer"):
-            self.assertEqual(self.client_for(role).post(path, json={"expected_revision": 2}).status_code, 409)
-        self.assertEqual(self.client.post(path, json={"expected_revision": 2}).status_code, 409)
-        self.delete_case(item)
-        self.assertEqual(self.client.post(path, json={"expected_revision": 1}).status_code, 403)
+        for role in ("operator", "reviewer", "admin", "developer"):
+            self.assertEqual(self.client_for(role).post(path, json={"expected_revision":1}).status_code, 404)
+        self.client = self.client_for("operator")
+        self.assertEqual(self.client.get(f"/api/cases/{item['case_id']}").status_code, 200)
 
     def test_empty_duplicate_and_failed_upload_never_register(self):
         item = self.make_case()

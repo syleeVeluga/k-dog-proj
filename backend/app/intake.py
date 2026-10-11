@@ -33,17 +33,13 @@ def check_identity(db, event_id: str, participant_id: str, sequence_no: int | No
     def other(sql, params):
         return db.execute(sql + (" AND case_id!=?" if exclude_case_id else ""), (*params, *([exclude_case_id] if exclude_case_id else []))).fetchone()
 
-    row = other("SELECT participant_id,dog_name,deletion_requested FROM cases WHERE event_id=? AND participant_id=?", (event_id, participant_id))
+    row = other("SELECT participant_id,dog_name FROM cases WHERE event_id=? AND participant_id=?", (event_id, participant_id))
     if row:
-        if row["deletion_requested"]:
-            raise FieldConflict(f"참가자 ID {participant_id}는 삭제 요청된 참가자가 쓰고 있어 다시 쓸 수 없습니다.", "participant_id", None)
         raise FieldConflict(f"참가자 ID {participant_id}는 이미 {row['dog_name']}이(가) 쓰고 있습니다. 다른 ID를 입력하세요.", "participant_id",
                             {"participant_id": row["participant_id"], "dog_name": row["dog_name"]})
     if sequence_no is not None:
-        row = other("SELECT participant_id,dog_name,deletion_requested FROM cases WHERE event_id=? AND sequence_no=?", (event_id, sequence_no))
+        row = other("SELECT participant_id,dog_name FROM cases WHERE event_id=? AND sequence_no=?", (event_id, sequence_no))
         if row:
-            if row["deletion_requested"]:
-                raise FieldConflict(f"순번 {sequence_no}은 삭제 요청된 참가자가 쓰고 있어 다시 쓸 수 없습니다.", "sequence_no", None)
             raise FieldConflict(f"순번 {sequence_no}은 이미 {row['participant_id']}({row['dog_name']})이 쓰고 있습니다. 다른 순번을 입력하세요.", "sequence_no",
                                 {"participant_id": row["participant_id"], "dog_name": row["dog_name"]})
 

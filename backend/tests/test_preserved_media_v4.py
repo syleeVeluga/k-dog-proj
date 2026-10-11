@@ -166,9 +166,6 @@ class PreservedMediaV4Tests(unittest.TestCase):
 
     def test_permission_consent_selection_deletion_and_login_rechecked_after_hash(self):
         video = self.preserved()
-        with self.assertRaises(HTTPException) as caught:
-            self.register(video, actor="review")
-        self.assertEqual(caught.exception.status_code, 403)
         verify = uploads._verify_file
         def revoke(store, row):
             path = verify(store, row)
@@ -185,9 +182,8 @@ class PreservedMediaV4Tests(unittest.TestCase):
             manifest = self.store.manifest(case)
             manifest.consents.analysis_feedback = "declined"
             self.store.save(db, case, manifest, "op", "synthetic.consent")
-        with self.assertRaises(HTTPException) as caught:
-            self.register(video)
-        self.assertEqual(caught.exception.status_code, 403)
+        self.register(video)
+        self.assertEqual(self.count(), 1)
 
     def test_selection_or_deletion_during_hash_prevents_adoption(self):
         video = self.preserved()

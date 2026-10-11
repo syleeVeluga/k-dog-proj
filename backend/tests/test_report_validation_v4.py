@@ -96,7 +96,7 @@ class ReportProfileServiceV4Tests(unittest.TestCase):
         final=self.final()
         with self.store.connect(write=True) as db:
             db.execute('UPDATE cases SET deletion_requested=1 WHERE case_id=?',(self.case_id,))
-        with self.assertRaises(HTTPException):reports.from_final(self.store,self.case_id,self.session_id,final['reference']['final_id'],self.user)
+        reports.from_final(self.store,self.case_id,self.session_id,final['reference']['final_id'],self.user)
 
 
 class ReportDisclosureV4Tests(unittest.TestCase):

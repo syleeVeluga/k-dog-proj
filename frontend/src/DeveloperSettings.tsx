@@ -39,13 +39,13 @@ export function DeveloperSettings() {
 }
 
 export function Recovery() {
-  const [status, setStatus] = useState<{ message: string; free_bytes: number; deletion_requests: number; runs: Record<string, number>; last_backup: { path: string } | null } | null>(null);
+  const [status, setStatus] = useState<{ message: string; free_bytes: number; runs: Record<string, number>; last_backup: { path: string } | null } | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => { void api<typeof status>('/admin/recovery').then(setStatus).catch(e => setError(e.message)); }, []);
   return <details className="panel"><summary>자료 백업·복구</summary>
-    {status && <><p>남은 공간 {(status.free_bytes / 1024 ** 3).toFixed(1)} GB · 삭제 요청 {status.deletion_requests}건</p>
+    {status && <><p>남은 공간 {(status.free_bytes / 1024 ** 3).toFixed(1)} GB</p>
       <p className="fine">최근 백업: {status.last_backup?.path ?? '없음'}</p>
       <p className="fine">{status.message}</p></>}
     <button disabled={busy} onClick={() => { setBusy(true); setMessage(''); setError(''); void api<{ path: string }>('/admin/backups', 'POST')

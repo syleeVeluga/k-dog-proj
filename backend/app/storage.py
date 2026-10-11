@@ -287,8 +287,6 @@ class Store:
         row = db.execute("SELECT * FROM cases WHERE case_id=?", (case_id,)).fetchone()
         if row is None:
             raise HTTPException(404, "참가자를 찾을 수 없습니다.")
-        if accessible and row["deletion_requested"]:
-            raise HTTPException(403, "삭제 요청된 자료입니다.")
         if expected is not None and row["input_revision"] != expected:
             raise HTTPException(409, "다른 변경이 저장되었습니다. 새로 조회 후 다시 시도하세요.")
         return row
@@ -304,9 +302,9 @@ class Store:
                 "case_id", "event_id", "participant_id", "dog_name", "reservation_at", "sequence_no", "guardian_name",
                 "input_revision", "selected_session_id",
             )},
-            consent_confirmed=bool(row["consent_confirmed"]), dog=DogProfile.model_validate_json(row["dog_profile_json"]),
-            deletion_requested=bool(row["deletion_requested"]), manifest=manifest,
-            **({"consents": manifest.consents} if isinstance(manifest, (ManifestV3, ManifestV4)) else {}),
+            dog=DogProfile.model_validate_json(row["dog_profile_json"]),
+            manifest=manifest,
+            **({"consents": manifest.consents} if isinstance(manifest, ManifestV3) else {}),
         )
 
     def save(self, db, row, manifest: Manifest | ManifestV3 | ManifestV4, actor: str, action: str):

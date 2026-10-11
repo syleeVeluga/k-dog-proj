@@ -105,11 +105,11 @@ class ExternalExportTests(unittest.TestCase):
         self.assertEqual(exports.download(restored_store,created["export_id"],self.user)[0],self.store.path(snapshot.output.ref).read_bytes())
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?",(self.fixture.case_id,))
-        maintenance.clean(self.store,purge_deleted=True)
-        self.assertFalse(self.store.path(self.reference.ref).exists());self.assertFalse(self.store.path(snapshot.output.ref).exists())
+        maintenance.clean(self.store)
+        self.assertTrue(self.store.path(self.reference.ref).exists());self.assertTrue(self.store.path(snapshot.output.ref).exists())
         restored=maintenance.restore(self.store,destination,Path(self.fixture.helper.temp.name)/"after-delete")
         restored_store=Store(Path(restored["path"]))
-        self.assertFalse(restored_store.path(self.reference.ref).exists());self.assertFalse(restored_store.path(snapshot.output.ref).exists())
+        self.assertTrue(restored_store.path(self.reference.ref).exists());self.assertTrue(restored_store.path(snapshot.output.ref).exists())
 
     def test_empty_optional_fields_preserve_pre_extension_request_and_snapshot_bytes(self):
         request=self.request.model_copy(update={"external_comparisons":[]})

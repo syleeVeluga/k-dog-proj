@@ -92,7 +92,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
     finally { working.current = false; if (alive.current && scope === context.current) setBusy(false); }
   }
   async function start() {
-    if (!selected || selected.requires_reveal || item.consents.analysis_feedback !== 'confirmed' || cohortId && !cohort) return;
+    if (!selected || selected.requires_reveal || cohortId && !cohort) return;
     const fields = { expected_revision: item.input_revision, final: selected.reference, viewer_sheet_id: viewer || null, reuse_run_id: reuse || null, comparison: cohort?.reference ?? null, ...(external ? { external_comparison: external } : {}) };
     const fingerprint = JSON.stringify(fields);
     if (request.current?.fingerprint !== fingerprint) request.current = { fingerprint, request_id: crypto.randomUUID() };
@@ -146,7 +146,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       {selected?.requires_reveal && <><p>다른 작성자의 해석은 명시 공개가 필요합니다. 먼저 독립 채점 메뉴에서 원자료를 공개하고 같은 입력의 본인 제출 시트를 선택하세요. 해석 열람 후 새 기록은 검수로 구분됩니다.</p><button disabled={!viewerRow || !reason.trim()} onClick={() => void work(reveal)}>선택한 최종 해석을 명시 공개</button></>}
       <label>검증된 내용 명시 재사용<select aria-label="검증된 내용 명시 재사용" value={reuse} onChange={event => setReuse(event.target.value)}><option value="">재사용 없이 새 생성</option>{rows.filter(value => value.final.hash === selected?.reference.hash && value.steps.some(step => step.stage === 'content_v4' && step.status === 'succeeded')).map(value => <option key={value.run_id} value={value.run_id}>{value.run_id.slice(0, 8)} · {states[value.status] ?? value.status}</option>)}</select></label>
       <p className="fine">재사용은 고정 최종본·설문·내용 규칙·템플릿 해시를 다시 검증하며, 발급 파일은 새 실행에 보존합니다.</p>
-      <button disabled={!selected || selected.requires_reveal || item.consents.analysis_feedback !== 'confirmed' || !!cohortId && !cohort} onClick={() => void work(start)}>선택한 최종본으로 리포트 생성</button>
+      <button disabled={!selected || selected.requires_reveal || !!cohortId && !cohort} onClick={() => void work(start)}>선택한 최종본으로 리포트 생성</button>
       {request.current && <p role="status">응답 확인이 필요한 요청입니다. 동일 입력의 재요청은 같은 요청 ID를 사용합니다.</p>}
     </fieldset>
     <p className="fine">고정 근거로 AI 설명·총평·실천을 생성합니다. 새 실행은 기본 한 번의 문장 요청과 제한된 재시도를 사용합니다. 생성 중 상태만 2초마다 갱신하며 다운로드·인쇄는 저장된 문장을 사용합니다.</p>

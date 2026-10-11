@@ -1,4 +1,4 @@
-import { adoptionOptions, consentNames, sexOptions, sizeOptions } from './types';
+import { adoptionOptions, sexOptions, sizeOptions } from './types';
 import type { Case } from './types';
 import type { FieldErrors, FieldName } from './FieldErrors';
 
@@ -21,14 +21,6 @@ export function ParticipantFields({ value, errors = {}, sequence, onSequence, pr
     <label>입양 경로<select name="adoption_route" defaultValue={dog?.adoption_route ?? '미기재'}>{adoptionOptions.map(o => <option key={o}>{o}</option>)}</select></label>
     <label>예약 시각<input aria-label="예약 시각" name="reservation_at" type="datetime-local" defaultValue={value?.reservation_at} /><small>선택 · 행사 현지 시각. 예: 2026-10-31 09:30. 비우면 미예약.</small></label>
     <p className="fine" style={{ gridColumn: '1 / -1' }}>선택 정보는 모르면 비워 두거나 미기재를 선택하세요.</p>
-    <fieldset className="consent-group"><legend>동의서 확인</legend>
-      <p className="fine">동의서에서 확인한 것만 표시하세요. 모르면 비워 두거나 미확인으로 둡니다.</p>
-      <label className="check"><input name="consent_confirmed" type="checkbox" defaultChecked={value?.consent_confirmed} />촬영 영상·설문 사용 동의 확인</label>
-      <label>영상·설문 분석 및 피드백 동의<select name="consent_analysis_feedback" defaultValue={value?.consents?.analysis_feedback ?? 'unknown'}>{Object.entries(consentNames).map(([state, label]) => <option key={state} value={state}>{label}</option>)}</select></label>
-      <label>낯선 요원 접근·접촉 동의<select name="consent_stranger_contact" defaultValue={value?.consents?.stranger_contact ?? 'unknown'}>{Object.entries(consentNames).map(([state, label]) => <option key={state} value={state}>{label}</option>)}</select><small>이름 부르기·다가가기·어깨 접촉의 동의서를 각각 확인하세요.</small></label>
-      <details><summary>자세히</summary>
-        <p className="fine">동의는 동의서에서 촬영 영상·설문 사용 동의를 확인한 경우에만 표시하며, 미선택은 미확인입니다. 위 두 동의 항목은 각각 확인하고 기존 기록에서 자동으로 확대하지 않습니다.</p></details>
-    </fieldset>
   </>;
 }
 
@@ -37,8 +29,7 @@ const optional = (form: FormData, name: string) => { const raw = String(form.get
 export function participantValue(form: FormData) {
   return {
     participant_id: String(form.get('participant_id') ?? '').trim(), dog_name: form.get('dog_name'), reservation_at: form.get('reservation_at') ?? '',
-    sequence_no: optional(form, 'sequence_no'), consent_confirmed: form.get('consent_confirmed') === 'on', guardian_name: form.get('guardian_name') ?? '',
-    consents: { analysis_feedback: form.get('consent_analysis_feedback') ?? 'unknown', stranger_contact: form.get('consent_stranger_contact') ?? 'unknown' },
+    sequence_no: optional(form, 'sequence_no'), guardian_name: form.get('guardian_name') ?? '',
     dog: { breed: form.get('breed') ?? '', sex: form.get('sex'), age_years: optional(form, 'age_years'), size: form.get('size'),
       years_together: form.get('years_together') ?? '', adoption_route: form.get('adoption_route') },
   };

@@ -159,7 +159,7 @@ class JudgementsV4Tests(unittest.TestCase):
         result=self.create()
         with self.store.connect(write=True) as db:db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?",(self.helper.case_id,))
         for operation in (lambda:results.view(self.store,result["summary"]["result_id"],self.user),lambda:self.edit(result)):
-            with self.assertRaises(HTTPException):operation()
+            operation()
 
     def test_historical_independent_input_does_not_inherit_later_shared_edit(self):
         initial = self.create()
@@ -202,7 +202,7 @@ class JudgementsV4Tests(unittest.TestCase):
         self.assertEqual(old["document"],first["document"])
         with restored.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?",(self.helper.case_id,))
-        maintenance.clean(restored,purge_deleted=True)
+        maintenance.clean(restored)
         for result in (first,latest):
-            self.assertFalse(restored.path(result["summary"]["manifest_ref"]).exists())
-        with self.assertRaises(HTTPException):results.view(restored,latest["summary"]["result_id"],self.user)
+            self.assertTrue(restored.path(result["summary"]["manifest_ref"]).exists())
+        self.assertEqual(results.view(restored,latest["summary"]["result_id"],self.user)["document"], latest["document"])

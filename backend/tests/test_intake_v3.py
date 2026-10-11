@@ -26,7 +26,7 @@ class IntakeV3Tests(AppCase):
         session = item["manifest"]["sessions"][0]
         self.assertEqual((session["protocol_version"], session["survey_version"], session["protocol_source"]),
                          ("protocol-20261002-s1.1", "survey-20260929-v3", "new_session"))
-        self.assertEqual(item["consents"], {"analysis_feedback": "unknown", "stranger_contact": "unknown"})
+        self.assertEqual(item["manifest"]["consents"], {"analysis_feedback": "unknown", "stranger_contact": "unknown"})
         self.assertEqual(session["comparison_eligibility"], "unconfirmed")
 
     def test_consent_edits_conflicts_history_backup_and_deletion(self):
@@ -41,7 +41,7 @@ class IntakeV3Tests(AppCase):
         del payload["consents"]
         payload["expected_revision"] = saved["input_revision"]
         again = self.client.put(path, json=payload).json()
-        self.assertEqual(again["consents"], saved["consents"])
+        self.assertEqual(again["manifest"]["consents"], saved["manifest"]["consents"])
         with self.store.connect() as db:
             history = self.store.manifest(self.store.case(db, item["case_id"])).prior_inputs
             before = json.loads(db.execute("SELECT detail_json FROM changes WHERE action='case.identity' ORDER BY rowid").fetchone()[0])
@@ -54,18 +54,18 @@ class IntakeV3Tests(AppCase):
             restored = Store(root / "restored")
             with restored.connect() as db:
                 manifest = restored.manifest(restored.case(db, item["case_id"]))
-                self.assertEqual(manifest.consents.model_dump(), saved["consents"])
+                self.assertEqual(manifest.consents.model_dump(), saved["manifest"]["consents"])
                 for prior in manifest.prior_inputs:
                     self.assertEqual(hashlib.sha256(restored.path(prior.ref).read_bytes()).hexdigest(), prior.hash)
             self.delete_case(again)
-            maintenance.clean(self.store, purge_deleted=True)
-            self.assertFalse(any(self.store.path(prior.ref).exists() for prior in history))
+            maintenance.clean(self.store)
+            self.assertTrue(all(self.store.path(prior.ref).exists() for prior in history))
             maintenance.restore(self.store, root / "backup", root / "deleted")
             deleted = Store(root / "deleted")
             with deleted.connect() as db:
-                self.assertEqual(db.execute("SELECT COUNT(*) FROM cases").fetchone()[0], 0)
-                self.assertEqual(maintenance.deletion_records(deleted), {(item["case_id"], "TEST", "0001")})
-        self.assertEqual(self.client.get(path).status_code, 404)
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM cases").fetchone()[0], 1)
+                self.assertFalse(deleted.case(db, item["case_id"])["deletion_requested"])
+        self.assertEqual(self.client.get(path).status_code, 200)
 
     def v2_manifest(self, item):
         raw = {key: value for key, value in item["manifest"].items() if key in Manifest.model_fields}

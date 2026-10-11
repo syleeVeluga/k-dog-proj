@@ -94,14 +94,17 @@ class SettingsTests(AppCase):
                 manifest = restored.manifest(row)
             self.assertEqual(manifest.model_dump(), saved["manifest"])
             self.delete_case(saved)
-            maintenance.clean(self.store, purge_deleted=True)
-            self.assertNotIn("가상견".encode(), (self.store.root / "kdog.sqlite3").read_bytes())
-            self.assertEqual(maintenance.deletion_records(self.store), {(item["case_id"], "M2", "0001")})
+            maintenance.clean(self.store)
+            with self.store.connect() as db:
+                self.assertTrue(self.store.case(db, item["case_id"])["deletion_requested"])
+                maintenance.references(self.store, db)
             maintenance.restore(self.store, root / "backup", root / "deleted-restored")
             recovered = Store(root / "deleted-restored")
             with recovered.connect() as db:
-                self.assertEqual(db.execute("SELECT COUNT(*) FROM cases").fetchone()[0], 0)
-            self.assertFalse(any((recovered.root / "videos").glob("*")))
+                restored_case = recovered.case(db, item["case_id"])
+                self.assertFalse(restored_case["deletion_requested"])
+                self.assertEqual(recovered.manifest(restored_case).model_dump(), saved["manifest"])
+                maintenance.references(recovered, db)
 
     def test_backup_corruption_and_path_traversal_rejected_before_destination_creation(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -147,7 +150,7 @@ class SettingsTests(AppCase):
             with self.store.connect(write=True) as db:
                 self.store.audit(db, "admin", "absent-case", "deletion.record", {"event_id": "OLDER", "participant_id": "9999"})
             maintenance.backup(self.store, root / "backup", "admin")
-            with patch("app.maintenance.clean", side_effect=OSError("synthetic disk failure")):
+            with patch("app.maintenance.references", side_effect=OSError("synthetic disk failure")):
                 with self.assertRaises(OSError):
                     maintenance.restore(self.store, root / "backup", root / "failed")
             self.assertFalse((root / "failed").exists())
@@ -156,9 +159,9 @@ class SettingsTests(AppCase):
                 self.store.audit(db, "admin", "new-absent-case", "deletion.record", {"event_id": "NEW", "participant_id": "8888"})
             maintenance.restore(self.store, root / "backup", root / "recovered")
             recovered = Store(root / "recovered")
-            self.assertEqual(maintenance.deletion_records(recovered), {
-                ("absent-case", "OLDER", "9999"), ("new-absent-case", "NEW", "8888"),
-            })
+            with recovered.connect() as db:
+                records = [row[0] for row in db.execute("SELECT target FROM changes WHERE action='deletion.record'")]
+            self.assertEqual(records, ["absent-case"])
 
     def test_provider_echoes_are_redacted_even_in_json_escapes_and_request_headers(self):
         from app.gemini import request, BASE

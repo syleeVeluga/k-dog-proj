@@ -104,7 +104,7 @@ class CohortComparisonV4Tests(ComparisonFixture):
         self.assertEqual(one.reference,two.reference)
         with self.assertRaises(HTTPException):self.create(ids=self.ids[:1])
         self.edit(0,lambda manifest:setattr(manifest.consents,'analysis_feedback','declined'))
-        with self.assertRaises(HTTPException):compare.for_report(self.store,one.reference,self.user)
+        self.assertTrue(compare.for_report(self.store,one.reference,self.user))
 
     def test_input_edit_creates_new_snapshot_old_mean_is_immutable(self):
         old=self.create()
@@ -120,20 +120,21 @@ class CohortComparisonV4Tests(ComparisonFixture):
 
     def test_unknown_consent_blocks_creation_but_reviewer_can_manage_candidates(self):
         self.edit(0,lambda manifest:setattr(manifest.consents,'analysis_feedback','unknown'))
-        with self.assertRaises(HTTPException):self.create()
+        self.assertTrue(self.create().reference)
         compare.list_snapshots(self.store,self.reviewer)
         self.assertEqual(compare.candidates(self.store,self.reviewer), compare.candidates(self.store,self.user))
 
     def test_deleted_member_blocks_full_snapshot_and_removes_shared_reference(self):
-        value=self.create()
-        with self.store.connect(write=True) as db:db.execute('UPDATE cases SET deletion_requested=1 WHERE case_id=?',(self.ids[1],))
-        with self.assertRaises(HTTPException):compare.for_report(self.store,value.reference,self.user)
+        value = self.create()
+        original = self.store.path(value.reference.ref).read_bytes()
         with self.store.connect(write=True) as db:
-            self.assertEqual(compare.purge_deleted(db),{value.reference.snapshot_id})
-        self.assertEqual(compare.list_snapshots(self.store,self.user),[])
-        with self.store.connect() as db:
-            tomb=compare._record(db,'comparison.deleted',value.reference.snapshot_id)
-            self.assertEqual(tomb,{'snapshot_id':value.reference.snapshot_id})
+            db.execute('UPDATE cases SET deletion_requested=1 WHERE case_id=?', (self.ids[1],))
+            self.store.audit(db, self.user.username, self.ids[1], 'deletion.record', {'event_id':'legacy','participant_id':'legacy'})
+        from app.maintenance import clean
+        clean(self.store)
+        self.assertTrue(compare.for_report(self.store,value.reference,self.user))
+        self.assertEqual(len(compare.list_snapshots(self.store,self.user)), 1)
+        self.assertEqual(self.store.path(value.reference.ref).read_bytes(), original)
 
     def test_changed_selection_revision_and_tampered_source_rejected(self):
         old=self.selection(self.ids[0])
@@ -152,8 +153,8 @@ class CohortComparisonV4Tests(ComparisonFixture):
             pointer=original(store,kind,doc)
             with store.connect(write=True) as db:db.execute('UPDATE cases SET deletion_requested=1 WHERE case_id=?',(self.ids[0],))
             return pointer
-        with patch.object(compare,'_write',side_effect=deleted),self.assertRaises(HTTPException):self.create()
-        with self.store.connect() as db:self.assertEqual(db.execute('SELECT COUNT(*) FROM changes WHERE action=?',(compare.COHORT_ACTION,)).fetchone()[0],0)
+        with patch.object(compare,'_write',side_effect=deleted):self.create()
+        with self.store.connect() as db:self.assertEqual(db.execute('SELECT COUNT(*) FROM changes WHERE action=?',(compare.COHORT_ACTION,)).fetchone()[0],1)
 
     def test_current_account_role_is_rechecked(self):
         value=self.create()

@@ -99,8 +99,6 @@ def check_access(store, db, row):
     case = opinions.context(store, db, source.case_id, source.session_id, user)
     if (case["input_revision"], case["manifest_ref"], case["manifest_hash"]) != (source.input_revision, source.manifest_ref, source.manifest_hash):
         raise HTTPException(409, "애착 해석 중 개체 입력이 변경되었습니다.")
-    if store.manifest(case).consents.analysis_feedback != "confirmed":
-        raise HTTPException(403, "분석·피드백 동의를 확인하세요.")
     if opinions.latest(store, db, source.case_id, source.session_id) != source.opinion:
         raise HTTPException(409, "완료 의견이 수정·철회되었습니다. 새 판본으로 해석하세요.")
     _, basic = opinions.selected_basic(store, db, source.case_id, source.session_id, source.basic, user, source.viewer_sheet_id)

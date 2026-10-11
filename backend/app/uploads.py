@@ -42,8 +42,6 @@ def _case(store, db, case_id, session_id, expected=None, *, selected=True):
     manifest = store.manifest(row)
     if manifest.schema_version != "intake-4.0":
         raise HTTPException(409, "S1 전환을 완료한 대상에 연결하세요.")
-    if manifest.consents.analysis_feedback == "declined":
-        raise HTTPException(403, "분석·피드백 동의가 거절된 자료입니다.")
     if selected:
         session = selected_session(manifest, session_id)
     else:
@@ -488,8 +486,6 @@ def _linked_source(store, db, case_id, video_id, actor):
     manifest = store.manifest(store.case(db, case_id))
     if manifest.schema_version != "intake-4.0":
         raise HTTPException(409, "S1 연결 영상이 아닙니다.")
-    if manifest.consents.analysis_feedback == "declined":
-        raise HTTPException(403, "분석·피드백 동의가 거절된 자료입니다.")
     found = next(((session, video) for session in manifest.sessions for video in session.videos
                   if video.video_id == video_id), None)
     if found is None or not isinstance(found[1], StoredMediaV4):
@@ -521,7 +517,7 @@ def abort_receipt(store, upload_id, actor):
         if actor != row["creator"] and account["role"] != "admin":
             raise HTTPException(403, "작성자 또는 관리자만 수신물을 정리할 수 있습니다.")
         if row["state"] == "linked":
-            raise HTTPException(409, "연결된 자료는 대상 삭제 절차로 정리하세요.")
+            raise HTTPException(409, "이미 연결된 원자료의 수신은 취소할 수 없습니다.")
         if any(parent["upload_id"] == upload_id for other in db.execute(
                 "SELECT request_json FROM upload_receipts WHERE state!='failed'")
                 for parent in json.loads(other["request_json"])["parents"]):
@@ -554,24 +550,3 @@ def _descendant_ids(rows, upload_ids):
         if descendants <= targets:
             return targets
         targets.update(descendants)
-
-
-def collect_case_upload_ids(db, case_id):
-    """Read-only deletion scope, including failed/incomplete receipt descendants."""
-    rows = db.execute("SELECT * FROM upload_receipts").fetchall()
-    targets = {row["upload_id"] for row in rows if case_id in (row["scope_case_id"], row["linked_case_id"])}
-    return _descendant_ids(rows, targets)
-
-
-def purge_upload_ids(db, upload_ids):
-    """Apply stable receipt tombstones even to backups predating their case link."""
-    targets = _descendant_ids(db.execute("SELECT * FROM upload_receipts").fetchall(), upload_ids)
-    for upload_id in targets:
-        db.execute("DELETE FROM changes WHERE target=? AND action LIKE 'upload.%'", (upload_id,))
-        db.execute("DELETE FROM upload_receipts WHERE upload_id=?", (upload_id,))
-    return targets
-
-
-def purge_case(db, case_id):
-    """Call after recording receipt tombstones; offline clean removes unreferenced bytes."""
-    return len(purge_upload_ids(db, collect_case_upload_ids(db, case_id)))

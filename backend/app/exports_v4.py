@@ -95,22 +95,7 @@ def _sheet(store, db, selection, user):
     if selection.sheet not in links:
         raise HTTPException(409, "보존한 연구 원자료 revision/hash와 다릅니다.")
     doc = sheets.read_document(store, selection.sheet.ref, selection.sheet.hash)
-    if not row["active"]:
-        raise HTTPException(403, "취소된 평가 배정은 내보낼 수 없습니다.")
-    if row["assigned_username"] == user.username:
-        sheets.owner(db, row, user)
-    else:
-        if not selection.viewer_sheet_id:
-            raise HTTPException(403, "다른 평가 원본은 실제 공개한 본인 시트를 지정하세요.")
-        viewer = sheets.row_for(store, db, selection.viewer_sheet_id)
-        sheets.owner(db, viewer, user)
-        shown = sheets.document_for(store, viewer)
-        exposed, _ = sheets.related_exposure(store, db, viewer, shown)
-        exposed.update({item.ref:item.model_dump(mode="json") for item in shown.exposures})
-        grant = db.execute("SELECT * FROM score_grants WHERE viewer_sheet_id=? AND ref=?", (viewer["sheet_id"], selection.sheet.ref)).fetchone()
-        if (shown.state != "submitted" or shown.source_hash != doc.source_hash or exposed.get(selection.sheet.ref) != selection.sheet.model_dump(mode="json")
-                or not grant or grant["hash"] != selection.sheet.hash or grant["target_sheet_id"] != selection.sheet.sheet_id):
-            raise HTTPException(403, "내보낼 원자료 판본의 공개 배정과 실제 노출 이력이 필요합니다.")
+    sheets.manager(user, db)
     return doc
 
 
@@ -120,8 +105,6 @@ def _member(store, selection, user):
         doc = _sheet(store, db, selection, user)
         for video in doc.source.session.videos:
             if isinstance(video,StoredMediaV4):uploads._linked_source(store,db,selection.case_id,video.video_id,user.username)
-        if not case["consent_confirmed"] or manifest.consents.analysis_feedback != "confirmed":
-            return None, "consent_not_confirmed", ()
         basic = opinions.selected_basic(store, db, selection.case_id, selection.session_id, selection.basic, user, selection.viewer_sheet_id)[1] if selection.basic else None
         if basic and (basic.input != selection.sheet or basic.input_document != doc):
             raise HTTPException(409, "선택한 계산과 연구 원자료 판본이 다릅니다.")
@@ -232,7 +215,7 @@ def _snapshot(store, value, user):
     if cohort:
         parents[cohort.reference.ref] = cohort.reference.hash
     if not members:
-        raise HTTPException(422, {"message":"연구용으로 내보낼 동의 확인 원자료가 없습니다.", "excluded":[{"pseudonym":row["pseudonym"], "reason":row["reason"]} for row in excluded]})
+        raise HTTPException(422, {"message":"연구용으로 내보낼 유효한 원자료가 없습니다.", "excluded":[{"pseudonym":row["pseudonym"], "reason":row["reason"]} for row in excluded]})
     external = []
     if len({pointer.snapshot_id for pointer in value.external_comparisons}) != len(value.external_comparisons):
         raise HTTPException(422, "같은 외부 비교 snapshot을 중복 선택할 수 없습니다.")
@@ -264,8 +247,6 @@ def _live_guard(store,db,snapshot,user):
     sheets.manager(user,db)
     for member in snapshot.members:
         case,manifest = _case(store,db,member.selection,user)
-        if not case["consent_confirmed"] or manifest.consents.analysis_feedback != "confirmed":
-            raise HTTPException(403,"연구 자료의 동의가 철회되었습니다.")
         _sheet(store,db,member.selection,user)
         for video in member.sheet.source.session.videos:
             if isinstance(video,StoredMediaV4):
@@ -289,7 +270,7 @@ def guard(store, snapshot, user):
     for expected in snapshot.members:
         data, excluded, _ = _member(store, expected.selection, user)
         if excluded or any(data[key] != getattr(expected, key) for key in ("sheet", "basic", "final", "report", "report_file")):
-            raise HTTPException(409, "선택한 연구 원자료의 동의·판본·공개 권한이 변경되었습니다.")
+            raise HTTPException(409, "선택한 연구 원자료의 판본·원자료 연결이 변경되었습니다.")
     for pointer in snapshot.references:
         shown = validation.view(store, pointer.validation_id, user)
         if shown["reference"]["hash"] != pointer.hash:
@@ -589,20 +570,7 @@ def list_exports(store,user):
             if isinstance(exc,HTTPException) and exc.status_code not in (403,404,409,422):
                 raise
             result.append(ExportBlockedV4(export_id=export_id,
-                reason="원자료·출력 또는 현재 동의·공개·비교 조건을 확인할 수 없어 제공을 보류합니다.").model_dump())
+                reason="원자료·출력 또는 현재 원자료·비교 조건을 확인할 수 없어 제공을 보류합니다.").model_dump())
     with store.connect() as db:
         sheets.manager(user,db)
     return result
-
-
-def purge_deleted(db,*,cohort_ids=(),report_run_ids=(),validation_ids=(),external_snapshot_ids=()):
-    deleted = {row[0] for row in db.execute("SELECT case_id FROM cases WHERE deletion_requested=1")}
-    revoked = set()
-    for row in db.execute("SELECT target,detail_json FROM changes WHERE action=?",(ACTION,)):
-        data = json.loads(row["detail_json"])
-        if (deleted.intersection(data["case_ids"]) or data.get("cohort_id") in set(cohort_ids)
-                or set(report_run_ids).intersection(data.get("report_run_ids",())) or set(validation_ids).intersection(data.get("validation_ids",()))
-                or set(external_snapshot_ids).intersection(data.get("external_snapshot_ids",()))):
-            revoked.add(row["target"])
-    for export_id in revoked:db.execute("DELETE FROM changes WHERE target=? AND action=?",(export_id,ACTION))
-    return revoked

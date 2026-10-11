@@ -76,4 +76,4 @@ class ResearchApiV4Tests(unittest.TestCase):
             self.assertIn('raw_observations.csv', archive.namelist())
         with f.store.connect(write=True) as db:
             db.execute('UPDATE cases SET consent_confirmed=0 WHERE case_id=?', (f.case_id,))
-        self.assertEqual(client.get(path + '/download').status_code, 403)
+        self.assertEqual(client.get(path + '/download').status_code, 200)

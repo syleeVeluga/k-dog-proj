@@ -34,12 +34,11 @@ def main():
     worker.add_argument("--once", action="store_true", help="대기 실행 하나를 처리한 뒤 종료")
     backup = sub.add_parser("backup", help="자료와 DB를 새 폴더에 검증하여 백업 (키 제외)")
     backup.add_argument("destination", type=Path)
-    backup.add_argument("--actor", required=True, help="기록에 사용할 운영 관리자 계정")
-    restore = sub.add_parser("restore", help="현재 --data-dir 삭제 목록을 재적용하여 새 폴더에 복원")
+    backup.add_argument("--actor", required=True, help="기록에 사용할 활성 업무 계정")
+    restore = sub.add_parser("restore", help="검증된 백업 snapshot을 새 폴더에 복원")
     restore.add_argument("source", type=Path)
     restore.add_argument("destination", type=Path)
     clean = sub.add_parser("clean", help="API·worker 종료 후 미참조 파일 정리")
-    clean.add_argument("--purge-deleted", action="store_true", help="삭제 요청된 참가자 DB·파일도 영구 삭제")
     sub.add_parser("recovery-status")
     sub.add_parser("provision-accounts", help="발행 패키지의 관리자·개발자 계정을 표준입력 JSON으로 생성 (설치 프로그램용)")
     reset_s1 = sub.add_parser("reset-s1", help="원입력을 보존하고 구판 평가 결과를 S1으로 초기화 (API·worker 종료 필요)")
@@ -112,7 +111,7 @@ def main():
         from fastapi import HTTPException
         import json
         if not (args.data_dir / "kdog.sqlite3").is_file():
-            parser.error("현재 데이터 DB가 필요합니다. 삭제 목록을 새 빈 폴더로 대체하지 마세요.")
+            parser.error("현재 데이터 DB가 필요합니다. 백업과 복원 경계를 확인할 원본 폴더를 지정하세요.")
         store = Store(args.data_dir)
         try:
             if args.command == "backup":
@@ -124,7 +123,7 @@ def main():
             elif args.command == "restore":
                 result = maintenance.restore(store, args.source, args.destination)
             elif args.command == "clean":
-                result = maintenance.clean(store, purge_deleted=args.purge_deleted)
+                result = maintenance.clean(store)
             else:
                 result = maintenance.status(store)
             print(json.dumps(result, ensure_ascii=False, indent=2))

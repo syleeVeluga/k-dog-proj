@@ -1,0 +1,23 @@
+import { test, expect } from '@playwright/test';
+import { openMenu } from './menu';
+
+test('동의·삭제 입력 없이 접수하고 원자료 상세를 연다', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await page.getByLabel('계정', { exact: true }).fill('reviewer');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await openMenu(page, '참가자 접수');
+  await expect(page.getByRole('option', { name: '동의 미확인', exact: true })).toHaveCount(0);
+  const participant = `AR04_${Date.now()}`;
+  await page.getByLabel('행사 ID', { exact: true }).fill('AR04_SYNTHETIC');
+  await page.getByLabel('참가자 ID', { exact: true }).fill(participant);
+  await page.getByLabel('반려견 이름', { exact: true }).fill('보관 합성견');
+  await expect(page.locator('[name="consent_confirmed"], [name="consent_analysis_feedback"], [name="consent_stranger_contact"]')).toHaveCount(0);
+  await page.getByRole('button', { name: '저장하고 상세 열기', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '보관 합성견', exact: true })).toBeVisible();
+  await expect(page.getByText('삭제 요청 접수', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('분석·피드백 동의:', { exact: false })).toHaveCount(0);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true })).toBeEnabled();
+  await page.screenshot({ path: testInfo.outputPath('retention-detail.png'), fullPage: true, animations: 'disabled' });
+});

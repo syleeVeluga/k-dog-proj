@@ -312,7 +312,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def cases(response: Response, user=Depends(reader)):
         values, unavailable = [], 0
         with store.connect() as db:
-            for row in db.execute("SELECT * FROM cases WHERE deletion_requested=0 ORDER BY created_at DESC"):
+            for row in db.execute("SELECT * FROM cases ORDER BY created_at DESC"):
                 try:
                     values.append(store.view(row))
                 except HTTPException as exc:
@@ -353,7 +353,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 manifest.consents = value.consents
             store.save(db, row, manifest, user.username, "case.update")
             db.execute("UPDATE cases SET participant_id=?,dog_name=?,reservation_at=?,sequence_no=?,consent_confirmed=?,guardian_name=?,dog_profile_json=? WHERE case_id=?",
-                       (value.participant_id, value.dog_name, value.reservation_at, value.sequence_no, int(value.consent_confirmed),
+                       (value.participant_id, value.dog_name, value.reservation_at, value.sequence_no, int(value.consent_confirmed) if "consent_confirmed" in value.model_fields_set else row["consent_confirmed"],
                         value.guardian_name, value.dog.model_dump_json(), case_id))
             store.audit(db, user.username, case_id, "case.identity", {
                 "before": {**{k: row[k] for k in ("participant_id", "dog_name", "reservation_at", "sequence_no", "guardian_name")},
@@ -380,15 +380,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             raise HTTPException(409, "이 회차는 과거 설문 원자료 참고 상태입니다. S1 설문 산출에 포함하지 않습니다.")
         return survey_scores_v4(SessionV4.model_validate(session), current_catalog)
 
-    @app.post("/api/cases/{case_id}/deletion", response_model=Message)
-    def request_deletion(case_id: Key, value: Revision, user=Depends(writer)):
-        with store.connect(write=True) as db:
-            store.case(db, case_id, expected=value.expected_revision)
-            db.execute("UPDATE cases SET deletion_requested=1,updated_at=? WHERE case_id=?", (now(), case_id))
-            db.execute("UPDATE runs SET status='stopped',claim_token=NULL,lease_expires_at=NULL "
-                       "WHERE case_id=? AND status IN ('queued','running','retry_wait')", (case_id,))
-            store.audit(db, user.username, case_id, "deletion.request", {})
-        return Message(message="삭제 요청을 접수했습니다.")
 
     @app.post("/api/cases/{case_id}/sessions", response_model=CaseViewV4)
     def sessions(case_id: Key, value: SessionEdit, user=Depends(writer)):
@@ -460,8 +451,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             video = next((item for item in videos if item.video_id == video_id), None)
             if video is None:
                 raise HTTPException(404, "이 참가자의 영상이 아닙니다.")
-            if manifest.schema_version == "intake-4.0" and manifest.consents.analysis_feedback == "declined":
-                raise HTTPException(403, "분석·피드백 동의가 거절된 자료입니다.")
             if isinstance(video, StoredMediaV4):
                 path = uploads.linked_video_path(store, case_id, video_id, user.username)
                 return FileResponse(path, filename=video.original_name,
@@ -474,9 +463,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                     raise HTTPException(409, "영상 파일 해시가 일치하지 않습니다.")
             # Hashing a large file can take time; refresh access immediately before serving.
             authenticate(db, request.cookies.get(COOKIE))
-            current_manifest = store.manifest(store.case(db, case_id))
-            if current_manifest.schema_version == "intake-4.0" and current_manifest.consents.analysis_feedback == "declined":
-                raise HTTPException(403, "분석·피드백 동의가 거절된 자료입니다.")
+            store.manifest(store.case(db, case_id))
             return FileResponse(path, filename=f"{video_id}{path.suffix}", content_disposition_type="inline")
 
     @app.post("/api/cases/{case_id}/videos/{video_id}/open", status_code=204)

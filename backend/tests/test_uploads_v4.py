@@ -167,10 +167,7 @@ class UploadsV4Tests(unittest.TestCase):
         uploads.write_chunk(writer, b"synthetic-media")
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (case["case_id"],))
-        with self.assertRaises(HTTPException) as deleted:
-            uploads.finish_receive(self.store, writer)
-        self.assertEqual(deleted.exception.status_code, 403)
-        uploads.fail_receive(self.store, writer)
+        self.assertEqual(uploads.finish_receive(self.store, writer).state, "complete")
         for index, sql in enumerate(("UPDATE users SET active=0 WHERE username='op'",
                                     "UPDATE users SET session_hash='changed' WHERE username='op'")):
             with self.store.connect(write=True) as db:
@@ -216,11 +213,9 @@ class UploadsV4Tests(unittest.TestCase):
         self.assertFalse(child.analysis_ready)
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (case["case_id"],))
-        with self.assertRaises(HTTPException):
-            uploads.download_path(self.store, child.upload_id, "admin")
-        with self.store.connect(write=True) as db:
-            self.assertEqual(uploads.purge_case(db, case["case_id"]), 2)
-            self.assertEqual(uploads.references(db), {})
+        self.assertEqual(uploads.download_path(self.store, child.upload_id, "admin").read_bytes(), b"synthetic-mp4")
+        clean(self.store)
+        with self.store.connect() as db: self.assertTrue(uploads.references(db))
 
     def test_receipt_snapshot_and_complete_bytes_survive_database_backup(self):
         receipt = self.received()
@@ -345,9 +340,7 @@ class UploadsV4Tests(unittest.TestCase):
                 db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (case["case_id"],))
             return path
         with patch.object(uploads, "_verify_file", side_effect=delete_after_check):
-            with self.assertRaises(HTTPException) as caught:
-                uploads.download_path(self.store, receipt.upload_id, "op")
-        self.assertEqual(caught.exception.status_code, 403)
+            self.assertEqual(uploads.download_path(self.store, receipt.upload_id, "op").read_bytes(), b"synthetic-media")
 
     def restore_before_case_link(self, *, already_cleaned):
         parent = self.received(b"synthetic-insv", request_id="delete-parent", filename="camera.insv")
@@ -362,23 +355,18 @@ class UploadsV4Tests(unittest.TestCase):
         # Keep the child unlinked: descendants of a deleted parent are in scope too.
         with self.store.connect(write=True) as db:
             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (case["case_id"],))
-            self.assertEqual(uploads.collect_case_upload_ids(db, case["case_id"]), {parent.upload_id, child.upload_id})
         if already_cleaned:
-            clean(self.store, purge_deleted=True)
+            clean(self.store)
         restored_path = Path(self.temp.name) / "restored"
         restore(self.store, snapshot, restored_path)
         restored = Store(restored_path)
-        for receipt in (parent, child):
-            with self.assertRaises(HTTPException) as caught:
-                uploads.get_receipt(restored, receipt.upload_id, "op")
-            self.assertEqual(caught.exception.status_code, 404)
+        for receipt in (parent, child, retained):
+            self.assertEqual(uploads.get_receipt(restored, receipt.upload_id, "op").state, "complete")
         self.assertEqual(uploads.download_path(restored, retained.upload_id, "op").read_bytes(), b"retained-other")
         with restored.connect() as db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM cases").fetchone()[0], 0)
-            self.assertEqual(db.execute("SELECT COUNT(*) FROM upload_receipts").fetchone()[0], 1)
-            tombstones = [json.loads(row[0]) for row in db.execute("SELECT detail_json FROM changes WHERE action='deletion.upload'")]
-            self.assertEqual({item["upload_id"] for item in tombstones}, {parent.upload_id, child.upload_id})
-            self.assertTrue(all(set(item) == {"upload_id"} for item in tombstones))
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM upload_receipts").fetchone()[0], 3)
+            self.assertFalse(db.execute("SELECT 1 FROM changes WHERE action='deletion.upload'").fetchone())
             expected_refs = references(restored, db)
         self.assertTrue(all(file.relative_to(restored.root).as_posix() in expected_refs for file in restored.path("videos").glob("*")))
 
@@ -489,9 +477,7 @@ class UploadsV4Tests(unittest.TestCase):
             manifest = self.store.manifest(row)
             manifest.consents.analysis_feedback = "declined"
             self.store.save(db, row, manifest, "op", "test.decline")
-        with self.assertRaises(HTTPException) as caught:
-            uploads.linked_video_path(self.store, case["case_id"], linked.video_id, "review")
-        self.assertEqual(caught.exception.status_code, 403)
+        self.assertEqual(uploads.linked_video_path(self.store, case["case_id"], linked.video_id, "review").read_bytes(), b"synthetic-media")
 
     def test_linked_video_reader_cannot_bypass_parent_integrity_or_revocation(self):
         case = self.case()

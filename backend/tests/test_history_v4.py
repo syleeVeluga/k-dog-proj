@@ -109,8 +109,9 @@ class ValidationHistoryTests(unittest.TestCase):
 
     def test_deleted_binding_does_not_hide_unrelated_source_and_discloses_no_metadata(self):
         with self.store.connect(write=True) as db:db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?",(self.fixture.case_id,))
-        self.assert_history(validation.list_records(self.store,self.user))
-        with self.assertRaises(HTTPException):validation.view(self.store,self.unavailable["reference"]["validation_id"],self.user)
+        rows = validation.list_records(self.store,self.user)
+        self.assertEqual({row["reference"]["validation_id"] for row in rows}, {self.ready["reference"]["validation_id"], self.unavailable["reference"]["validation_id"]})
+        validation.view(self.store,self.unavailable["reference"]["validation_id"],self.user)
 
     def test_other_actor_and_mid_read_account_revocation_fail_at_account_boundary(self):
         self.assertEqual(validation.list_records(self.store,SimpleNamespace(username="admin",role="admin")),[])
