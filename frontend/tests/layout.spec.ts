@@ -18,10 +18,17 @@ for (const width of [360, 390, 768, 1440]) {
     const notice = page.getByRole('status').filter({ hasText: '참가자를 등록했습니다.' });
     await expect(notice).toBeInViewport({ ratio: 1 });
     const navigation = page.getByRole('navigation', { name: '주 메뉴' });
-    const navBox = await navigation.boundingBox(), noticeBox = await notice.boundingBox();
-    expect(navBox).not.toBeNull(); expect(noticeBox).not.toBeNull();
-    if (width <= 680) expect(noticeBox!.y).toBeGreaterThanOrEqual(navBox!.y + navBox!.height);
-    await navigation.getByRole('button', { name: '설문', exact: true }).click();
+    const menuButton = page.getByRole('button', { name: '메뉴', exact: true });
+    if (width <= 767) {
+      await expect(navigation).toBeHidden();
+      const buttonBox = await menuButton.boundingBox(), noticeBox = await notice.boundingBox();
+      expect(buttonBox).not.toBeNull(); expect(noticeBox).not.toBeNull();
+      if (width <= 680) expect(noticeBox!.y).toBeGreaterThanOrEqual(buttonBox!.y + buttonBox!.height);
+      await menuButton.click();
+    } else if (width >= 1024) await expect(menuButton).toBeHidden();
+    await expect(navigation).toBeVisible();
+    await navigation.getByRole('button', { name: '설문 현황', exact: true }).click();
+    if (width <= 767) await expect(navigation).toBeHidden();
     await expect(page.getByRole('heading', { name: '설문', exact: true })).toBeVisible();
     const context = page.getByRole('region', { name: '선택 참가자', exact: true });
     if (width <= 680) {

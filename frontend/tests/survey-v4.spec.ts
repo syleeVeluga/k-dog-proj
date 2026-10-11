@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openMenu } from './menu';
 
 test('S1 설문은 확정 결측·역채점·등록 상태와 외부 승인 대기를 분리한다', async ({ page }, testInfo) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
@@ -20,7 +21,7 @@ test('S1 설문은 확정 결측·역채점·등록 상태와 외부 승인 대�
   expect(survey.ok()).toBeTruthy();
   await page.reload();
   await page.getByRole('button', { name: 'SURVEY-S1-001 상세 열기', exact: true }).click();
-  await page.getByRole('button', { name: '설문', exact: true }).click();
+  await openMenu(page, '설문 현황');
   await expect(page.getByText('수치 응답 26/28', { exact: false })).toContainText('등록 완료 기준 미확정');
   await expect(page.getByText(/S1 집계: 완전응답 영역만 산출/)).toContainText('D06');
   await expect(page.getByText('응답 1/2 · 확정 두려움 묶음 규칙: 하나라도 결측이면 해당 묶음 미산출', { exact: true })).toBeVisible();
@@ -41,7 +42,7 @@ test('S1 설문은 확정 결측·역채점·등록 상태와 외부 승인 대�
   await page.getByLabel('계정', { exact: true }).fill('reviewer');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page.getByRole('button', { name: '설문', exact: true }).click();
+  await openMenu(page, '설문 현황');
   await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'SURVEY-S1-001 설문 현황 열기', exact: true }).click();
   await expect(page.getByText('수치 응답 26/28', { exact: false })).toBeVisible();

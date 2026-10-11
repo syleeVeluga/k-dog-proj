@@ -12,24 +12,15 @@ import { Preprocessing } from './pages/Preprocessing';
 import { Scoring } from './pages/Scoring';
 import { Report } from './pages/Report';
 import { ValidationData } from './ValidationData';
+import { Lnb, useMatch } from './Lnb';
+import { defaultRoute, hashOf, parseHash } from './navigation';
+import type { Route } from './navigation';
 import { formFields, roleNames, sessionOf } from './types';
 import type { Case, Catalog, Role, Run, User } from './types';
 import './style.css';
 
-type Page = 'intake' | 'survey' | 'recording' | 'import' | 'users' | 'data' | 'preprocess' | 'scoring' | 'report' | 'validation';
-// 대메뉴 하나가 PR 하나다: 접수(PR-6) · 설문(PR-7) · 촬영(PR-8) · 자료 가져오기 · 직원 계정.
-const menu: { page: Page; label: string; roles: Role[] }[] = [
-  { page: 'intake', label: '접수', roles: ['operator', 'reviewer', 'admin'] },
-  { page: 'survey', label: '설문', roles: ['operator', 'reviewer', 'admin'] },
-  { page: 'recording', label: '촬영', roles: ['operator', 'reviewer', 'admin'] },
-  { page: 'preprocess', label: '전처리', roles: ['operator', 'reviewer', 'admin'] },
-  { page: 'scoring', label: '독립 채점', roles: ['operator', 'reviewer', 'admin'] },
-  { page: 'report', label: '리포트', roles: ['operator', 'admin'] },
-  { page: 'import', label: '자료 가져오기', roles: ['operator', 'admin'] },
-  { page: 'validation', label: '검수 자료', roles: ['operator', 'admin'] },
-  { page: 'users', label: '직원 계정', roles: ['admin'] },
-  { page: 'data', label: '자료 관리', roles: ['admin'] },
-];
+// 화면 위치는 URL hash(#/intake 등)에 남는다. 메뉴 구조는 navigation.ts가 정한다.
+const fieldRoutes: Route[] = ['intake', 'survey', 'recording/inbox', 'recording/record', 'preprocess', 'scoring', 'report'];
 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -52,10 +43,18 @@ export function App() {
   const [updatedAt, setUpdatedAt] = useState('');
   const [connectionError, setConnectionError] = useState('');
   const [unavailableCases, setUnavailableCases] = useState(0);
-  const [page, setPage] = useState<Page>('intake');
+  const [route, setRoute] = useState<Route>('intake');
+  const routeRef = useRef<Route>('intake');
+  const historyIndex = useRef(0);
+  const restoring = useRef(false);
+  const wide = useMatch('(min-width: 1024px)');
+  const drawer = useMatch('(max-width: 767px)');
+  const [menuOpen, setMenuOpen] = useState(() => window.innerWidth >= 768);
+  const menuToggle = useRef<HTMLButtonElement>(null);
+  const modal = drawer && menuOpen;
   const writable = user?.role === 'operator' || user?.role === 'admin';
   const filters = { search, eventFilter, setSearch, setEventFilter };
-  useEffect(() => { setContextExpanded(false); contextTitle.current?.focus(); }, [page, selected?.case_id, selected?.selected_session_id]);
+  useEffect(() => { setContextExpanded(false); contextTitle.current?.focus(); }, [route, selected?.case_id, selected?.selected_session_id]);
   useEffect(() => {
     if (!current || !writable || observedSession.current === current.selected_session_id) return;
     observedSession.current = current.selected_session_id;
@@ -72,16 +71,61 @@ export function App() {
     setCases(values); setUpdatedAt(new Date().toLocaleTimeString());
     if (id && id !== selection?.case_id) setSelected(values.find(c => c.case_id === id) ?? null);
   }
-  function go(next: Page) {
-    if (!mayLeave()) return;
-    setPage(next);
+  function closeMenu() {
+    setMenuOpen(false);
+    requestAnimationFrame(() => menuToggle.current?.focus());
   }
+  const stateIndex = () => { const value = (window.history.state as { idx?: number } | null)?.idx; return typeof value === 'number' ? value : null; };
+  function go(next: Route) {
+    if (next !== routeRef.current && !mayLeave()) return;
+    if (drawer && menuOpen) closeMenu();
+    if (next === routeRef.current) return;
+    const idx = historyIndex.current + 1;
+    window.history.pushState({ idx }, '', hashOf(next));
+    historyIndex.current = idx; routeRef.current = next; setRoute(next);
+  }
+  // 로그인·세션 확인 직후 hash를 역할에 맞게 확정한다. 권한 없는 경로는 첫 메뉴로 보낸다.
+  function enter(next: User) {
+    if (next.role !== 'developer') {
+      const target = parseHash(window.location.hash, next.role) ?? defaultRoute(next.role);
+      historyIndex.current = stateIndex() ?? 0;
+      window.history.replaceState({ idx: historyIndex.current }, '', hashOf(target));
+      routeRef.current = target; setRoute(target);
+    }
+    setUser(next);
+  }
+  useEffect(() => { setMenuOpen(!drawer); }, [drawer, user]);
+  useEffect(() => {
+    if (!user || user.role === 'developer') return;
+    const role = user.role;
+    // 뒤로가기·주소 직접 수정도 미저장 입력 보호를 거친다. 취소하면 기록 위치째로 원래 항목으로 되돌린다.
+    const onHash = () => {
+      if (restoring.current) { restoring.current = false; return; }
+      const arrived = stateIndex();
+      const parsed = parseHash(window.location.hash, role);
+      const target = parsed ?? defaultRoute(role);
+      const changes = target !== routeRef.current;
+      if (changes && !mayLeave()) {
+        if (arrived !== null && arrived !== historyIndex.current) {
+          restoring.current = true; window.setTimeout(() => { restoring.current = false; }, 1000);
+          window.history.go(historyIndex.current - arrived);
+        } else window.history.replaceState({ idx: historyIndex.current }, '', hashOf(routeRef.current));
+        return;
+      }
+      const idx = arrived ?? historyIndex.current + 1;
+      historyIndex.current = idx;
+      if (!parsed || arrived === null) window.history.replaceState({ idx }, '', hashOf(target));
+      if (changes) { routeRef.current = target; setRoute(target); }
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, [user?.role]);
   useEffect(() => {
     const clear = () => { setUser(null); setCases([]); setSelected(null); setCatalog(null); setUnavailableCases(0); };
     const unavailable = (event: Event) => setUnavailableCases((event as CustomEvent<number>).detail);
     window.addEventListener('kdog-unavailable-cases', unavailable);
     window.addEventListener('kdog-session-expired', clear);
-    api<User>('/auth/me').then(setUser).catch(() => {}).finally(() => setChecking(false));
+    api<User>('/auth/me').then(enter).catch(() => {}).finally(() => setChecking(false));
     return () => { window.removeEventListener('kdog-session-expired', clear); window.removeEventListener('kdog-unavailable-cases', unavailable); };
   }, []);
   useEffect(() => {
@@ -114,7 +158,7 @@ export function App() {
     <div className="wordmark">K-DOG<span>FIELD NOTES</span></div>
     <p className="eyebrow">운영자 워크스페이스</p><h1>관찰의 시작은<br />정확한 연결부터.</h1>
     <p className="muted">참가자와 설문, 촬영 자료를 한곳에서 관리합니다.</p>
-    <form onSubmit={e => { e.preventDefault(); const value = formFields(e.currentTarget); void run(async () => { setUser(await api<User>('/auth/login', 'POST', value)); setPage('intake'); }); }}>
+    <form onSubmit={e => { e.preventDefault(); const value = formFields(e.currentTarget); void run(async () => { enter(await api<User>('/auth/login', 'POST', value)); }); }}>
       <fieldset disabled={busy}><label>계정<input name="username" autoComplete="username" required /></label>
         <label>비밀번호<input name="password" type="password" autoComplete="current-password" required /></label>
         <button className="primary" type="submit">{busy ? '접속 중…' : '로그인'}</button></fieldset>
@@ -122,21 +166,21 @@ export function App() {
     <p className="fine">직원 전용 · 계정은 운영 관리자에게 문의하세요.</p>
   </main>;
 
+  const hasMenu = user.role !== 'developer';
   return <>
-    <header><button className="wordmark plain" onClick={() => go('intake')}>K-DOG<span>FIELD NOTES</span></button>
+    <header inert={modal}>{hasMenu && <button ref={menuToggle} className="menu-toggle" aria-controls="lnb" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>메뉴</button>}
+      <button className="wordmark plain" onClick={() => go('intake')}>K-DOG<span>FIELD NOTES</span></button>
       <div className="account"><span>{user.username} · {roleNames[user.role]}</span><button disabled={busy} onClick={() => void run(async () => {
         if (!mayLeave()) return; await api('/auth/logout', 'POST'); setUser(null); setSelected(null); setCases([]);
       })}>로그아웃</button></div></header>
-    <main>
-      {user.role !== 'developer' && <nav aria-label="주 메뉴">
-        {menu.filter(entry => entry.roles.includes(user.role)).map(entry =>
-          <button key={entry.page} aria-current={page === entry.page ? 'page' : undefined} onClick={() => go(entry.page)}>{entry.label}</button>)}
-      </nav>}
+    <div className="shell">
+      {hasMenu && <Lnb role={user.role} current={route} go={go} visible={wide || menuOpen} drawer={drawer} close={closeMenu} />}
+    <main inert={modal}>
       <Notification message={error} kind="error" onClose={() => setError('')} />
       <Notification message={notice} onClose={() => setNotice('')} />
       {unavailableCases > 0 && user.role !== 'developer' && <p role="alert">입력 자료 검증에 실패한 참가자 {unavailableCases}명은 목록에서 제외되었습니다. 운영 관리자에게 원본 저장소 확인을 요청하세요. 다른 참가자는 계속 사용할 수 있습니다.</p>}
       {busy && <Notification kind="working" message="처리 중입니다… 파일 업로드 중에는 이 화면을 유지하세요." />}
-      {selected && ['intake', 'survey', 'recording', 'preprocess', 'scoring', 'report'].includes(page) && <section className="panel participant-context" aria-label="선택 참가자">
+      {selected && fieldRoutes.includes(route) && <section className="panel participant-context" aria-label="선택 참가자">
         <h2 ref={contextTitle} tabIndex={-1}>{selected.event_id} / {selected.participant_id} / {selected.dog_name} / {selected.manifest.sessions.findIndex(s => s.session_id === selected.selected_session_id) + 1}차 촬영</h2>
         <label>{writable ? '저장 대상 회차 선택' : '조회 회차 선택'}<select aria-label="선택 세션" disabled={busy} value={selected.selected_session_id} onChange={e => {
           const id = e.target.value; if (!mayLeave()) return;
@@ -148,7 +192,7 @@ export function App() {
           <button className="context-toggle" aria-expanded={contextExpanded} aria-controls="context-extra" onClick={() => setContextExpanded(!contextExpanded)}>회차 안내·바로가기</button>
           <div id="context-extra" className="context-extra">
             <p className="fine">{writable ? '회차 선택은 저장 대상을 변경합니다. 이전 설문·영상·구간은 보존되며 새 회차에 복사하지 않습니다.' : '조회만 변경합니다. 운영자의 저장 대상과 입력 버전은 바뀌지 않습니다.'}</p>
-            <div className="toolbar"><button onClick={() => { if (mayLeave()) setSelected(null); }}>전체 목록으로 돌아가기</button><button onClick={() => go('survey')}>설문 보기</button><button onClick={() => go('recording')}>촬영 자료 보기</button><button onClick={() => go('preprocess')}>전처리 상태 보기</button></div>
+            <div className="toolbar"><button onClick={() => { if (mayLeave()) setSelected(null); }}>전체 목록으로 돌아가기</button><button onClick={() => go('survey')}>설문 보기</button><button onClick={() => go('recording/record')}>촬영 자료 보기</button><button onClick={() => go('preprocess')}>전처리 상태 보기</button></div>
           </div>
         </div>
       </section>}
@@ -157,19 +201,20 @@ export function App() {
           <DeveloperSettings />
           <button onClick={() => void run(async () => setNotice((await api<{ message: string }>('/developer/status')).message))}>인증 상태 확인</button>
         </section>
-          : page === 'import' ? <FormsImporter cases={cases} run={run} done={async message => { setNotice(message); await reload(); }} />
-          : page === 'validation' ? <ValidationData user={user} />
-          : page === 'users' ? <Users run={run} />
-          : page === 'data' ? <section><h1>자료 관리</h1><Recovery /></section>
-          : page === 'preprocess' ? <Preprocessing cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
-          : page === 'scoring' ? <Scoring cases={cases} selected={selected} select={setSelected} filters={filters} user={user} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
-          : page === 'report' ? <Report cases={cases} selected={selected} select={setSelected} filters={filters} user={user} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
-          : page === 'survey' ? <Survey cases={cases} selected={selected} select={setSelected} filters={filters} catalog={catalog} writable={!!writable} run={run} reload={reload} notify={setNotice} />
-          : page === 'recording' ? <Recording cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} run={run} reload={reload} notify={setNotice} />
+          : route === 'intake/upload' ? <FormsImporter cases={cases} run={run} done={async message => { setNotice(message); await reload(); }} />
+          : route === 'validation' ? <ValidationData user={user} />
+          : route === 'admin/users' ? <Users run={run} />
+          : route === 'admin/backup' ? <section><h1>자료 관리</h1><Recovery /></section>
+          : route === 'preprocess' ? <Preprocessing cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
+          : route === 'scoring' ? <Scoring cases={cases} selected={selected} select={setSelected} filters={filters} user={user} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
+          : route === 'report' || route === 'report/comparison' ? <Report view={route === 'report' ? 'issue' : 'comparison'} cases={cases} selected={selected} select={setSelected} filters={filters} user={user} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
+          : route === 'survey' ? <Survey cases={cases} selected={selected} select={setSelected} filters={filters} catalog={catalog} writable={!!writable} goTo={go} />
+          : route === 'recording/inbox' || route === 'recording/record' ? <Recording view={route === 'recording/inbox' ? 'inbox' : 'record'} cases={cases} selected={selected} select={setSelected} filters={filters} writable={!!writable} run={run} reload={reload} notify={setNotice} />
           : <Intake user={user} cases={cases} selected={selected} writable={!!writable} run={run} reload={reload}
-              select={setSelected} filters={filters} status={connectionError || `3초마다 자동 갱신 · 마지막 조회 ${updatedAt}`} notify={setNotice} />}
+              select={setSelected} filters={filters} status={connectionError || `3초마다 자동 갱신 · 마지막 조회 ${updatedAt}`} notify={setNotice} goTo={go} />}
       </fieldset>
       <footer>K-DOG · 현장 평가 자료 관리<span>접수 · 설문 · 촬영 · 채점 · 리포트</span></footer>
     </main>
+    </div>
   </>;
 }

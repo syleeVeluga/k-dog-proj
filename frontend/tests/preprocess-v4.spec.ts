@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 async function login(page: Page, account = 'operator') {
@@ -44,7 +45,7 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   const save = await page.request.put(recordEndpoint, { headers, data: { expected_revision: item.input_revision, recording } });
   expect(save.status(), await save.text()).toBe(200);
   item = await save.json();
-  await page.getByRole('button', { name: '전처리', exact: true }).click();
+  await openMenu(page, '전처리');
   await page.getByRole('button', { name: 's1preprocess 전처리 열기' }).click();
   const panel = page.getByRole('region', { name: 'S1 다중 카메라 전처리', exact: true });
   const fresh = panel.getByRole('button', { name: '새 클립으로 전처리', exact: true });
@@ -122,7 +123,7 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await login(page, 'reviewer');
-  await page.getByRole('button', { name: '전처리', exact: true }).click();
+  await openMenu(page, '전처리');
   await page.getByRole('button', { name: 's1preprocess 전처리 열기' }).click();
   await expect(panel.getByRole('heading', { name: '저장된 결과 · 완성', exact: true })).toBeVisible();
   await expect(fresh).toHaveCount(0);
@@ -142,7 +143,7 @@ test('S1 state refresh shows running, interrupted, failed and unavailable withou
     return route.fulfill({ json: { case_id: item.case_id, session_id: item.selected_session_id, input_revision: item.input_revision,
       ready: current !== 'not_ready', status: current, message: '합성 상태 검증', outdated: false, result_pointer: null, result: null } });
   });
-  await page.getByRole('button', { name: '전처리', exact: true }).click();
+  await openMenu(page, '전처리');
   await page.getByRole('button', { name: 's1state 전처리 열기' }).click();
   const panel = page.getByRole('region', { name: 'S1 다중 카메라 전처리', exact: true });
   const start = panel.getByRole('button', { name: '새 클립으로 전처리', exact: true });

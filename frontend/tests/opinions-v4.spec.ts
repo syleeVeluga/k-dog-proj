@@ -1,5 +1,6 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 const password = 'Browser-test-only-42';
@@ -61,7 +62,7 @@ async function login(page: Page, username: string) {
   await page.getByRole('button', { name: '로그인', exact: true }).click(); await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
 }
 async function open(page: Page, participant: string) {
-  await page.getByRole('button', { name: '독립 채점', exact: true }).click(); await page.getByRole('button', { name: `${participant} 독립 채점 열기`, exact: true }).click();
+  await openMenu(page, '독립 채점'); await page.getByRole('button', { name: `${participant} 독립 채점 열기`, exact: true }).click();
 }
 async function fixture(request: APIRequestContext, participant: string) {
   await request.post('/api/auth/login', { headers, data: { username: 'operator', password } });

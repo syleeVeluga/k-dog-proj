@@ -1,6 +1,7 @@
 import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
+import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' }, password = 'Browser-test-only-42', backend = path.resolve(process.cwd(), '../backend');
 async function login(page: Page, username = 'operator') { await page.goto('/'); await page.getByLabel('계정', { exact: true }).fill(username); await page.getByLabel('비밀번호', { exact: true }).fill(password); await page.getByRole('button', { name: '로그인', exact: true }).click(); await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible(); }
@@ -24,14 +25,14 @@ async function fixture(request: APIRequestContext, participant: string) {
   const final = await request.post(base + '/final-results-s1', { headers, data: { basic: { result_id: basic.result_id, revision: basic.revision, ref: basic.manifest_ref, hash: basic.manifest_hash }, opinion: null, reason: '합성 최종본' } }); expect(final.status(), await final.text()).toBe(201);
   return { item, base, sheet: submitted, basic, final: await final.json(), observations };
 }
-async function openExport(page: Page, participant: string) { await page.getByRole('button', { name: '독립 채점', exact: true }).click(); await page.getByRole('button', { name: `${participant} 독립 채점 열기`, exact: true }).click(); await page.getByText('연구 내보내기', { exact: true }).click(); return page.getByRole('region', { name: 'S1 연구 내보내기', exact: true }); }
+async function openExport(page: Page, participant: string) { await openMenu(page, '독립 채점'); await page.getByRole('button', { name: `${participant} 독립 채점 열기`, exact: true }).click(); await page.getByText('연구 내보내기', { exact: true }).click(); return page.getByRole('region', { name: 'S1 연구 내보내기', exact: true }); }
 test.beforeEach(({ page }) => { page.setDefaultTimeout(15000); });
 
 test('S14 reference workbook preserves raw cells, formulas, unknown identity and idempotent reference-only registration', async ({ page }, info) => {
   test.setTimeout(120000); await login(page); const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   const item = await (await page.request.post('/api/cases', { headers, data: { event_id: 'S14-REFERENCE', participant_id: 'reference-only', dog_name: '동명이견', guardian_name: '평가자로 추정하면 안 되는 이름', consents: { analysis_feedback: 'declined', stranger_contact: 'unknown' } } })).json();
   expect((await (await page.request.get('/api/comparisons-s1/candidates')).json()).some((row: any) => row.case_id === item.case_id)).toBe(false);
-  await page.getByRole('button', { name: '검수 자료', exact: true }).click(); const panel = page.getByRole('region', { name: '검수 참고 자료', exact: true });
+  await openMenu(page, '검수 자료'); const panel = page.getByRole('region', { name: '검수 참고 자료', exact: true });
   const buffer = execFileSync('uv', ['run', '--locked', 'python', '-X', 'utf8', '-c', 'import sys; from tests.test_validation_data_v4 import workbook_bytes; sys.stdout.buffer.write(workbook_bytes())'], { cwd: backend });
   await panel.getByLabel('검수 XLSX 파일', { exact: true }).setInputFiles({ name: 'synthetic-reference.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer });
   await expect(panel.getByLabel('원본 시트', { exact: true })).toHaveValue('Synthetic');
@@ -100,5 +101,5 @@ test('S14 already-revealed target is selectable; grant-only and reviewer export 
   const output = page.waitForResponse(response => response.url().endsWith('/exports-s1') && response.request().method() === 'POST'); await panel.getByRole('button', { name: '선택 판본으로 연구 파일 생성', exact: true }).click(); const exported = await output; expect(exported.status(), await exported.text()).toBe(201);
   expect((await request.post(`/api/score-sheets-s1/${data.sheet.sheet_id}/assignment`, { headers, data: { expected_revision: data.sheet.revision, active: false, reason: '원본 배정 취소' } })).status()).toBe(200);
   await panel.getByRole('button', { name: /연구 파일 다운로드/ }).click(); await expect(panel.getByRole('alert')).toBeVisible();
-  await page.getByRole('button', { name: '로그아웃', exact: true }).click(); await login(page, 'reviewer'); await expect(page.getByRole('button', { name: '검수 자료', exact: true })).toHaveCount(0); expect((await page.request.get('/api/exports-s1')).status()).toBe(403);
+  await page.getByRole('button', { name: '로그아웃', exact: true }).click(); await login(page, 'reviewer'); await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '검수 자료', exact: true })).toHaveCount(0); expect((await page.request.get('/api/exports-s1')).status()).toBe(403);
 });

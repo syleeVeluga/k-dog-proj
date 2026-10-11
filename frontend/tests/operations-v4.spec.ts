@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { openMenu } from './menu';
 
 test('S1 관리자는 임시 원자료를 검증 백업하고 계정 철회로 열린 세션을 종료한다', async ({ page, browser }) => {
   const headers = { 'X-KDOG-Request': '1' }, password = 'Browser-test-only-42';
@@ -14,7 +15,7 @@ test('S1 관리자는 임시 원자료를 검증 백업하고 계정 철회로 �
   expect(created.status()).toBe(201);
   const item = await created.json();
   expect(item.manifest.schema_version).toBe('intake-4.0');
-  await page.getByRole('button', { name: '직원 계정', exact: true }).click();
+  await openMenu(page, '직원 계정');
   await page.getByText('직원 계정 추가', { exact: true }).click();
   await page.getByLabel('새 계정', { exact: true }).fill('s1-revoked-staff');
   await page.getByLabel('초기 비밀번호', { exact: true }).fill(password);
@@ -36,7 +37,7 @@ test('S1 관리자는 임시 원자료를 검증 백업하고 계정 철회로 �
     await expect(staff.getByRole('button', { name: 'BACKUP-001 상세 열기', exact: true })).toHaveCount(0);
     expect((await staff.request.get('/api/cases')).status()).toBe(401);
   } finally { await client.close(); }
-  await page.getByRole('button', { name: '자료 관리', exact: true }).click();
+  await openMenu(page, '백업·복구');
   await page.getByText('자료 백업·복구', { exact: true }).click();
   await expect(page.getByText(/남은 공간 .* GB · 삭제 요청/)).toBeVisible();
   const backupResponse = page.waitForResponse(response => response.url().endsWith('/api/admin/backups') && response.request().method() === 'POST');
@@ -54,8 +55,8 @@ test('S1 관리자는 임시 원자료를 검증 백업하고 계정 철회로 �
     "import hashlib,json,pathlib,sqlite3,sys; p=pathlib.Path(sys.argv[1]); m=json.loads((p/'backup.json').read_text()); d=sqlite3.connect(p/'kdog.sqlite3'); print(json.dumps({'hashes_ok':all(hashlib.sha256((p/r).read_bytes()).hexdigest()==h for r,h in m['files'].items()),'sessions':d.execute('SELECT COUNT(*) FROM users WHERE session_hash IS NOT NULL').fetchone()[0],'case_present':d.execute('SELECT COUNT(*) FROM cases WHERE case_id=?',(sys.argv[2],)).fetchone()[0]}))",
     backup.path, item.case_id], { encoding: 'utf8' }));
   expect(verified).toEqual({ hashes_ok: true, sessions: 0, case_present: 1 });
-  await page.getByRole('button', { name: '접수', exact: true }).click();
-  await page.getByRole('button', { name: '자료 관리', exact: true }).click();
+  await openMenu(page, '참가자 접수');
+  await openMenu(page, '백업·복구');
   await page.getByText('자료 백업·복구', { exact: true }).click();
   await expect(page.getByText(`최근 백업: ${backup.path}`, { exact: true })).toBeVisible();
   await page.setViewportSize({ width: 360, height: 800 });
@@ -65,7 +66,7 @@ test('S1 관리자는 임시 원자료를 검증 백업하고 계정 철회로 �
   await page.getByLabel('비밀번호', { exact: true }).fill(password);
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '자료 관리', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '백업·복구', exact: true })).toHaveCount(0);
   expect((await page.request.post('/api/admin/backups', { headers })).status()).toBe(403);
   expect((await page.request.get('/api/admin/recovery')).status()).toBe(403);
 });

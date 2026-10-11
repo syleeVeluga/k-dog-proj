@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 
@@ -26,7 +27,7 @@ for (const width of [1440, 360]) {
     await page.reload();
     await page.getByRole('combobox', { name: '행사 필터', exact: true }).selectOption(`NOTE-${width}`);
     await expect(page.getByRole('button', { name: `N019 상세 열기` })).toBeVisible();
-    await page.getByRole('button', { name: '자료 관리', exact: true }).click();
+    await openMenu(page, '백업·복구');
     await page.getByText('자료 백업·복구', { exact: true }).click();
     const backup = page.getByRole('button', { name: '자료 백업 생성 · 키 제외' });
     await page.route('**/api/admin/backups', route => route.fulfill({ status: 201, json: { path: 'synthetic-backup' } }));

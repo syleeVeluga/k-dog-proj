@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openMenu } from './menu';
 
 test('S1 imports use the pinned Forms workflow and old endpoints cannot save', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
@@ -11,12 +12,13 @@ test('S1 imports use the pinned Forms workflow and old endpoints cannot save', a
   expect(existing.status()).toBe(201);
   await page.reload();
   await expect(page.getByRole('button', { name: 'retirement-existing 상세 열기', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '자료 가져오기', exact: true }).click();
+  await openMenu(page, '일괄 등록 (CSV·Excel)');
   await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toBeVisible();
   await expect(page.getByLabel('Forms 파일', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '설문', exact: true }).click();
-  const details = page.locator('details').filter({ has: page.locator('summary', { hasText: 'Forms 참가자·설문 함께 등록' }) }).first();
-  await expect(details).toHaveAttribute('open');
+  await openMenu(page, '설문 현황');
+  await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '일괄 등록으로 이동', exact: true }).click();
+  await expect(page).toHaveURL(/#\/intake\/upload$/);
   await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toBeVisible();
   await expect(page.getByText('설문 파일 가져오기 (CSV·Excel)', { exact: true })).toHaveCount(0);
   const blocked = await page.request.post('/api/imports/commit', { headers: { 'X-KDOG-Request': '1' }, data: { rows: [] } });

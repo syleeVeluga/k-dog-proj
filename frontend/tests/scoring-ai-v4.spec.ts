@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import type { AiRunV4, AiSettingsViewV4 } from '../src/aiTypesV4';
+import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 const password = 'Browser-test-only-42';
@@ -14,7 +15,7 @@ async function login(page: Page, username: string) {
 }
 
 async function openScoring(page: Page, participant: string) {
-  await page.getByRole('button', { name: '독립 채점', exact: true }).click();
+  await openMenu(page, '독립 채점');
   await page.getByRole('button', { name: `${participant} 독립 채점 열기`, exact: true }).click();
 }
 

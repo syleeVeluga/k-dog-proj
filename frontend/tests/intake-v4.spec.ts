@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 test.afterEach(async ({ page }) => {
@@ -31,7 +32,7 @@ test('S1 접수는 빈 채점 상태로 시작하고 구판 채점으로 연결�
   const emptyStatus = page.getByRole('status').filter({ hasText: 'S1 재분석 필요' });
   await expect(emptyStatus.getByText('S1 재분석 필요', { exact: true })).toBeVisible();
   await expect(emptyStatus).toContainText('아직 채점값이 없습니다');
-  await page.getByRole('button', { name: '독립 채점', exact: true }).click();
+  await openMenu(page, '독립 채점');
   await expect(page.getByRole('status').filter({ hasText: '배정된 시트가 없습니다.' })).toBeVisible();
   expect(await (await page.request.get(`/api/cases/${item.case_id}/sessions/${item.selected_session_id}/sheets-s1`)).json()).toEqual([]);
   const oldRun = await page.request.post(`/api/cases/${item.case_id}/sessions/${item.selected_session_id}/runs-v3`, {

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 
@@ -75,7 +76,7 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
   await expect(page.getByText('입력 버전 1', { exact: true })).toBeVisible();
   await expect(page.getByText('영상 등록·8구간 시각·촬영 메모·재촬영은 「촬영」 메뉴에서', { exact: false })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('desktop-detail.png'), fullPage: true, animations: 'disabled' });
-  await page.getByRole('button', { name: '촬영', exact: true }).click();
+  await openMenu(page, '영상 수신·연결');
 
   await expect(page.getByRole('button', { name: '파일 수신 시작·재시도', exact: true })).toBeDisabled();
   // Storage-only synthetic bytes exercise receipt/linking, not media decoding or AI quality.
@@ -88,6 +89,7 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
     await receipt.getByRole('button', { name: '대상 연결·충돌 재시도', exact: true }).click();
     await expect(receipt.getByText('대상 연결 완료', { exact: true })).toBeVisible();
   }
+  await openMenu(page, '촬영 기록 (8구간)');
   await expect(page.getByRole('combobox', { name: '기준 영상', exact: true }).locator('option')).toHaveCount(3);
   const item = (await (await page.request.get('/api/cases')).json()).find((c: { event_id: string; participant_id: string }) => c.event_id === 'BROWSER-TEST' && c.participant_id === '0001');
   const firstSession = item.selected_session_id;
@@ -96,10 +98,8 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
   // Register source columns and the intended existing session through the actual S1 Forms UI.
   const ids = Array.from({ length: 28 }, (_, i) => `s${String(i + 1).padStart(2, '0')}`);
   const values = ids.map(id => id === 's10' ? '0' : id === 's23' ? '5' : '3');
-  await page.getByRole('button', { name: '설문', exact: true }).click();
-  await page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true }).click();
+  await openMenu(page, '일괄 등록 (CSV·Excel)');
   const form = page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true });
-  if (!(await form.isVisible())) await page.getByText('Forms 참가자·설문 함께 등록', { exact: true }).click();
   await form.getByLabel('폼 행사 ID', { exact: true }).fill('BROWSER-TEST');
   await form.getByLabel('Forms 파일', { exact: true }).setInputFiles({ name: 'synthetic-survey.csv', mimeType: 'text/csv', buffer: Buffer.from([ids.join(','), values.join(',')].join('\n')) });
   await form.getByRole('button', { name: 'Forms 열 확인', exact: true }).click();
@@ -116,6 +116,8 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
   expect((await committed).status()).toBe(200);
   await expect(page.getByRole('status').filter({ hasText: '1개 원행의 참가자·설문 등록을 확인했습니다.' })).toBeVisible();
   await page.reload();
+  await expect(page).toHaveURL(/#\/intake\/upload$/);
+  await openMenu(page, '참가자 접수');
   await expect(page.getByRole('heading', { name: '접수', exact: true })).toBeVisible();
   await page.getByRole('combobox', { name: '행사 필터', exact: true }).selectOption('BROWSER-TEST');
   const savedRow = page.getByRole('row').filter({ has: page.getByRole('button', { name: '0001 상세 열기', exact: true }) });
@@ -123,14 +125,15 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
   await expect(savedRow.getByRole('cell', { name: '1', exact: true })).toBeVisible();
   await expect(savedRow.getByRole('cell', { name: '2개', exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('desktop-list.png'), fullPage: true, animations: 'disabled' });
-  await page.getByRole('button', { name: '촬영', exact: true }).click();
+  await openMenu(page, '촬영 기록 (8구간)');
   await page.getByRole('button', { name: '0001 촬영 열기' }).click();
-
+  await openMenu(page, '영상 수신·연결');
   await expect(page.getByRole('article', { name: '수신물 synthetic-file-2.mp4', exact: true }).getByText('대상 연결 완료', { exact: true })).toBeVisible();
+  await openMenu(page, '촬영 기록 (8구간)');
   await page.getByText('재촬영 세션 추가', { exact: true }).click();
   await page.getByRole('button', { name: '새 촬영 시작' }).click();
   await expect(page.getByRole('combobox', { name: '기준 영상', exact: true }).locator('option')).toHaveCount(1);
-  await page.getByRole('button', { name: '접수', exact: true }).click();
+  await openMenu(page, '참가자 접수');
 
   await expect(page.getByText('입력 버전 5', { exact: true })).toBeVisible();
   await page.getByLabel('선택 세션', { exact: true }).selectOption(firstSession);
@@ -141,7 +144,7 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
 test('360px: Forms duplicate row errors, corrected atomic save and detail access', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await login(page);
-  await page.getByText('Forms 참가자·설문 함께 등록', { exact: true }).click();
+  await openMenu(page, '일괄 등록 (CSV·Excel)');
   const form = page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true });
   await form.getByLabel('폼 행사 ID', { exact: true }).fill('MOBILE');
   for (const duplicate of [true, false]) {
@@ -159,7 +162,7 @@ test('360px: Forms duplicate row errors, corrected atomic save and detail access
   await expect(form.getByRole('heading', { name: '원행 1개 · 오류 0개', exact: true })).toBeVisible();
   await form.getByRole('button', { name: 'Forms 전체 확정', exact: true }).click();
   await expect(form.getByText('이미 확정한 파일입니다. 재확정해도 참가자가 추가되지 않습니다.')).toBeVisible();
-  await page.getByRole('button', { name: '접수', exact: true }).click();
+  await openMenu(page, '참가자 접수');
   await page.getByLabel('검색', { exact: true }).fill('0002');
   await page.getByRole('button', { name: '0002 상세 열기' }).click();
   await expect(page.getByRole('heading', { name: '모바일 가상견', exact: true })).toBeVisible();
@@ -179,7 +182,7 @@ test('developer session cannot read participant data and reviewer cannot write',
   await page.getByRole('button', { name: '로그아웃' }).click();
   await login(page, 'reviewer');
   await expect(page.getByRole('heading', { name: '접수', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '자료 가져오기', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '일괄 등록 (CSV·Excel)', exact: true })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toHaveCount(0);
   expect((await page.request.post('/api/cases', { headers: { 'X-KDOG-Request': '1' }, data: {} })).status()).toBe(403);
 });

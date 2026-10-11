@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 async function login(page: Page) {
@@ -18,7 +19,7 @@ test('S1 cohorts pin explicit same-edition responses, preserve valid n and retri
   test.setTimeout(120000); const errors: string[] = []; page.on('pageerror', value => errors.push(value.message)); await login(page);
   const first = await makeCase(page, 'cohort-one', false), second = await makeCase(page, 'cohort-two', true);
   await page.request.post('/api/cases', { headers, data: { event_id: 'S1-COHORT', participant_id: 'cohort-unconfirmed', dog_name: '동의 미확인 합성견' } });
-  await page.getByRole('button', { name: '리포트', exact: true }).click(); await page.getByText('자체 집단과 외부 비교 조건', { exact: true }).click();
+  await openMenu(page, '비교 조건');
   const panel = page.getByRole('region', { name: 'S1 자체 집단 비교', exact: true });
   await expect(panel.getByLabel('cohort-unconfirmed 집단 포함', { exact: true })).toHaveCount(0);
   await panel.getByLabel('집단 이름', { exact: true }).fill('합성 원척도 집단'); await panel.getByLabel('집단 선택 사유', { exact: true }).fill('동명이인 두 case를 각각 명시 선택');
@@ -51,7 +52,7 @@ test('S1 cohorts pin explicit same-edition responses, preserve valid n and retri
 
 test('S1 cohort drafts retain stale pins until explicit replacement and reports require explicit comparison selection', async ({ page }) => {
   test.setTimeout(120000); await login(page); const data = await makeCase(page, 'cohort-revision', false);
-  await page.reload(); await page.getByRole('button', { name: '리포트', exact: true }).click(); await page.getByText('자체 집단과 외부 비교 조건', { exact: true }).click();
+  await page.reload(); await openMenu(page, '비교 조건');
   const panel = page.getByRole('region', { name: 'S1 자체 집단 비교', exact: true });
   await panel.getByLabel('집단 이름', { exact: true }).fill('판본 충돌 합성 집단'); await panel.getByLabel('집단 선택 사유', { exact: true }).fill('선택 시점 판본 보호'); await panel.getByLabel('cohort-revision 집단 포함', { exact: true }).check();
   const changed = await page.request.put(`/api/cases/${data.item.case_id}/survey`, { headers, data: { expected_revision: data.item.input_revision, session_id: data.item.selected_session_id, survey_version: 'survey-20260929-v3', answers: { ...data.answers, s10: 2, s11: 2 }, not_applicable: [], blank_reasons: {} } }); expect(changed.status()).toBe(200); const current = await changed.json();
@@ -64,7 +65,7 @@ test('S1 cohort drafts retain stale pins until explicit replacement and reports 
   await page.route('**' + base + '/final-results-s1', route => route.fulfill({ json: [{ reference: final, recorded_at: '2026-10-04T01:00:00Z', actor: 'operator', basic: { result_id: 'synthetic-basic', revision: 1, ref: 'basic/synthetic.json', hash: 'b'.repeat(64) }, opinion: null, requires_reveal: false }] }));
   const starts: { comparison: unknown }[] = [];
   await page.route('**' + base + '/report-runs-s1', route => { if (route.request().method() === 'POST') { starts.push(route.request().postDataJSON()); return route.fulfill({ status: 201, json: {} }); } return route.fulfill({ json: [] }); });
-  await page.reload(); await page.getByRole('button', { name: '리포트', exact: true }).click(); await page.getByRole('button', { name: 'cohort-revision 리포트 열기', exact: true }).click();
+  await page.reload(); await openMenu(page, '리포트 발급'); await page.getByRole('button', { name: 'cohort-revision 리포트 열기', exact: true }).click();
   const report = page.getByRole('region', { name: 'S1 리포트 실행', exact: true });
   await report.getByLabel('리포트에 고정할 최종본', { exact: true }).selectOption(final.final_id); await expect(report.getByLabel('리포트 자체 비교집단', { exact: true })).toHaveValue('');
   await report.getByRole('button', { name: '선택한 최종본으로 리포트 생성', exact: true }).click(); await expect.poll(() => starts.length).toBe(1); expect(starts[0].comparison).toBeNull();
