@@ -5,7 +5,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from app import judgements_v4, media, report_runs_v4 as reports, run_v4, scoring_ai_v4, settings_v4, uploads
+from app import judgements_v4, media, preprocess_executions_v4 as queries, preprocess_v4, report_runs_v4 as reports, run_v4, scoring_ai_v4, settings_v4, uploads
+from app.domain.preprocess_v4 import PreprocessRequestV4
 from app.domain.media_v4 import ExternalProcessingEditV4, ExternalProcessingV4
 from app.domain.report_runs_v4 import REPORT_STAGES, ReportConfigV4, ReportStageV4
 from app.domain.runs_v4 import StartV4
@@ -40,13 +41,14 @@ class ExternalMediaAcceptanceV4Tests(unittest.TestCase):
             manifest = prepared.store.manifest(row)
             manifest.sessions[0].recording_s1 = capture
             prepared.store.save(db, row, manifest, "op", "synthetic.recording")
-        batch = prepared.run_batch()
+        batch = preprocess_v4.execute(prepared.store, prepared.case_id, prepared.session_id, "review",
+            PreprocessRequestV4(request_id="prepared-by-review", expected_revision=prepared.current()["input_revision"]))
         self.assertEqual(batch.status, "complete")
         self.assertTrue(batch.clips)
         self.assertTrue(all(clip.camera_id == "EXT360" and clip.ai.frame_times_seconds and clip.ai.audio_ranges for clip in batch.clips))
         fixture = helpers.RunV4Tests()
         fixture.store, fixture.case_id, fixture.session_id = prepared.store, prepared.case_id, prepared.session_id
-        fixture.user = SimpleNamespace(username="op", role="operator")
+        fixture.user = SimpleNamespace(username="review", role="reviewer")
         pointer = media_helpers.preprocess.status(prepared.store, prepared.case_id, prepared.session_id, "op").result_pointer
         fixture.request = StartV4(expected_revision=batch.input_revision, request_id="prepared-ai", preprocess_ref=pointer.ref, preprocess_hash=pointer.hash)
         expected = {prepared.store.path(value.ref): value.hash for clip in batch.clips for value in (clip.original, clip.ai)}
@@ -92,9 +94,18 @@ class ExternalMediaAcceptanceV4Tests(unittest.TestCase):
         before = hashlib.sha256(pdf).hexdigest()
         uploads.update_external_processing(fixture.store, fixture.case_id, video.video_id,
             ExternalProcessingEditV4(session_id=fixture.session_id, expected_revision=fixture.current()["input_revision"],
-                external_processing=ExternalProcessingV4(projection="equirectangular", timeline="preserved")), "review")
+                external_processing=ExternalProcessingV4(projection="equirectangular", timeline="preserved")), "dev")
         self.assertEqual(fixture.store.path(basic["manifest_ref"]).read_bytes(), pinned_basic)
         self.assertEqual(hashlib.sha256(reports.download(fixture.store, fixture.case_id, fixture.session_id,
             run["run_id"], "pdf", fixture.user)[0]).hexdigest(), before)
         with fixture.store.connect() as db:
             self.assertEqual(db.execute("SELECT SUM(call_reserved) FROM steps WHERE run_id=?", (run["run_id"],)).fetchone()[0], 0)
+        old = queries.execution(prepared.store, prepared.case_id, prepared.session_id, batch.batch_id, "dev")
+        self.assertEqual(old.requested_by, "review")
+        self.assertTrue(old.outdated)
+        fresh = preprocess_v4.execute(prepared.store, prepared.case_id, prepared.session_id, "review",
+            PreprocessRequestV4(request_id="explicit-after-correction", expected_revision=prepared.current()["input_revision"]))
+        self.assertNotEqual(fresh.batch_id, batch.batch_id)
+        self.assertEqual(fresh.status, "partial")
+        self.assertFalse(fresh.clips)
+        self.assertEqual({item.requested_by for item in queries.executions(prepared.store, "review").items}, {"review"})

@@ -1,6 +1,6 @@
 # PR-MP01 외부 처리 MP4 계약과 보관
 
-버전: v1.0 · 2026-10-12 · 상태: 구현·검증·독립 cold review 수용 반영 완료 · 선행: ES03 병합 `5ef483f` · 최초 조사 기준: `1702f2b` · 브랜치: `veluga/mp01-external-360-media`
+버전: v1.0 · 2026-10-12 · 상태: 구현·검증·독립 cold review 수용 반영·병합 완료 ([PR #90](https://github.com/syleeVeluga/k-dog-proj/pull/90), `d4959a7`) · 선행: ES03 병합 `5ef483f` · 최초 조사 기준: `1702f2b` · 브랜치: `veluga/mp01-external-360-media`
 
 상위: [전체 계획](K-DOG_360통합MP4업로드계획_v1.0_20261012.md). 범위: VM-R01~R07의 서버 계약. 제목 제안: `feat: accept externally prepared 360 MP4 inputs`.
 

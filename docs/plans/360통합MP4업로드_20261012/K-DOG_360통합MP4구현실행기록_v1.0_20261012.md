@@ -54,6 +54,10 @@ MP02: [PR #91](https://github.com/syleeVeluga/k-dog-proj/pull/91), 구현 `a7609
 - 독립 reviewer `mp03_cold_review`의 P2 2건을 수용했다: online venv 직접 호출의 잘못된 Python 환경 변수 제거, 수작업 batch만 연결했던 종단 시험을 실제 MP4 전처리 batch로 교체. 최초 전체 UI132개에서129 통과/3 실패를 확인했고 긴 파일명 모바일 CSS(이전 aria-label selector)와 새 mixed 시험의 operator 이력 간섭을 각각 현재 selector1줄/전용 합성 계정으로 수정했다. 촬영 판본 충돌 시험의 기존 폴링 기대 실패1건은 해당 코드를 바꾸지 않고 같은 expectation으로 재검증해 통과했다. 수용 수정 후 관련15개/1.4분 통과. reviewer는 두 수용 건과 추가 수정의 해결·신규 actionable0을 확인했다. 최종 전체 UI를 다시 확인한다.
 - 깨끗한 checkpoint `6ea8940`의 portable/online ZIP을 만들고 기존 설치 검증 및 새 MP4 런타임 접수·정정·재시작/download 검증을 모두 통과했다. 이 checkpoint 이후의 CSS/인수 fixture 수정과 최종 문서를 포함한 깨끗한 commit으로 최종 ZIP을 다시 만들며, 위 후보 ZIP을 최종 배포물로 표시하지 않는다. 현재 Windows 한 대의 새 한글/공백 경로·임시 synthetic DB 검증이며 깨끗한 OS/물리 PC3대 실측은 아니다.
 
+백엔드 전체 `uv sync --locked`/unittest discover는749개·1225.046초에서747 통과/2 skip으로 끝났다. skip은 미제공 역사적 고객 원본 번들의 대조 시험2개이며 S1 제품 회귀 실패가 아니다. 전체 실행이 먼저 import한 초기 연결 fixture를 이후 실제 decoded chain으로 보강해 별도 통과했다. 마지막 실제 종단 fixture44.325초는 op 업로드→review 전처리/AI·리포트→dev metadata 정정·과거 공유 조회→review 현재 입력의 명시 새 execution까지 확인한다. 이전/새 실행ID·원래 실행자·outdated·과거 basic/PDF bytes를 보존하고 새 펼침 영상 클립0을 확인했다. 중복 실행은 고유 시험 수에 더하지 않았다.
+
+문서9개의 로컬 링크62개를 실제 파일과 committed-tree 목록으로 검사해 오류0을 확인했다. diff-check 통과. Graft build/check의 wiring sync OK를 확인했고 deep concept 요약은 미생성 상태로 별도 표시했다.
+
 ## 추가 의존성·실행 환경 확인 — 2026-10-12
 
 공식 PyPI registry에서 Uvicorn 최신0.54.0/선택0.52.4, openpyxl 최신/선택3.1.5, ReportLab5.0.1/5.0.1, Pillow12.3.0/12.3.0, cryptography50.0.2/50.0.2, pypdf6.20.0/6.19.0을 확인했다. 각 Python>=3.8~3.10 조건(ReportLab<4)을 만족하는 기존 Python3.14 조합을 유지한다. [Uvicorn](https://pypi.org/pypi/uvicorn/json), [openpyxl](https://pypi.org/pypi/openpyxl/json), [ReportLab](https://pypi.org/pypi/reportlab/json), [Pillow](https://pypi.org/pypi/pillow/json), [cryptography](https://pypi.org/pypi/cryptography/json), [pypdf](https://pypi.org/pypi/pypdf/json).
