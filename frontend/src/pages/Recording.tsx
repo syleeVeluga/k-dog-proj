@@ -21,12 +21,12 @@ export function fromClock(text: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-// 촬영 메뉴: 영상 수신·연결(inbox)과 실제 8구간·사건·관찰창 기록(record)을 하위 메뉴로 나눈다.
+// 촬영 메뉴: 영상 파일 업로드(inbox)와 실제 8구간·사건·관찰창 기록(record)을 하위 메뉴로 나눈다.
 export function Recording({ view, user, cases, selected, select, filters, writable, run, reload, notify }: Props) {
   const sorted = cases.filter(c => matchesCase(c, filters.search, filters.eventFilter)).sort((a, b) => (a.sequence_no ?? 1e9) - (b.sequence_no ?? 1e9) || a.participant_id.localeCompare(b.participant_id));
   const confirmed = cases.filter(c => segmentState(sessionOf(c)) === 'confirmed').length;
   if (view === 'inbox') return <>
-    <section className="page-heading"><div><p className="eyebrow">RECORDING</p><h1>영상 수신·연결</h1><p className="muted">현장 PC가 보낸 영상 파일을 참가자·회차·카메라에 연결합니다.</p></div></section>
+    <section className="page-heading"><div><p className="eyebrow">RECORDING</p><h1>영상 파일 업로드</h1><p className="muted">촬영한 영상 파일을 업로드하고, 파일별로 참가자·촬영 회차·촬영 카메라 번호를 지정합니다.</p></div></section>
     {writable && <UploadInbox cases={cases} selected={selected} user={user} run={run} refresh={async message => { await reload(); if (message) notify(message); }} />}
   </>;
   return <>
