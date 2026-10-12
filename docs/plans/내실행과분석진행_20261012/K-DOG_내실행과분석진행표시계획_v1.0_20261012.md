@@ -117,6 +117,8 @@ ES03 인계에는 ES01/02의 API/DTO·단계 이벤트·실행/결과 식별 방
 | --- | --- | --- |
 | ES01 | main1d62f12 → 구현b7b3364 → [PR #87](https://github.com/syleeVeluga/k-dog-proj/pull/87) → 병합121d14a | P2 2건 수용·해결, ES-T01~06 |
 | ES02 | main121d14a → 구현8d8205c → [PR #88](https://github.com/syleeVeluga/k-dog-proj/pull/88) → 병합7d39c1e | 회차 고정·pagination·timer 발견 수용·해결, ES-T07~12 |
-| ES03 | main7d39c1e → 이 PR의 적용 commit/원격 병합 상태는 개별 실행 기록의 PR 링크 참고 | P1/P2 2건 수용·해결, ES-T13~18 |
+| ES03 | main7d39c1e → 구현0a8b03e → [PR #89](https://github.com/syleeVeluga/k-dog-proj/pull/89)의 최종 head/병합 기록 | P1/P2 2건 수용·해결, ES-T13~18 |
 
 전처리 내 원장·불변 결과·공유 접근, AI 고정 계획/실행 상태·읽기 전용 접수 resolver, 조회 복구/문맥 보호를 구현했다. 합성 자료·제어 응답·가짜 공급자로 시험하며 실제 외부 AI 호출0건이다. 실공급자 품질/시간·현장3PC·고객 원본/규칙 미수령은 기존 후속 대장에 남는다. MP01~03 제품 구현은 이번 goal 범위에 포함하지 않으며, MP01은 ES03 구현 인계와 병합 상태를 확인하고 시작한다.
+
+세 PR의 최종 원격 병합 상태와 merge commit은 각 GitHub PR 기록을 원장으로 확인한다. 로컬 main은 원격 병합 뒤 ff-only로 동기화한다.

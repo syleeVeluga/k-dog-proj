@@ -133,3 +133,4 @@ fake provider/제어된 응답과 임시 합성 저장소로 전이를 재현하
 - ES02/03은 sequence/generation으로 문맥·POST/제어 확정 응답 이전의 늦은 조회를 버린다. 응답 유실은 pending ID resolver로만 확인하고 새 요청을 자동 생성하지 않는다. 종료·문맥 폐기·로그아웃에서 예약/세션 데이터를 정리한다.
 - 회귀 경로: backend `test_preprocess_execution_v4`, `test_preprocess_v4`, `test_preprocess_api_v4`, `test_run_progress_v4`, `test_run_v4`, `test_ai_api_v4`, `test_execution_actor_v4`; frontend `preprocess-executions-v4`, `preprocess-v4`, `analysis-status-v4`, `analysis-progress-v4`, `scoring-ai-v4`, `context`, `business-access-v4`. MP는 이 계약에 새 출처/metadata만 연결하며 VM-ES-T01~04에서 조합 인수를 확인한다.
 - 문서 QA: 계획 폴더의 로컬 상대 링크68개 존재 확인, git diff --check 통과. Graft wiring graph 갱신 후 check 동기화 OK. 실제 PR/commit은 아래에 추가한다.
+- 적용 PR: [PR #89](https://github.com/syleeVeluga/k-dog-proj/pull/89), 구현 commit0a8b03e. 이 PR의 최종 head/원격 병합/merge commit은 GitHub PR 기록을 따른다. 코드 변경 뒤 수행한 최종 검증·독립 재검토 근거는 위 기록과 같다.
