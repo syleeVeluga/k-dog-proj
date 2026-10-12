@@ -22,5 +22,11 @@ export type AiRunV4 = {
   run_id: string; case_id: string; session_id: string; kind: 's1'; input_revision: number; status: string; updated_at: string;
   outdated: boolean; failure_code: string | null; result_available: boolean; steps: AiStepV4[];
   planned_provider_calls: number; reserved_calls: number; max_ai_calls: number; judgement_status: 'policy_pending_D04' | 'implemented_professor_test_pending';
+  requested_by: string; created_at: string; retry_at: string | null; settings_outdated: boolean;
+  progress: { current_stage: string | null; state_uncertain: boolean; stages: {
+    stage: string; keys: { key: string; status: string; attempt: number | null; reused: boolean }[];
+    completed: number; failed: number; running: number; waiting: number;
+  }[] };
 };
+export type AiStartV4 = { request_id: string; expected_revision: number; preprocess_ref: string; preprocess_hash: string; settings_version: string; reuse_run_id: string | null };
 export type AiBasicResultV4 = BasicResultViewV4['document'] & { result_id: string };

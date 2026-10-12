@@ -42,7 +42,7 @@ from app import opinions_v4, final_results_v4, attachment_runs_v4
 from app import report_runs_v4, comparisons_v4
 from app import external_comparisons_v4
 from app import validation_data_v4, exports_v4, activity_v4
-from app.domain.runs_v4 import ActionV4, RunViewV4, StartV4
+from app.domain.runs_v4 import ActionV4, RunViewV4, StartV4, RunRequestLookupV4
 from app.domain.preprocess_v4 import (BatchV4, PreprocessRequestV4, PreprocessStatusV4,
                                       PreprocessExecutionPageV4, PreprocessExecutionDetailV4)
 from app.domain.media_v4 import PreservedMediaRegistrationV4, StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
@@ -197,6 +197,10 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.post("/api/cases/{case_id}/sessions/{session_id}/runs-s1", response_model=RunViewV4, status_code=201)
     def ai_start_s1(case_id: Key, session_id: Key, value: StartV4, user=Depends(writer)):
         return scoring_ai_v4.start(store, case_id, session_id, value, user)
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/runs-s1/by-request/{request_id}", response_model=RunRequestLookupV4)
+    def ai_run_by_request_s1(case_id: Key, session_id: Key, request_id: Key, user=Depends(reader)):
+        return run_v4.by_request(store, case_id, session_id, request_id, user)
 
     @app.get("/api/runs-s1/{run_id}", response_model=RunViewV4)
     def ai_run_s1(run_id: Key, user=Depends(reader)):

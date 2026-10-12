@@ -204,7 +204,8 @@ def view(store, run_id, user):
         row = row_for(store, db, run_id)
         case = store.case(db, row["case_id"])
         steps = []
-        for step in db.execute("SELECT * FROM steps WHERE run_id=? ORDER BY created_at,attempt", (run_id,)):
+        raw_steps = db.execute("SELECT rowid,* FROM steps WHERE run_id=? ORDER BY created_at,attempt,rowid", (run_id,)).fetchall()
+        for step in raw_steps:
             usage = json.loads(step["usage_json"])
             timing = {key: value for key, value in usage.get("timing", {}).items() if type(value) in (int, float)}
             provider_usage = usage.get("provider_usage")
@@ -221,11 +222,56 @@ def view(store, run_id, user):
                 "token_meters": meters, **tokens,
                 "cost_usd": usage["cost_usd"] if type(usage.get("cost_usd")) in (int, float) else None})
         config = RunConfigV4.model_validate_json(row["config_snapshot_json"])
+        snapshot = snapshot_for(row)
+        progress, retry_at = _progress(row, config, raw_steps)
+        from . import settings_v4
         return {"run_id": run_id, "case_id": row["case_id"], "session_id": row["session_id"], "kind": "s1", "input_revision": row["input_revision"],
+            "requested_by": snapshot.requested_by, "created_at": row["created_at"], "retry_at": retry_at, "progress": progress,
             "status": row["status"], "updated_at": row["updated_at"], "outdated": row["input_revision"] != case["input_revision"] or row["session_id"] != case["selected_session_id"],
+            "settings_outdated": config.active_settings_version is not None and config.active_settings_version != settings_v4.active(db),
             "failure_code": row["failure_code"], "result_available": bool(row["result_ref"]), "steps": steps,
             "planned_provider_calls": sum(stage.provider_call for stage in config.stages), "reserved_calls": sum(step["call_reserved"] for step in steps),
             "max_ai_calls": config.max_ai_calls, "judgement_status": "implemented_professor_test_pending" if any(stage.stage == "attachment_v4" for stage in config.stages) else "policy_pending_D04"}
+
+
+def _progress(row, config, steps):
+    valid_claim = row["status"] == "running" and bool(row["claim_token"]) and bool(row["lease_expires_at"]) and row["lease_expires_at"] > now()
+    current_stage, stages, retry_times = None, [], []
+    for stage in ("score_v4", "calculate_v4", "attachment_v4", "publish_v4"):
+        keys = []
+        for planned in (value for value in config.stages if value.stage == stage):
+            attempts = [value for value in steps if (value["stage"], value["branch_key"]) == (stage, planned.key)
+                        and value["status"] not in ("abandoned", "superseded")]
+            step = max(attempts, key=lambda value: (value["attempt"], value["rowid"])) if attempts else None
+            state, reused = "waiting", False
+            if step:
+                state = step["status"]
+                reused = bool(json.loads(step["usage_json"]).get("reused"))
+                if state == "running":
+                    if valid_claim and step["claim_token"] == row["claim_token"]:
+                        current_stage = stage
+                    else:
+                        state = "waiting"
+                if state == "retry_wait" and step["retry_at"]:
+                    retry_times.append(step["retry_at"])
+            keys.append({"key": planned.key, "status": state, "attempt": step["attempt"] if step else None, "reused": reused})
+        stages.append({"stage": stage, "keys": keys, "completed": sum(value["status"] == "succeeded" for value in keys),
+                       "failed": sum(value["status"] in ("failed", "settings_required") for value in keys),
+                       "running": sum(value["status"] == "running" for value in keys),
+                       "waiting": sum(value["status"] not in ("succeeded", "failed", "settings_required", "running") for value in keys)})
+    return {"current_stage": current_stage, "state_uncertain": row["status"] == "running" and current_stage is None,
+            "stages": stages}, max(retry_times) if row["status"] == "retry_wait" and retry_times else None
+
+
+def by_request(store, case_id, session_id, request_id, user):
+    with store.connect() as db:
+        preprocess_v4._case(store, db, case_id, session_id, user.username, selected=False)
+        row = db.execute("SELECT * FROM runs WHERE kind='s1' AND case_id=? AND session_id=? AND request_id=?",
+                         (case_id, session_id, request_id)).fetchone()
+        if row is None or snapshot_for(row).requested_by != user.username:
+            return {"found": False, "run": None}
+        run_id = row["run_id"]
+    return {"found": True, "run": view(store, run_id, user)}
 
 
 def action(store, run_id, value, user, *, retry=False):

@@ -89,7 +89,9 @@ test('S1 common AI operations preserve partial work, unknown billing, explicit r
   let runs: AiRunV4[] = [];
   const starts: Record<string, unknown>[] = [], actions: { action: string; value: Record<string, unknown> }[] = [];
   const run = (id: string, status: string): AiRunV4 => ({ run_id: id, case_id: item.case_id, session_id: item.selected_session_id, kind: 's1', input_revision: item.input_revision, status,
-    updated_at: '2026-10-04T01:00:00+00:00', outdated: false, failure_code: status === 'partial' ? 'provider_timeout' : null, result_available: status === 'partial', planned_provider_calls: 43, reserved_calls: 2, max_ai_calls: 100, judgement_status: 'implemented_professor_test_pending',
+    requested_by: 'operator', created_at: '2026-10-04T01:00:00+00:00', retry_at: null, settings_outdated: false,
+    progress: { current_stage: null, state_uncertain: false, stages: [{ stage: 'score_v4', keys: [{ key: 'group-entry', status: 'succeeded', attempt: 1, reused: false }, { key: 'group-walk', status: 'failed', attempt: 2, reused: false }], completed: 1, failed: 1, running: 0, waiting: 0 }] },
+    updated_at: '2026-10-04T01:00:00+00:00', outdated: false, failure_code: status === 'partial_failed' ? 'provider_timeout' : null, result_available: status === 'partial_failed', planned_provider_calls: 43, reserved_calls: 2, max_ai_calls: 100, judgement_status: 'implemented_professor_test_pending',
     steps: [{ stage: 'score_v4', key: 'group-entry', attempt: 1, status: 'succeeded', code: null, billing_uncertain: false, call_reserved: true, reused: false, remote_cleanup_pending: false, timing: { upload_seconds: 1, inference_seconds: 2, stage_seconds: 4 }, token_meters: { total_tokens: 30 }, input_tokens: 20, output_tokens: 10, total_tokens: 30, cost_usd: null },
       { stage: 'score_v4', key: 'group-walk', attempt: 2, status: 'failed', code: 'provider_timeout', billing_uncertain: true, call_reserved: true, reused: false, remote_cleanup_pending: true, timing: { cleanup_seconds: 0.2 }, token_meters: {}, input_tokens: null, output_tokens: null, total_tokens: null, cost_usd: null }] });
   await page.route('**/api/scoring-ai-s1/readiness', route => route.fulfill({ json: { active_version: 'synthetic-settings', planned_provider_calls: 43, enabled, judgement_status: 'implemented_professor_test_pending' } }));
@@ -97,11 +99,12 @@ test('S1 common AI operations preserve partial work, unknown billing, explicit r
   await page.route('**' + path + '/runs-s1', async route => {
     if (route.request().method() === 'GET') { await route.fulfill(forbidden ? { status: 403, json: { detail: '실행 조회 권한이 없습니다.' } } : { json: runs }); return; }
     starts.push(route.request().postDataJSON());
+    runs = [run(`synthetic-run-${starts.length}`, starts.length > 1 ? 'queued' : 'partial_failed'), ...runs];
     if (loseResponse) { loseResponse = false; await route.abort('failed'); return; }
-    runs = [run(`synthetic-run-${starts.length}`, starts.length > 2 ? 'queued' : 'partial'), ...runs];
     if (starts.at(-1)?.reuse_run_id) runs[0].steps[0].reused = true;
     await route.fulfill({ status: 201, json: runs[0] });
   });
+  await page.route('**' + path + '/runs-s1/by-request/*', route => route.fulfill({ json: { found: runs.length > 0, run: runs[0] ?? null } }));
   await page.route('**/api/runs-s1/*/*', async route => {
     const action = route.request().url().split('/').at(-1)!; actions.push({ action, value: route.request().postDataJSON() });
     runs[0] = { ...runs[0], status: action === 'stop' ? 'stopped' : 'queued', updated_at: `2026-10-04T01:00:0${actions.length}+00:00` };
@@ -109,20 +112,19 @@ test('S1 common AI operations preserve partial work, unknown billing, explicit r
   });
   await login(page, 'operator'); await openScoring(page, 's1airun');
   const panel = page.getByRole('region', { name: 'AI 실행', exact: true });
-  const start = panel.getByRole('button', { name: '현재 입력으로 AI 실행 생성', exact: true });
+  const start = panel.getByRole('button', { name: 'AI 분석 시작', exact: true });
   await expect(start).toBeDisabled(); expect(starts).toHaveLength(0);
   enabled = true; outdated = true; await panel.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true }).click(); await expect(start).toBeDisabled();
   outdated = false; await panel.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true }).click(); await expect(start).toBeEnabled();
-  await start.click(); await expect(panel.getByText(/응답 확인이 필요한 요청/)).toBeVisible();
-  await start.click(); await expect(panel.getByRole('heading', { name: '부분 완료', exact: true })).toBeVisible();
-  expect(starts[0].request_id).toBe(starts[1].request_id); expect(starts[1]).toMatchObject({ expected_revision: item.input_revision, settings_version: 'synthetic-settings', reuse_run_id: null });
+  await start.click(); await expect(panel.getByRole('heading', { name: '부분 완료 · 실패 있음', exact: true })).toBeVisible();
+  expect(starts).toHaveLength(1); expect(starts[0]).toMatchObject({ expected_revision: item.input_revision, settings_version: 'synthetic-settings', reuse_run_id: null });
   await panel.getByText('기술 정보 · 단계별 시간·호출·부분 실패', { exact: true }).click();
   await expect(panel.getByText('공급자 임시 파일 정리 미완료', { exact: true })).toBeVisible();
   await expect(panel.getByText('입력 미확인 / 출력 미확인 / 합계 미확인 토큰', { exact: true })).toBeVisible();
   await expect(panel.getByText('추론: 2초', { exact: true })).toBeVisible();
   await panel.getByLabel('성공 항목군 재사용', { exact: true }).selectOption(runs[0].run_id);
   await start.click(); await expect(panel.getByRole('heading', { name: '대기', exact: true })).toBeVisible();
-  expect(starts[2].reuse_run_id).toBe('synthetic-run-2'); expect(starts[2].request_id).not.toBe(starts[1].request_id);
+  expect(starts[1].reuse_run_id).toBe('synthetic-run-1'); expect(starts[1].request_id).not.toBe(starts[0].request_id);
   const stop = panel.getByRole('button', { name: '이 AI 실행 중지', exact: true }); await expect(stop).toBeDisabled();
   await panel.getByLabel('실행 제어 사유', { exact: true }).fill('합성 호출 없이 중지·재시도 상태 확인');
   await stop.click(); await expect(panel.getByRole('heading', { name: '중지', exact: true })).toBeVisible();
@@ -130,17 +132,17 @@ test('S1 common AI operations preserve partial work, unknown billing, explicit r
   await panel.getByRole('button', { name: '고정 입력으로 AI 재시도', exact: true }).click();
   expect(actions[1].value.expected_updated_at).toBe('2026-10-04T01:00:01+00:00');
   await expect(panel.getByRole('heading', { name: '대기', exact: true })).toBeVisible();
-  runs[0] = { ...runs[0], status: 'partial' }; await panel.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true }).click();
+  runs[0] = { ...runs[0], status: 'partial_failed' }; await panel.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true }).click();
   await page.setViewportSize({ width: 360, height: 800 });
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await panel.screenshot({ path: testInfo.outputPath('ai-runs-s1-360.png'), animations: 'disabled' });
   await page.getByRole('button', { name: '로그아웃', exact: true }).click(); await login(page, 'reviewer'); await openScoring(page, 's1airun');
   const shared = page.getByRole('region', { name: 'AI 실행', exact: true });
-  await expect(shared.getByRole('button', { name: '현재 입력으로 AI 실행 생성', exact: true })).toBeEnabled();
+  await expect(shared.getByRole('button', { name: 'AI 분석 시작', exact: true })).toBeEnabled();
   await expect(shared.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true })).toBeVisible();
   await expect(shared.getByLabel('성공 항목군 재사용', { exact: true })).toBeVisible();
-  await shared.getByRole('button', { name: '현재 입력으로 AI 실행 생성', exact: true }).click();
-  expect(starts).toHaveLength(4);
+  await shared.getByRole('button', { name: 'AI 분석 시작', exact: true }).click();
+  await expect.poll(() => starts.length).toBe(3);
   expect((await page.request.get('/api/scoring-ai-s1/readiness')).status()).toBe(200);
   expect((await page.request.get('/api/settings-s1')).status()).toBe(403);
   expect(errors).toEqual([]);

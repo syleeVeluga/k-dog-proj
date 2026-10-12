@@ -1,6 +1,6 @@
 # PR-ES02 전처리 내 작업 화면과 자동 갱신
 
-버전: v1.0 · 2026-10-12 · 상태: 구현·검증·독립 cold review 수용 반영·재검토 완료 / 병합 준비 · 기준 commit: `1702f2b`
+버전: v1.0 · 2026-10-12 · 상태: 구현·검증·독립 cold review 수용 반영·재검토 완료 / 병합 완료 · 기준 commit: `1702f2b`
 상위: [전체 계획](K-DOG_내실행과분석진행표시계획_v1.0_20261012.md) · 선행: [ES01](K-DOG_PR-ES01_전처리내실행조회와진행계약_v1.0_20261012.md) · 다음: [ES03](K-DOG_PR-ES03_AI분석진행요약과상태복구_v1.0_20261012.md)
 권장 브랜치: `codex/es02-preprocess-status` · PR 제목: `feat: 전처리 내 작업 목록과 처리 단계 자동 갱신`
 
@@ -84,3 +84,5 @@ git diff --check
 - 재현 회귀: 과거 회차 최초 열기, 현재 실행 열기 후 다른 직원의 새 회차 변경, 둘째 페이지 running/느린 more, 반복 수동 조회 뒤 메뉴 이동, 완료 후 대기 timer 취소. 신규8개+공통context1개, 9개 통과(57.0초). 최종 timer/pagination3개 결과 및 reviewer 해결 확인은 아래에 추가한다.
 - 합성 화면 근거: [1366px 진행 표시](evidence/ES02_preprocess-progress-1366.png), [390px 진행 표시](evidence/ES02_preprocess-progress-390.png). 실제 참가자 자료가 아닌 제어된 응답의 합성 화면이다.
 - 최종 timer/pagination3개 통과(18.1초), 빌드·git diff --check 통과. 독립 reviewer 최종 재검토에서 수용 사항 모두 해결·잔존 actionable0건 확인. ES-T07~12 완료.
+
+- 병합: [PR #88](https://github.com/syleeVeluga/k-dog-proj/pull/88), 구현8d8205c, 원격/로컬 main7d39c1e. ES03는 이 병합 commit에서 시작했다.

@@ -124,7 +124,7 @@ export function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, [user?.role]);
   useEffect(() => {
-    const clear = () => { for (const key of Object.keys(sessionStorage)) if (key.startsWith('kdog-preprocess:')) sessionStorage.removeItem(key); setUser(null); setCases([]); setSelected(null); setCatalog(null); setUnavailableCases(0); };
+    const clear = () => { for (const key of Object.keys(sessionStorage)) if (key.startsWith('kdog-preprocess:') || key.startsWith('kdog-ai:')) sessionStorage.removeItem(key); setUser(null); setCases([]); setSelected(null); setCatalog(null); setUnavailableCases(0); };
     const unavailable = (event: Event) => setUnavailableCases((event as CustomEvent<number>).detail);
     window.addEventListener('kdog-unavailable-cases', unavailable);
     window.addEventListener('kdog-session-expired', clear);
@@ -185,7 +185,7 @@ export function App() {
     <header inert={modal}><button ref={menuToggle} className="menu-toggle" aria-controls="lnb" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>메뉴</button>
       <button className="wordmark plain" onClick={() => go('intake')}>K-DOG<span>FIELD NOTES</span></button>
       <div className="account"><span>{user.username} · {roleNames[user.role]}</span><button disabled={busy} onClick={() => void run(async () => {
-        if (!mayLeave()) return; await api('/auth/logout', 'POST'); for (const key of Object.keys(sessionStorage)) if (key.startsWith('kdog-preprocess:')) sessionStorage.removeItem(key); setUser(null); setSelected(null); setCases([]);
+        if (!mayLeave()) return; await api('/auth/logout', 'POST'); for (const key of Object.keys(sessionStorage)) if (key.startsWith('kdog-preprocess:') || key.startsWith('kdog-ai:')) sessionStorage.removeItem(key); setUser(null); setSelected(null); setCases([]);
       })}>로그아웃</button></div></header>
     <div className="shell">
       <Lnb role={user.role} current={route} go={go} visible={wide || menuOpen} drawer={drawer} close={closeMenu} />

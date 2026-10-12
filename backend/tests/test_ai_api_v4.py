@@ -40,6 +40,33 @@ class AiApiV4Tests(unittest.TestCase):
         self.assertEqual(result.status_code, 200, result.text)
         return version
 
+    def test_request_lookup_is_read_only_actor_scoped_and_survives_current_conditions(self):
+        version = self.activate()
+        request = {**self.helper.request.model_dump(mode="json"), "settings_version": version}
+        created = self.operator.post(self.path, json=request)
+        self.assertEqual(created.status_code, 201, created.text)
+        run_id = created.json()["run_id"]
+        state = self.developer.get("/api/settings-s1").json()
+        state["config"]["max_ai_calls"] += 1
+        saved = self.developer.post("/api/settings-s1", json={"expected_active": version, "config": state["config"]}).json()
+        self.assertEqual(self.developer.post(f"/api/settings-s1/{saved['version']}/activate", json={"expected_active": version}).status_code, 200)
+        current = self.helper.current()
+        changed = self.operator.post(f"/api/cases/{self.helper.case_id}/sessions", json={"expected_revision": current["input_revision"], "note": "합성 새 회차"})
+        self.assertEqual(changed.status_code, 200, changed.text)
+        with self.store.connect() as db:
+            before = [tuple(row) for row in db.execute("SELECT * FROM changes")]
+        path = self.path + "/by-request/" + request["request_id"]
+        found = self.operator.get(path)
+        self.assertEqual(found.status_code, 200, found.text)
+        self.assertEqual(found.json()["run"]["run_id"], run_id)
+        self.assertTrue(found.json()["run"]["outdated"])
+        self.assertTrue(found.json()["run"]["settings_outdated"])
+        self.assertFalse(self.clients["reviewer"].get(path).json()["found"])
+        self.assertFalse(self.operator.get(self.path + "/by-request/missing").json()["found"])
+        self.assertEqual(self.clients["reviewer"].get(f"/api/runs-s1/{run_id}").status_code, 200)
+        with self.store.connect() as db:
+            self.assertEqual(before, [tuple(row) for row in db.execute("SELECT * FROM changes")])
+
     def test_settings_contract_permissions_conflict_and_no_provider_schema_validation(self):
         for role in ("operator", "reviewer"):
             self.assertEqual(self.clients[role].get("/api/settings-s1").status_code, 403)

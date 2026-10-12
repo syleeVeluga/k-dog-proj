@@ -133,6 +133,28 @@ class RunStepViewV4(Model):
     cost_usd: float | None
 
 
+class RunProgressKeyV4(Model):
+    key: str
+    status: str
+    attempt: int | None = None
+    reused: bool = False
+
+
+class RunProgressStageV4(Model):
+    stage: Literal["score_v4", "calculate_v4", "attachment_v4", "publish_v4"]
+    keys: list[RunProgressKeyV4]
+    completed: int
+    failed: int
+    running: int
+    waiting: int
+
+
+class RunProgressV4(Model):
+    current_stage: Literal["score_v4", "calculate_v4", "attachment_v4", "publish_v4"] | None
+    state_uncertain: bool
+    stages: list[RunProgressStageV4]
+
+
 class RunViewV4(Model):
     run_id: MediaKey
     case_id: MediaKey
@@ -140,8 +162,13 @@ class RunViewV4(Model):
     kind: Literal["s1"]
     input_revision: Annotated[int, Field(ge=1)]
     status: str
+    requested_by: str
+    created_at: str
+    retry_at: str | None
+    progress: RunProgressV4
     updated_at: Text
     outdated: bool
+    settings_outdated: bool
     failure_code: str | None
     result_available: bool
     steps: list[RunStepViewV4]
@@ -149,3 +176,8 @@ class RunViewV4(Model):
     reserved_calls: Annotated[int, Field(ge=0)]
     max_ai_calls: Annotated[int, Field(ge=1)]
     judgement_status: Literal["policy_pending_D04", "implemented_professor_test_pending"]
+
+
+class RunRequestLookupV4(Model):
+    found: bool
+    run: RunViewV4 | None = None
