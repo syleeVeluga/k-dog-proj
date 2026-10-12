@@ -1,6 +1,6 @@
 # PR-MP03 통합 인수와 배포
 
-버전: v1.0 · 2026-10-12 · 상태: 통합 인수 구현·독립 cold review 수용 수정 완료, 최종 전체/ZIP 검증 중 · 선행: MP01 #90·MP02 #91 병합 `befa18c` · 브랜치: `veluga/mp03-360-upload-acceptance`
+버전: v1.0 · 2026-10-12 · 상태: 통합 인수 구현·독립 cold review 수용 수정 완료, 최종 전체 통과·ZIP 최종 검증 중 · 선행: MP01 #90·MP02 #91 병합 `befa18c` · 브랜치: `veluga/mp03-360-upload-acceptance`
 
 상위: [전체 계획](K-DOG_360통합MP4업로드계획_v1.0_20261012.md). 범위: VM-R01~R08 종단 인수. 제목 제안: `test: verify prepared MP4 uploads and deployment compatibility`.
 
@@ -81,8 +81,8 @@ backend/.venv/Scripts/python.exe -X utf8 scripts/verify_release.py releases/kdog
 
 ## 실행 기록 — 착수 후 작성
 
-- [ ] 새 종류와 기존 S1의 단일 실제 전체 검사 결과
-- [ ] 공식 최신/선택 버전·필요 API/FFmpeg·lockfile 근거
-- [ ] 독립 cold review·수용 수정·재검증
+- [x] 새 종류와 기존 S1의 전체 검사: backend747 통과/2 skip, frontend132 통과, 실제 decoded 종단 별도 통과
+- [x] 공식 최신/선택 버전·필요 API/FFmpeg·lockfile 근거
+- [x] 독립 cold review·수용 수정·재검증
 - [ ] portable/online 새 ZIP·해시·설치/재시작·실제 범위
-- [ ] 운영 안내·완료 commit·미실측 항목별 인계
+- [x] 운영 안내·구현 commit·미실측 항목별 인계: [실행 기록](K-DOG_360통합MP4구현실행기록_v1.0_20261012.md)

@@ -46,17 +46,19 @@ MP01 병합 `d4959a7`에서 `veluga/mp02-360-upload-ui`로 착수했다. typed m
 
 MP02: [PR #91](https://github.com/syleeVeluga/k-dog-proj/pull/91), 구현 `a76093c`, main 병합 `befa18c`. 이 commit에서 MP03 `veluga/mp03-360-upload-acceptance`를 시작했다.
 
-## MP03 통합 인수·설치 검증 — 진행 중
+## MP03 통합 인수·설치 검증
 
 - 실제 decoded 단일/혼합 전처리와 실행 조합은 MP01의 9조합/guard/pin 시험 및 MP02의 실제 HTTP/FFmpeg·정정/outdated/과거 실행 화면 시험으로 연결한다. VM-ES-T01~04의 actor/실행ID·세션/판본·지연응답 보호는 기존 ES 회귀와 함께 검사한다.
-- 새 `test_external_media_acceptance_v4`는 실제310초·64x64·2fps/오디오 FFmpeg 합성 MP4 하나를 부모0·EXT360 flat/preserved로 수신/등록하고 실제 전처리 batch를 만든다. batch의 실제 clip ref/hash가 가짜 공급자에 전달됐는지 확인하며 S1 Worker·86 AI 원자료·기본/최종결과·리포트를 연결한다. 공급자 요청31건과 프로그램 처리 항목군은 실제 가용창에 따라 구분한다. 수작업 fixture의42건을 실제 창에 강요하지 않는다. 기존 program-only 합성 renderer seam을 사용하며 제품 산식을 복제하지 않는다. 나중 처리 정보 정정 뒤 기본결과 원문/발급 PDF hash가 같음을 확인했다(1개/69.676초). 리포트 PDF bytes는 합성 fixture이며 실제 renderer 전체 회귀는 별도다. 유료 외부 호출0이다.
-- 기존 `build_release.py`/`verify_release.py`/launcher 방식과 allowlist를 유지한다. 추가 `scripts/verify_mp4_package.py`는 설치 패키지의 실제 interpreter·HTTP 접수/조회/download·감독 재시작에서 새 종류와 최초 선언/정정 판본 보존을 확인한다. content 저장/정정은 합성 interpreter 동작이며 HTTP upload/decode 시험을 대체하지 않는다. online은 PATH uv/FFmpeg와 venv를 사용하고 직접 interpreter 호출 전 잘못된 PYTHONHOME/PYTHONPATH를 제거한다.
-- 독립 reviewer `mp03_cold_review`의 P2 2건을 수용했다: online venv 직접 호출의 잘못된 Python 환경 변수 제거, 수작업 batch만 연결했던 종단 시험을 실제 MP4 전처리 batch로 교체. 최초 전체 UI132개에서129 통과/3 실패를 확인했고 긴 파일명 모바일 CSS(이전 aria-label selector)와 새 mixed 시험의 operator 이력 간섭을 각각 현재 selector1줄/전용 합성 계정으로 수정했다. 촬영 판본 충돌 시험의 기존 폴링 기대 실패1건은 해당 코드를 바꾸지 않고 같은 expectation으로 재검증해 통과했다. 수용 수정 후 관련15개/1.4분 통과. reviewer는 두 수용 건과 추가 수정의 해결·신규 actionable0을 확인했다. 최종 전체 UI를 다시 확인한다.
+- 새 `test_external_media_acceptance_v4`는 실제310초·64x64·2fps/오디오 FFmpeg 합성 MP4 하나를 부모0·EXT360 flat/preserved로 수신/등록하고 실제 전처리 batch를 만든다. batch의 실제 clip ref/hash가 가짜 공급자에 전달됐는지 확인하며 S1 Worker·86 AI 원자료·기본/최종결과·리포트를 연결한다. 공급자 요청31건과 프로그램 처리 항목군은 실제 가용창에 따라 구분한다. 수작업 fixture의42건을 실제 창에 강요하지 않는다. 기존 program-only 합성 renderer seam을 사용하며 제품 산식을 복제하지 않는다. 나중 처리 정보 정정 뒤 기본결과 원문/발급 PDF hash가 같음을 확인했다(최종 계정별 종단1개/44.325초). 리포트 PDF bytes는 합성 fixture이며 실제 renderer 전체 회귀는 별도다. 유료 외부 호출0이다.
+- 기존 `build_release.py`/`verify_release.py`/launcher 방식을 재사용한다. 후보 ZIP에서 실행 기록이 참조하는 화면 PNG 누락을 확인해 `OPERATING_DOCUMENTS`에 MP02 4개와 MP03 긴 파일명 화면 1개의 정확한 합성 PNG 경로만 추가했다. 일반 PNG/고객 자료 허용은 넓히지 않았다. 추가 `scripts/verify_mp4_package.py`는 설치 패키지의 실제 interpreter·HTTP 접수/조회/download·감독 재시작에서 새 종류와 최초 선언/정정 판본 보존을 확인한다. content 저장/정정은 합성 interpreter 동작이며 HTTP upload/decode 시험을 대체하지 않는다. online은 PATH uv/FFmpeg와 venv를 사용하고 직접 interpreter 호출 전 잘못된 PYTHONHOME/PYTHONPATH를 제거한다.
+- 독립 reviewer `mp03_cold_review`의 P2 2건을 수용했다: online venv 직접 호출의 잘못된 Python 환경 변수 제거, 수작업 batch만 연결했던 종단 시험을 실제 MP4 전처리 batch로 교체. 최초 전체 UI132개에서129 통과/3 실패를 확인했고 긴 파일명 모바일 CSS(이전 aria-label selector)와 새 mixed 시험의 operator 이력 간섭을 각각 현재 selector1줄/전용 합성 계정으로 수정했다. 촬영 판본 충돌 시험의 기존 폴링 기대 실패1건은 해당 코드를 바꾸지 않고 같은 expectation으로 재검증해 통과했다. 수용 수정 후 관련15개/1.4분 통과. reviewer는 두 수용 건과 추가 수정의 해결·신규 actionable0을 확인했다. 최종 전체 UI132개/9.1분 모두 통과했다.
 - 깨끗한 checkpoint `6ea8940`의 portable/online ZIP을 만들고 기존 설치 검증 및 새 MP4 런타임 접수·정정·재시작/download 검증을 모두 통과했다. 이 checkpoint 이후의 CSS/인수 fixture 수정과 최종 문서를 포함한 깨끗한 commit으로 최종 ZIP을 다시 만들며, 위 후보 ZIP을 최종 배포물로 표시하지 않는다. 현재 Windows 한 대의 새 한글/공백 경로·임시 synthetic DB 검증이며 깨끗한 OS/물리 PC3대 실측은 아니다.
 
 백엔드 전체 `uv sync --locked`/unittest discover는749개·1225.046초에서747 통과/2 skip으로 끝났다. skip은 미제공 역사적 고객 원본 번들의 대조 시험2개이며 S1 제품 회귀 실패가 아니다. 전체 실행이 먼저 import한 초기 연결 fixture를 이후 실제 decoded chain으로 보강해 별도 통과했다. 마지막 실제 종단 fixture44.325초는 op 업로드→review 전처리/AI·리포트→dev metadata 정정·과거 공유 조회→review 현재 입력의 명시 새 execution까지 확인한다. 이전/새 실행ID·원래 실행자·outdated·과거 basic/PDF bytes를 보존하고 새 펼침 영상 클립0을 확인했다. 중복 실행은 고유 시험 수에 더하지 않았다.
 
 문서9개의 로컬 링크62개를 실제 파일과 committed-tree 목록으로 검사해 오류0을 확인했다. diff-check 통과. Graft build/check의 wiring sync OK를 확인했고 deep concept 요약은 미생성 상태로 별도 표시했다.
+
+최종 frontend 전체는132개/9.1분 모두 통과했다. 초기 실패와 수정 내역은 위에 보존한다. 긴 파일명을 의도적으로 넣은 [360px 화면](evidence/mp03-long-filename-360.png)을 직접 시각 검수했다. allowlist 변경 후 기존 배포 계약 회귀3개/0.168초도 통과했다. 최종 reviewer는 계정별 실제 종단 실행·정확한 합성 PNG 5개 허용을 재검토해 신규 actionable0을 확인했다. 최종 깨끗한 source checkpoint와 ZIP 설치 검증 결과는 아래에 기록한다.
 
 ## 추가 의존성·실행 환경 확인 — 2026-10-12
 
