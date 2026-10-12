@@ -46,6 +46,7 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   expect(save.status(), await save.text()).toBe(200);
   item = await save.json();
   await openMenu(page, '전처리');
+  await page.getByRole('button', { name: '전처리 실행', exact: true }).first().click();
   await page.getByRole('button', { name: 's1preprocess 전처리 열기' }).click();
   const panel = page.getByRole('region', { name: '다중 카메라 전처리', exact: true });
   const fresh = panel.getByRole('button', { name: '새 클립으로 전처리', exact: true });
@@ -128,6 +129,7 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await login(page, 'reviewer');
   await openMenu(page, '전처리');
+  await page.getByRole('button', { name: '전처리 실행', exact: true }).first().click();
   await page.getByRole('button', { name: 's1preprocess 전처리 열기' }).click();
   await expect(panel.getByRole('heading', { name: '저장된 결과 · 완성', exact: true })).toBeVisible();
   await expect(fresh).toBeEnabled();
@@ -147,7 +149,7 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   expect(errors).toEqual([]);
 });
 
-test('S1 state refresh shows running, interrupted, failed and unavailable without polling', async ({ page }) => {
+test('S1 state refresh shows running, interrupted, failed and unavailable with active polling', async ({ page }) => {
   await login(page);
   const item = await (await page.request.post('/api/cases', { headers, data: { event_id: 'S1-PREPROCESS-STATE', participant_id: 's1state', dog_name: '상태 표시 합성견' } })).json();
   let current = 'running', count = 0;
@@ -158,12 +160,13 @@ test('S1 state refresh shows running, interrupted, failed and unavailable withou
       ready: current !== 'not_ready', status: current, message: '합성 상태 검증', outdated: false, result_pointer: null, result: null } });
   });
   await openMenu(page, '전처리');
+  await page.getByRole('button', { name: '전처리 실행', exact: true }).first().click();
   await page.getByRole('button', { name: 's1state 전처리 열기' }).click();
   const panel = page.getByRole('region', { name: '다중 카메라 전처리', exact: true });
   const start = panel.getByRole('button', { name: '새 클립으로 전처리', exact: true });
   await expect(panel.getByRole('status')).toContainText('진행 중');
   await expect(start).toBeDisabled();
-  expect(count).toBe(1);
+  expect(count).toBeGreaterThanOrEqual(1);
   for (const [state, label] of [['interrupted', '중단됨'], ['failed', '실패'], ['not_ready', '촬영 기록 확인 필요']]) {
     current = state;
     await panel.getByRole('button', { name: '전처리 상태 새로고침', exact: true }).click();
@@ -172,7 +175,7 @@ test('S1 state refresh shows running, interrupted, failed and unavailable withou
   }
   current = 'error';
   await panel.getByRole('button', { name: '전처리 상태 새로고침', exact: true }).click();
-  await expect(panel.getByRole('alert')).toHaveText('합성 상태 조회 실패');
+  await expect(panel.getByRole('alert')).toContainText('합성 상태 조회 실패');
   await expect(start).toBeDisabled();
   current = 'ready';
   await panel.getByRole('button', { name: '전처리 상태 새로고침', exact: true }).click();

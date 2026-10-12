@@ -1,6 +1,6 @@
 # PR-ES02 전처리 내 작업 화면과 자동 갱신
 
-버전: v1.0 · 2026-10-12 · 상태: 계획 cold review 수용 반영·재검토 완료 / 구현 전 · 기준 commit: `1702f2b`
+버전: v1.0 · 2026-10-12 · 상태: 구현·검증·독립 cold review 수용 반영·재검토 완료 / 병합 준비 · 기준 commit: `1702f2b`
 상위: [전체 계획](K-DOG_내실행과분석진행표시계획_v1.0_20261012.md) · 선행: [ES01](K-DOG_PR-ES01_전처리내실행조회와진행계약_v1.0_20261012.md) · 다음: [ES03](K-DOG_PR-ES03_AI분석진행요약과상태복구_v1.0_20261012.md)
 권장 브랜치: `codex/es02-preprocess-status` · PR 제목: `feat: 전처리 내 작업 목록과 처리 단계 자동 갱신`
 
@@ -48,12 +48,12 @@ Graft callers와 실제 JSX 사용처를 확인하고 `CaseProgressList/progress
 
 ## 5 인수 기준과 검증
 
-- [ ] ES-T07: A/B의 같은 참가자 실행이 각 로그인 목록에만 표시된다. 계정 전환 후 이전 행/필터 응답/타이머가 남지 않고 공유 업무 직접 진입은 계속 가능하다.
-- [ ] ES-T08: 빈 내 목록에서도 미실행 참가자를 선택해 실행할 수 있다. 미준비 조건은 선택 상세에만 표시되고 전처리 필터에 촬영/채점/리포트가 없다. 검색 0건과 실행 이력 0건을 구분한다.
-- [ ] ES-T09: 느린 POST 동안 요청중→실제 단계가 보이며 새로고침 없이 완료/일부완료/실패/중단을 갱신한다. 실제 상태와 배지, 버튼이 일치한다. 전처리 잠금 거절은 요청 오류이며 내 대기 작업이 생기지 않는다.
-- [ ] ES-T10: 응답 유실·동일 pending 클릭·일시적 조회 오류·재연결에서 실행 1건만 생성되고 마지막 상태/확인 시각이 유지된다. 실패 후 새 요청 재실행은 별도 이력이다.
-- [ ] ES-T11: 메뉴 이동/새로고침/회차 전환·지연 응답·로그아웃과 로그인 교체가 다른 실행 상태/결과를 덮어쓰지 않는다. 같은 실행의 running 조회를 지연시킨 뒤 POST 완료를 적용하고 옛 조회를 반환해도 완료가 유지된다. 이전 회차/직원 결과와 현재 회차 실행을 구분한다.
-- [ ] ES-T12: 1366/390px에서 상태·단계·오류/복구 안내가 기술 정보 접기 밖에 보이고 버튼/표가 잘리지 않는다. 폴링으로 포커스가 튀거나 전체 상태 문구가 매번 반복 낭독되지 않는다. 채점/리포트 목록과 공유 접근 회귀가 통과한다.
+- [x] ES-T07: A/B의 같은 참가자 실행이 각 로그인 목록에만 표시된다. 계정 전환 후 이전 행/필터 응답/타이머가 남지 않고 공유 업무 직접 진입은 계속 가능하다.
+- [x] ES-T08: 빈 내 목록에서도 미실행 참가자를 선택해 실행할 수 있다. 미준비 조건은 선택 상세에만 표시되고 전처리 필터에 촬영/채점/리포트가 없다. 검색 0건과 실행 이력 0건을 구분한다.
+- [x] ES-T09: 느린 POST 동안 요청중→실제 단계가 보이며 새로고침 없이 완료/일부완료/실패/중단을 갱신한다. 실제 상태와 배지, 버튼이 일치한다. 전처리 잠금 거절은 요청 오류이며 내 대기 작업이 생기지 않는다.
+- [x] ES-T10: 응답 유실·동일 pending 클릭·일시적 조회 오류·재연결에서 실행 1건만 생성되고 마지막 상태/확인 시각이 유지된다. 실패 후 새 요청 재실행은 별도 이력이다.
+- [x] ES-T11: 메뉴 이동/새로고침/회차 전환·지연 응답·로그아웃과 로그인 교체가 다른 실행 상태/결과를 덮어쓰지 않는다. 같은 실행의 running 조회를 지연시킨 뒤 POST 완료를 적용하고 옛 조회를 반환해도 완료가 유지된다. 이전 회차/직원 결과와 현재 회차 실행을 구분한다.
+- [x] ES-T12: 1366/390px에서 상태·단계·오류/복구 안내가 기술 정보 접기 밖에 보이고 버튼/표가 잘리지 않는다. 폴링으로 포커스가 튀거나 전체 상태 문구가 매번 반복 낭독되지 않는다. 채점/리포트 목록과 공유 접근 회귀가 통과한다.
 
 ```powershell
 # frontend/
@@ -64,3 +64,23 @@ git diff --check
 ```
 
 기존 `preprocess-v4.spec.ts`의 수동 새로고침/무폴링 기대는 활성 상태 갱신 계약으로 수정하되, 종료 후 조회 중단과 조회 자체의 실행/열람 부작용 없음은 별도로 검증한다. 위 명령/인수는 구현 후 실행할 계획이며 현재 통과 기록이 아니다.
+
+## 6 구현 실행 기록 — 2026-10-12
+
+- 선행 ES01: [PR #87](https://github.com/syleeVeluga/k-dog-proj/pull/87), 구현 `b7b3364`, 원격/로컬 main 병합 `121d14a`. 이 commit에서 `veluga/es02-preprocess-status`를 시작했다.
+- 전처리 전용 내 실행 목록/상태 필터/cursor와 공유 대상 선택을 추가했다. 기존 채점·리포트 목록은 유지한다. 지정 execution/session의 상세·결과를 조회하고 새 실행은 현재 입력의 대상 선택으로 이동한다.
+- POST 동안 request_id 접수 조회→execution_id 고정→2초 상태 조회. 계정/대상/회차별 세션 저장소에 요청·선택 식별을 보존하며 메뉴 재진입/새로고침은 조회만 한다. 확정 거절과 응답 유실을 구별하고 자동 재POST는 없다.
+- 반복 조회 실패에도 마지막 상태/확인 시각을 보존하고 조회를 계속한다. 선택 실행과 공유 준비 상태 조회는 분리하며 다른 최신 결과가 손상되어도 선택 실행 결과를 바꾸지 않는다. 제출/배경 조회/수동 조회와 generation을 분리했다. POST 완료 뒤 옛 running 응답을 무효화하고 logout/auth expiry는 세션 식별·표시를 정리한다.
+- 빌드 통과. 신규 브라우저5개 통과(34.7초): 빈/검색0건, 지정 결과·계정 전환, 느린 POST/연속503/실제 단계/종료 조회 중단, 응답 유실·재진입1건, 늦은 running 응답 무효화. 기존 전처리2개 및 공통 업무6개 통과; App 선택 경로 보강 후 공통6개 재검증 통과(20.4초). 실제 외부 AI 호출0건, 합성 영상/제어 응답만 사용.
+- 1366/390px 진행 화면 캡처·가로 넘침 검사·육안 확인. 모바일 전처리 표 caption 세로 깨짐을 해당 패널에만 보정했다.
+- 의존성 확인일2026-10-12: React/react-dom 최신19.3.0 선택19.2.8; Playwright 최신1.64.0 선택1.63.0; Vite 최신8.3.4 선택8.2.2; TypeScript 최신/선택7.0.2. 공식 npm registry 및 release/API 문서를 확인했다. Node24.13.0은 선택 Vite의 ^20.19 또는 >=22.12, Playwright>=20을 만족하고 react-dom19.2.8 peer ^19.2.8에 React19.2.8이 대응한다. 이번 기능에 필요한 useEffect/useRef 및 locator/request API는 선택판에서 지원하며 기존 lock을 유지하고 관련 없는 업그레이드는 하지 않는다.
+  - [React registry](https://www.npmjs.com/package/react), [react-dom registry](https://www.npmjs.com/package/react-dom), [release notes](https://github.com/react/react/releases), [effect API](https://react.dev/reference/react/useEffect)
+  - [Playwright registry](https://www.npmjs.com/package/@playwright/test), [release/API](https://playwright.dev/docs/release-notes)
+  - [Vite registry](https://www.npmjs.com/package/vite), [release](https://github.com/vitejs/vite/releases), [runtime guide](https://vite.dev/guide/)
+  - [TypeScript registry](https://www.npmjs.com/package/typescript), [release](https://github.com/microsoft/TypeScript/releases), [React types](https://www.typescriptlang.org/docs/handbook/react.html)
+- 독립 cold review 진행 중. 수용 판단/수정/재검증/PR·병합은 아래에 실제 결과를 추가한다.
+
+- 독립 cold review 수용: P1 지정 실행 회차 고정 해제, P2 추가 페이지 자동 갱신 유지/재예약, P2 느린 목록 조회 중 중복 예약·완료 후 timer 정리. 지정 실행은 pinSession으로 현재 회차 자동 추종에서 분리하고, 최신 상세 응답으로 cases 행을 갱신한다. pageDepth 범위를 cursor로 재조회하고 busy/완료/문맥 폐기에서 예약 하나만 유지·정리한다. 보류/거절0건.
+- 재현 회귀: 과거 회차 최초 열기, 현재 실행 열기 후 다른 직원의 새 회차 변경, 둘째 페이지 running/느린 more, 반복 수동 조회 뒤 메뉴 이동, 완료 후 대기 timer 취소. 신규8개+공통context1개, 9개 통과(57.0초). 최종 timer/pagination3개 결과 및 reviewer 해결 확인은 아래에 추가한다.
+- 합성 화면 근거: [1366px 진행 표시](evidence/ES02_preprocess-progress-1366.png), [390px 진행 표시](evidence/ES02_preprocess-progress-390.png). 실제 참가자 자료가 아닌 제어된 응답의 합성 화면이다.
+- 최종 timer/pagination3개 통과(18.1초), 빌드·git diff --check 통과. 독립 reviewer 최종 재검토에서 수용 사항 모두 해결·잔존 actionable0건 확인. ES-T07~12 완료.

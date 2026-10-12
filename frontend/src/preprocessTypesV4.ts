@@ -43,3 +43,13 @@ export type PreprocessStatusV4 = {
   status: 'not_ready' | 'ready' | 'running' | 'interrupted' | 'failed' | 'complete' | 'partial';
   message: string; outdated: boolean; result_pointer: FileV4 | null; result: BatchV4 | null;
 };
+
+export type PreprocessExecutionV4 = {
+  execution_id: string; case_id: string; session_id: string; participant_id: string; dog_name: string; event_id: string;
+  sequence_no: number | null; guardian_name: string; input_revision: number; request_id: string; requested_by: string;
+  started_at: string; finished_at: string | null; status: 'running' | 'complete' | 'partial' | 'failed' | 'interrupted';
+  current_stage: 'clips' | 'windows' | 'reuse_verify' | 'verify_save' | null; stage_updated_at: string | null;
+  message: string; outdated: boolean; result_pointer: FileV4 | null;
+};
+export type PreprocessExecutionDetailV4 = PreprocessExecutionV4 & { result: BatchV4 | null };
+export type PreprocessExecutionPageV4 = { items: PreprocessExecutionV4[]; next_cursor: number | null };
