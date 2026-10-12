@@ -1,6 +1,6 @@
 # PR-MP02 단일 파일 업로드 화면
 
-버전: v1.0 · 2026-10-12 · 상태: 계획, 미구현 · 선행: MP01 · 브랜치 제안: `veluga/mp02-360-upload-ui`
+버전: v1.0 · 2026-10-12 · 상태: 계획, 미구현 · 선행: MP01(ES01~03 반영) · 브랜치 제안: `veluga/mp02-360-upload-ui`
 
 상위: [전체 계획](K-DOG_360통합MP4업로드계획_v1.0_20261012.md). 범위: VM-R01/R03/R04/R07. 제목 제안: `feat: add a single prepared 360 MP4 upload option`.
 
@@ -11,6 +11,8 @@
 새 옵션 「360 통합 MP4 (Studio 등에서 내보낸 파일)」를 영상 파일 구분에 추가한다. 기존 촬영 원본/실제 부모 등록 변환 MP4를 유지하고, 새 옵션에서는 부모 원본·원본 번호·촬영 카메라 번호 강제 입력을 숨긴다. 저장 후 표시를 「360 통합 영상」으로 한다.
 
 ## 파일별 변경
+
+[통합 순서](K-DOG_360통합MP4업로드계획_v1.0_20261012.md#41-es-선행-구현을-반영한-진행--2026-10-12-후속-결정)에 따라 ES01~03을 반영한 MP01 병합 commit에서 시작한다. [ES02](../내실행과분석진행_20261012/K-DOG_PR-ES02_전처리내작업화면과자동갱신_v1.0_20261012.md)의 내 목록·지정 execution_id/session_id 상세·pending 요청·폴링/generation 보호를 유지하면서 영상 표시와 파일별 제한만 연결한다. 과거 실행의 출처/제한은 그 batch의 고정 source metadata로 표시하고 최신 manifest의 정정값을 과거 결과에 덮어쓰지 않는다. metadata 정정 후 최신 입력과 outdated/준비 상태를 조회하며 자동 재실행하지 않는다. 영상 출처 UI가 실행 상태 요약을 따로 만들거나 공유 최신 batch를 지정 실행 결과로 대신하지 않게 한다.
 
 | 파일 | 변경 |
 | --- | --- |
@@ -47,9 +49,10 @@
 # frontend/
 npm run build
 npm run test:e2e -- tests/uploads-v4.spec.ts tests/recording-split-v4.spec.ts tests/preprocess-v4.spec.ts tests/navigation.spec.ts tests/intake.spec.ts tests/copy-guard.spec.ts
+npm run test:e2e -- tests/preprocess-executions-v4.spec.ts tests/analysis-status-v4.spec.ts tests/context.spec.ts
 ```
 
-새 시험 파일이 필요한 경우 실제 파일 생성 뒤 실행 명령을 추가한다. 합성 screenshot을 ignored test-results에 저장하고 시각 검수한다. 실제 참가자 영상/프레임은 PR에 넣지 않는다. 기본 화면·파일 입력 완료·통합 영상 저장·전처리 제한·모바일 screenshot으로 MP03에 인계한다. 버전 확인은 상위 §7을 적용한다.
+ES 시험 경로는 선행 ES02/03에서 신설할 계획이며 MP02 착수 시 실제 인계 경로와 대조한다. MP03의 VM-ES-T01~04에 대응하는 UI 회귀를 해당 시험에 추가하고, 필요한 새 시험 파일은 생성 후 명령에 반영한다. 합성 screenshot을 ignored test-results에 저장하고 시각 검수한다. 실제 참가자 영상/프레임은 PR에 넣지 않는다. 기본 화면·파일 입력 완료·통합 영상 저장·전처리 제한·모바일 screenshot으로 MP03에 인계한다. 버전 확인은 상위 §7을 적용한다.
 
 ## 실행 기록 — 착수 후 작성
 
