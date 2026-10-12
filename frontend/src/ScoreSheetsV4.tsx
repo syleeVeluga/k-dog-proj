@@ -49,7 +49,7 @@ export function ScoreSheetsV4({ item, user, run, refresh, close }: { item: Case;
     <p>숫자 83개 · 메모 3개 · 자동 4개. 원값 0과 빈값을 구분하고 실제 관찰 근거를 기록합니다.</p>
     <p role="status">Excel 가져오기는 준비 중인 기능입니다.</p>
     {error && <p role="alert" className="error">{error}</p>}
-    <AiRunsV4 key={`${item.case_id}:${item.selected_session_id}`} item={item} />
+    <AiRunsV4 key={`${user.username}:${item.case_id}:${item.selected_session_id}`} item={item} user={user} />
     <FinalResultsV4 key={`final:${item.case_id}:${item.selected_session_id}`} item={item} sheets={rows} />
     <details><summary>채점 시트 만들기</summary><form onChange={() => { assignmentBase.current ??= item.input_revision; setAssignmentDirty(true); }} onSubmit={event => {
       event.preventDefault(); const values = formFields(event.currentTarget); const form = event.currentTarget;

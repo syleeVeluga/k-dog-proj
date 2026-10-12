@@ -1,6 +1,6 @@
 # PR-ES03 AI 분석 진행 요약과 상태 복구
 
-버전: v1.0 · 2026-10-12 · 상태: 계획 cold review 수용 반영·재검토 완료 / 구현 전 · 기준 commit: `1702f2b`
+버전: v1.0 · 2026-10-12 · 상태: 구현·검증·독립 cold review 수용 반영·재검토 완료 · 기준 commit: `1702f2b`
 상위: [전체 계획](K-DOG_내실행과분석진행표시계획_v1.0_20261012.md) · 선행: [ES02 구현·검증·병합](K-DOG_PR-ES02_전처리내작업화면과자동갱신_v1.0_20261012.md)
 권장 브랜치: `codex/es03-analysis-progress` · PR 제목: `fix: AI 분석의 현재 실행 진행과 조회 복구 표시`
 
@@ -84,12 +84,12 @@ view/plan/current run 변경 전에 Graft callers로 API·Worker·테스트 호�
 
 ## 6 인수 기준과 검증
 
-- [ ] ES-T13: queued→score→calculate→attachment→publish→succeeded 전이가 접기 밖에서 보인다. 새 요청중/서버 대기를 구별하고 예정 단계가 아직 없는 상황도 표시한다.
-- [ ] ES-T14: 과거 성공 + 현재 queued/running, partial_failed + result_available, stopped/failed + 과거 running attempt에서 현재 요약/행동이 정확하다. succeeded 없이 완료를 표시하지 않는다.
-- [ ] ES-T15: retry_wait/retry_at·재사용·다중 attempt·미생성/보류 단계가 개수를 중복 증가시키지 않는다. queued/중지/lease 만료/새 claim 전후에 이전 running step이 현재 단계가 되지 않으며 현재 claim·유효 lease의 step만 진행으로 표시한다. 일부 완료의 새 실행과 고정 입력 retry 경로가 다르다. 상태 DTO에 원자료/판정/원문/프롬프트/output 경로/claim token이 없다.
-- [ ] ES-T16: 느린 POST·응답유실·중복 클릭·503/네트워크 단절·복구·새로고침/탭 재진입에서 동일 요청은 실행 1건이며 자동 새 실행/공급자 호출이 없다. 응답 유실 뒤 설정 비활성화/선택 회차/재사용 선택이 바뀌어도 읽기 전용 resolver가 최초 접수를 찾는다. 일시적 미발견/조회 실패를 확정 미접수 또는 설정/전처리 부족으로 둔갑시키지 않는다.
-- [ ] ES-T17: 대상/회차/입력판/계정 전환 중 늦은 응답, 클라이언트 중지 요청중→서버 stopped, 제어 충돌, background poll 중 버튼 안정성, 로그아웃 후 타이머/선택 run 정리를 검증한다. 같은 run의 running 조회를 지연시킨 뒤 완료/중지를 확인하고 옛 조회를 반환해도 상태가 되돌아가지 않는다. 명시 retry 뒤 새 queued는 정상 반영된다. 공유 이력·다른 직원의 기존 허용된 실행 제어도 유지한다.
-- [ ] ES-T18: 1366/390px에서 단계·현재 상태·원인·다음 행동을 쉽게 읽고, 상태 변경만 적절히 낭독한다. 실제 종료 후 활성 정기 조회가 멈추고 중지/재시도 버튼 허용 상태가 서버와 일치한다.
+- [x] ES-T13: queued→score→calculate→attachment→publish→succeeded 전이가 접기 밖에서 보인다. 새 요청중/서버 대기를 구별하고 예정 단계가 아직 없는 상황도 표시한다.
+- [x] ES-T14: 과거 성공 + 현재 queued/running, partial_failed + result_available, stopped/failed + 과거 running attempt에서 현재 요약/행동이 정확하다. succeeded 없이 완료를 표시하지 않는다.
+- [x] ES-T15: retry_wait/retry_at·재사용·다중 attempt·미생성/보류 단계가 개수를 중복 증가시키지 않는다. queued/중지/lease 만료/새 claim 전후에 이전 running step이 현재 단계가 되지 않으며 현재 claim·유효 lease의 step만 진행으로 표시한다. 일부 완료의 새 실행과 고정 입력 retry 경로가 다르다. 상태 DTO에 원자료/판정/원문/프롬프트/output 경로/claim token이 없다.
+- [x] ES-T16: 느린 POST·응답유실·중복 클릭·503/네트워크 단절·복구·새로고침/탭 재진입에서 동일 요청은 실행 1건이며 자동 새 실행/공급자 호출이 없다. 응답 유실 뒤 설정 비활성화/선택 회차/재사용 선택이 바뀌어도 읽기 전용 resolver가 최초 접수를 찾는다. 일시적 미발견/조회 실패를 확정 미접수 또는 설정/전처리 부족으로 둔갑시키지 않는다.
+- [x] ES-T17: 대상/회차/입력판/계정 전환 중 늦은 응답, 클라이언트 중지 요청중→서버 stopped, 제어 충돌, background poll 중 버튼 안정성, 로그아웃 후 타이머/선택 run 정리를 검증한다. 같은 run의 running 조회를 지연시킨 뒤 완료/중지를 확인하고 옛 조회를 반환해도 상태가 되돌아가지 않는다. 명시 retry 뒤 새 queued는 정상 반영된다. 공유 이력·다른 직원의 기존 허용된 실행 제어도 유지한다.
+- [x] ES-T18: 1366/390px에서 단계·현재 상태·원인·다음 행동을 쉽게 읽고, 상태 변경만 적절히 낭독한다. 실제 종료 후 활성 정기 조회가 멈추고 중지/재시도 버튼 허용 상태가 서버와 일치한다.
 
 ```powershell
 # backend/
@@ -106,3 +106,31 @@ fake provider/제어된 응답과 임시 합성 저장소로 전이를 재현하
 ## 7 MP01 인계 — 2026-10-12 진행 순서 조정
 
 [전체 계획 §4.1](K-DOG_내실행과분석진행표시계획_v1.0_20261012.md#41-mp-계획과-통합-진행-순서--2026-10-12-후속-결정)에 따라 ES01~03 구현·검증·수용 수정·병합 후 [MP01](../360통합MP4업로드_20261012/K-DOG_PR-MP01_외부처리MP4계약과보관_v1.0_20261012.md)을 시작한다. 실행 기록에 적용 commit, 실제 전처리 실행/접수 조회 API·DTO와 단계 이벤트 연결 방식, `_history`/guard 보호, 입력 변경 시 outdated와 과거 결과 조회, ES02 문맥/generation 보호, ES 회귀 시험 경로를 적어 인계한다. MP용 새 종류/metadata는 ES 단계에서 미리 구현하지 않는다. MP03에서 새 파일·metadata 정정·부분 가용성과 이 계약의 조합을 확인한다.
+
+## 8 구현 실행 기록 — 2026-10-12
+
+- 선행 ES02: [PR #88](https://github.com/syleeVeluga/k-dog-proj/pull/88), 구현 `8d8205c`, 원격/로컬 main 병합 `7d39c1e`. 이 commit에서 `veluga/es03-analysis-progress`를 시작했다.
+- 실행 DTO에 원래 requested_by/created_at/retry_at, 고정 config의 예정 stage/key 진행 요약 및 현재 활성 설정 적합성을 추가했다. 최신 유효 attempt만 집계하며 현재 run claim·live lease와 일치하는 running step만 현재 단계로 표시한다. 이전 attempt/abandoned/superseded는 기술 이력에 남는다. 상태 조회에 output refs·claim/lease token·점수·프롬프트·provider 원문을 추가하지 않았다.
+- actor/case/session/request_id의 읽기 전용 resolver를 추가했다. 현재 회차/입력/활성 설정과 실행 접수 조건이 바뀌어도 최초 actor의 접수 조회는 가능하며 found=false를 영구 미접수로 취급하지 않는다. 기존 공유 상태 조회/중지/재시도 권한을 유지한다.
+- AI 분석 시작 직후 요청중, 응답 유실 시 pending request 보존·resolver 조회만 수행한다. 선택 run_id는 계정/대상/회차 세션 범위에 보존하고 기본 선택은 최초 requested_by가 현재 계정인 최신 실행이다. 이전 성공/부분 게시를 현재 실행 완료와 섞지 않고 예정4단계·실제 단계·조회 시각을 접기 밖에 표시한다.
+- 반복 조회 오류에서 last state/readiness를 보존하고 자동 재조회한다. 최초/제어/배경 조회를 분리하고 제어 응답 generation으로 오래된 running 응답을 무효화한다. 중지 뒤 명시 retry의 queued 전이는 정상 반영한다. 로그아웃/문맥 변경의 늦은 생성 응답은 버린다.
+- Backend 기존 run/API18개+최초 progress4개 합계22개 통과(74.084초). 설정/회차 변경 뒤 actor resolver API1개 통과(2.110초). 최종 progress5개 통과(1.777초), 원래 요청자는 후속 retry actor로 바뀌지 않음을 검증했다. fake provider와 합성 저장소만 사용했으며 실제 외부 AI 호출0건.
+- Front build 통과. 신규 analysis-status6개+기존 진행4개/채점1개 합계11개 통과(55.4초). 기존 AI 설정/공통 실행/공유 시트3개+업무권한1개/회차context1개 합계5개 통과(24.1초). 제어된 응답으로 단계 전이·부분 게시·만료 점유·반복503·응답 유실/미발견·설정 변경·계정 전환·중지/재시도 generation을 검증했다.
+- 합성 진행 화면 [1366px](evidence/ES03_analysis-progress-1366.png), [390px](evidence/ES03_analysis-progress-390.png)에서 단계·상태·제어 및 가로 넘침을 확인했다. 합성 UI/가짜 공급자 시험은 실영상/실공급자 품질·시간 인수를 대신하지 않는다.
+- 의존성 검증은 같은 날 ES01/ES02의 공식 registry·release·API 확인을 재사용한다: FastAPI 최신0.143.0/선택0.141.1, Pydantic 최신2.14.1/선택2.13.5, React/react-dom 최신19.3.0/선택19.2.8, Playwright 최신1.64.0/선택1.63.0, Vite 최신8.3.4/선택8.2.2, TypeScript 최신/선택7.0.2. 기존 Python3.14/Node24.13 잠금 조합을 유지하고 관련 없는 업그레이드/새 패키지는 없다. 출처와 선택 이유는 [ES01 실행 기록](K-DOG_PR-ES01_전처리내실행조회와진행계약_v1.0_20261012.md#6-구현-실행-기록--2026-10-12), [ES02 실행 기록](K-DOG_PR-ES02_전처리내작업화면과자동갱신_v1.0_20261012.md#6-구현-실행-기록--2026-10-12)를 따른다.
+- 독립 cold review·수용 판단·재검증·최종 병합 근거는 아래에 추가한다.
+
+- 독립 cold review 수용2건: P1 새 요청 접수 미확인 중 이전 실행 제어가 pending ID를 지움 → 접수 확인 중 stop/retry 잠금; P2 동일회차 입력판 변경 뒤 중지 요청중 표시 고착 → 문맥 effect에서 control 초기화. 수정 전 reviewer가 합성 UI로 두 조건을 직접 재현했다. 수정/재현 시험 후 독립 재검토에서 모두 해결·잔존 actionable0건 확인. 보류/거절0건.
+- 최종 build 및 analysis-status7개+기존AI/공통5개 합계12개 통과(1.0분). 서버 progress/API8개 통과(25.965초), 기술 attempt 이력은 기존 created_at/attempt 순서를 유지하며 projection은 attempt/rowid 최신을 별도로 선택한다.
+- ES01~03 통합 회귀: backend 실제 실행 actor5개+전처리 실행조회11개, 합계16개 통과(45.105초). 브라우저 전처리 신규9개/기존2개+context1개, 합계12개 통과(1.3분). ES-T13~18 완료. 모든 조회/화면 시험은 합성·가짜 공급자이며 실공급자 호출0건이다.
+
+### MP01 구현 인계
+
+- ES01 실행 식별은 기존 batch_id이며 시작 actor와 case/session/batch/claim/request를 대조한다. `GET /api/preprocess-s1/executions`는 현재 actor, 필터 적용 후50개, rowid cursor, request_id 접수 조회를 지원한다. 지정 상세는 `/api/cases/{case_id}/sessions/{session_id}/preprocess-s1/executions/{execution_id}`다.
+- 기존 `_history`는 started/completed/failed만 읽어 guard/idempotency 판단에 progress가 섞이지 않는다. 새 `preprocess_v4.progress`는 clips/windows/verify_save 또는 reuse_verify/verify_save 경계만 기록한다. 조회는 원장·입력·실제 열람 기록을 쓰지 않는다.
+- 선택 전처리의 원본/input/result/clip hash를 검증하고 이전 성공/partial과 현재 input/rules outdated를 분리한다. ES02의 pinSession은 다른 직원의 새 현재회차에도 지정 실행을 유지한다. 명시 새 대상 선택은 pin을 해제한다. 세션 저장 키는 actor/case/session 및 explicit execution으로 분리된다.
+- ES03 AI 진행은 고정 config의4단계/key와 최신 유효attempt를 projection하며 live run claim/lease가 맞는 running step만 현재단계다. 원래 requested_by와 실제 retry actor 이력은 구분한다. 읽기 전용 by-request resolver는 당시 actor/case/session/request에 한정하며 새 입력/활성설정으로 접수 검사를 다시 하지 않는다.
+- ES02/03은 sequence/generation으로 문맥·POST/제어 확정 응답 이전의 늦은 조회를 버린다. 응답 유실은 pending ID resolver로만 확인하고 새 요청을 자동 생성하지 않는다. 종료·문맥 폐기·로그아웃에서 예약/세션 데이터를 정리한다.
+- 회귀 경로: backend `test_preprocess_execution_v4`, `test_preprocess_v4`, `test_preprocess_api_v4`, `test_run_progress_v4`, `test_run_v4`, `test_ai_api_v4`, `test_execution_actor_v4`; frontend `preprocess-executions-v4`, `preprocess-v4`, `analysis-status-v4`, `analysis-progress-v4`, `scoring-ai-v4`, `context`, `business-access-v4`. MP는 이 계약에 새 출처/metadata만 연결하며 VM-ES-T01~04에서 조합 인수를 확인한다.
+- 문서 QA: 계획 폴더의 로컬 상대 링크68개 존재 확인, git diff --check 통과. Graft wiring graph 갱신 후 check 동기화 OK. 실제 PR/commit은 아래에 추가한다.
+- 적용 PR: [PR #89](https://github.com/syleeVeluga/k-dog-proj/pull/89), 구현 commit0a8b03e. 이 PR의 최종 head/원격 병합/merge commit은 GitHub PR 기록을 따른다. 코드 변경 뒤 수행한 최종 검증·독립 재검토 근거는 위 기록과 같다.
