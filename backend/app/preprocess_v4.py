@@ -420,6 +420,11 @@ def execute(store, case_id, session_id, actor, request: PreprocessRequestV4) -> 
             if not history or history[0][0] != "preprocess_v4.started" or history[0][1].get("claim_token") != claim_token:
                 raise HTTPException(409, "전처리 점유가 만료되었습니다.")
 
+        def progress(stage):
+            with store.connect(write=True) as db:
+                guard(db)
+                store.audit(db, actor, case_id, "preprocess_v4.progress", {**detail, "stage": stage})
+
         try:
             if request.audio_video_id and request.audio_video_id not in {video.video_id for video in session.videos}:
                 raise HTTPException(422, "대표 오디오 영상이 회차에 없습니다.")
@@ -427,13 +432,17 @@ def execute(store, case_id, session_id, actor, request: PreprocessRequestV4) -> 
             directory.mkdir(parents=True, exist_ok=False)
             windows = build_windows_v4(recording)
             if request.reuse:
+                progress("reuse_verify")
                 old = verified_batch(store, case_id, session_id, request.reuse, actor)
                 if old.compatibility_hash != compatibility:
                     raise HTTPException(409, "재사용 원본·카메라·오프셋·FPS·규칙 설정이 다릅니다.")
                 clips, results = old.clips, old.windows
             else:
+                progress("clips")
                 clips, unavailable = _prepare_clips(store, session, recording, windows, directory, guard)
+                progress("windows")
                 results = _window_results(session, recording, windows, clips, unavailable, request)
+            progress("verify_save")
             batch = BatchV4(batch_id=batch_id, claim_token=claim_token, case_id=case_id, session_id=session_id,
                 input_revision=request.expected_revision, input=FileV4(ref=initial["manifest_ref"], hash=initial["manifest_hash"]),
                 created_at=now(), status="complete" if clips and all(clip.status == "complete" for clip in clips) and

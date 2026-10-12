@@ -1,6 +1,6 @@
 # PR-ES01 전처리 내 실행 조회와 진행 계약
 
-버전: v1.0 · 2026-10-12 · 상태: 계획 cold review·재검토 완료 / 구현 전 · 기준 commit: `1702f2b`
+버전: v1.0 · 2026-10-12 · 상태: 구현·검증·독립 cold review 수용 반영·재검토 완료 / 병합 준비 · 기준 commit: `1702f2b`
 상위: [전체 계획](K-DOG_내실행과분석진행표시계획_v1.0_20261012.md) · 선행: 없음 · 다음: [ES02](K-DOG_PR-ES02_전처리내작업화면과자동갱신_v1.0_20261012.md)
 권장 브랜치: `codex/es01-preprocess-executions` · PR 제목: `feat: 전처리 실행별 내 작업 조회와 진행 상태 제공`
 
@@ -54,12 +54,12 @@
 
 ## 5 인수 기준과 검증
 
-- [ ] ES-T01: A 완료 후 같은 대상 B 실패. A 목록/상세의 완료·결과 hash가 유지되고 B 목록에 B 실패만 표시된다. 제3자도 공유 결과/재사용 경로를 사용할 수 있다.
-- [ ] ES-T02: 같은 직원의 여러 시도·이전 회차·새 입력·명시 재사용이 별도 행으로 보존된다. 완료와 outdated의 교집합/필터가 계약대로 동작한다.
-- [ ] ES-T03: 실제 잠금 점유/해제와 claim 교체로 running/interrupted를 구분한다. 다른 작업의 잠금으로 오래된 시작을 running으로 오판하지 않는다. 409를 큐 대기로 만들지 않는다.
-- [ ] ES-T04: 진행 이벤트가 중복 요청/guard/종료 판정에 간섭하지 않고 같은 request_id의 기존 idempotency/다른 actor 또는 내용의 409가 유지된다. 늦은 실패/완료는 해당 시도에만 연결된다.
-- [ ] ES-T05: 51개 이상 이력의 페이지·필터·정렬, 계정 actor 일치, 빈 목록, request_id 조회, 이전 단계 기록 부재, 손상/유실 결과 ref를 검증한다. 손상 결과를 정상 완료로 제공하지 않는다.
-- [ ] ES-T06: 새 진행 이벤트가 없어도 기존 원장이 정상 조회되며, 이전 DB/불변 batch/원본/감사 bytes는 유지된다. 상태 조회는 AI 호출·입력 revision·실제 열람 기록을 만들지 않는다.
+- [x] ES-T01: A 완료 후 같은 대상 B 실패. A 목록/상세의 완료·결과 hash가 유지되고 B 목록에 B 실패만 표시된다. 제3자도 공유 결과/재사용 경로를 사용할 수 있다.
+- [x] ES-T02: 같은 직원의 여러 시도·이전 회차·새 입력·명시 재사용이 별도 행으로 보존된다. 완료와 outdated의 교집합/필터가 계약대로 동작한다.
+- [x] ES-T03: 실제 잠금 점유/해제와 claim 교체로 running/interrupted를 구분한다. 다른 작업의 잠금으로 오래된 시작을 running으로 오판하지 않는다. 409를 큐 대기로 만들지 않는다.
+- [x] ES-T04: 진행 이벤트가 중복 요청/guard/종료 판정에 간섭하지 않고 같은 request_id의 기존 idempotency/다른 actor 또는 내용의 409가 유지된다. 늦은 실패/완료는 해당 시도에만 연결된다.
+- [x] ES-T05: 51개 이상 이력의 페이지·필터·정렬, 계정 actor 일치, 빈 목록, request_id 조회, 이전 단계 기록 부재, 손상/유실 결과 ref를 검증한다. 손상 결과를 정상 완료로 제공하지 않는다.
+- [x] ES-T06: 새 진행 이벤트가 없어도 기존 원장이 정상 조회되며, 이전 DB/불변 batch/원본/감사 bytes는 유지된다. 상태 조회는 AI 호출·입력 revision·실제 열람 기록을 만들지 않는다.
 
 ```powershell
 # backend/
@@ -69,3 +69,19 @@ git diff --check
 ```
 
 상태 전이 시험은 임시 합성 저장소와 명시 잠금/처리 경계 제어를 사용한다. 제품 최신 의존성 검증·cold review·수용 반영·실행 기록/푸시는 전체 계획 절차를 따른다. 위 체크는 아직 실행하지 않았다.
+
+## 6 구현 실행 기록 — 2026-10-12
+
+- 착수 기준: `main / 1d62f12`, 깨끗한 작업트리. 브랜치 `veluga/es01-preprocess-executions`.
+- 기존 원장을 재작성하지 않고 시작 actor·rowid와 회차/batch/claim/request 식별을 대조하는 전용 조회 모듈을 추가했다. 목록은 필터 적용 후 50개를 반환하고 rowid cursor로 다음 페이지를 연결한다. request_id 조회와 공유 개별 실행 상세를 제공한다.
+- 새 제작은 clips/windows/verify_save, 명시 재사용은 reuse_verify/verify_save 시작 이벤트만 기록한다. 기존 `_history`의 시작/종료 범위와 guard/idempotency는 유지한다.
+- 완료 batch/input/clip hash와 요청 내용을 검증한다. 손상·유실 결과는 실패 안내와 null 결과 pointer로 제공한다. 당시 성공과 현재 입력/규칙 적합성(outdated)을 분리한다.
+- 합성 검증: 기존 `tests.test_preprocess_v4 tests.test_preprocess_api_v4` 15개 통과(34.353초). 신규 `tests.test_preprocess_execution_v4` 6개 통과(7.549초). 실제 외부 AI 호출 0건. 운영 자료 변경 없음.
+- 의존성 확인일 2026-10-12: FastAPI 최신 0.143.0 / 선택 0.141.1, Pydantic 최신 2.14.1 / 선택 2.13.5. 기존 Python 3.14 잠금 환경과 선택판의 query/response_model 및 model_validate/model_dump API를 확인했다. 범위 밖 의존성 업그레이드와 새 패키지는 도입하지 않는다. FastAPI 0.143의 breaking change도 이 변경에 혼합하지 않는다.
+  - [FastAPI registry](https://pypi.org/project/fastapi/), [선택판](https://pypi.org/project/fastapi/0.141.1/), [release notes](https://fastapi.tiangolo.com/release-notes/), [response DTO](https://fastapi.tiangolo.com/tutorial/response-model/)
+  - [Pydantic registry](https://pypi.org/project/pydantic/), [선택판](https://pypi.org/project/pydantic/2.13.5/), [changelog](https://docs.pydantic.dev/latest/changelog/), [model API](https://docs.pydantic.dev/latest/concepts/models/)
+- 독립 cold review·수용 판단·수정 재검증·PR 병합은 아래에 실제 결과를 추가한다.
+
+- 확대 검증: 신규6개 + 실제 actor/공유 진행 회귀16개, 합계22개 통과(39.427초). 신규 최종11개 통과(12.509초). 원본 손상·claim 조회 경쟁·이전 회차·부분 결과·잠금 거절을 추가 검증했다.
+- 독립 cold review P2 2건 수용: (1) 원본 source_files hash 검증 누락 → 결과 파일·입력·원본·clip 모두 검증 (2) 잠금 확인 전 최신 claim 조회 경쟁 → 실제 점유 확인 후 최신 시작 조회. 재현 시험 추가 후 reviewer가 2개 직접 통과 및 두 finding 해결·추가 actionable 0건 확인. 보류/거절 0건.
+- ES-T01~06 완료. 단계 없는 과거 원장은 읽기만 하며 제품 원장/입력/감사 bytes를 재작성하지 않는다. 시험의 과거 원장 fixture 구성만 별도 임시 저장소에서 수행했다.
