@@ -44,6 +44,25 @@ MP01 병합 `d4959a7`에서 `veluga/mp02-360-upload-ui`로 착수했다. typed m
 
 ## 의존성 확인 — 2026-10-12
 
+MP02: [PR #91](https://github.com/syleeVeluga/k-dog-proj/pull/91), 구현 `a76093c`, main 병합 `befa18c`. 이 commit에서 MP03 `veluga/mp03-360-upload-acceptance`를 시작했다.
+
+## MP03 통합 인수·설치 검증 — 진행 중
+
+- 실제 decoded 단일/혼합 전처리와 실행 조합은 MP01의 9조합/guard/pin 시험 및 MP02의 실제 HTTP/FFmpeg·정정/outdated/과거 실행 화면 시험으로 연결한다. VM-ES-T01~04의 actor/실행ID·세션/판본·지연응답 보호는 기존 ES 회귀와 함께 검사한다.
+- 새 `test_external_media_acceptance_v4`는 기존 RunV4 fixture의 외부 MP4 출처로 실제42항목군 Worker·86 AI 원자료·기본결과·최종결과·리포트를 연결한다. 기존 program-only 합성 renderer seam을 사용하며 현재 제품의 리포트 생성 코드/산식을 복제하지 않는다. 나중 처리 정보 정정 뒤 기본결과 원문과 발급 PDF hash가 같음을 확인했다(1개/21.288초). 이 fixture의 source/derived bytes는 합성이며 실제 decode는 앞선 FFmpeg 시험이 담당한다. 유료 외부 호출0이다.
+- 기존 `build_release.py`/`verify_release.py`/launcher 방식과 allowlist를 유지한다. 추가 `scripts/verify_mp4_package.py`는 설치 패키지의 실제 interpreter·HTTP 접수/조회/download·감독 재시작에서 새 종류와 최초 선언/정정 판본 보존을 확인한다. content 저장/정정은 합성 interpreter 동작이며 HTTP upload/decode 시험을 대체하지 않는다. online은 PATH uv/FFmpeg와 venv를 사용하고 직접 interpreter 호출 전 잘못된 PYTHONHOME/PYTHONPATH를 제거한다.
+- 독립 reviewer `mp03_cold_review` 검토 및 최종 전체 backend/frontend·portable/online ZIP 검사 진행 중. 완료 결과·commit/hash는 이후 기록한다.
+
+## 추가 의존성·실행 환경 확인 — 2026-10-12
+
+공식 PyPI registry에서 Uvicorn 최신0.54.0/선택0.52.4, openpyxl 최신/선택3.1.5, ReportLab5.0.1/5.0.1, Pillow12.3.0/12.3.0, cryptography50.0.2/50.0.2, pypdf6.20.0/6.19.0을 확인했다. 각 Python>=3.8~3.10 조건(ReportLab<4)을 만족하는 기존 Python3.14 조합을 유지한다. [Uvicorn](https://pypi.org/pypi/uvicorn/json), [openpyxl](https://pypi.org/pypi/openpyxl/json), [ReportLab](https://pypi.org/pypi/reportlab/json), [Pillow](https://pypi.org/pypi/pillow/json), [cryptography](https://pypi.org/pypi/cryptography/json), [pypdf](https://pypi.org/pypi/pypdf/json).
+
+실제 개발 runtime은 Python3.14.2·Node24.13.0·uv0.11.18·PATH FFmpeg8.1.1이다. [Python 공식 최신](https://www.python.org/downloads/)은3.15.0이며 프로젝트>=3.14,<3.15 제약과 기존 package 선택3.14.8을 유지한다. [uv 최신](https://pypi.org/pypi/uv/json)0.13.0, [FFmpeg 최신](https://ffmpeg.org/download.html)9.0.2(8.1 계열 최신8.1.3)을 확인했다. portable은 기존 hash 고정 Python3.14.8·FFmpeg9.0.2 최소 빌드를 사용한다. 기존 PC 도구/상관없는 잠금 의존성을 자동 업그레이드하지 않았다. npm @types 최신19.3.0/기존 React19.2 잠금 타입을 유지했다.
+
+`npm ci`/audit는 기존 빌드 의존성 source-map-js1.2.1의 high1건([GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q))을 반환했다. [공식 registry](https://registry.npmjs.org/source-map-js/latest)의 수정 안정판1.2.2·Node>=0.10을 확인했다. 현재 제품 ZIP에는 node_modules나 source map 처리 서비스가 없고 정적 dist를 사용한다. 이번 업로드/인수 범위에서 잠금 파일을 바꾸지 않았으며 빌드 도구 후속 정비로 남긴다. audit0이라고 표시하지 않는다.
+
+## 의존성 확인 표 — MP01·MP02
+
 | 대상 | 최신 안정판 / 선택 잠금판 | 근거 |
 | --- | --- | --- |
 | Pydantic | 2.14.1 / 2.13.5 | [PyPI](https://pypi.org/pypi/pydantic/json), [선택판](https://pypi.org/pypi/pydantic/2.13.5/json), [model serializer](https://docs.pydantic.dev/latest/concepts/serialization/) |
