@@ -71,6 +71,8 @@ MP02: [PR #91](https://github.com/syleeVeluga/k-dog-proj/pull/91), 구현 `a7609
 
 각 ZIP에 기존 `verify_release.py`와 새 `verify_mp4_package.py`를 실행해 4개 명령 모두 exit0을 확인했다. portable은 PATH에 uv/Python/FFmpeg 없이 번들만으로 시작·한글/공백 경로·오염 환경 변수 격리·손상 거절·로그인/생성/재시작·감독 종료·밀봉 발행/잘못된 키/변조 거절·계정 설치/개발자 설정/공유 업무·재설치 자료 보존을 통과했다. online은 새 venv·설치 전 시작 거절·venv 생성 전 손상 거절·PATH FFmpeg/venv Python·동일 HTTP 재시작/감독 종료를 통과했다. 두 변형 모두 실제 설치 interpreter의 새 MP4 접수/등록·최초 선언과 정정 판본·재시작/download hash 보존을 통과했고 공급자 호출0이다.
 
+MP03: [PR #92](https://github.com/syleeVeluga/k-dog-proj/pull/92). 최종 제품 checkpoint `9692c9d`, 검증 결과 문서 `505901d`. 독립 구현 cold review 수용2건/보류·거절0, 마지막 재검토 신규 actionable0이다. MP01→MP02 병합 뒤 MP03을 순서대로 검증했다. 병합 commit/state는 PR #92의 merge 기록 및 main Git 이력으로 확인한다.
+
 ZIP 내부에서 synthetic PNG5개·새 backend 계약·빌드된 화면 종류를 확인했고 node_modules·고객 원본 폴더·운영 DB 포함0을 확인했다. 현재 Windows 한 대의 새 임시 폴더/DB에 대한 검증이며 clean OS/다른 물리 PC를 실측한 결과는 아니다. 산출물과 실행 로그는 ignored `releases/` 아래 로컬에 보존한다. `mp03-final-{portable,online}-{build,verify,mp4}.log`, `mp03-backend-full.log`, `mp03-frontend-final-full.log`, `mp03-actual-chain-actors.log`가 실제 실행 근거다. 최종 문서9개 로컬 링크64개도 파일과 tracked tree 대조 오류0을 확인했다.
 
 ## 추가 의존성·실행 환경 확인 — 2026-10-12
