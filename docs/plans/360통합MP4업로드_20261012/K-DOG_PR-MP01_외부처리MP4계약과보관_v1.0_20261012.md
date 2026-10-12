@@ -1,6 +1,6 @@
 # PR-MP01 외부 처리 MP4 계약과 보관
 
-버전: v1.0 · 2026-10-12 · 상태: 계획, 미구현 · 선행: ES03까지 구현·검증·병합 · 최초 조사 기준: `1702f2b` · 브랜치 제안: `veluga/mp01-external-360-media`
+버전: v1.0 · 2026-10-12 · 상태: 구현·검증·독립 cold review 수용 반영 완료 · 선행: ES03 병합 `5ef483f` · 최초 조사 기준: `1702f2b` · 브랜치: `veluga/mp01-external-360-media`
 
 상위: [전체 계획](K-DOG_360통합MP4업로드계획_v1.0_20261012.md). 범위: VM-R01~R07의 서버 계약. 제목 제안: `feat: accept externally prepared 360 MP4 inputs`.
 
@@ -73,8 +73,8 @@ uv run --locked python -X utf8 -m unittest tests.test_preprocess_execution_v4 -v
 
 ## 실행 기록 — 착수 후 작성
 
-- [ ] commit/PR·변경 파일과 실제 적용 계약
-- [ ] 최신/선택 버전·공식 근거·잠금 파일 여부
-- [ ] 관련 회귀·hash/출처/재사용·현재 actor 검증
-- [ ] 독립 cold review·발견 수용/보류/거절·재검증
-- [ ] MP02 인계·실측 대기와 구현 완료 구분
+- [x] 실제 적용 계약·변경 파일: [실행 기록](K-DOG_360통합MP4구현실행기록_v1.0_20261012.md#mp01-계약보관분석-입력-경계)
+- [x] 최신/선택 버전·공식 근거 확인, 잠금 파일 변경 없음
+- [x] 기존 관련 회귀111개·새 계약/합성8개 통과. 최초 통합117개 중 clean 시험 기대 예외1건은 fixture 수정 후 재검증
+- [x] 독립 cold review P2 2건 수용·반영·재검토. 원장 request ID 추가 대조 회귀도 통과
+- [x] MP02에 typed PATCH/EXT360·파일별 사유·최초/유효 metadata·고정 요청 재시도 인계. 실제 Studio 실측은 대기

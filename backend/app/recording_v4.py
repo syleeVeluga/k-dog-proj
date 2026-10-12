@@ -232,9 +232,27 @@ def safe_base_sequence_v4(recording: RecordingV4) -> SafeBaseResultV4:
     return SafeBaseResultV4(status="confirmed_sequence", event_ids=ids, reference_seconds=times)
 
 
+def recording_time_sources_v4(recording: RecordingV4):
+    return {recording.video_id,
+            *(value.video_id for value in (*recording.segments, *recording.walk_phases) if value.start_sec is not None),
+            *(value.video_id for value in recording.events if value.seconds is not None),
+            *(value.video_id for value in recording.coverage),
+            *(value.video_id for value in recording.video_offsets if value.confirmed)}
+
+
+def validate_recording_timeline_v4(session, recording: RecordingV4):
+    if not recording.confirmed:
+        return
+    anchors = recording_time_sources_v4(recording)
+    for video in session.videos:
+        if video.video_id in anchors and getattr(video, "source_kind", None) == "external_360_mp4" and video.external_processing.timeline != "preserved":
+            raise HTTPException(422, "편집·미확인 통합 영상은 촬영 시각 근거로 확정할 수 없습니다. 시간 유지 영상을 선택하세요.")
+
+
 def validate_recording_media_v4(store, session, recording: RecordingV4):
     """Recheck immutable source bytes and time bounds; INSV cannot be timed input."""
     recording = RecordingV4.model_validate_json(recording.model_dump_json())
+    validate_recording_timeline_v4(session, recording)
     videos = {video.video_id: video for video in session.videos}
     referenced = {recording.video_id, *(value.video_id for value in recording.events),
                   *(value.video_id for value in recording.video_offsets), *(value.video_id for value in recording.coverage)}
