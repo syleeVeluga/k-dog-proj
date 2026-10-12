@@ -44,8 +44,8 @@ RETIRED_FILES = frozenset({
 OPERATING_DOCUMENTS = frozenset({
     "README.md", "docs/DEVELOPMENT.md", "docs/PILOT_OPERATIONS.md",
     "docs/K-DOG_개발기준변경검토_v1.0_20261003.md",
-    "docs/개발반영_20261003/검증이미지/S17_외부비교_모바일_합성.png",
-    "docs/개발반영_20261003/검증이미지/S17_PDF_외부비교_합성.png",
+    "docs/archive/개발반영_20261003/검증이미지/S17_외부비교_모바일_합성.png",
+    "docs/archive/개발반영_20261003/검증이미지/S17_PDF_외부비교_합성.png",
 })
 
 
@@ -54,9 +54,9 @@ def product_file(name):
         name.startswith("backend/app/") and name.endswith(".py") or
         name.startswith("resources/") and Path(name).suffix in (".json", ".ttf", ".txt", ".md", ".html", ".css") or
         name in OPERATING_DOCUMENTS or
-        name.startswith("docs/개발반영_20261003/") and name.endswith(".md") or
-        name.startswith("plans/") and (name.endswith(".md") or
-                                      name.startswith("plans/images/") and name.endswith(".png"))
+        name.startswith("docs/archive/개발반영_20261003/") and name.endswith(".md") or
+        name.startswith(("plans/", "docs/plans/")) and (name.endswith(".md") or
+                                      name.startswith(("plans/images/", "docs/plans/images/")) and name.endswith(".png"))
     )
 
 
