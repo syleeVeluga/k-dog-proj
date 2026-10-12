@@ -6,7 +6,7 @@ type Page = { items: Entry[]; next_offset: number | null; before: number };
 const labels: Record<string, string> = {
   'case.create': '참가자 등록', 'case.open': '참가자 자료 열기', 'case.identity': '참가자 정보 수정',
   'survey.save': '설문 저장', 'survey.update': '설문 저장', 'recording.open': '촬영 기록 열기',
-  'video.open': '영상 열기', 'upload.open': '원본 파일 제공', 'upload.create': '영상 수신 시작', 'upload.complete': '영상 수신 완료', 'upload.link': '영상 연결',
+  'video.open': '영상 열기', 'upload.open': '원본 파일 제공', 'upload.create': '영상 업로드 시작', 'upload.complete': '영상 업로드 완료', 'upload.link': '영상 정보 저장',
   'sheet.assign': '채점 시트 생성', 'sheet.open': '채점 시트 열기', 'sheet.save': '채점 저장', 'sheet.submit': '채점 제출', 'sheet.reopen': '채점 수정 시작',
   'basic.open': '기본 결과 열기', 'basic.calculate': '기본 결과 계산', 'basic.judgement': '기본 판정 저장',
   'opinion.open': '의견 열기', 'opinion.s1.save': '의견 저장', 'final.open': '최종본 열기', 'final.s1.publish': '최종본 생성',

@@ -17,7 +17,7 @@ export const menuTree: MenuGroup[] = [
     { route: 'intake', label: '참가자 접수', roles: everyone },
     { route: 'intake/upload', label: '일괄 등록 (CSV·Excel)', roles: staff },
     { route: 'survey', label: '설문 현황', roles: everyone },
-    { route: 'recording/inbox', label: '영상 수신·연결', roles: staff, parent: '촬영' },
+    { route: 'recording/inbox', label: '영상 파일 업로드', roles: staff, parent: '촬영' },
     { route: 'recording/record', label: '촬영 기록 (8구간)', roles: everyone, parent: '촬영' },
   ] },
   { id: 'analysis', label: '분석·평가', items: [

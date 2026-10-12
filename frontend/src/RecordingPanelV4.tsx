@@ -107,7 +107,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
   return <section className="panel" aria-label="촬영 기록">
     <div className="section-title"><h2>{item.dog_name} · {item.participant_id}</h2><button onClick={close}>닫기</button></div>
     <p role="status" className="video-summary"><strong>{sessionIndex}차 촬영 · 연결된 영상 {session.videos.length}개</strong>
-      {session.videos.length ? ` · 사용 가능 ${usable} · 영상 읽기 확인 대기 ${videos.length - usable}${keptOnly ? ` · 원본 보관 전용 ${keptOnly}` : ''}${stale ? ' · 입력이 바뀌어 전처리를 다시 해야 합니다' : ''}` : writable ? ' · 「영상 수신·연결」 메뉴에서 영상을 연결하세요.' : ' · 연결된 영상이 없습니다.'}</p>
+      {session.videos.length ? ` · 사용 가능 ${usable} · 영상 읽기 확인 대기 ${videos.length - usable}${keptOnly ? ` · 원본 보관 전용 ${keptOnly}` : ''}${stale ? ' · 입력이 바뀌어 전처리를 다시 해야 합니다' : ''}` : writable ? ' · 「영상 파일 업로드」 메뉴에서 영상을 올리고 파일별 촬영 정보를 저장하세요.' : ' · 연결된 영상이 없습니다.'}</p>
     <p>입력 버전 {item.input_revision} · 촬영 기록 {session.recording_s1?.confirmed ? '확정' : '초안 / 미기록'}</p>
     {writable && <div className="toolbar recording-actions">{editing ? <><button disabled={!record.video_id} onClick={() => save(false)}>촬영 기록 초안 저장</button><button disabled={!record.video_id} onClick={() => save(true)}>촬영 기록 확정</button>
       {(!record.video_id || !record.procedure_note.trim()) && <span className="fine" aria-live="polite">{!record.video_id ? (videos.length ? '기준 영상을 고르세요.' : '읽을 수 있는 영상을 먼저 연결하세요.') : '실제 촬영 절차의 확인 근거를 기록해야 저장할 수 있습니다.'}</span>}</> : <button onClick={() => setEditing(true)}>확정본 수정 시작</button>}
@@ -123,7 +123,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
       <ul>{session.recording.walk_phases.map((value, index) => <li key={value.phase}>{phaseNames[index]} · {value.start_sec ?? '미확인'}~{value.end_sec ?? '미확인'}초 · {states[value.state]} · {value.reason}</li>)}</ul>
       <ul>{session.recording.events.map(value => <li key={value.event_id}>{EVENT_CHOICES.find(([id]) => id === value.kind)?.[1] ?? value.kind} · {session.videos.find(video => video.video_id === value.video_id)?.original_name} · {value.seconds ?? '미관찰'}~{value.end_seconds ?? '끝 미지정'}초 · {value.status === 'observed' ? '관찰됨' : value.status === 'not_occurred' ? '미발생' : '미관찰'} · {value.note} · {value.affected_codes.join(', ')}</li>)}</ul>
       <ul>{session.recording.video_offsets.map(value => <li key={value.video_id}>{session.videos.find(video => video.video_id === value.video_id)?.original_name} · 오프셋 {value.offset_seconds}초 · {value.confirmed ? '확인됨' : '미확인'} · {value.note}</li>)}</ul></details>}
-    {writable && <><SessionEditor item={item} session={session} run={run} refresh={refresh} /><p>상단 영상 수신 보관함에서 원본·변환 파일을 수신하고 현재 회차와 카메라에 연결하세요.</p>
+    {writable && <><SessionEditor item={item} session={session} run={run} refresh={refresh} /><p>「영상 파일 업로드」 메뉴에서 원본·변환 파일을 올리고 참가자·촬영 회차·촬영 카메라 번호를 저장하세요.</p>
       <details><summary>재촬영 세션 추가</summary><button onClick={() => { if (!mayLeave()) return; void run(async () => { await api(`/cases/${item.case_id}/sessions`, 'POST', { expected_revision: item.input_revision }); await refresh('새 촬영 세션을 시작했습니다.'); }); }}>새 촬영 시작</button></details></>}
     {session.videos.some(video => video.media_status === 'storage_only') && <p>INSV 원본은 보관 중입니다. 변환 파일을 연결한 뒤 관찰 시각을 기록하세요.</p>}
     {edit.dirty && edit.view.input_revision !== item.input_revision && <p role="status">다른 변경이 저장되었습니다. 편집 시작 버전 {edit.view.input_revision}을 유지하며 현재 입력은 자동으로 덮어쓰지 않습니다.</p>}

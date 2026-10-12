@@ -66,15 +66,15 @@ test('행사 스태프: 명단 양식 → 10명 일괄 등록 → 현장 1명 �
   await expect(form.getByText('등록 결과: 정상 2행 등록 · 오류 1행 제외', { exact: true })).toBeVisible();
 
   // 4) 영상 3개(원본1~3)를 받아 카메라를 고치지 않고 한 참가자에 연결한다.
-  await openMenu(page, '영상 수신·연결');
-  await page.getByLabel('수신 파일', { exact: true }).setInputFiles(['원본1.mp4', '원본2.mp4', '원본3.mp4'].map((name, index) => ({ name, mimeType: 'video/mp4', buffer: Buffer.from(`u07 rehearsal ${name} ${index}`) })));
-  await page.getByRole('button', { name: '파일 수신 시작·재시도', exact: true }).click();
+  await openMenu(page, '영상 파일 업로드');
+  await page.getByLabel('영상 파일', { exact: true }).setInputFiles(['원본1.mp4', '원본2.mp4', '원본3.mp4'].map((name, index) => ({ name, mimeType: 'video/mp4', buffer: Buffer.from(`u07 rehearsal ${name} ${index}`) })));
+  await page.getByRole('button', { name: '업로드 시작·재시도', exact: true }).click();
   for (const name of ['원본1.mp4', '원본2.mp4', '원본3.mp4']) {
-    const card = page.getByRole('article', { name: `수신물 ${name}`, exact: true });
-    await expect(card.getByText('수신 완료', { exact: true })).toBeVisible();
+    const card = page.getByRole('article', { name: `업로드 파일 ${name}`, exact: true });
+    await expect(card.getByText('업로드 완료', { exact: true })).toBeVisible();
     await card.getByLabel('참가자 찾기', { exact: true }).fill('현장견11');
-    await card.getByLabel('연결 참가자', { exact: true }).selectOption({ index: 1 });
-    await card.getByRole('button', { name: '연결', exact: true }).click();
+    await card.getByLabel('참가자', { exact: true }).selectOption({ index: 1 });
+    await card.getByRole('button', { name: '영상 정보 저장', exact: true }).click();
     await expect(card).toHaveCount(0);
   }
 
