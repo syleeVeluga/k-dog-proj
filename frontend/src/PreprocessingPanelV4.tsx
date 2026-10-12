@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { api, ApiError, accessLost } from './api';
 import { sessionOf, type Case, type Run } from './types';
 import { WINDOW_NAMES } from './recordingTypesV4';
-import type { BatchV4, ClipFileV4, PhysicalClipV4, PreprocessStatusV4, TimeRangeV4, WindowV4 } from './preprocessTypesV4';
+import type { BatchV4, ClipFileV4, PhysicalClipV4, PreprocessStatusV4, PreprocessExecutionDetailV4, PreprocessExecutionPageV4, PreprocessRequestV4, TimeRangeV4, WindowV4 } from './preprocessTypesV4';
+import { executionStatus } from './PreprocessExecutionsV4';
 
 const states: Record<string, string> = {
   not_ready: '촬영 기록 확인 필요', ready: '실행 가능', running: '진행 중', interrupted: '중단됨', failed: '실패', complete: '완성', partial: '일부만 완성',
@@ -19,31 +20,89 @@ const seconds = (value: number | null) => value === null ? '미확인' : `${Numb
 const range = (start: number | null, end: number | null) => `${seconds(start)} ~ ${seconds(end)}`;
 const ranges = (values: TimeRangeV4[]) => values.length ? values.map(value => range(value.start_seconds, value.end_seconds)).join(', ') : '없음';
 const nameOf = (id: string) => WINDOW_NAMES[id] ?? id;
+const stageNames: Record<string, string> = { clips: '클립 제작', windows: '관찰창 결과 정리', reuse_verify: '재사용 검증', verify_save: '결과 검증·저장' };
 
-export function PreprocessingPanelV4({ item, writable, run, refresh }: {
-  item: Case; writable: boolean; run: Run; refresh: (message?: string) => Promise<void>;
+export function PreprocessingPanelV4({ item, username, executionId, writable, run, refresh }: {
+  item: Case; username: string; executionId?: string; writable: boolean; run: Run; refresh: (message?: string) => Promise<void>;
 }) {
   const session = sessionOf(item), path = `/cases/${item.case_id}/sessions/${session.session_id}/preprocess-s1`;
+  const storageKey = `kdog-preprocess:${username}:${item.case_id}:${session.session_id}:${executionId ?? 'current'}`;
+  const saved = useRef<{ request?: PreprocessRequestV4; executionId?: string }>({});
+  const initialized = useRef(false);
+  if (!initialized.current) {
+    initialized.current = true;
+    try { saved.current = JSON.parse(sessionStorage.getItem(storageKey) ?? '{}'); } catch { saved.current = {}; }
+    if (executionId) saved.current = { executionId };
+  }
   const [status, setStatus] = useState<PreprocessStatusV4 | null>(null);
+  const [execution, setExecution] = useState<PreprocessExecutionDetailV4 | null>(null);
+  const [tracking, setTracking] = useState(saved.current.executionId ?? '');
+  const [pending, setPending] = useState<PreprocessRequestV4 | null>(saved.current.request ?? null);
+  const [connected, setConnected] = useState(false), [checked, setChecked] = useState('');
+  const [pollTick, setPollTick] = useState(0);
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(false);
   const [priority, setPriority] = useState(() => [...new Set(['CAM1', 'CAM2', 'CAM3', ...session.videos.flatMap(video => video.camera_id ? [video.camera_id] : [])])]);
   const [audio, setAudio] = useState(''), [clipId, setClipId] = useState(''), [variant, setVariant] = useState<'original' | 'ai'>('original');
-  const alive = useRef(true), running = useRef(false), sequence = useRef(0);
-  useEffect(() => { alive.current = true; return () => { alive.current = false; sequence.current++; }; }, []);
-  async function load(clearError = true) {
-    const current = ++sequence.current;
-    setLoading(true);
-    try {
-      const value = await api<PreprocessStatusV4>(path);
-      if (alive.current && current === sequence.current) { setStatus(value); if (clearError) setError(''); }
-    } catch (value) {
-      if (alive.current && current === sequence.current) { setStatus(null); setError(value instanceof Error ? value.message : '전처리 상태를 불러오지 못했습니다.'); }
-    } finally { if (alive.current && current === sequence.current) setLoading(false); }
+  const alive = useRef(true), running = useRef(false), sequence = useRef(0), postGeneration = useRef(0);
+  const inFlight = useRef(false), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pendingRef = useRef(pending), trackingRef = useRef(tracking);
+  pendingRef.current = pending; trackingRef.current = tracking;
+  function preserve(request: PreprocessRequestV4 | null, id: string) {
+    sessionStorage.setItem(storageKey, JSON.stringify({ request: request ?? undefined, executionId: id || undefined }));
   }
-  useEffect(() => { void load(false); }, [path, item.input_revision]);
-  const batch = status?.result;
-  const stale = !!status && (status.outdated || status.input_revision !== item.input_revision);
-  const blocked = busy || loading || !status?.ready || status.status === 'running' || status.input_revision !== item.input_revision;
+  useEffect(() => { alive.current = true; return () => { alive.current = false; sequence.current++; postGeneration.current++; clearTimeout(timer.current); }; }, []);
+  async function load(background = false) {
+    if (background && inFlight.current) return;
+    const current = ++sequence.current;
+    inFlight.current = true;
+    if (!background) setLoading(true);
+    try {
+      let id = trackingRef.current;
+      if (!id && pendingRef.current) {
+        const page = await api<PreprocessExecutionPageV4>(`/preprocess-s1/executions?request_id=${encodeURIComponent(pendingRef.current.request_id)}`);
+        if (!alive.current || current !== sequence.current) return;
+        id = page.items.find(value => value.case_id === item.case_id && value.session_id === session.session_id)?.execution_id ?? '';
+        if (id) { trackingRef.current = id; setTracking(id); preserve(pendingRef.current, id); }
+      }
+      const [shared, selected] = await Promise.allSettled([
+        api<PreprocessStatusV4>(path),
+        id ? api<PreprocessExecutionDetailV4>(`${path}/executions/${id}`) : Promise.resolve(null),
+      ]);
+      if (selected.status === 'rejected') throw selected.reason;
+      const detail = selected.value;
+      if (alive.current && current === sequence.current) {
+        if (shared.status === 'fulfilled') setStatus(shared.value);
+        setExecution(detail); if (detail || shared.status === 'fulfilled') setChecked(new Date().toLocaleTimeString());
+        setConnected(shared.status === 'fulfilled');
+        setError(shared.status === 'fulfilled' ? '' : `${shared.reason instanceof Error ? shared.reason.message : '현재 입력의 준비 상태를 확인할 수 없습니다.'}${detail ? ' 지정 실행 결과는 보존됩니다.' : ''}`);
+        if (detail && detail.status !== 'running') {
+          pendingRef.current = null; setPending(null); preserve(null, id);
+        }
+      }
+    } catch (value) {
+      if (alive.current && current === sequence.current) {
+        if (accessLost(value)) { setStatus(null); setExecution(null); setPending(null); sessionStorage.removeItem(storageKey); }
+        setConnected(false); setError(value instanceof Error ? value.message : '전처리 상태를 불러오지 못했습니다.');
+      }
+    } finally { if (alive.current && current === sequence.current) { setLoading(false); inFlight.current = false; setPollTick(value => value + 1); } }
+  }
+  useEffect(() => {
+    sequence.current++; postGeneration.current++; inFlight.current = false;
+    setConnected(false); setBusy(false); running.current = false;
+    void load();
+    const visible = () => { if (!document.hidden) void load(); };
+    document.addEventListener('visibilitychange', visible);
+    return () => { sequence.current++; clearTimeout(timer.current); document.removeEventListener('visibilitychange', visible); };
+  }, [path, item.input_revision]);
+  useEffect(() => {
+    if (busy || pending || execution?.status === 'running' || !execution && status?.status === 'running' || error) {
+      timer.current = setTimeout(() => void load(true), 2000);
+    }
+    return () => clearTimeout(timer.current);
+  }, [busy, pending, execution, status, error, checked, connected, pollTick]);
+  const batch = tracking ? execution?.result : status?.result;
+  const stale = execution ? execution.outdated : !!status && (status.outdated || status.input_revision !== item.input_revision);
+  const blocked = busy || !!pending || loading || !connected || !status?.ready || status.status === 'running' || execution?.status === 'running' || status.input_revision !== item.input_revision;
   const sameSettings = !!batch && audio === (batch.request.audio_video_id ?? '') && priority.join('|') === batch.request.camera_priority.join('|');
   const clip = batch?.clips.find(value => value.clip_id === clipId) ?? batch?.clips[0];
   const videoName = (id: string | null) => {
@@ -58,27 +117,41 @@ export function PreprocessingPanelV4({ item, writable, run, refresh }: {
   function start(reuse: boolean) {
     if (running.current || blocked || !writable || reuse && (!status?.result_pointer || stale || !sameSettings)) return;
     running.current = true; setBusy(true); setError('');
-    const request = { request_id: crypto.randomUUID(), expected_revision: item.input_revision, camera_priority: priority,
-      audio_video_id: audio || null, ai_frames_per_second: 1, reuse: reuse ? status!.result_pointer : null };
-    void run(async () => {
+    const request: PreprocessRequestV4 = { request_id: crypto.randomUUID(), expected_revision: item.input_revision, camera_priority: priority,
+      audio_video_id: audio || null, ai_frames_per_second: 1, reuse: reuse ? (execution?.result_pointer ?? status!.result_pointer) : null };
+    pendingRef.current = request; trackingRef.current = ''; setPending(request); setTracking(''); setExecution(null); preserve(request, '');
+    sequence.current++; inFlight.current = false;
+    const generation = ++postGeneration.current;
+    void (async () => {
       try {
-        await api<BatchV4>(path, 'POST', request);
-        if (alive.current) { await load(); await refresh(reuse ? '검증된 전처리 결과를 재사용했습니다.' : '새 전처리 결과를 만들었습니다.'); }
+        const result = await api<BatchV4>(path, 'POST', request);
+        if (alive.current && generation === postGeneration.current) {
+          sequence.current++; inFlight.current = false;
+          trackingRef.current = result.batch_id; setTracking(result.batch_id); preserve(request, result.batch_id);
+          await load();
+          if (alive.current && generation === postGeneration.current) await refresh(reuse ? '검증된 전처리 결과를 재사용했습니다.' : '새 전처리 결과를 만들었습니다.');
+        }
       } catch (value) {
-        if (alive.current) {
+        if (alive.current && generation === postGeneration.current) {
           if (accessLost(value)) setStatus(null);
           const message = value instanceof Error ? value.message : '전처리 요청에 실패했습니다.';
-          setError(value instanceof ApiError && value.status === 409 ? `${message} 상태와 최신 입력을 새로고침한 뒤 다시 실행하세요.` : message);
+          const rejected = value instanceof ApiError && value.status < 500;
+          if (rejected && !trackingRef.current) { pendingRef.current = null; setPending(null); preserve(null, ''); }
+          setError(rejected ? `${message} 상태와 최신 입력을 새로고침한 뒤 다시 실행하세요.` : '요청 접수 여부 확인 중 · 응답을 받지 못했습니다. 상태 조회로 확인합니다.');
         }
-      } finally { running.current = false; if (alive.current) setBusy(false); }
-    });
+      } finally { running.current = false; if (alive.current && generation === postGeneration.current) setBusy(false); }
+    })();
   }
   return <section className="panel" aria-label="다중 카메라 전처리" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-    <div className="section-head"><h2>다중 카메라 전처리</h2><button type="button" disabled={busy || loading} onClick={() => { void run(async () => { await refresh(); await load(); }); }}>전처리 상태 새로고침</button></div>
+    <div className="section-head"><h2>다중 카메라 전처리</h2><button type="button" disabled={loading} onClick={() => { void run(async () => { await refresh(); await load(); }); }}>전처리 상태 새로고침</button></div>
     <p>촬영 기록의 실제 창을 카메라별 클립으로 만듭니다. 겹치는 클립은 함께 제작하고, 항목별 관찰창과 가림·손실 근거는 각각 유지합니다.</p>
     <p className="fine">카메라 배치는 아직 확정 전입니다. 오프셋이 확인되지 않은 카메라는 클립 제작에서 제외됩니다.</p>
-    {error && <p role="alert" className="error">{error}</p>}
-    <p role="status">{busy ? '전처리 진행 중 · 완료 후 상태가 갱신됩니다.' : loading ? '전처리 상태 확인 중…' : status ? `${label(status.status)} · ${status.message}` : '전처리 상태를 확인하세요.'}</p>
+    {error && <p role="alert" className="error">{connected ? '' : '상태 조회 연결 끊김 · '}{error}</p>}
+    <p role="status">{execution ? `${executionStatus[execution.status]} · ${execution.message}` : pending ? busy ? '전처리 실행 요청 중' : '요청 접수 여부 확인 중' : loading && !status ? '전처리 상태 확인 중…' : status ? `${label(status.status)} · ${status.message}` : '전처리 상태를 확인하세요.'}</p>
+    {execution && <div><p>현재 단계: {execution.current_stage ? stageNames[execution.current_stage] : '단계 기록 없음'}</p>
+      <p>시작: {new Date(execution.started_at).toLocaleString()}{execution.finished_at && ` · 종료: ${new Date(execution.finished_at).toLocaleString()}`}</p>
+      {execution.stage_updated_at && <p>단계 시작: {new Date(execution.stage_updated_at).toLocaleString()}</p>}</div>}
+    <p className="fine">마지막 확인: {checked || '아직 없음'}</p>
     {stale && <p className="warning">이전 입력 기준 결과입니다. 결과 기준 {batch?.input_revision ?? '미확인'} / 최신 입력 {item.input_revision}. 새 입력으로 다시 제작해야 합니다.</p>}
     <fieldset disabled={!writable || busy || status?.status === 'running'}><legend>제작 설정</legend>
       <p>원본용 클립은 실제 원본 프레임을 보존합니다. AI용 클립은 매 1초의 실제 프레임 1장을 선택하고 연속 오디오를 보존합니다. 공급자 요청 FPS·리사이즈는 별도 단계입니다.</p>
