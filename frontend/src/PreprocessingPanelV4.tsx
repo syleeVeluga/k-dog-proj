@@ -4,6 +4,7 @@ import { sessionOf, type Case, type Run } from './types';
 import { WINDOW_NAMES } from './recordingTypesV4';
 import type { BatchV4, ClipFileV4, PhysicalClipV4, PreprocessStatusV4, PreprocessExecutionDetailV4, PreprocessExecutionPageV4, PreprocessRequestV4, TimeRangeV4, WindowV4 } from './preprocessTypesV4';
 import { executionStatus } from './PreprocessExecutionsV4';
+import { cameraName, ProcessingNotice } from './ExternalProcessing';
 
 const states: Record<string, string> = {
   not_ready: '촬영 기록 확인 필요', ready: '실행 가능', running: '진행 중', interrupted: '중단됨', failed: '실패', complete: '완성', partial: '일부만 완성',
@@ -14,6 +15,8 @@ const states: Record<string, string> = {
   maximum_available_audio_then_camera_priority: '가용 시간이 긴 오디오 우선, 같으면 카메라 우선순위', no_usable_audio: '사용할 오디오 없음',
   audio_absent_or_unavailable: '오디오 없음 또는 사용 불가', ai_no_frames: 'AI용 실제 프레임 없음', no_actual_frames_in_window: '창 안에 실제 프레임 없음',
   ai_encoding_failed: 'AI용 클립 제작 실패', source_decode_failed: '영상 해독 실패',
+  external_projection_equirectangular: '일반 화면으로 재구도한 MP4가 필요합니다', external_projection_unknown: '영상 배치를 확인하세요',
+  external_timeline_edited: '구간 편집·속도 변경으로 촬영 시각 대응 확인 필요', external_timeline_unknown: '촬영 시각 대응을 확인해야 합니다',
 };
 const label = (value: string) => states[value] ?? value;
 const seconds = (value: number | null) => value === null ? '미확인' : `${Number(value.toFixed(3))}초`;
@@ -108,7 +111,7 @@ export function PreprocessingPanelV4({ item, username, executionId, writable, ru
   const videoName = (id: string | null) => {
     if (!id) return '없음';
     const video = batch?.source_metadata.find(value => value.video_id === id) ?? session.videos.find(value => value.video_id === id);
-    return video ? `${video.camera_id ?? '카메라 미등록'} · ${video.original_name}` : id;
+    return video ? `${cameraName(video.camera_id)} · ${video.original_name}` : id;
   };
   function move(camera: string, direction: number) {
     const next = [...priority], index = next.indexOf(camera), target = index + direction;
@@ -153,10 +156,11 @@ export function PreprocessingPanelV4({ item, username, executionId, writable, ru
       {execution.stage_updated_at && <p>단계 시작: {new Date(execution.stage_updated_at).toLocaleString()}</p>}</div>}
     <p className="fine">마지막 확인: {checked || '아직 없음'}</p>
     {stale && <p className="warning">이전 입력 기준 결과입니다. 결과 기준 {batch?.input_revision ?? '미확인'} / 최신 입력 {item.input_revision}. 새 입력으로 다시 제작해야 합니다.</p>}
+    {session.videos.filter(video => video.source_kind === 'external_360_mp4' && video.external_processing).map(video => <article key={video.video_id}><p>현재 입력 · {cameraName(video.camera_id)} · {video.original_name}</p><ProcessingNotice value={video.external_processing!} /></article>)}
     <fieldset disabled={!writable || busy || status?.status === 'running'}><legend>제작 설정</legend>
       <p>원본용 클립은 실제 원본 프레임을 보존합니다. AI용 클립은 매 1초의 실제 프레임 1장을 선택하고 연속 오디오를 보존합니다. 공급자 요청 FPS·리사이즈는 별도 단계입니다.</p>
-      <div className="table-wrap"><table><caption>카메라 우선순위</caption><thead><tr><th>순서</th><th>카메라</th><th>변경</th></tr></thead><tbody>{priority.map((camera, index) => <tr key={camera}><td>{index + 1}</td><td>{camera}</td><td><button type="button" aria-label={`${camera} 우선순위 올리기`} disabled={index === 0} onClick={() => move(camera, -1)}>위로</button> <button type="button" aria-label={`${camera} 우선순위 내리기`} disabled={index === priority.length - 1} onClick={() => move(camera, 1)}>아래로</button></td></tr>)}</tbody></table></div>
-      <label>대표 오디오 선택<select value={audio} onChange={event => setAudio(event.target.value)}><option value="">창별 가용 시간이 긴 영상, 같으면 카메라 우선순위</option>{session.videos.filter(video => video.media_status !== 'storage_only').map(video => <option key={video.video_id} value={video.video_id}>{video.camera_id ?? '카메라 미등록'} · {video.original_name}</option>)}</select></label>
+      <div className="table-wrap"><table><caption>카메라 우선순위</caption><thead><tr><th>순서</th><th>카메라</th><th>변경</th></tr></thead><tbody>{priority.map((camera, index) => <tr key={camera}><td>{index + 1}</td><td>{cameraName(camera)}</td><td><button type="button" aria-label={`${cameraName(camera)} 우선순위 올리기`} disabled={index === 0} onClick={() => move(camera, -1)}>위로</button> <button type="button" aria-label={`${cameraName(camera)} 우선순위 내리기`} disabled={index === priority.length - 1} onClick={() => move(camera, 1)}>아래로</button></td></tr>)}</tbody></table></div>
+      <label>대표 오디오 선택<select value={audio} onChange={event => setAudio(event.target.value)}><option value="">창별 가용 시간이 긴 영상, 같으면 카메라 우선순위</option>{session.videos.filter(video => video.media_status !== 'storage_only').map(video => <option key={video.video_id} value={video.video_id}>{cameraName(video.camera_id)} · {video.original_name}</option>)}</select></label>
       <p className="fine">여러 카메라의 같은 소리를 중복 합산하지 않습니다. 오디오 가용 초는 실제 청취 초나 발성 초를 뜻하지 않습니다.</p>
     </fieldset>
     {writable && <div className="actions"><button type="button" disabled={blocked} onClick={() => start(false)}>새 클립으로 전처리</button>
@@ -164,11 +168,12 @@ export function PreprocessingPanelV4({ item, username, executionId, writable, ru
       {batch && <button type="button" disabled={busy} onClick={() => { setPriority([...batch.request.camera_priority]); setAudio(batch.request.audio_video_id ?? ''); }}>이 결과의 설정 불러오기</button>}</div>}
     {batch && <>
       <h3>저장된 결과 · {label(batch.status)}</h3><p>입력 {batch.input_revision} · {new Date(batch.created_at).toLocaleString()} · 물리 클립 {batch.clips.length}개 · 항목 관찰창 {batch.windows.length}개</p>
+      {batch.source_metadata.filter(video => video.source_kind === 'external_360_mp4' && video.external_processing).map(video => <article key={video.video_id}><p>이 결과의 처리 정보 · {videoName(video.video_id)}</p><ProcessingNotice value={video.external_processing!} /></article>)}
       {batch.reuse_manifest && <p>해시를 검증한 기존 결과를 명시적으로 재사용했습니다.</p>}
       {!sameSettings && <p className="fine">현재 제작 설정이 저장된 결과와 다릅니다. 재사용하려면 이 결과의 설정을 불러오세요.</p>}
       <details><summary>입력·원본·제작 출처 확인</summary><p>결과 ID: {batch.batch_id}</p><p>입력: {batch.input.ref}<br />SHA-256: {batch.input.hash}</p>
         <p>제작기: {batch.encoder_version}</p><p>제작 호환성 SHA-256: {batch.compatibility_hash}</p>
-        {batch.source_metadata.map(video => <p key={video.video_id}>{videoName(video.video_id)} · {video.source_kind === 'original' ? '촬영 원본' : video.source_kind === 'received_conversion' ? '전달받은 변환본' : '보존 영상'}<br />{video.storage_ref}<br />SHA-256: {video.sha256}</p>)}
+        {batch.source_metadata.map(video => <p key={video.video_id}>{videoName(video.video_id)} · {video.source_kind === 'original' ? '촬영 원본' : video.source_kind === 'received_conversion' ? '전달받은 변환본' : video.source_kind === 'external_360_mp4' ? '외부 처리 통합 MP4' : '보존 영상'}<br />{video.storage_ref}<br />SHA-256: {video.sha256}</p>)}
         {batch.source_files.filter(file => !batch.source_metadata.some(video => video.storage_ref === file.ref)).map(file => <p key={file.ref}>변환 부모 원본: {file.ref}<br />SHA-256: {file.hash}</p>)}
         {Object.entries(batch.asset_hashes).map(([key, hash]) => <p key={key}>{key} SHA-256: {hash}</p>)}
         {batch.reuse_manifest && <p>재사용 출처: {batch.reuse_manifest.ref}<br />SHA-256: {batch.reuse_manifest.hash}</p>}
@@ -176,7 +181,7 @@ export function PreprocessingPanelV4({ item, username, executionId, writable, ru
       <h3>항목별 관찰창</h3><p className="fine">아래 시각·손실은 기준 영상의 초입니다. 파일 가용성과 실제 관찰 기록을 구분해 표시합니다.</p>
       {batch.windows.map(window => <WindowDetails key={window.window.window_id} value={window} batch={batch} videoName={videoName} choose={id => { setClipId(id); setVariant('original'); }} />)}
       <h3>물리 클립 미리보기</h3>
-      {clip ? <><label>미리볼 클립<select value={clip.clip_id} onChange={event => setClipId(event.target.value)}>{batch.clips.map(value => <option key={value.clip_id} value={value.clip_id}>{value.camera_id} · 원본 {range(value.source_start_seconds, value.source_end_seconds)} · {label(value.status)}</option>)}</select></label>
+      {clip ? <><label>미리볼 클립<select value={clip.clip_id} onChange={event => setClipId(event.target.value)}>{batch.clips.map(value => <option key={value.clip_id} value={value.clip_id}>{cameraName(value.camera_id)} · 원본 {range(value.source_start_seconds, value.source_end_seconds)} · {label(value.status)}</option>)}</select></label>
         <label>클립 제작 방식<select value={variant} onChange={event => setVariant(event.target.value as 'original' | 'ai')}><option value="original">원본 FPS 클립</option><option value="ai">AI용 1초 1프레임 클립</option></select></label>
         <ClipPreview key={`${batch.batch_id}:${clip.clip_id}:${variant}`} clip={clip} file={clip[variant]} url={`/api${path}/${batch.batch_id}/clips/${clip.clip_id}/${variant}`} variant={variant} /></> : <p>제작된 물리 클립이 없습니다. 창별 사유를 확인하세요.</p>}
     </>}
@@ -195,7 +200,7 @@ function WindowDetails({ value, batch, videoName, choose }: { value: WindowV4; b
       <td>{label(view.availability)} / {label(view.visual_state)}{view.reasons.length > 0 && <p>{view.reasons.map(label).join(', ')}</p>}
         {view.quality_event_ids.map(id => { const event = batch.recording.events.find(row => row.event_id === id); return event ? <p key={id}>{event.kind === 'occlusion' ? '영상 가림' : event.kind === 'body_not_visible' ? '신체 미관찰' : '오디오 손실'}: {event.note} {event.affected_codes.join(', ')}</p> : null; })}</td>
       <td>영상 {ranges(view.visual_ranges)}<br />오디오 {ranges(view.audio_ranges)}</td>
-      <td>{view.clip_ids.length ? view.clip_ids.map((id, index) => <button type="button" key={id} onClick={() => choose(id)}>{view.camera_id ?? '영상'} 클립 {index + 1} 보기</button>) : '제작 없음'}</td>
+      <td>{view.clip_ids.length ? view.clip_ids.map((id, index) => <button type="button" key={id} onClick={() => choose(id)}>{cameraName(view.camera_id)} 클립 {index + 1} 보기</button>) : '제작 없음'}</td>
     </tr>)}</tbody></table></div>
   </details>;
 }
@@ -204,7 +209,7 @@ function ClipPreview({ clip, file, url, variant }: { clip: PhysicalClipV4; file:
   const video = useRef<HTMLVideoElement>(null), [frame, setFrame] = useState(0), [error, setError] = useState('');
   const [opened, setOpened] = useState(false), [opening, setOpening] = useState(false);
   if (!file) return <p role="status">{variant === 'ai' ? 'AI용' : '원본 FPS'} 클립 없음 · {label(clip.reason ?? clip.status)}</p>;
-  return <article aria-label="전처리 클립 미리보기"><p>{clip.camera_id} · 원본 범위 {range(clip.source_start_seconds, clip.source_end_seconds)} · 연결 창 {clip.window_ids.map(nameOf).join(', ')}</p>
+  return <article aria-label="전처리 클립 미리보기"><p>{cameraName(clip.camera_id)} · 원본 범위 {range(clip.source_start_seconds, clip.source_end_seconds)} · 연결 창 {clip.window_ids.map(nameOf).join(', ')}</p>
     <button disabled={opening} onClick={() => { setOpening(true); setError(''); void api(url.replace(/^\/api/, '') + '/open', 'POST').then(() => setOpened(true)).catch(value => setError(value instanceof Error ? value.message : '영상을 열 수 없습니다.')).finally(() => setOpening(false)); }}>영상 열기</button>
     {opened && <video ref={video} controls preload="metadata" src={url} style={{ width: '100%', maxHeight: 420 }} onError={() => setError('클립을 재생할 수 없습니다. 접근 권한·원본 상태를 확인하고 전처리 상태를 새로고침하세요.')} />}
     {error && <p role="alert">{error}</p>}

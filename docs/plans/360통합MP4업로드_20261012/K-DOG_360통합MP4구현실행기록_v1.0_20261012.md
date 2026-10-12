@@ -25,6 +25,23 @@
 
 reviewer는 두 수용 건의 코드상 해결과 신규 독립 결함0을 확인했다. 마지막 원장 request ID 대조 권고도 같은 범위로 수용·시험했다. `git diff --check` 통과. PR/commit/병합은 아래에 연결한다.
 
+MP01: [PR #90](https://github.com/syleeVeluga/k-dog-proj/pull/90), 구현 `1327ab8`, main 병합 `d4959a7`. 원격 PR의 check rollup은 비어 있었고 위 로컬 검증을 근거로 병합했다.
+
+## MP02 단일 파일 업로드·처리 정보 화면
+
+MP01 병합 `d4959a7`에서 `veluga/mp02-360-upload-ui`로 착수했다. typed metadata와 표시를 추가하며 기존 ES 내 실행·지정 상세·pending resolver·generation/폴링 코드는 유지한다.
+
+- 새 선택지는 MP4 단일 선택·unknown 기본값·선택 도구/메모다. 부모 원본과 카메라/원본 번호를 요구하지 않고 EXT360/null은 요청 내부에서만 사용한다. 기존 보존 파일도 같은 종류로 등록할 수 있으며 이미 등록한 종류는 덮어쓰지 않는다.
+- 파일 선택 시 출처·대상/회차·metadata를 대기 항목에 고정한다. 전송 전 external metadata는 해당 항목에서만 수정할 수 있다. 요청 시작 후 ID/본문을 고정하여 응답 유실·전송 실패 때 같은 요청으로 재시도한다. 새 파일의 선택 옵션 변경은 기존 큐를 재분류하지 않는다.
+- 처리 정보 편집은 원래 선언과 현재 입력을 구분해 표시한다. revision 충돌은 초안을 유지하고 최신값 확인/명시 폐기 뒤 재입력한다. 파일별 고정 회차에 편집기를 유지하여 다른 직원의 회차 변경·완료 목록 접기에도 값이 사라지지 않는다. 회차가 다르면 저장을 차단한다.
+- 현재 입력의 사유와 과거 지정 batch의 고정 metadata를 각각 표시한다. 기본 화면·부모 옵션·영상/클립/오디오·접근성 이름은 EXT360 대신 「360 통합 영상」을 쓴다. 미지원 파일도 보관 성공을 표시하되 실제 전처리 사유와 다음 동작을 안내한다.
+
+검증: build 통과. 지정 기존 E2E45개 및 신규4개를 고유 시험 기준으로 통과했다. 최초48개 중46 통과/신규 선택항목2 timeout은 명시 접근성 이름 보완으로 해결했다. 수용 수정 후 업로드·촬영·전처리·context16개/1.0분 통과, 카드 PNG 보완 뒤 신규4개/25.4초 통과. 360/390/768/1440px 가로 넘침0과 실제 API 업로드/download bytes·정정 판본·전송1회, 응답 유실 고정 요청, 409·자동 회차 갱신 초안 보존을 확인했다. 실제 FFmpeg mixed 파일의 정상 클립1개/미지원 클립0·시간 앵커 거절·과거 지정 execution metadata/outdated·자동 재실행0도 확인했다.
+
+독립 reviewer `mp02_cold_review`의 P2(회차 갱신 때 정정 초안 소실)·P3(부모 목록 내부 코드) 2건을 모두 수용·수정·시험했다. 재검토에서 해결·신규 actionable0을 확인했다. 추가 라이브러리/SDK·의존성 변경은 없다. Node24.13.0에서 선택 React DOM19.2.8의 React^19.2.8, Playwright1.63.0의 Node>=20, Vite8.2.2의 Node^20.19 또는 >=22.12를 공식 선택판 registry로 대조했다. [React effect API](https://react.dev/reference/react/useEffect), [Vite build](https://vite.dev/guide/), [TypeScript](https://www.typescriptlang.org/docs/)도 확인했다.
+
+합성 PNG를 직접 시각 검수했다: [새 옵션](evidence/mp02-option.png), [파일 수신 완료](evidence/mp02-file-complete.png), [390px 등록 카드](evidence/mp02-registered-390.png), [전처리 제한/고정 정보](evidence/mp02-preprocess-1366.png). 실제 참가자 영상/프레임은 없다.
+
 ## 의존성 확인 — 2026-10-12
 
 | 대상 | 최신 안정판 / 선택 잠금판 | 근거 |

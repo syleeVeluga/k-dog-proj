@@ -5,11 +5,16 @@ export type User = { username: string; role: Role; active: boolean };
 export type Run = (work: () => Promise<void>) => Promise<void>;
 export const roleNames: Record<Role, string> = { operator: '업무 계정', reviewer: '업무 계정', admin: '업무 계정', developer: '개발자' };
 export const formFields = (form: HTMLFormElement) => Object.fromEntries(new FormData(form));
+export type MediaSourceKind = 'original' | 'received_conversion' | 'external_360_mp4';
+export type ExternalProcessing = {
+  projection: 'flat' | 'equirectangular' | 'unknown'; timeline: 'preserved' | 'edited' | 'unknown';
+  tool_name?: string | null; tool_version?: string | null; note?: string | null;
+};
 export type Video = {
   video_id: string; original_name: string;
   size_bytes: number; sha256: string; media_status: 'pending_probe' | 'storage_only';
   upload_id?: string; camera_id?: string; source_original_number?: string | null;
-  source_kind?: 'original' | 'received_conversion' | 'app_derived';
+  source_kind?: MediaSourceKind | 'app_derived'; external_processing?: ExternalProcessing | null;
 };
 export type SegmentId = 'entry' | 'baseline' | 'alone' | 'stranger' | 'reunion' | 'ignore' | 'walk' | 'exit';
 // Procedure order and Korean labels (01 §2); the backend contract fixes the same order.
