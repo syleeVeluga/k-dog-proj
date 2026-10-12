@@ -33,6 +33,7 @@ from app.intake import FieldConflict, check_identity, create_case, new_session, 
 from app.storage import REPO_ROOT, Store, install_id, now, uid
 from app import settings
 from app import forms_v4, uploads, capture_v4, preprocess_v4, progress_v4, sheets_v4
+from app import preprocess_executions_v4
 from app.domain.catalog_v4 import BehaviorCatalogV4, load_catalog_v4
 from app.domain.sheets_v4 import SheetDocumentV4
 from app import judgements_v4
@@ -42,7 +43,8 @@ from app import report_runs_v4, comparisons_v4
 from app import external_comparisons_v4
 from app import validation_data_v4, exports_v4, activity_v4
 from app.domain.runs_v4 import ActionV4, RunViewV4, StartV4
-from app.domain.preprocess_v4 import BatchV4, PreprocessRequestV4, PreprocessStatusV4
+from app.domain.preprocess_v4 import (BatchV4, PreprocessRequestV4, PreprocessStatusV4,
+                                      PreprocessExecutionPageV4, PreprocessExecutionDetailV4)
 from app.domain.media_v4 import PreservedMediaRegistrationV4, StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
 from app import secrets as vault
 from app.input_models import Model
@@ -548,6 +550,20 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.get("/api/cases/{case_id}/sessions/{session_id}/preprocess-s1", response_model=PreprocessStatusV4)
     def preprocessing_s1_status(case_id: Key, session_id: Key, user=Depends(reader)):
         return preprocess_v4.status(store, case_id, session_id, user.username)
+
+    @app.get("/api/preprocess-s1/executions", response_model=PreprocessExecutionPageV4)
+    def preprocessing_executions(cursor: Annotated[int | None, Query(ge=1)] = None,
+                                 search: Annotated[str, Query(max_length=200)] = "",
+                                 event_id: Annotated[str, Query(max_length=200)] = "",
+                                 status: Literal["all", "running", "complete", "attention"] = "all",
+                                 request_id: Key | None = None, user=Depends(reader)):
+        return preprocess_executions_v4.executions(store, user.username, cursor=cursor, search=search,
+                                                   event_id=event_id, status=status, request_id=request_id)
+
+    @app.get("/api/cases/{case_id}/sessions/{session_id}/preprocess-s1/executions/{execution_id}",
+             response_model=PreprocessExecutionDetailV4)
+    def preprocessing_execution(case_id: Key, session_id: Key, execution_id: Key, user=Depends(reader)):
+        return preprocess_executions_v4.execution(store, case_id, session_id, execution_id, user.username)
 
     @app.post("/api/cases/{case_id}/sessions/{session_id}/preprocess-s1", response_model=BatchV4)
     async def preprocessing_s1_start(case_id: Key, session_id: Key, request: Request, user=Depends(writer)):

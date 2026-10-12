@@ -158,3 +158,34 @@ class PreprocessStatusV4(ContractV4):
     outdated: bool = False
     result_pointer: FileV4 | None = None
     result: BatchV4 | None = None
+
+
+class PreprocessExecutionV4(ContractV4):
+    execution_id: MediaKey
+    case_id: MediaKey
+    session_id: MediaKey
+    participant_id: str
+    dog_name: str
+    event_id: str
+    sequence_no: int | None = None
+    guardian_name: str = ""
+    input_revision: int
+    request_id: MediaKey
+    requested_by: str
+    started_at: str
+    finished_at: str | None = None
+    status: Literal["running", "complete", "partial", "failed", "interrupted"]
+    current_stage: Literal["clips", "windows", "reuse_verify", "verify_save"] | None = None
+    stage_updated_at: str | None = None
+    message: str
+    outdated: bool
+    result_pointer: FileV4 | None = None
+
+
+class PreprocessExecutionDetailV4(PreprocessExecutionV4):
+    result: BatchV4 | None = None
+
+
+class PreprocessExecutionPageV4(ContractV4):
+    items: list[PreprocessExecutionV4]
+    next_cursor: int | None = None
