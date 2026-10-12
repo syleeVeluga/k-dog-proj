@@ -39,3 +39,7 @@ npm run test:e2e -- tests/recording-split-v4.spec.ts tests/uploads-v4.spec.ts te
 - 로컬 8000 포트의 S1 health와 새 JS 자산 제공을 확인했다. 외부 AI 호출 0건. 실자료·공급자 품질·현장 3PC 검수와 구분한다.
 
 ![합성 업로드 파일의 촬영 카메라 번호 입력 화면](images/video-upload-numbering.png)
+
+## 병합 전 추가 독립 검토 — 2026-10-12
+
+사용자의 본 세션 작업물 로컬/원격 병합 지시에 따라, 독립 reviewer `cold_mp4_plan_review`가 `c5effb8 → 1702f2b` 제품 차이와 합성 화면 PNG를 읽기 전용으로 검토했다. 숫자↔CAM 식별자·파일명 원본 번호 제안·번호 정정·중복 경고·기존 명시 식별자 입력, 메뉴/버튼/접근성 이름/기록/운영 안내/시험 선택자 및 기존 저장 값 검증의 일치를 확인했다. 신규 actionable0이며 기존 build/E2E28 성공 뒤 새 기능 변경이나 재시험이 필요한 결함 의심은 없었다. 제품/시험을 다시 실행한 것으로 기록하지 않는다. 360 통합 MP4 옵션은 별도 계획 단계이며 이 병합의 제품 구현이 아니다.
