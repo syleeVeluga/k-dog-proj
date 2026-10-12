@@ -55,11 +55,15 @@
 | MR-V01 반영 후 공백 검사 | `git diff --cached --check` 통과 |
 | 수용 내용 재검토 | MR-C01~03 해결, 추가 actionable 0건 |
 | 최종 변경 문서 검사 | 변경 Markdown 20개, 스테이징 트리 상대 링크 294개, 제목·소스 행 fragment 41개, 표 68개. UTF-8·대체문자·개행·코드 블록·표·제목·링크 검사 문제 0건 |
+| 최초 커밋 트리 검사 | `fcc0e24`의 변경 Markdown 20개와 상대 링크 294개가 커밋 트리에 존재함. 문제 0건 |
+| 최초 PR 상태 조회 | [PR #93](https://github.com/syleeVeluga/k-dog-proj/pull/93)의 최초 head `fcc0e24`에서 `CLEAN`·`MERGEABLE`, checks 목록 없음. CI 통과로 표시하지 않음 |
 
 문서 전용 변경이므로 앱의 backend·E2E 시험이나 새 빌드·설치를 실행하지 않았다. 실제 UI·서버 코드 조건은 독립 검토의 읽기 전용 대조로 확인했으며 문서 검사를 제품 인수 시험으로 표시하지 않는다.
+
+GitHub Copilot의 자동 검토는 사용량 한도로 실행되지 않았다는 댓글만 남았다. 이를 검토 성공으로 기록하지 않으며, 이번 독립 cold review의 근거는 위 서브에이전트 3명과 수용 수정 재검토다.
 
 ## 5 병합 범위
 
 문서 패키지는 기능별 매뉴얼 17개·목차, [docs 진입 안내](../../README.md)의 링크, 이 cold review 기록으로 구성한다. 제품 기준 코드는 `53889b7`로 유지한다. 제품의 실제 영상·공급자 품질, 교수 판단 검토, 원본·규칙·외부 기준 수령, 물리 장비 인수는 기존 대장의 미완료 조건을 유지한다.
 
-PR의 실제 head·checks·merge 상태는 해당 GitHub PR 기록으로 확인하고, 원격 병합 뒤 로컬 `main`을 `origin/main`과 동기화한다.
+문서 PR은 [#93](https://github.com/syleeVeluga/k-dog-proj/pull/93)이다. 실제 최종 head·checks·merge 상태와 merge commit은 이 PR 기록을 원장으로 확인한다. 병합은 확인한 head로 수행하고 원격 병합 뒤 로컬 `main`을 `origin/main`과 동기화한다.
