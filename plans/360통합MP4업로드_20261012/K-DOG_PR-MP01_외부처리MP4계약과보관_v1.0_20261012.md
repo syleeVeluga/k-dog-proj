@@ -1,6 +1,6 @@
 # PR-MP01 외부 처리 MP4 계약과 보관
 
-버전: v1.0 · 2026-10-12 · 상태: 계획, 미구현 · 선행: `1702f2b` · 브랜치 제안: `veluga/mp01-external-360-media`
+버전: v1.0 · 2026-10-12 · 상태: 계획, 미구현 · 선행: ES03까지 구현·검증·병합 · 최초 조사 기준: `1702f2b` · 브랜치 제안: `veluga/mp01-external-360-media`
 
 상위: [전체 계획](K-DOG_360통합MP4업로드계획_v1.0_20261012.md). 범위: VM-R01~R07의 서버 계약. 제목 제안: `feat: accept externally prepared 360 MP4 inputs`.
 
@@ -9,6 +9,15 @@
 현재 `received_conversion`은 등록된 실제 부모를 요구하고 `StoredMediaV4`가 같은 조건을 다시 검사한다. 이를 변경하지 않고 `external_360_mp4` 종류를 추가하여 외부 원본 없이 MP4 자체를 입력 자료로 보관·등록한다. 미지원 360 배치/시간 편집 입력을 서버가 먼저 구분한다. 화면 옵션은 MP02에서 노출한다.
 
 ## 대상 파일과 변경 범위
+
+### ES 선행 구현 적용
+
+[ES03의 인계](../내실행과분석진행_20261012/K-DOG_PR-ES03_AI분석진행요약과상태복구_v1.0_20261012.md#7-mp01-인계--2026-10-12-진행-순서-조정)를 확인하고 ES01~03 병합 commit에서 시작한다. 아래 파일 목록은 최초 조사 기준이며 ES01이 조회 모듈을 분리했다면 실제 인계 경로도 변경 영향/회귀에 포함한다.
+
+- ES01 실행별 식별·원래 actor·결과 pointer·접수 조회와 단계 이벤트를 유지한다. 새 출처 검사/클립 제외/재사용 검증을 연결해도 진행 이벤트를 `_history`의 점유·중복 요청·종료 판정에 섞지 않는다. 검증에서 거절된 요청은 시작 이벤트 존재 여부에 맞춰 요청 오류 또는 해당 실행 실패로 표시한다.
+- metadata 정정 전 성공한 실행은 당시 pin/hash로 보존 조회하고 현재 입력 기준으로 outdated를 표시한다. 과거 결과 조회와 현재 입력의 재사용/새 실행 검사를 분리하며 조회를 이유로 입력 revision이나 원자료 열람 기록을 만들지 않는다.
+- 실행 중 metadata 정정으로 revision이 바뀌면 기존 guard가 결과 게시를 보호하고 실패/대체 기록은 같은 execution_id/request_id/claim에만 연결한다. 새 실행을 자동 생성하거나 이전 성공 결과를 실패 시도의 결과로 붙이지 않는다.
+- ES03의 AI 상태/고정 입력 유효성 구분을 유지한다. 새 metadata로 과거 batch/run을 소급 활성화하지 않는다. 조합 인수는 MP03의 VM-ES-T01/02/04를 따른다.
 
 | 파일 | 필요한 변경 |
 | --- | --- |
@@ -53,8 +62,11 @@ DB의 upload_receipts는 종류를 request JSON에 저장한다. 새 enum을 위
 
 `backend/`에서 기존 파일에 회귀를 추가한다. 새 모듈이 꼭 필요하면 파일을 만든 뒤 명령을 추가한다.
 
+`tests.test_preprocess_execution_v4`는 선행 ES01의 신설 계획 모듈이다. MP01 착수 때 인계된 실제 시험 경로를 확인하여 아래 명령에 반영한다. 이 회귀에는 진행 이벤트/guard·시도별 결과와 metadata 정정의 조합을 포함한다.
+
 ```powershell
 uv run --locked python -X utf8 -m unittest tests.test_uploads_v4 tests.test_uploads_api_v4 tests.test_preserved_media_v4 tests.test_recording_v4 tests.test_recording_api_v4 tests.test_preprocess_v4 tests.test_preprocess_api_v4 tests.test_intake_v4 tests.test_retention_v4 tests.test_business_access_v4 -v
+uv run --locked python -X utf8 -m unittest tests.test_preprocess_execution_v4 -v
 ```
 
 발견된 scoring/report/export 소비자 변경이 있으면 해당 시험을 추가한다. MP01 완료는 새 업로드 API/저장/보관·서버 분석 경계와 관련 회귀 통과이며 실제 Studio 파일 품질/처리시간 완료가 아니다. MP02에 typed 요청/응답·사용자 표시 사유·EXT360 표시·고정 요청 재시도 규칙을 인계한다. 라이브러리/프레임워크 확인은 상위 §7을 적용한다.
