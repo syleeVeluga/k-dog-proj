@@ -60,6 +60,19 @@ MP02: [PR #91](https://github.com/syleeVeluga/k-dog-proj/pull/91), 구현 `a7609
 
 최종 frontend 전체는132개/9.1분 모두 통과했다. 초기 실패와 수정 내역은 위에 보존한다. 긴 파일명을 의도적으로 넣은 [360px 화면](evidence/mp03-long-filename-360.png)을 직접 시각 검수했다. allowlist 변경 후 기존 배포 계약 회귀3개/0.168초도 통과했다. 최종 reviewer는 계정별 실제 종단 실행·정확한 합성 PNG 5개 허용을 재검토해 신규 actionable0을 확인했다. 최종 깨끗한 source checkpoint와 ZIP 설치 검증 결과는 아래에 기록한다.
 
+### 최종 ZIP과 검증 근거
+
+최종 제품·시험·패키지 source checkpoint는 깨끗한 `9692c9dc85560fb65118a32cb0cab71e771a72d9`다. 두 ZIP의 `release.json`은 이 commit과 `working_tree_dirty=false`를 기록한다. 이후 커밋은 검증 결과/PR 연결을 기록하는 문서 변경이며 ZIP 안의 앱·잠금 의존성·화면 자산은 같은 checkpoint다. ZIP 내부 문서는 검증 실행 전의 checkpoint 기록이고 최종 결과는 이 대장에서 제공한다. 자기 자신의 ZIP hash를 ZIP 생성 전에 기록했다고 주장하지 않는다.
+
+| 최종 산출물 | bytes / files | SHA-256 |
+| --- | --- | --- |
+| `releases/kdog-mp03-9692c9d-windows-x64.zip` | 75,796,413 / 1,414 | `9ae7dc3d7fe1231c444ca692b1d4306bf0312edb21620faaddac090cb9aa383c` |
+| `releases/kdog-mp03-9692c9d-online-windows-x64.zip` | 2,966,790 / 205 | `0263fbab3a032d5f49368886a8b30c33fdf7be737954eafe87e4428e7466e83c` |
+
+각 ZIP에 기존 `verify_release.py`와 새 `verify_mp4_package.py`를 실행해 4개 명령 모두 exit0을 확인했다. portable은 PATH에 uv/Python/FFmpeg 없이 번들만으로 시작·한글/공백 경로·오염 환경 변수 격리·손상 거절·로그인/생성/재시작·감독 종료·밀봉 발행/잘못된 키/변조 거절·계정 설치/개발자 설정/공유 업무·재설치 자료 보존을 통과했다. online은 새 venv·설치 전 시작 거절·venv 생성 전 손상 거절·PATH FFmpeg/venv Python·동일 HTTP 재시작/감독 종료를 통과했다. 두 변형 모두 실제 설치 interpreter의 새 MP4 접수/등록·최초 선언과 정정 판본·재시작/download hash 보존을 통과했고 공급자 호출0이다.
+
+ZIP 내부에서 synthetic PNG5개·새 backend 계약·빌드된 화면 종류를 확인했고 node_modules·고객 원본 폴더·운영 DB 포함0을 확인했다. 현재 Windows 한 대의 새 임시 폴더/DB에 대한 검증이며 clean OS/다른 물리 PC를 실측한 결과는 아니다. 산출물과 실행 로그는 ignored `releases/` 아래 로컬에 보존한다. `mp03-final-{portable,online}-{build,verify,mp4}.log`, `mp03-backend-full.log`, `mp03-frontend-final-full.log`, `mp03-actual-chain-actors.log`가 실제 실행 근거다. 최종 문서9개 로컬 링크64개도 파일과 tracked tree 대조 오류0을 확인했다.
+
 ## 추가 의존성·실행 환경 확인 — 2026-10-12
 
 공식 PyPI registry에서 Uvicorn 최신0.54.0/선택0.52.4, openpyxl 최신/선택3.1.5, ReportLab5.0.1/5.0.1, Pillow12.3.0/12.3.0, cryptography50.0.2/50.0.2, pypdf6.20.0/6.19.0을 확인했다. 각 Python>=3.8~3.10 조건(ReportLab<4)을 만족하는 기존 Python3.14 조합을 유지한다. [Uvicorn](https://pypi.org/pypi/uvicorn/json), [openpyxl](https://pypi.org/pypi/openpyxl/json), [ReportLab](https://pypi.org/pypi/reportlab/json), [Pillow](https://pypi.org/pypi/pillow/json), [cryptography](https://pypi.org/pypi/cryptography/json), [pypdf](https://pypi.org/pypi/pypdf/json).
