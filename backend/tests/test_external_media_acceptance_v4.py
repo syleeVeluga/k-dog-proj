@@ -1,46 +1,79 @@
 """Existing S1 Worker/report fixtures with an externally prepared MP4 provenance."""
 import hashlib
+import shutil
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
-from app import judgements_v4, report_runs_v4 as reports, uploads
+from app import judgements_v4, media, report_runs_v4 as reports, run_v4, scoring_ai_v4, settings_v4, uploads
 from app.domain.media_v4 import ExternalProcessingEditV4, ExternalProcessingV4
 from app.domain.report_runs_v4 import REPORT_STAGES, ReportConfigV4, ReportStageV4
+from app.domain.runs_v4 import StartV4
 from app.report_render_v4 import assets
 from app.worker import Worker
 from tests import test_run_v4 as helpers
+from tests import test_preprocess_v4 as media_helpers
 from tests.test_final_results_v4 import assemble
 from tests.test_opinions_v4 import model
 
 
+@unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "Actual synthetic MP4 decode required")
 class ExternalMediaAcceptanceV4Tests(unittest.TestCase):
     def test_prepared_provenance_through_existing_ai_basic_final_report_and_later_correction(self):
+        prepared = media_helpers.PreprocessV4Tests()
+        prepared.samples = {}
+        self.addCleanup(prepared.doCleanups)
+        prepared.setUp()
+        path = prepared.store.root.parent / "prepared.mp4"
+        media.command(["ffmpeg", "-v", "error", "-nostdin", "-n", "-f", "lavfi", "-i", "testsrc2=size=64x64:rate=2",
+            "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=16000", "-t", "310", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(path)])
+        linked = prepared.upload("prepared", "EXT360", data=path.read_bytes(), source_kind="external_360_mp4",
+            external_processing={"projection": "flat", "timeline": "preserved"})
+        capture = helpers.sample_snapshot().session.recording_s1
+        capture = capture.model_copy(update={"video_id": linked.video_id,
+            "segments": tuple(value.model_copy(update={"video_id": linked.video_id}) for value in capture.segments),
+            "walk_phases": tuple(value.model_copy(update={"video_id": linked.video_id}) for value in capture.walk_phases),
+            "events": tuple(value.model_copy(update={"video_id": linked.video_id}) for value in capture.events),
+            "coverage": tuple(value.model_copy(update={"video_id": linked.video_id}) for value in capture.coverage)})
+        with prepared.store.connect(write=True) as db:
+            row = prepared.store.case(db, prepared.case_id)
+            manifest = prepared.store.manifest(row)
+            manifest.sessions[0].recording_s1 = capture
+            prepared.store.save(db, row, manifest, "op", "synthetic.recording")
+        batch = prepared.run_batch()
+        self.assertEqual(batch.status, "complete")
+        self.assertTrue(batch.clips)
+        self.assertTrue(all(clip.camera_id == "EXT360" and clip.ai.frame_times_seconds and clip.ai.audio_ranges for clip in batch.clips))
         fixture = helpers.RunV4Tests()
-        self.addCleanup(fixture.doCleanups)
-        original_register, original_snapshot = uploads.register_preserved_video, helpers.sample_snapshot
-
-        def register(store, case_id, session_id, video_id, value, actor):
-            return original_register(store, case_id, session_id, video_id, value.model_copy(update={
-                "source_kind": "external_360_mp4", "camera_id": "EXT360", "source_original_number": None,
-                "external_processing": ExternalProcessingV4(projection="flat", timeline="preserved")}), actor)
-
-        def snapshot():
-            value = original_snapshot()
-            batch = value.batch.model_copy(update={
-                "clips": tuple(clip.model_copy(update={"camera_id": "EXT360"}) for clip in value.batch.clips),
-                "windows": tuple(window.model_copy(update={"views": tuple(view.model_copy(update={"camera_id": "EXT360"})
-                    for view in window.views)}) for window in value.batch.windows)})
-            return value.model_copy(update={"batch": batch})
-
-        with patch.object(uploads, "register_preserved_video", side_effect=register), patch.object(helpers, "sample_snapshot", side_effect=snapshot):
-            fixture.setUp()
-        fixture.test_actual_handler_calculates_and_publishes_full_s1_with_fake_provider()
+        fixture.store, fixture.case_id, fixture.session_id = prepared.store, prepared.case_id, prepared.session_id
+        fixture.user = SimpleNamespace(username="op", role="operator")
+        pointer = media_helpers.preprocess.status(prepared.store, prepared.case_id, prepared.session_id, "op").result_pointer
+        fixture.request = StartV4(expected_revision=batch.input_revision, request_id="prepared-ai", preprocess_ref=pointer.ref, preprocess_hash=pointer.hash)
+        expected = {prepared.store.path(value.ref): value.hash for clip in batch.clips for value in (clip.original, clip.ai)}
+        seen, calls, test = set(), [], self
+        class FakeProvider:
+            def request_v4(self, files, config, context, schema, guard):
+                guard(); calls.append(context)
+                for path, _ in files:
+                    test.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), expected[path])
+                    seen.add(path)
+                return {**context["identity"], "observations": [{"code": item["code"], "value": None,
+                    "status": "unobserved", "reason": "synthetic fixture: no actual observation"} for item in context["items"]]}, {"cost_usd": None}
+        pipeline = settings_v4.defaults(); pipeline.raw_observation_scope_confirmed = True
+        run = fixture.enqueue(config=scoring_ai_v4.configuration(None, pipeline))
+        self.assertTrue(Worker(fixture.store, observer=FakeProvider()).once())
+        shown = run_v4.view(fixture.store, run["run_id"], fixture.user)
+        self.assertEqual(shown["status"], "succeeded")
+        self.assertTrue(shown["result_available"])
+        self.assertEqual(shown["reserved_calls"], len(calls))
+        self.assertTrue(seen)
         with fixture.store.connect() as db:
             basic = db.execute("SELECT * FROM basic_results WHERE case_id=?", (fixture.case_id,)).fetchone()
             fixture.basic_ref = judgements_v4.reference(basic)
             pinned_basic = fixture.store.path(basic["manifest_ref"]).read_bytes()
             video = fixture.store.manifest(fixture.store.case(db, fixture.case_id)).sessions[0].videos[0]
         final = assemble(fixture)
+        self.assertEqual(len(final["document"]["basic_document"]["input_document"]["sheet"]["observations"]), 86)
         self.assertEqual(final["document"]["basic_document"]["input_document"]["source"]["session"]["videos"][0]["source_kind"], "external_360_mp4")
 
         def historical_config(comparison=None, external_comparison=None):
@@ -59,7 +92,7 @@ class ExternalMediaAcceptanceV4Tests(unittest.TestCase):
         before = hashlib.sha256(pdf).hexdigest()
         uploads.update_external_processing(fixture.store, fixture.case_id, video.video_id,
             ExternalProcessingEditV4(session_id=fixture.session_id, expected_revision=fixture.current()["input_revision"],
-                external_processing=ExternalProcessingV4(projection="equirectangular", timeline="preserved")), "reviewer")
+                external_processing=ExternalProcessingV4(projection="equirectangular", timeline="preserved")), "review")
         self.assertEqual(fixture.store.path(basic["manifest_ref"]).read_bytes(), pinned_basic)
         self.assertEqual(hashlib.sha256(reports.download(fixture.store, fixture.case_id, fixture.session_id,
             run["run_id"], "pdf", fixture.user)[0]).hexdigest(), before)

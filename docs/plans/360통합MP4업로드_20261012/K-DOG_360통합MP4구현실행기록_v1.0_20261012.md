@@ -49,9 +49,10 @@ MP02: [PR #91](https://github.com/syleeVeluga/k-dog-proj/pull/91), 구현 `a7609
 ## MP03 통합 인수·설치 검증 — 진행 중
 
 - 실제 decoded 단일/혼합 전처리와 실행 조합은 MP01의 9조합/guard/pin 시험 및 MP02의 실제 HTTP/FFmpeg·정정/outdated/과거 실행 화면 시험으로 연결한다. VM-ES-T01~04의 actor/실행ID·세션/판본·지연응답 보호는 기존 ES 회귀와 함께 검사한다.
-- 새 `test_external_media_acceptance_v4`는 기존 RunV4 fixture의 외부 MP4 출처로 실제42항목군 Worker·86 AI 원자료·기본결과·최종결과·리포트를 연결한다. 기존 program-only 합성 renderer seam을 사용하며 현재 제품의 리포트 생성 코드/산식을 복제하지 않는다. 나중 처리 정보 정정 뒤 기본결과 원문과 발급 PDF hash가 같음을 확인했다(1개/21.288초). 이 fixture의 source/derived bytes는 합성이며 실제 decode는 앞선 FFmpeg 시험이 담당한다. 유료 외부 호출0이다.
+- 새 `test_external_media_acceptance_v4`는 실제310초·64x64·2fps/오디오 FFmpeg 합성 MP4 하나를 부모0·EXT360 flat/preserved로 수신/등록하고 실제 전처리 batch를 만든다. batch의 실제 clip ref/hash가 가짜 공급자에 전달됐는지 확인하며 S1 Worker·86 AI 원자료·기본/최종결과·리포트를 연결한다. 공급자 요청31건과 프로그램 처리 항목군은 실제 가용창에 따라 구분한다. 수작업 fixture의42건을 실제 창에 강요하지 않는다. 기존 program-only 합성 renderer seam을 사용하며 제품 산식을 복제하지 않는다. 나중 처리 정보 정정 뒤 기본결과 원문/발급 PDF hash가 같음을 확인했다(1개/69.676초). 리포트 PDF bytes는 합성 fixture이며 실제 renderer 전체 회귀는 별도다. 유료 외부 호출0이다.
 - 기존 `build_release.py`/`verify_release.py`/launcher 방식과 allowlist를 유지한다. 추가 `scripts/verify_mp4_package.py`는 설치 패키지의 실제 interpreter·HTTP 접수/조회/download·감독 재시작에서 새 종류와 최초 선언/정정 판본 보존을 확인한다. content 저장/정정은 합성 interpreter 동작이며 HTTP upload/decode 시험을 대체하지 않는다. online은 PATH uv/FFmpeg와 venv를 사용하고 직접 interpreter 호출 전 잘못된 PYTHONHOME/PYTHONPATH를 제거한다.
-- 독립 reviewer `mp03_cold_review` 검토 및 최종 전체 backend/frontend·portable/online ZIP 검사 진행 중. 완료 결과·commit/hash는 이후 기록한다.
+- 독립 reviewer `mp03_cold_review`의 P2 2건을 수용했다: online venv 직접 호출의 잘못된 Python 환경 변수 제거, 수작업 batch만 연결했던 종단 시험을 실제 MP4 전처리 batch로 교체. 최초 전체 UI132개에서129 통과/3 실패를 확인했고 긴 파일명 모바일 CSS(이전 aria-label selector)와 새 mixed 시험의 operator 이력 간섭을 각각 현재 selector1줄/전용 합성 계정으로 수정했다. 촬영 판본 충돌 시험의 기존 폴링 기대 실패1건은 해당 코드를 바꾸지 않고 같은 expectation으로 재검증해 통과했다. 수용 수정 후 관련15개/1.4분 통과. reviewer는 두 수용 건과 추가 수정의 해결·신규 actionable0을 확인했다. 최종 전체 UI를 다시 확인한다.
+- 깨끗한 checkpoint `6ea8940`의 portable/online ZIP을 만들고 기존 설치 검증 및 새 MP4 런타임 접수·정정·재시작/download 검증을 모두 통과했다. 이 checkpoint 이후의 CSS/인수 fixture 수정과 최종 문서를 포함한 깨끗한 commit으로 최종 ZIP을 다시 만들며, 위 후보 ZIP을 최종 배포물로 표시하지 않는다. 현재 Windows 한 대의 새 한글/공백 경로·임시 synthetic DB 검증이며 깨끗한 OS/물리 PC3대 실측은 아니다.
 
 ## 추가 의존성·실행 환경 확인 — 2026-10-12
 

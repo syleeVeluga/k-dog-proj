@@ -28,7 +28,7 @@ test('원본 없이 통합 MP4 하나를 등록·정정·새로고침하고 모�
   await expect(inbox.getByLabel('영상 파일', { exact: true })).toHaveAttribute('accept', '.mp4');
   await expect(inbox.getByLabel('영상 파일', { exact: true })).not.toHaveAttribute('multiple');
   await page.screenshot({ path: testInfo.outputPath('mp02-option.png'), animations: 'disabled' });
-  const name = '원본1-mp02-single.mp4', data = Buffer.from('synthetic externally prepared MP4');
+  const name = '원본1-mp02-single-long-studio-export-filename-for-mobile-acceptance.mp4', data = Buffer.from('synthetic externally prepared MP4');
   await inbox.getByLabel('영상 파일', { exact: true }).setInputFiles({ name, mimeType: 'video/mp4', buffer: data });
   // New-file defaults must not reclassify the file already in the queue.
   await inbox.getByLabel('영상 파일 구분').selectOption('original');
@@ -70,7 +70,10 @@ test('원본 없이 통합 MP4 하나를 등록·정정·새로고침하고 모�
   for (const width of [360, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     await expect(card.getByText('360 통합 영상', { exact: true }).first()).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    const overflow = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth,
+      elements: Array.from(document.querySelectorAll('main *')).filter(element => element.getBoundingClientRect().right > window.innerWidth + 1)
+        .slice(-8).map(element => ({ tag: element.tagName, class: element.className, text: element.textContent?.slice(0, 80), right: element.getBoundingClientRect().right })) }));
+    expect(overflow.width <= overflow.viewport + 1, JSON.stringify(overflow)).toBe(true);
     await card.screenshot({ path: testInfo.outputPath(`mp02-registered-${width}.png`), animations: 'disabled' });
   }
   expect(await page.locator('main').innerText()).not.toContain('EXT360');
@@ -183,6 +186,9 @@ test('실제 합성 전처리는 미지원 통합본을 제외하고 정정 뒤�
     recording: { ...recording, video_id: normal.video_id, segments: recording.segments.map(value => ({ ...value, video_id: normal.video_id })),
       video_offsets: [{ video_id: external.video_id, confirmed: false, offset_seconds: null, note: '미확인 목록' }] } } });
   expect(saved.status(), await saved.text()).toBe(200); item = await saved.json();
+  expect((await page.request.post('/api/admin/users', { headers, data: { username: 'mp02-mixed', password: 'Browser-test-only-42', role: 'operator' } })).status()).toBe(201);
+  await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+  await login(page, 'mp02-mixed');
   await openMenu(page, '전처리');
   await page.getByRole('button', { name: '전처리 실행', exact: true }).first().click();
   await page.getByRole('button', { name: 'MP02-MIXED 전처리 열기', exact: true }).click();
