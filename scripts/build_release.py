@@ -46,6 +46,11 @@ OPERATING_DOCUMENTS = frozenset({
     "docs/K-DOG_개발기준변경검토_v1.0_20261003.md",
     "docs/archive/개발반영_20261003/검증이미지/S17_외부비교_모바일_합성.png",
     "docs/archive/개발반영_20261003/검증이미지/S17_PDF_외부비교_합성.png",
+    "docs/plans/360통합MP4업로드_20261012/evidence/mp02-option.png",
+    "docs/plans/360통합MP4업로드_20261012/evidence/mp02-file-complete.png",
+    "docs/plans/360통합MP4업로드_20261012/evidence/mp02-registered-390.png",
+    "docs/plans/360통합MP4업로드_20261012/evidence/mp02-preprocess-1366.png",
+    "docs/plans/360통합MP4업로드_20261012/evidence/mp03-long-filename-360.png",
 })
 
 

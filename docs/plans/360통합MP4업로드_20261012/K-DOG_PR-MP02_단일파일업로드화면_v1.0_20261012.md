@@ -1,6 +1,6 @@
 # PR-MP02 단일 파일 업로드 화면
 
-버전: v1.0 · 2026-10-12 · 상태: 구현·검증·독립 cold review 수용 반영 완료 · 선행: MP01 병합 `d4959a7` · 브랜치: `veluga/mp02-360-upload-ui`
+버전: v1.0 · 2026-10-12 · 상태: 구현·검증·독립 cold review 수용 반영·병합 완료 ([PR #91](https://github.com/syleeVeluga/k-dog-proj/pull/91), `befa18c`) · 선행: MP01 병합 `d4959a7` · 브랜치: `veluga/mp02-360-upload-ui`
 
 상위: [전체 계획](K-DOG_360통합MP4업로드계획_v1.0_20261012.md). 범위: VM-R01/R03/R04/R07. 제목 제안: `feat: add a single prepared 360 MP4 upload option`.
 

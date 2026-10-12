@@ -39,3 +39,7 @@
 ### 후속 로컬/원격 병합 준비
 
 사용자가 로컬 및 원격 병합을 지시했다. 최신 `main`과 `origin/main`이 `89d3765`로 일치하는 것을 확인한 뒤 `codex/es-mp-plan-order`에서 위 문서7개만 staging했다. 커밋 전 전체 staged diff를 검토했고 `git diff --cached --check`는 성공했다. 이전 문서 수정 때의 unstaged diff 명령 실패 기록은 당시 이력으로 유지한다. PR/병합 결과는 해당 Git 이력과 PR에서 확인하며 제품 구현/시험 완료와 구분한다.
+
+## 후속 제품 구현·인수 — 2026-10-12
+
+위 절은 계획 단계의 이력이다. 이후 사용자의 PR별 구현→검증→독립 cold review→수용 반영→병합 지시로 MP01 #90·MP02 #91을 병합했고 MP03의 전체 인수·독립 검토·ZIP 검증을 완료했다. 제품 결과는 [구현 실행 기록](K-DOG_360통합MP4구현실행기록_v1.0_20261012.md)의 실제 commit/PR·발견별 결정·backend747 통과/2 skip·frontend132 통과·최종 ZIP hash와 설치 범위를 따른다. 공식 버전 확인일/링크도 같은 기록에 있다. 실제 Studio 품질·장시간/GB급·물리 다중 PC 실측은 미실행이며 합성 기술 인수와 구분한다. 제품 반영 뒤 `git diff --check`와 Graft wiring sync도 통과했다.

@@ -44,6 +44,47 @@ MP01 병합 `d4959a7`에서 `veluga/mp02-360-upload-ui`로 착수했다. typed m
 
 ## 의존성 확인 — 2026-10-12
 
+MP02: [PR #91](https://github.com/syleeVeluga/k-dog-proj/pull/91), 구현 `a76093c`, main 병합 `befa18c`. 이 commit에서 MP03 `veluga/mp03-360-upload-acceptance`를 시작했다.
+
+## MP03 통합 인수·설치 검증
+
+- 실제 decoded 단일/혼합 전처리와 실행 조합은 MP01의 9조합/guard/pin 시험 및 MP02의 실제 HTTP/FFmpeg·정정/outdated/과거 실행 화면 시험으로 연결한다. VM-ES-T01~04의 actor/실행ID·세션/판본·지연응답 보호는 기존 ES 회귀와 함께 검사한다.
+- 새 `test_external_media_acceptance_v4`는 실제310초·64x64·2fps/오디오 FFmpeg 합성 MP4 하나를 부모0·EXT360 flat/preserved로 수신/등록하고 실제 전처리 batch를 만든다. batch의 실제 clip ref/hash가 가짜 공급자에 전달됐는지 확인하며 S1 Worker·86 AI 원자료·기본/최종결과·리포트를 연결한다. 공급자 요청31건과 프로그램 처리 항목군은 실제 가용창에 따라 구분한다. 수작업 fixture의42건을 실제 창에 강요하지 않는다. 기존 program-only 합성 renderer seam을 사용하며 제품 산식을 복제하지 않는다. 나중 처리 정보 정정 뒤 기본결과 원문/발급 PDF hash가 같음을 확인했다(최종 계정별 종단1개/44.325초). 리포트 PDF bytes는 합성 fixture이며 실제 renderer 전체 회귀는 별도다. 유료 외부 호출0이다.
+- 기존 `build_release.py`/`verify_release.py`/launcher 방식을 재사용한다. 후보 ZIP에서 실행 기록이 참조하는 화면 PNG 누락을 확인해 `OPERATING_DOCUMENTS`에 MP02 4개와 MP03 긴 파일명 화면 1개의 정확한 합성 PNG 경로만 추가했다. 일반 PNG/고객 자료 허용은 넓히지 않았다. 추가 `scripts/verify_mp4_package.py`는 설치 패키지의 실제 interpreter·HTTP 접수/조회/download·감독 재시작에서 새 종류와 최초 선언/정정 판본 보존을 확인한다. content 저장/정정은 합성 interpreter 동작이며 HTTP upload/decode 시험을 대체하지 않는다. online은 PATH uv/FFmpeg와 venv를 사용하고 직접 interpreter 호출 전 잘못된 PYTHONHOME/PYTHONPATH를 제거한다.
+- 독립 reviewer `mp03_cold_review`의 P2 2건을 수용했다: online venv 직접 호출의 잘못된 Python 환경 변수 제거, 수작업 batch만 연결했던 종단 시험을 실제 MP4 전처리 batch로 교체. 최초 전체 UI132개에서129 통과/3 실패를 확인했고 긴 파일명 모바일 CSS(이전 aria-label selector)와 새 mixed 시험의 operator 이력 간섭을 각각 현재 selector1줄/전용 합성 계정으로 수정했다. 촬영 판본 충돌 시험의 기존 폴링 기대 실패1건은 해당 코드를 바꾸지 않고 같은 expectation으로 재검증해 통과했다. 수용 수정 후 관련15개/1.4분 통과. reviewer는 두 수용 건과 추가 수정의 해결·신규 actionable0을 확인했다. 최종 전체 UI132개/9.1분 모두 통과했다.
+- 깨끗한 checkpoint `6ea8940`의 portable/online ZIP을 만들고 기존 설치 검증 및 새 MP4 런타임 접수·정정·재시작/download 검증을 모두 통과했다. 이 checkpoint 이후의 CSS/인수 fixture 수정과 최종 문서를 포함한 깨끗한 commit으로 최종 ZIP을 다시 만들며, 위 후보 ZIP을 최종 배포물로 표시하지 않는다. 현재 Windows 한 대의 새 한글/공백 경로·임시 synthetic DB 검증이며 깨끗한 OS/물리 PC3대 실측은 아니다.
+
+백엔드 전체 `uv sync --locked`/unittest discover는749개·1225.046초에서747 통과/2 skip으로 끝났다. skip은 미제공 역사적 고객 원본 번들의 대조 시험2개이며 S1 제품 회귀 실패가 아니다. 전체 실행이 먼저 import한 초기 연결 fixture를 이후 실제 decoded chain으로 보강해 별도 통과했다. 마지막 실제 종단 fixture44.325초는 op 업로드→review 전처리/AI·리포트→dev metadata 정정·과거 공유 조회→review 현재 입력의 명시 새 execution까지 확인한다. 이전/새 실행ID·원래 실행자·outdated·과거 basic/PDF bytes를 보존하고 새 펼침 영상 클립0을 확인했다. 중복 실행은 고유 시험 수에 더하지 않았다.
+
+문서9개의 로컬 링크62개를 실제 파일과 committed-tree 목록으로 검사해 오류0을 확인했다. diff-check 통과. Graft build/check의 wiring sync OK를 확인했고 deep concept 요약은 미생성 상태로 별도 표시했다.
+
+최종 frontend 전체는132개/9.1분 모두 통과했다. 초기 실패와 수정 내역은 위에 보존한다. 긴 파일명을 의도적으로 넣은 [360px 화면](evidence/mp03-long-filename-360.png)을 직접 시각 검수했다. allowlist 변경 후 기존 배포 계약 회귀3개/0.168초도 통과했다. 최종 reviewer는 계정별 실제 종단 실행·정확한 합성 PNG 5개 허용을 재검토해 신규 actionable0을 확인했다. 최종 깨끗한 source checkpoint와 ZIP 설치 검증 결과는 아래에 기록한다.
+
+### 최종 ZIP과 검증 근거
+
+최종 제품·시험·패키지 source checkpoint는 깨끗한 `9692c9dc85560fb65118a32cb0cab71e771a72d9`다. 두 ZIP의 `release.json`은 이 commit과 `working_tree_dirty=false`를 기록한다. 이후 커밋은 검증 결과/PR 연결을 기록하는 문서 변경이며 ZIP 안의 앱·잠금 의존성·화면 자산은 같은 checkpoint다. ZIP 내부 문서는 검증 실행 전의 checkpoint 기록이고 최종 결과는 이 대장에서 제공한다. 자기 자신의 ZIP hash를 ZIP 생성 전에 기록했다고 주장하지 않는다.
+
+| 최종 산출물 | bytes / files | SHA-256 |
+| --- | --- | --- |
+| `releases/kdog-mp03-9692c9d-windows-x64.zip` | 75,796,413 / 1,414 | `9ae7dc3d7fe1231c444ca692b1d4306bf0312edb21620faaddac090cb9aa383c` |
+| `releases/kdog-mp03-9692c9d-online-windows-x64.zip` | 2,966,790 / 205 | `0263fbab3a032d5f49368886a8b30c33fdf7be737954eafe87e4428e7466e83c` |
+
+각 ZIP에 기존 `verify_release.py`와 새 `verify_mp4_package.py`를 실행해 4개 명령 모두 exit0을 확인했다. portable은 PATH에 uv/Python/FFmpeg 없이 번들만으로 시작·한글/공백 경로·오염 환경 변수 격리·손상 거절·로그인/생성/재시작·감독 종료·밀봉 발행/잘못된 키/변조 거절·계정 설치/개발자 설정/공유 업무·재설치 자료 보존을 통과했다. online은 새 venv·설치 전 시작 거절·venv 생성 전 손상 거절·PATH FFmpeg/venv Python·동일 HTTP 재시작/감독 종료를 통과했다. 두 변형 모두 실제 설치 interpreter의 새 MP4 접수/등록·최초 선언과 정정 판본·재시작/download hash 보존을 통과했고 공급자 호출0이다.
+
+MP03: [PR #92](https://github.com/syleeVeluga/k-dog-proj/pull/92). 최종 제품 checkpoint `9692c9d`, 검증 결과 문서 `505901d`. 독립 구현 cold review 수용2건/보류·거절0, 마지막 재검토 신규 actionable0이다. MP01→MP02 병합 뒤 MP03을 순서대로 검증했다. 병합 commit/state는 PR #92의 merge 기록 및 main Git 이력으로 확인한다.
+
+ZIP 내부에서 synthetic PNG5개·새 backend 계약·빌드된 화면 종류를 확인했고 node_modules·고객 원본 폴더·운영 DB 포함0을 확인했다. 현재 Windows 한 대의 새 임시 폴더/DB에 대한 검증이며 clean OS/다른 물리 PC를 실측한 결과는 아니다. 산출물과 실행 로그는 ignored `releases/` 아래 로컬에 보존한다. `mp03-final-{portable,online}-{build,verify,mp4}.log`, `mp03-backend-full.log`, `mp03-frontend-final-full.log`, `mp03-actual-chain-actors.log`가 실제 실행 근거다. 최종 문서9개 로컬 링크64개도 파일과 tracked tree 대조 오류0을 확인했다.
+
+## 추가 의존성·실행 환경 확인 — 2026-10-12
+
+공식 PyPI registry에서 Uvicorn 최신0.54.0/선택0.52.4, openpyxl 최신/선택3.1.5, ReportLab5.0.1/5.0.1, Pillow12.3.0/12.3.0, cryptography50.0.2/50.0.2, pypdf6.20.0/6.19.0을 확인했다. 각 Python>=3.8~3.10 조건(ReportLab<4)을 만족하는 기존 Python3.14 조합을 유지한다. [Uvicorn](https://pypi.org/pypi/uvicorn/json), [openpyxl](https://pypi.org/pypi/openpyxl/json), [ReportLab](https://pypi.org/pypi/reportlab/json), [Pillow](https://pypi.org/pypi/pillow/json), [cryptography](https://pypi.org/pypi/cryptography/json), [pypdf](https://pypi.org/pypi/pypdf/json).
+
+실제 개발 runtime은 Python3.14.2·Node24.13.0·uv0.11.18·PATH FFmpeg8.1.1이다. [Python 공식 최신](https://www.python.org/downloads/)은3.15.0이며 프로젝트>=3.14,<3.15 제약과 기존 package 선택3.14.8을 유지한다. [uv 최신](https://pypi.org/pypi/uv/json)0.13.0, [FFmpeg 최신](https://ffmpeg.org/download.html)9.0.2(8.1 계열 최신8.1.3)을 확인했다. portable은 기존 hash 고정 Python3.14.8·FFmpeg9.0.2 최소 빌드를 사용한다. 기존 PC 도구/상관없는 잠금 의존성을 자동 업그레이드하지 않았다. npm @types 최신19.3.0/기존 React19.2 잠금 타입을 유지했다.
+
+`npm ci`/audit는 기존 빌드 의존성 source-map-js1.2.1의 high1건([GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q))을 반환했다. [공식 registry](https://registry.npmjs.org/source-map-js/latest)의 수정 안정판1.2.2·Node>=0.10을 확인했다. 현재 제품 ZIP에는 node_modules나 source map 처리 서비스가 없고 정적 dist를 사용한다. 이번 업로드/인수 범위에서 잠금 파일을 바꾸지 않았으며 빌드 도구 후속 정비로 남긴다. audit0이라고 표시하지 않는다.
+
+## 의존성 확인 표 — MP01·MP02
+
 | 대상 | 최신 안정판 / 선택 잠금판 | 근거 |
 | --- | --- | --- |
 | Pydantic | 2.14.1 / 2.13.5 | [PyPI](https://pypi.org/pypi/pydantic/json), [선택판](https://pypi.org/pypi/pydantic/2.13.5/json), [model serializer](https://docs.pydantic.dev/latest/concepts/serialization/) |
