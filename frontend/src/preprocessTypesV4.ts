@@ -1,4 +1,5 @@
 import type { RecordingV4, RecordingWindowV4 } from './recordingTypesV4';
+import type { ExternalProcessing, MediaSourceKind } from './types';
 
 export type FileV4 = { schema_version: '4.0'; ref: string; hash: string };
 export type TimeRangeV4 = { start_seconds: number; end_seconds: number };
@@ -34,7 +35,7 @@ export type BatchV4 = {
   case_id: string; session_id: string; input_revision: number; input: FileV4; created_at: string;
   status: 'complete' | 'partial'; request: PreprocessRequestV4; compatibility_hash: string; asset_hashes: Record<string, string>;
   cut_settings: Record<string, unknown>; encoder_version: string; source_files: FileV4[];
-  source_metadata: { video_id: string; original_name: string; camera_id?: string; sha256: string; storage_ref: string; source_kind?: string }[];
+  source_metadata: { video_id: string; original_name: string; camera_id?: string; sha256: string; storage_ref: string; source_kind?: MediaSourceKind | 'app_derived'; external_processing?: ExternalProcessing | null }[];
   recording: RecordingV4; clips: PhysicalClipV4[]; windows: WindowV4[]; reuse_manifest: FileV4 | null;
   camera_layout_status: 'provisional_D01';
 };

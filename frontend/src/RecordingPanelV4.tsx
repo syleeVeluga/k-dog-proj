@@ -7,6 +7,7 @@ import type { ActualEvent, CaptureState, Case, Run, SegmentId } from './types';
 import { EVENT_CHOICES, WINDOW_NAMES } from './recordingTypesV4';
 import type { PreprocessStatusV4 } from './preprocessTypesV4';
 import type { CoverageV4, RecordingV4, RecordingViewV4, TailV4 } from './recordingTypesV4';
+import { cameraName, ProcessingNotice } from './ExternalProcessing';
 
 const states: Record<CaptureState, string> = { performed: '실시', shortened: '단축', not_performed: '미실시', welfare_stopped: '복지 중단' };
 const phaseNames = ['이동1', '정지1', '이동2', '정지2', '이동3', '정지3'];
@@ -78,7 +79,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
   }, [path, item.input_revision]);
   const change = (next: RecordingV4) => { edit.change(); setRecord({ ...next, confirmed: false }); };
   const eventChange = (id: string, patch: Partial<ActualEvent>) => change({ ...record, events: record.events.map(value => value.event_id === id ? { ...value, ...patch } : value) });
-  const videoOptions = videos.map(video => <option key={video.video_id} value={video.video_id}>{video.camera_id ? `${video.camera_id} · ` : ''}{video.original_name}</option>);
+  const videoOptions = videos.map(video => <option key={video.video_id} value={video.video_id}>{video.camera_id ? `${cameraName(video.camera_id)} · ` : ''}{video.original_name}</option>);
   function save(confirmed: boolean) {
     void run(async () => {
       if (!record.procedure_note.trim()) throw new Error('실제 촬영 절차의 확인 근거를 기록하세요.');
@@ -109,6 +110,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
     <p role="status" className="video-summary"><strong>{sessionIndex}차 촬영 · 연결된 영상 {session.videos.length}개</strong>
       {session.videos.length ? ` · 사용 가능 ${usable} · 영상 읽기 확인 대기 ${videos.length - usable}${keptOnly ? ` · 원본 보관 전용 ${keptOnly}` : ''}${stale ? ' · 입력이 바뀌어 전처리를 다시 해야 합니다' : ''}` : writable ? ' · 「영상 파일 업로드」 메뉴에서 영상을 올리고 파일별 촬영 정보를 저장하세요.' : ' · 연결된 영상이 없습니다.'}</p>
     <p>입력 버전 {item.input_revision} · 촬영 기록 {session.recording_s1?.confirmed ? '확정' : '초안 / 미기록'}</p>
+    {videos.filter(video => video.source_kind === 'external_360_mp4' && video.external_processing).map(video => <article key={video.video_id}><p>360 통합 영상 · {video.original_name}</p><ProcessingNotice value={video.external_processing!} /></article>)}
     {writable && <div className="toolbar recording-actions">{editing ? <><button disabled={!record.video_id} onClick={() => save(false)}>촬영 기록 초안 저장</button><button disabled={!record.video_id} onClick={() => save(true)}>촬영 기록 확정</button>
       {(!record.video_id || !record.procedure_note.trim()) && <span className="fine" aria-live="polite">{!record.video_id ? (videos.length ? '기준 영상을 고르세요.' : '읽을 수 있는 영상을 먼저 연결하세요.') : '실제 촬영 절차의 확인 근거를 기록해야 저장할 수 있습니다.'}</span>}</> : <button onClick={() => setEditing(true)}>확정본 수정 시작</button>}
       {edit.dirty && <><span role="status">촬영 기록 · 저장 전</span><button onClick={() => { if (edit.discard()) { setRecord(initial(item)); setEditing(!session.recording_s1?.confirmed); } }}>촬영 입력 버리고 최신 값 보기</button></>}</div>}
