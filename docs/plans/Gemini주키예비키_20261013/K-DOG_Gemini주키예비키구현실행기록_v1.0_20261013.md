@@ -164,3 +164,5 @@ GK03: main 병합 `9cd4b932209eccbe17f5e960f40e7e3139398d31`. 원격 check rollu
 CR-GK04-01 수용 수정 뒤 작성자 종단 시험1개/60.265초 통과. 독립 애착의 public 참조는 run_id/ref/hash를 제공하고 고정 문서에는 schema_version 기본값이 추가되므로 동일 식별자·경로·hash를 비교한다. 새 문장 run primary→backup·실제 HTML/PDF와 옛 발급 bytes/새 최종본·애착 bytes의 복원·clean 보존을 확인했다. 독립 재검토/주입 재검증은 진행 중이다.
 
 CR-GK04-01 독립 재검토는 해결·새 actionable issue0을 확인했다. 정상 종단1개/60.708초 통과; 같은 in-memory 독립 애착 HTTP409 주입1회는 신규 assertion36행에서 의도대로 거절했다(31.643초). 이 mutation 실패는 기대한 부정 검증이며 정상 suite 실패로 합산하지 않는다. source/브라우저/실공급자 변경0, diff check 통과. 수용 수정은 인수 시험에만 추가되며 앞선 전체 backend780/E2E134/두 ZIP 검증의 제품 코드와 동일하다. 전체·대상 검증/독립 review/triage·운영/패키지 인계를 완료하고 commit/PR/병합을 진행한다.
+
+GK04: 구현 `4a1e6bb`, 화면 대기 시험 보완 `40346b3`/`9af7713`, 수용 수정 `95248ca`, [PR #98](https://github.com/syleeVeluga/k-dog-proj/pull/98). 로컬 전체/대상·ZIP 검증과 독립 review/수용 수정 재검증을 근거로 main에 병합한다. 실제 merge SHA와 네 단계 최종 상태는 병합 뒤 종결 기록에서 확정한다.
