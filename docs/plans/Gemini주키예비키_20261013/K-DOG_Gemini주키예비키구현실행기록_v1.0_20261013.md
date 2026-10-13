@@ -150,3 +150,7 @@ GK03: main 병합 `9cd4b932209eccbe17f5e960f40e7e3139398d31`. 원격 check rollu
 두 검증에서 일반 업무의 developer settings403, developer 허용·공유 업무, 주키/예비키 두 슬롯의 available=false/reference=null을 확인했다. 외부 AI 호출0. 실제 깨끗한 OS/다른 PC3대/ARM·현장 업로드 시간의 대체 증거는 아니다. package 검증은 loopback HTTP이며 실제 조직 TLS proxy/인증서·원격 HTTPS 종단은 미실행이다. 기존 backend Host/Origin/Secure-cookie 회귀와 운영 HTTPS 설정 문서를 인계하며 TLS 실측 완료로 표시하지 않는다. 평가 카탈로그/규칙/고객 원본을 변경하지 않아 추가 source importer는 실행하지 않았다; 전체 회귀의 source-dependent skip은 실제 결과에 별도 기록한다.
 
 첫 전체 frontend E2E는134개 중132통과·2실패(11.1분)였다. 연구 내보내기 메뉴 시험은 참가자 열기 click 후 실제 AI 화면 응답을 기다리지 않고 다른 메뉴로 이동해 선택 문맥이 비어 있었다. 이 시험에 AI 실행 영역 확인을 추가해 요청 완료 후 이동하도록 했다. 다른 연구 export 시험의 socket hang up은 제품 수정 없이 새 서버에서 재검증했다. 해당 두 파일7개/33.1초 통과. 초기 전체 실패를 숨기지 않으며 최종 전체 E2E를 새 임시 서버에서 다시 수행한다. ZIP 제품 내용 변경은 없고 이 시험 대기만 보완했다.
+
+전체 backend:780개/1474.573초,778통과·역사 원본 부재2skip·실패0. 두 skip은 test_catalog_v3의 원본 대조와 역사 판본 CLI 검사이며 통과로 합산하지 않는다. 최종 frontend 재실행은134개 중133통과·촬영 화면 이동1실패(11.7분)였다. 촬영 대상 열기 응답 전에 업로드 메뉴로 이동하던 기존 시험에도 대상의 재촬영 영역 확인을 추가해 문맥 완료를 기다리게 했다. 제품 변경/일괄 timeout 상향/자동 retry로 숨기지 않았다. 최종 전체 E2E의 추가 재실행 결과는 이어 기록한다.
+
+撮影 화면 대기 보완 후 intake 파일4개/12.8초 통과. backend/패키지 검증을 마친 상태에서 frontend 전체를 단독으로 재실행한다.
