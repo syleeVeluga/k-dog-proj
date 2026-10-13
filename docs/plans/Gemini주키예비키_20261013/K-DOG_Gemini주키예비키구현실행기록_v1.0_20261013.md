@@ -166,3 +166,20 @@ CR-GK04-01 수용 수정 뒤 작성자 종단 시험1개/60.265초 통과. 독�
 CR-GK04-01 독립 재검토는 해결·새 actionable issue0을 확인했다. 정상 종단1개/60.708초 통과; 같은 in-memory 독립 애착 HTTP409 주입1회는 신규 assertion36행에서 의도대로 거절했다(31.643초). 이 mutation 실패는 기대한 부정 검증이며 정상 suite 실패로 합산하지 않는다. source/브라우저/실공급자 변경0, diff check 통과. 수용 수정은 인수 시험에만 추가되며 앞선 전체 backend780/E2E134/두 ZIP 검증의 제품 코드와 동일하다. 전체·대상 검증/독립 review/triage·운영/패키지 인계를 완료하고 commit/PR/병합을 진행한다.
 
 GK04: 구현 `4a1e6bb`, 화면 대기 시험 보완 `40346b3`/`9af7713`, 수용 수정 `95248ca`, [PR #98](https://github.com/syleeVeluga/k-dog-proj/pull/98). 로컬 전체/대상·ZIP 검증과 독립 review/수용 수정 재검증을 근거로 main에 병합한다. 실제 merge SHA와 네 단계 최종 상태는 병합 뒤 종결 기록에서 확정한다.
+
+## 종결 — 2026-10-14
+
+계획된 네 PR은 각 구현→검증→독립 cold review→발견별 수용/보류/거절→수용 수정/재검증→병합을 완료했다. GK04 [PR #98](https://github.com/syleeVeluga/k-dog-proj/pull/98)는 main `43b365054b78b6c04e31b7767810f714f99313ed`에 병합됐으며 원격 check rollup은 비어 있었다. 로컬 전체/대상·ZIP 검증과 독립 검토·수용 수정 재검증을 근거로 병합했고 CI 통과로 바꿔 기록하지 않는다.
+
+| 단계 | 실제 PR | main merge | 독립 검토 수용 |
+| --- | --- | --- | --- |
+| GK01 | [#95](https://github.com/syleeVeluga/k-dog-proj/pull/95) | `7fad053af2c6bffd9f64a1362c94d776dd339b9b` | 2건 해결, 새 발견0 |
+| GK02 | [#96](https://github.com/syleeVeluga/k-dog-proj/pull/96) | `ad857d1cadce2929ef791e110569eb4227169a2c` | 발견0 |
+| GK03 | [#97](https://github.com/syleeVeluga/k-dog-proj/pull/97) | `9cd4b932209eccbe17f5e960f40e7e3139398d31` | 표시 결함1건 해결·인수 assertion 보완, 새 발견0 |
+| GK04 | [#98](https://github.com/syleeVeluga/k-dog-proj/pull/98) | `43b365054b78b6c04e31b7767810f714f99313ed` | 인수 공백1건 해결·실패 주입 거절, 새 발견0 |
+
+최종 근거: backend778통과·역사 원본 부재2skip(780개), frontend build/전체 E2E134통과, 수용 수정 대상/독립 종단 시험 통과, portable/online 설치·초기 슬롯/접근·재시작 검증 통과. ZIP은 위 깨끗한 제품 구현 commit/hash에 고정하며 이후 수용 수정은 제품에 포함되지 않는 시험/기록뿐이다. 병합 기록을 남기는 종결 문서 변경은 별도 문서 검증/독립 검토 후 병합한다.
+
+실공급자 프로젝트별 전환/실제 계량·모델 품질/교수 인수, 깨끗한 OS/물리 PC3대·현장 실측·조직 TLS 종단은 별도 대기다. 기존 개발 도구 source-map-js 취약점 잠금판 갱신도 별도 후속으로 기록했다. 고객 원본2skip을 성공으로 간주하거나 운영 키/참가자 자료·운영 DB를 변경하지 않았다.
+
+종결 문서의 독립 검토는 실제 네 PR MERGED/merge SHA·빈 check rollup, 780=778통과+2skip/E2E134, 수용 수정의 대상·예상 실패 주입, ZIP 구현 commit/hash와 이후 시험/기록 변경의 구분, 실공급자/현장/TLS/개발 도구 후속을 확인했다. 새 actionable issue0, 수용/보류/거절0이며 변경은 MD3개뿐이다. 문서 상대 링크48개와 diff check 통과, 추가 제품 시험/공급자 실행0이다.
