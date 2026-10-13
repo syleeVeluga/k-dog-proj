@@ -153,4 +153,14 @@ GK03: main 병합 `9cd4b932209eccbe17f5e960f40e7e3139398d31`. 원격 check rollu
 
 전체 backend:780개/1474.573초,778통과·역사 원본 부재2skip·실패0. 두 skip은 test_catalog_v3의 원본 대조와 역사 판본 CLI 검사이며 통과로 합산하지 않는다. 최종 frontend 재실행은134개 중133통과·촬영 화면 이동1실패(11.7분)였다. 촬영 대상 열기 응답 전에 업로드 메뉴로 이동하던 기존 시험에도 대상의 재촬영 영역 확인을 추가해 문맥 완료를 기다리게 했다. 제품 변경/일괄 timeout 상향/자동 retry로 숨기지 않았다. 최종 전체 E2E의 추가 재실행 결과는 이어 기록한다.
 
-撮影 화면 대기 보완 후 intake 파일4개/12.8초 통과. backend/패키지 검증을 마친 상태에서 frontend 전체를 단독으로 재실행한다.
+촬영 화면 대기 보완 후 intake 파일4개/12.8초 통과. backend/패키지 검증을 마친 상태에서 frontend 전체를 단독으로 재실행한다.
+
+최종 단독 전체 frontend E2E134개/8.5분 모두 통과(exit0). backend780개(778통과·2skip), frontend build, 두 ZIP verify와 함께 GK04의 전체 기술 회귀를 완료했다. 최초/중간 실패와 보완 후 재실행을 위에 구분해 보존한다. 전체 로그는 `%TEMP%/kdog-gk04-backend-20261014.log`, `%TEMP%/kdog-gk04-e2e-verified-20261014.log`이며 실제 participant/provider 자료가 없는 합성 검증이다. changed 운영/계획 MD의 상대 링크48개와 git diff check 통과. Graft wiring build/check 동기화 통과; 의미 요약 tier0%는 사용하지 않고 wiring/source query를 근거로 했다. 독립 cold review와 발견별 triage/수용 수정·재검증을 이어 진행한다.
+
+독립 reviewer `gk02_cold_review`는 GK03 merge 이후 GK04 변경을 읽기 전용 검토했다. 제품 결함0, 인수 공백 CR-GK04-01 한 건을 수용(보류/거절0)했다. 기존 시험은 독립 애착 실행의 성공/참조와 이후 최종본 연결을 직접 확인하지 않아 해당 process를 HTTP409로 실패시킨 주입에서도 통과했다(1개/45.582초, 주입1회). 정상 독립 실행1개/47.177초 통과, backup-only 준비/접수의 primary gate 없음, 두 ZIP hash/inventory·합성 캡처를 별도 확인했다.
+
+수용 수정은 독립 애착 succeeded/backup/2예약/reference, 그 정확한 참조를 고정한 새 최종본, 그 최종본의 새 문장 run primary→backup/실제 HTML·PDF/최종 참조, 옛 발급 bytes/복원 후 새 최종본·애착 bytes 보존을 추가한다. 초기 추가 시험의 애착 view 회차 인자 계약을 보정한 뒤 대상 검증을 진행한다. 생산 코드/배포 제품 내용에는 변경이 없어 전체 backend/E2E/ZIP을 반복하지 않고 이 인수 시험과 독립 수용 수정 재검토로 새 경계를 검증한다.
+
+CR-GK04-01 수용 수정 뒤 작성자 종단 시험1개/60.265초 통과. 독립 애착의 public 참조는 run_id/ref/hash를 제공하고 고정 문서에는 schema_version 기본값이 추가되므로 동일 식별자·경로·hash를 비교한다. 새 문장 run primary→backup·실제 HTML/PDF와 옛 발급 bytes/새 최종본·애착 bytes의 복원·clean 보존을 확인했다. 독립 재검토/주입 재검증은 진행 중이다.
+
+CR-GK04-01 독립 재검토는 해결·새 actionable issue0을 확인했다. 정상 종단1개/60.708초 통과; 같은 in-memory 독립 애착 HTTP409 주입1회는 신규 assertion36행에서 의도대로 거절했다(31.643초). 이 mutation 실패는 기대한 부정 검증이며 정상 suite 실패로 합산하지 않는다. source/브라우저/실공급자 변경0, diff check 통과. 수용 수정은 인수 시험에만 추가되며 앞선 전체 backend780/E2E134/두 ZIP 검증의 제품 코드와 동일하다. 전체·대상 검증/독립 review/triage·운영/패키지 인계를 완료하고 commit/PR/병합을 진행한다.

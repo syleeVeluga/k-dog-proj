@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app import maintenance, report_runs_v4 as reports, run_v4, secrets
+from app import attachment_runs_v4, final_results_v4 as finals, maintenance, report_runs_v4 as reports, run_v4, secrets
 from app.gemini_v4 import GeminiScorerV4
 from app.storage import Store, uid
 from app.worker import Worker
@@ -32,6 +32,9 @@ class GeminiAcceptanceTests(unittest.TestCase):
             self.assertEqual([step["credential_slot"] for step in attempts], ["primary", "backup"])
             self.assertTrue(attempts[0]["billing_uncertain"])
             self.assertTrue(any(step["remote_cleanup_pending"] for step in score["steps"]))
+            attachment = attachment_runs_v4.view(store, case_id, session_id, fixture.attachment["run_id"], user)
+            self.assertEqual((attachment["status"], attachment["credential_slot"], attachment["reserved_calls"]), ("succeeded", "backup", 2))
+            self.assertIsNotNone(attachment["reference"])
 
             outputs = {kind: reports.download(store, case_id, session_id, report_id, kind, user)[0]
                        for kind in ("html", "pdf", "manifest")}
@@ -43,6 +46,30 @@ class GeminiAcceptanceTests(unittest.TestCase):
                 refs = [row[0] for row in db.execute("SELECT manifest_ref FROM basic_results")]
             refs.append(publication["final"]["ref"])
             pinned = {ref: store.path(ref).read_bytes() for ref in refs}
+            original_final = json.loads(pinned[publication["final"]["ref"]])
+            inferred_final = finals.assemble(store, case_id, session_id, model(finals.AssembleFinalV4,
+                basic=original_final["basic"], opinion=original_final["opinion"], attachment_inference=attachment["reference"],
+                reason="synthetic exact backup standalone inference"), user)
+            self.assertEqual({key: inferred_final["document"]["attachment_inference"][key] for key in attachment["reference"]}, attachment["reference"])
+            downstream = reports.enqueue(store, case_id, session_id, model(reports.ReportStartV4,
+                expected_revision=fixture.helper.current()["input_revision"], request_id=uid(), final=inferred_final["reference"]), user)
+            self.assertTrue(fixture.worker.once())
+            with store.connect(write=True) as db:
+                db.execute("UPDATE steps SET retry_at='2000-01-01T00:00:00Z' WHERE run_id=?", (downstream["run_id"],))
+            self.assertTrue(fixture.worker.once())
+            issued = reports.view(store, downstream["run_id"], user)
+            self.assertEqual((issued["status"], issued["credential_slot"]), ("succeeded", "backup"))
+            self.assertEqual([step["credential_slot"] for step in issued["steps"] if step["provider_calls"]], ["primary", "backup"])
+            issued_publication = json.loads(reports.download(store, case_id, session_id, downstream["run_id"], "manifest", user)[0])
+            self.assertEqual(issued_publication["final"], inferred_final["reference"])
+            downstream_html = reports.download(store, case_id, session_id, downstream["run_id"], "html", user)[0]
+            downstream_pdf = reports.download(store, case_id, session_id, downstream["run_id"], "pdf", user)[0]
+            self.assertIn("관찰".encode(), downstream_html)
+            self.assertTrue(downstream_pdf.startswith(b"%PDF-"))
+            issued_final_bytes = store.path(issued_publication["final"]["ref"]).read_bytes()
+            self.assertEqual({key: json.loads(issued_final_bytes)["attachment_inference"][key] for key in attachment["reference"]}, attachment["reference"])
+            pinned[issued_publication["final"]["ref"]] = issued_final_bytes
+            pinned[attachment["reference"]["ref"]] = store.path(attachment["reference"]["ref"]).read_bytes()
             call_count = len(fixture.transport.calls)
             request = model(reports.ReportStartV4, expected_revision=fixture.helper.current()["input_revision"],
                             request_id=uid(), final=report["final"], reuse_run_id=report_id)
