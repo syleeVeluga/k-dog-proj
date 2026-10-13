@@ -1,4 +1,5 @@
 import type { BasicResultViewV4 } from './BasicResultsV4';
+import type { GeminiExecutionState } from './GeminiExecution';
 
 export type AiStageV4 = {
   model: 'gemini-3.8-flash'; prompt: string; input_variant: 'ai' | 'original'; processing_mode: 'static' | 'agentic';
@@ -14,11 +15,11 @@ export type AiSettingsViewV4 = {
 };
 export type AiDifferenceV4 = { active_version: string; version: string; config: AiPipelineV4; diff: string };
 export type AiReadinessV4 = { active_version: string; planned_provider_calls: number; enabled: boolean; judgement_status: 'policy_pending_D04' | 'implemented_professor_test_pending' };
-export type AiStepV4 = {
+export type AiStepV4 = GeminiExecutionState & {
   stage: string; key: string; attempt: number; status: string; code: string | null; billing_uncertain: boolean; call_reserved: boolean; remote_cleanup_pending: boolean;
   reused: boolean; timing: Record<string, number>; token_meters: Record<string, number>; input_tokens: number | null; output_tokens: number | null; total_tokens: number | null; cost_usd: number | null;
 };
-export type AiRunV4 = {
+export type AiRunV4 = GeminiExecutionState & {
   run_id: string; case_id: string; session_id: string; kind: 's1'; input_revision: number; status: string; updated_at: string;
   outdated: boolean; failure_code: string | null; result_available: boolean; steps: AiStepV4[];
   planned_provider_calls: number; reserved_calls: number; max_ai_calls: number; judgement_status: 'policy_pending_D04' | 'implemented_professor_test_pending';

@@ -29,11 +29,11 @@ class RunV4Tests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="kdog-runs-s1-")
         self.addCleanup(temporary.cleanup)
-        self.store = Store(Path(temporary.name))
+        self.store = getattr(self, "store", None) or Store(Path(temporary.name))
         self.user = SimpleNamespace(username="operator", role="operator")
         with self.store.connect(write=True) as db:
             for name, role in (("operator", "operator"), ("reviewer", "reviewer"), ("developer", "developer")):
-                db.execute("INSERT INTO users(username,role,password_hash) VALUES(?,?,?)", (name, role, "synthetic-no-login"))
+                db.execute("INSERT OR IGNORE INTO users(username,role,password_hash) VALUES(?,?,?)", (name, role, "synthetic-no-login"))
             self.case_id = create_case(self.store, db, CaseCreateV3(event_id="SYNTHETIC", participant_id="S1-RUN", dog_name="합성견"), "operator", SURVEY_VERSION)
         sample = sample_snapshot()
         raw = b"synthetic source, not a participant video"
