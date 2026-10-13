@@ -240,13 +240,27 @@ def verify_online(package, root):
     run_python(python, backend, clean, "-c", "from pathlib import Path; import os; from app.storage import Store\n"
                "from app.auth import create_user\nfrom app.input_models import UserCreate\n"
                "with Store(Path(os.environ['KDOG_DATA_DIR'])).connect(write=True) as db:\n"
-               "    create_user(db,UserCreate(username='pilot',role='operator',password='Synthetic-install-only-42'))\n")
+               "    create_user(db,UserCreate(username='pilot',role='operator',password='Synthetic-install-only-42'))\n"
+               "    create_user(db,UserCreate(username='keyman',role='developer',password='Synthetic-install-only-42'))\n")
     case_id = None
     for command, launch_env, kill_tree in (([str(python), "-X", "utf8", "-m", "app.launcher"], clean, False),
                                            ([str(app / "Start.cmd")], env, True)):
         with served(command, backend, launch_env, kill_tree=kill_tree, python=python) as client:
             request = client()
             request("/api/auth/login", {"username": "pilot", "password": "Synthetic-install-only-42"})
+            try:
+                request("/api/developer/settings")
+            except HTTPError as error:
+                if error.code != 403:
+                    raise
+            else:
+                raise RuntimeError("business account accessed developer settings")
+            developer = client()
+            developer("/api/auth/login", {"username": "keyman", "password": "Synthetic-install-only-42"})
+            state = developer("/api/developer/settings")
+            if {slot["slot"] for slot in state["gemini_slots"]} != {"primary", "backup"} or any(
+                    slot["available"] or slot["reference"] is not None for slot in state["gemini_slots"]):
+                raise RuntimeError("fresh online package did not start with two unregistered Gemini slots")
             if case_id is None:
                 case = request("/api/cases", {"event_id": "S1-INSTALL", "participant_id": "0001", "dog_name": "설치 시험견"})
                 if case["manifest"]["schema_version"] != "intake-4.0":
@@ -256,7 +270,8 @@ def verify_online(package, root):
                 raise RuntimeError("restart through Start.cmd lost data")
     return {"fresh_venv": True, "unicode_space_path": True, "start_before_install_rejected": True,
             "corruption_rejected_before_install": True, "corruption_rejected_by_check": True, "environment_override_isolated": True,
-            "path_ffmpeg_and_venv_python": True, "http_login_create_restart": "passed", "supervisor_shutdown": "passed"}
+            "path_ffmpeg_and_venv_python": True, "http_login_create_restart": "passed", "supervisor_shutdown": "passed",
+            "business_settings_forbidden": "passed", "gemini_slots_initially_unregistered": "passed"}
 
 
 def verify_issued(package, root):
@@ -325,7 +340,10 @@ def verify_issued(package, root):
         else:
             raise RuntimeError("business account accessed developer settings")
         developer("/api/auth/login", {"username": "verify-dev", "password": passwords["verify-dev"]})
-        developer("/api/developer/settings")
+        state = developer("/api/developer/settings")
+        if {slot["slot"] for slot in state["gemini_slots"]} != {"primary", "backup"} or any(
+                slot["available"] or slot["reference"] is not None for slot in state["gemini_slots"]):
+            raise RuntimeError("fresh package did not start with two unregistered Gemini slots")
         if developer("/api/cases/" + case_id)["participant_id"] != "0002":
             raise RuntimeError("developer account cannot read shared work")
         developer("/api/cases", {"event_id": "S1-ISSUED", "participant_id": "0003", "dog_name": "개발자 업무 시험견"})
@@ -341,6 +359,7 @@ def verify_issued(package, root):
             "key_install_accounts_shortcut": "passed", "developer_settings_access": "passed",
             "ordinary_business_account": "passed", "business_settings_forbidden": "passed",
             "developer_shared_work": "passed",
+            "gemini_slots_initially_unregistered": "passed",
             "reinstall_keeps_data_and_accounts": "passed"}
 
 

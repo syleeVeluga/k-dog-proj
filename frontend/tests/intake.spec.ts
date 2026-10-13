@@ -122,6 +122,7 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
   await page.screenshot({ path: testInfo.outputPath('desktop-list.png'), fullPage: true, animations: 'disabled' });
   await openMenu(page, '촬영 기록 (8구간)');
   await page.getByRole('button', { name: '0001 촬영 열기' }).click();
+  await expect(page.getByText('재촬영 세션 추가', { exact: true })).toBeVisible();
   await openMenu(page, '영상 파일 업로드');
   await page.getByText(/^정보 저장 완료한 파일/).click();
   await expect(page.getByRole('article', { name: '업로드 파일 synthetic-file-2.mp4', exact: true }).getByText('등록됨 · 영상 읽기 확인 대기', { exact: true })).toBeVisible();

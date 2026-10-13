@@ -1,6 +1,6 @@
 # PR-GK04 Gemini 이중키 통합 인수와 운영
 
-버전: v1.0 · 2026-10-13 · 상태: 계획, 구현 미실행 · 선행: GK03 구현·검증·검토/수용 수정·병합 · 브랜치 제안: `veluga/gk04-gemini-fallback-acceptance`
+버전: v1.0 · 작성 2026-10-13 · 착수 2026-10-14 · 상태: 구현·검증·독립 cold review·수용 수정 완료, 병합 대기 · 선행: GK03 #97 병합 `9cd4b93` · 브랜치: `veluga/gk04-gemini-fallback-acceptance`
 
 상위: [전체 계획](K-DOG_Gemini주키예비키적용계획_v1.0_20261013.md). 요구 GK-R12 및 GK-R01~R11 종단 회귀, 시험 GK-T20 및 GK-T01~T19 회귀. 제목 제안: `test: verify Gemini key fallback and document operations`.
 
@@ -62,9 +62,9 @@ backend/.venv/Scripts/python.exe -X utf8 scripts/verify_release.py releases/kdog
 
 기술 인수는 합성/fake transport로 완료할 수 있다. 실제 provider 인수는 승인된 시험 프로젝트/키·비식별 자료·비용 범위가 준비된 후 별도 실행 기록에 남긴다. 주키 모델 호출 불가/예비키 정상·서로 다른 프로젝트의 Files/inference/삭제·실제 계량·모델 품질을 확인한다. 장애/할당량 소진을 인위적으로 대량 호출해 만들지 않는다. 미실행이면 「실공급자 전환/품질 확인 대기」로 유지한다.
 
-- [ ] GK-T20 및 GK-T01~T19 실제 조립/보안·기존 S1/업무 접근/상태/불변 결과 회귀
-- [ ] 전체 backend·frontend build/E2E의 성공/실패/skip과 재검증 사유 기록
-- [ ] 백업/복원·원문/두 ciphertext 제외·재등록·정확한 원격 cleanup 인수
-- [ ] portable/online ZIP hash·설치/재시작·실제 Windows/HTTPS 검증 범위 기록
+- [x] GK-T20 및 GK-T01~T19 실제 조립/보안·기존 S1/업무 접근/상태/불변 결과 회귀
+- [x] 전체 backend·frontend build/E2E의 성공/실패/skip과 재검증 사유 기록
+- [x] 백업/복원·원문/두 ciphertext 제외·재등록·정확한 원격 cleanup 인수
+- [x] portable/online ZIP hash·설치/재시작·실제 Windows/HTTPS 검증 범위 기록
 - [ ] 운영 안내·공식 버전/API 근거·commit/PR/merge·독립 검토/triage·수용 수정 근거
-- [ ] 실제 공급자·품질/교수/현장 실측의 완료/대기 상태를 항목별로 인계
+- [x] 실제 공급자·품질/교수/현장 실측의 완료/대기 상태를 항목별로 인계
