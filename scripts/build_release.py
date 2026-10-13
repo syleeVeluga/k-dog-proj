@@ -51,6 +51,8 @@ OPERATING_DOCUMENTS = frozenset({
     "docs/plans/360통합MP4업로드_20261012/evidence/mp02-registered-390.png",
     "docs/plans/360통합MP4업로드_20261012/evidence/mp02-preprocess-1366.png",
     "docs/plans/360통합MP4업로드_20261012/evidence/mp03-long-filename-360.png",
+    "docs/plans/Gemini주키예비키_20261013/assets/GK03_Gemini_keys_390_20261014.png",
+    "docs/plans/Gemini주키예비키_20261013/assets/GK03_Gemini_keys_1366_20261014.png",
 })
 
 

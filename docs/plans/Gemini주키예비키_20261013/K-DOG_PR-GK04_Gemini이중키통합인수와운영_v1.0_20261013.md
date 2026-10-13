@@ -1,6 +1,6 @@
 # PR-GK04 Gemini 이중키 통합 인수와 운영
 
-버전: v1.0 · 2026-10-13 · 상태: 계획, 구현 미실행 · 선행: GK03 구현·검증·검토/수용 수정·병합 · 브랜치 제안: `veluga/gk04-gemini-fallback-acceptance`
+버전: v1.0 · 작성 2026-10-13 · 착수 2026-10-14 · 상태: 구현·종단 검증 완료, 전체 회귀/배포 검증 중 · 선행: GK03 #97 병합 `9cd4b93` · 브랜치: `veluga/gk04-gemini-fallback-acceptance`
 
 상위: [전체 계획](K-DOG_Gemini주키예비키적용계획_v1.0_20261013.md). 요구 GK-R12 및 GK-R01~R11 종단 회귀, 시험 GK-T20 및 GK-T01~T19 회귀. 제목 제안: `test: verify Gemini key fallback and document operations`.
 

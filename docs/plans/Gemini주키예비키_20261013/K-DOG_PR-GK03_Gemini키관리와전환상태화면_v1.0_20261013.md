@@ -1,6 +1,6 @@
 # PR-GK03 Gemini 키 관리와 전환 상태 화면
 
-버전: v1.0 · 작성 2026-10-13 · 구현/검증 2026-10-14 · 상태: 구현·검증·독립 cold review·수용 수정 완료, 병합 대기 · 선행: GK02 #96 병합 `ad857d1` · 브랜치: `veluga/gk03-gemini-key-ui`
+버전: v1.0 · 작성 2026-10-13 · 구현/검증 2026-10-14 · 상태: 완료, [PR #97](https://github.com/syleeVeluga/k-dog-proj/pull/97) 병합 `9cd4b93` · 선행: GK02 #96 병합 `ad857d1` · 브랜치: `veluga/gk03-gemini-key-ui`
 
 상위: [전체 계획](K-DOG_Gemini주키예비키적용계획_v1.0_20261013.md). 요구 GK-R10~R11, 시험 GK-T17~T19. 제목 제안: `feat: manage Gemini backup keys and show fallback status`.
 
@@ -56,4 +56,4 @@ graft check
 - [x] GK-T17~T19·기존 developer/신판 AI 설정/업무 접근·문맥 회귀 통과
 - [x] 두 폭의 합성 캡처·키 원문/브라우저 저장소 부재 증거
 - [x] 공식 frontend 최신/선택 잠금판 확인, 독립 cold review·수용 수정/재검증
-- [ ] commit/PR/병합과 GK04 종단 경로·시험 fixture/후속 인계
+- [x] commit/PR/병합과 GK04 종단 경로·시험 fixture/후속 인계

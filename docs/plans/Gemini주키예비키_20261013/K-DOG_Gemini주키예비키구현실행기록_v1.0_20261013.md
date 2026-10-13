@@ -127,3 +127,15 @@ Native Python Playwright로 login→개발 설정→networkidle 이후 390px/136
 수용 수정/인수 보완 후 최종 settings+키 전환 E2E 3개/45.2초 통과. reviewer 재검토는 CR-GK03-01 해결과 추가 assertion의 범위를 확인하고 새 actionable defect0을 기록했다. 최종 E2E 실행은 작성자 검증으로 구분한다. 상대 링크29개와 공백 검사 통과, wiring graph 동기화 확인. GK04에 실제 Worker 종단 fixture와 화면/API 회귀, 백업/복원·패키지 검증을 인계한다.
 
 GK03: 구현/수용 수정 commit `f61a0a6`, [PR #97](https://github.com/syleeVeluga/k-dog-proj/pull/97). 로컬 검증·독립 검토를 근거로 병합하며 실제 merge SHA는 GK04 착수 기록에서 확정한다.
+
+GK03: main 병합 `9cd4b932209eccbe17f5e960f40e7e3139398d31`. 원격 check rollup은 비어 있었고 위 로컬 검증/독립 검토·수용 수정을 근거로 병합했다.
+
+## GK04 통합 인수와 운영
+
+기반 GK03 merge `9cd4b93` · 브랜치 `veluga/gk04-gemini-fallback-acceptance` · 2026-10-14. `test_gemini_acceptance`는 실제 Worker/fake REST로 원관찰·통합/독립 애착·독립 제출·최종본·문장·HTML/PDF를 조립한다. 채점 backup44예약, 새로운 문장 run의 primary→backup2예약, uncertain/cleanup_pending, 명시 재사용 예약0/현재 키 선택 없음/출처 backup, 발급 bytes/고정 결과 보존을 검사했다. 백업 원문/두 ciphertext/세션 제외·감사 snapshot 그대로 복원·키 없이 새 문장 요청0/성공 게시0·두 슬롯 명시 재등록 뒤 다시 primary→backup 성공·clean 이후 옛 파일 보존을 확인했다(1개/45.684초). 초기 시험 작성의 report 예약 필드/최종본 테이블/세션 기대는 실제 DTO와 changes/users schema에 맞춰 보정했으며 제품 계약은 변경하지 않았다.
+
+개발/운영 안내를 Gemini 두 슬롯·연결 시험·상한/전환 비대상·프로젝트 할당량·앱 제거/실행 중지/콘솔 취소·DPAPI 실행 계정·HTTPS·복원 재등록·정확한 참조 cleanup·미확인 비용으로 갱신했다. build allowlist에는 이 계획의 합성 캡처2개만 추가해 실행 문서의 상대 링크를 보존한다. verify_release의 발행/online 설치는 일반 업무 설정403, developer 허용 및 Gemini 주키/예비키 초기 미등록을 확인하도록 보강했다. 고객 발행/배포와 운영 DB/키 변경은 수행하지 않는다.
+
+공식 최신/선택 runtime 추가 확인: [Python downloads](https://www.python.org/downloads/) 최신 안정3.15.0 / 3.14 계열3.14.8, 로컬 시험3.14.2·기존 portable pin3.14.8; [3.15 변경](https://docs.python.org/3.15/whatsnew/3.15.html) 검토 후 기존3.14 설치/ABI·runtime 해시 계약을 유지한다. [uv PyPI](https://pypi.org/project/uv/) / [0.13.0 release](https://github.com/astral-sh/uv/releases/tag/0.13.0) 최신0.13.0 / 로컬0.11.18, 기존 [locked CLI](https://docs.astral.sh/uv/reference/cli/)가 필요한 sync/export를 지원해 환경 도구를 갱신하지 않는다. [FFmpeg downloads](https://ffmpeg.org/download.html) / [CLI](https://ffmpeg.org/ffmpeg.html) 최신/portable9.0.2, 기존 build.json 해시와 대응 소스 계약을 유지한다. frontend/backend 잠금 의존성은 GK01/GK03 공식 registry/API 확인 결과를 재사용하며 신규 라이브러리/API가 없다.
+
+`uv sync --locked`, `npm ci`, frontend build 통과. npm audit에서 기존 Vite→PostCSS의 dev 의존 `source-map-js 1.2.1` high1건을 확인했다([GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q), 수정1.2.2). 외부 indexed source map을 처리할 때 event-loop DoS가 가능한 기존 개발 도구 경계다. 제품 frontend는 빌드된 static assets만 사용하며 이번 Gemini 기능에 의존성 upgrade를 섞지 않는다. 별도 개발 도구 잠금판 갱신 후속으로 남기고 audit clean으로 표시하지 않는다. 전체 회귀/ZIP 검증은 진행 중이다.
