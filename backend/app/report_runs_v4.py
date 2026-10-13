@@ -20,6 +20,8 @@ from .domain.report_render_v4 import ReportHeaderV4, SceneImageV4
 from .domain.report_runs_v4 import (REPORT_STAGES, ReportConfigV4, ReportImageV4, ReportInputV4,
     ReportPreparedV4, ReportPublicationV4, ReportRenderedV4, ReportReuseV4, ReportStageV4)
 from .domain.sheets_v4 import InputPointerV4
+from .domain.runs_v4 import GeminiAttemptView
+from . import gemini_keys
 from .domain.media_v4 import MediaKey, StoredMediaV4
 from .domain.catalog_v4 import Hash, Text
 from .input_models import Model
@@ -69,7 +71,7 @@ class ReportAccessV4(Model):
     format: Literal["html", "pdf", "manifest"] | None = None
 
 
-class ReportStepViewV4(Model):
+class ReportStepViewV4(GeminiAttemptView):
     stage: str
     attempt: int
     status: str
@@ -78,11 +80,12 @@ class ReportStepViewV4(Model):
     reused: bool
     provider_calls: Annotated[int, Field(ge=0, le=1)] = 0
     billing_uncertain: bool = False
+    remote_cleanup_pending: bool = False
     token_meters: dict[str, int] = Field(default_factory=dict)
     cost_usd: float | None = None
 
 
-class ReportRunViewV4(Model):
+class ReportRunViewV4(GeminiAttemptView):
     run_id: str
     case_id: str
     session_id: str
@@ -619,7 +622,7 @@ def process(worker, row):
                         source = db.execute("SELECT * FROM runs WHERE run_id=?", (exact.source_run_id,)).fetchone()
                         old_step = db.execute("SELECT * FROM steps WHERE step_id=?", (exact.step_id,)).fetchone()
                         payload = analysis.step_payload(worker.store, source, old_step)
-                    payload["usage"] = {"program_merge": True, "reused": True, "source_run_id": exact.source_run_id}
+                    payload["usage"] = {"program_merge": True, **gemini_keys.reused_usage(payload.get("usage", {}), exact.source_run_id)}
                 else:
                     profile, usage = (narrative.request(worker, row, step, group, snapshot.profile,
                         lambda: (worker.check(row), verify_assets(configuration), verify_files(worker.store, snapshot)))
@@ -733,6 +736,7 @@ def view(store, run_id, user, viewer_sheet_id=None):
         for step in db.execute("SELECT * FROM steps WHERE run_id=? ORDER BY created_at,attempt", (run_id,)):
             usage = json.loads(step["usage_json"])
             steps.append({"stage": step["stage"], "attempt": step["attempt"], "status": step["status"], "code": usage.get("code"),
+                **gemini_keys.public(usage), "remote_cleanup_pending": bool(usage.get("remote_cleanup_pending")),
                 "timing": {key: value for key, value in usage.get("timing", {}).items() if type(value) in (int, float)}, "reused": bool(usage.get("reused")), "provider_calls": int(step["call_reserved"]),
                 "billing_uncertain": bool(usage.get("billing_uncertain") or step["call_reserved"] and step["status"] == "running"),
                 "token_meters": token_meters(usage.get("provider_usage", usage)),
@@ -749,6 +753,7 @@ def view(store, run_id, user, viewer_sheet_id=None):
                 external_status,external_reason="blocked",str(exc.detail)
         available=bool(row["result_ref"]) and external_status!="blocked"
         return {"run_id": run_id, "case_id": row["case_id"], "session_id": row["session_id"], "kind": KIND,
+            **gemini_keys.view(db, run_id),
             "input_revision": row["input_revision"], "status": row["status"], "updated_at": row["updated_at"], "failure_code": row["failure_code"],
             "outdated": _outdated(store, db, row, snapshot, case), "result_available": available,
             "is_latest_issued": bool(latest and latest["run_id"] == run_id), "publication_state": "issued" if row["result_ref"] else None,

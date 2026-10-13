@@ -9,7 +9,8 @@ from .domain.attachment_v4 import AttachmentAssessmentV4, AttachmentReferenceV4
 from .domain.catalog_v4 import ContractV4, Hash, Text
 from .domain.final_results_v4 import OpinionDocumentV4, OpinionReferenceV4
 from .domain.results_v4 import BasicResultV4, ResultReferenceV4
-from .domain.runs_v4 import ActionV4, RunConfigV4
+from .domain.runs_v4 import ActionV4, RunConfigV4, GeminiAttemptView
+from . import gemini_keys
 from .input_models import Model
 from .storage import encode, now, uid
 
@@ -48,13 +49,23 @@ class AttachmentInputV4(ContractV4):
     opinion_document: OpinionDocumentV4
 
 
-class AttachmentRunViewV4(Model):
+class AttachmentStepViewV4(GeminiAttemptView):
+    attempt: int
+    status: str
+    code: str | None
+    billing_uncertain: bool
+    remote_cleanup_pending: bool
+    call_reserved: bool
+
+
+class AttachmentRunViewV4(GeminiAttemptView):
     run_id: str
     status: str
     updated_at: str
     reserved_calls: int
     judgement_status: str
     reference: AttachmentReferenceV4 | None
+    steps: list[AttachmentStepViewV4]
 
     @field_validator("reference", mode="before")
     @classmethod
@@ -126,7 +137,15 @@ def view(store, case_id, session_id, run_id, user, viewer_sheet_id=None):
         opinions.selected_basic(store, db, case_id, session_id, source.basic, user, viewer_sheet_id)
         disclosures_v4.require(db, case_id, session_id, user, disclosures_v4.target("opinion", source.opinion), source.opinion_document.actor)
         reserved = db.execute("SELECT COUNT(*) FROM steps WHERE run_id=? AND call_reserved=1", (run_id,)).fetchone()[0]
+        steps = []
+        for step in db.execute("SELECT * FROM steps WHERE run_id=? ORDER BY attempt", (run_id,)):
+            usage = json.loads(step["usage_json"])
+            steps.append({**gemini_keys.public(usage), "attempt": step["attempt"], "status": step["status"], "code": usage.get("code"),
+                          "billing_uncertain": bool(usage.get("billing_uncertain") or step["call_reserved"] and step["status"] == "running"),
+                          "remote_cleanup_pending": bool(usage.get("remote_cleanup_pending")), "call_reserved": bool(step["call_reserved"])})
+        key_state = gemini_keys.view(db, run_id)
     return {"run_id": run_id, "status": row["status"], "updated_at": row["updated_at"], "reserved_calls": reserved,
+        **key_state, "steps": steps,
         "judgement_status": "completed_opinion_inference", "reference": {"run_id": run_id, "ref": row["result_ref"], "hash": row["result_hash"]} if row["status"] == "succeeded" else None}
 
 

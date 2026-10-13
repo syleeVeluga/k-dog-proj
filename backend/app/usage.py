@@ -54,6 +54,7 @@ def token_meters(value, prefix=""):
 
 
 def summarize(store, *, event_id=None, prices=None):
+    from app.gemini_keys import public
     validate_prices(prices)
     with store.connect() as db:
         # Hold one read snapshot across run and attempt queries.
@@ -117,7 +118,7 @@ def summarize(store, *, event_id=None, prices=None):
             group = groups.setdefault((provider, model, step["stage"]), {"calls_reserved": 0, "meters": Counter()})
             group["calls_reserved"] += 1
             group["meters"].update(meters)
-            records.append({"step_id": step["step_id"], "stage": step["stage"], "branch": step["branch_key"],
+            records.append({**public(usage), "step_id": step["step_id"], "stage": step["stage"], "branch": step["branch_key"],
                 "attempt": step["attempt"], "status": step["status"], "provider": provider, "model": model,
                 "meters": meters, "billing_uncertain": uncertain, "unpriced_meters": missing,
                 "meter_cost_estimate": str(cost) if cost is not None else None})

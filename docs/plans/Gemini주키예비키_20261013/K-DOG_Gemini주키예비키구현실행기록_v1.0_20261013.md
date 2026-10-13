@@ -1,6 +1,6 @@
 # K-DOG Gemini 주키·예비키 구현 실행 기록
 
-버전: v1.0 · 2026-10-13 · 상위: [전체 계획](K-DOG_Gemini주키예비키적용계획_v1.0_20261013.md)
+버전: v1.0 · 작성 2026-10-13 · 후속 갱신 2026-10-14 · 상위: [전체 계획](K-DOG_Gemini주키예비키적용계획_v1.0_20261013.md)
 
 ## 공식 API·의존성 확인
 
@@ -60,7 +60,38 @@ PyPI JSON과 npm 공식 registry의 최신 안정판 및 runtime/peer를 직접 
 
 수용 수정 commit `1573fdb`를 reviewer가 재검토하여 두 발견의 해결과 새 actionable defect0을 확인했다. 합성 재현에서 외부 요청0, 환경 주키 복원 차단/clean/명시 재등록 및 OpenAI 환경 정책 유지를 확인했다. 초기 구현 `be3df63`, 원자 폐기·읽기 회귀 `8b315cb`, 수용 수정 `1573fdb`. 문서 상대 링크/공백 검사 및 Graft wiring freshness 통과. PR/병합은 아래에 이어 기록한다.
 
-GK01: [PR #95](https://github.com/syleeVeluga/k-dog-proj/pull/95). 원격 check rollup은 비어 있으며 위 로컬 검증/독립 검토를 근거로 병합한다. 실제 merge SHA는 후속 PR 착수 기록에 확정한다.
+GK01: [PR #95](https://github.com/syleeVeluga/k-dog-proj/pull/95), main 병합 `7fad053af2c6bffd9f64a1362c94d776dd339b9b`. 원격 check rollup은 비어 있었으며 위 로컬 검증/독립 검토를 근거로 병합했다. GK02는 이 merge에서 새 브랜치로 착수했다.
+
+## GK02 자동 전환 실행
+
+기반 GK01 병합 `7fad053` · 브랜치 `veluga/gk02-gemini-key-fallback`. 같은 잠금 의존성을 유지한다. 공식 [legacy Gemini 오류 형식](https://ai.google.dev/gemini-api/docs/generate-content/api-errors?hl=en)의 `google.rpc.ErrorInfo`/`googleapis.com`/`API_KEY_INVALID` 형식을 추가 확인했다. Interactions snake_case 코드와 HTTP 상태를 보존하고 임의 provider message는 저장하지 않는다. 일반 400·404·409·416·501, JSON/schema·media·guard·cleanup-only는 전환 대상이 아니다.
+
+실제 GeminiScorerV4 호출 세 곳은 `Worker.gemini_request`로 예약/선택을 함께 수행한다. 실제 슬롯 선택과 fallback 요청은 현재 run의 changes에 기록하고 write fence에서 현재 actor/점유/상한을 확인한다. 주키의 로컬 미가용은 첫 credential로 예비키를 선택한다. 외부 주키 실패는 현재 attempt를 실패 이력으로 남겨 별도 다음 attempt/예약으로 예비키를 사용한다. 다음 run은 주키부터 시작한다. Python fake observer의 기존 계약은 그대로 유지한다.
+
+주키 전환 대기의 Retry-After/backoff는 같은 run의 다른 미완료 provider 그룹도 기다리게 하며, 완료 그룹은 재호출하지 않는다. 매 attempt의 현재 슬롯 참조를 읽고 원문은 메모리에만 유지한다. 원격 업로드/정리는 같은 슬롯/참조를 기록하고 예비키는 고정 local bytes/hash를 새로 업로드한다. 후속 정리는 현재 활성 두 슬롯 중 정확히 같은 참조만 사용한다. 이전 uncertain/cleanup_pending과 예약별 계량은 보존한다.
+
+업무 DTO/usage에는 원문/참조 없이 역할·전환 사유·대기/상한/미가용 상태를 제공한다. 재사용은 현재 선택 없이 `source_credential_slot`/`source_fallback_reason`로 옛 역할만 표시하고 예약/비용에 합산하지 않는다. 옛 산출물이나 snapshot/config를 재작성하지 않는다.
+
+검증: 기존 Gemini/settings/run 28개/43.172초, AI API·애착·문장·report API·reset·실행 actor 57개/123.893초 통과. GK01 슬롯·실제 네 경로/usage 21개/41.304초 통과. fallback 신규 고유13개와 기존 명시 재사용2개를 함께 15개/48.725초 통과했다. 최초 새 actor 비활성 시험은 정상403 조회 거절 뒤 상태를 조회하려던 시험 코드만 DB 확인으로 고쳤다. 실제 사업 접근 정책은 바꾸지 않았다. 신규 fake transport는 주키/예비키의 URI/키·local hash, 원격 cleanup, 새 예약/미확인 비용, 상한1/3, Worker 재생성·다음 run 주키·슬롯 회전·중지/비활성·schema/evidence·다운로드/명시 재사용 무호출을 검사한다. 통합 원관찰42그룹+애착은 주키 실패1+예비43=예약44를 확인했다.
+
+독립 cold review 및 발견별 triage/수용 수정·PR/병합은 완료 후 추가한다. 실제 공급자 호출0, 전환/정산/모델 품질 인수는 별도 대기다.
+
+2026-10-14 후속: 전환 대기 중 입력 revision·source hash·actor 변경의 예비 요청0, 늦은 backup lease/token 변경의 게시0, max_attempts2의 두 슬롯 공유 상한을 추가 검증했다(3개/4.579초). 신규 fallback 시험은 최종 고유16개다. 예비키 미가용의 인증 오류는 주키 동일 오류를 반복하지 않고, 예비키가 없는 운영의 일시 장애는 기존 retryable 정책과 같은 상한을 유지한다.
+
+독립 reviewer `gk02_cold_review`는 `7fad053` 이후 구현을 읽기 전용 검토하여 actionable defect0을 확인했다. 수용/보류/거절 발견0이며 독립 재검증 신규13개/43.755초 통과, 실제 공급자 요청0이다. 분류/작업 단계·전환 원장·재시작·backoff·공유 상한·현재 actor/회차/lease/token·네 호출 경로·업로드/정리·원문 미노출·재사용/계량을 검토했다. 추가 3개는 작성자 검증으로 구분한다. Graft wiring freshness와 git diff check 통과.
+
+| 인수 | 실제 근거 |
+| --- | --- |
+| GK-T07 | 주키 제거/파일 유실/DPAPI 실패 → 첫 예비 credential·주키 요청0, 두 슬롯 미가용 요청0 |
+| GK-T08~09 | HTTP/기계 판독 code/phase 표와 실제 HTTPError 정규화·임의 message 미보관, cleanup 전환0 |
+| GK-T10 | 실제 scoring·integrated attachment·standalone attachment·narrative Worker+REST 경로 전환 |
+| GK-T11 | max_attempts1/2/3·max_ai_calls1·예약별 usage·Retry-After/backoff 대기·기존 schema repair cap 회귀 |
+| GK-T12 | Worker 재생성/같은 run 남은 단계 backup·새 run primary·backup 실패3회 상한·슬롯 회전·왕복0 |
+| GK-T13 | 대기 중 input/hash/actor 변경 요청0·중지 후 요청0·late actor/lease/token 변경 게시0·기존 guard 회귀 |
+| GK-T14~15 | local hash 같음·프로젝트 URI/키 분리·각 upload/delete 같은 참조·backup 정확 정리·retired 참조 대기 유지 |
+| GK-T16 | primary uncertain/cleanup_pending + backup 성공 계량 보존·성공 단계 무재호출·기존 bytes 불변·명시 재사용 무호출/중복 계수0 |
+
+GK02: 구현 `aa1be57`, [PR #96](https://github.com/syleeVeluga/k-dog-proj/pull/96). 원격 check rollup은 비어 있으며 위 로컬 검증/독립 검토를 근거로 병합한다. 실제 merge SHA는 GK03 착수 기록에 확정한다.
 
 | 요구 시험 | 실제 근거 |
 | --- | --- |

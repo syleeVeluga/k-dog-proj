@@ -97,6 +97,19 @@ def credential(store, provider, slot="primary"):
     return _credential(None, None, provider, slot)
 
 
+def credential_for_reference(store, reference):
+    from app.gemini import ProviderError
+    with store.connect(write=True) as db:
+        for slot in ("primary", "backup"):
+            try:
+                value, current = _credential(store, db, "gemini", slot)
+            except ProviderError:
+                continue
+            if current == reference:
+                return value, current
+    raise ProviderError("developer_settings_required")
+
+
 def available(store, provider):
     saved = state(store, provider)
     if saved:

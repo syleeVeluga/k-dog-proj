@@ -14,15 +14,20 @@ class GeminiScorerV4:
         self.store = store
         self.transport = transport
 
-    def request_v4(self, files, config, context, schema, guard):
-        key, reference = credential(self.store, "gemini")
+    def request_v4(self, files, config, context, schema, guard, *, selected=None):
+        if selected is None:
+            key, reference = credential(self.store, "gemini")
+            metadata = {"credential_slot": "primary", "credential_reference": reference}
+        else:
+            key, metadata = selected
+            reference = metadata["credential_reference"]
         names = []
-        usage = {"provider": "gemini", "credential_reference": reference, "model": config["model"],
+        usage = {**metadata, "provider": "gemini", "model": config["model"],
                  "timing": {name: 0.0 for name in ("upload_seconds", "processing_seconds", "inference_seconds", "cleanup_seconds")}}
 
         def audit(action, value):
             with self.store.connect(write=True) as db:
-                self.store.audit(db, context["audit_actor"], context["run_id"], action, value)
+                self.store.audit(db, context["audit_actor"], context["run_id"], action, {**metadata, **value})
 
         def timed(name, function):
             started = time.monotonic()
@@ -37,6 +42,7 @@ class GeminiScorerV4:
                 if clip.size_bytes > 2_000_000_000:
                     raise ProviderError("v4_file_size_limit")
                 guard()
+                usage["operation_phase"] = "upload"
                 upload_id = uid()
                 audit("remote.upload_started", {"upload_id": upload_id, "credential_reference": reference})
                 _, headers = timed("upload_seconds", lambda: self.transport("POST", BASE + "/upload/v1beta/files", key,
@@ -58,6 +64,7 @@ class GeminiScorerV4:
                 names.append((name, upload_id))
                 audit("remote.uploaded", {"upload_id": upload_id, "remote_file_name": name, "credential_reference": reference})
                 started = time.monotonic()
+                usage["operation_phase"] = "processing"
                 try:
                     deadline = started + 300
                     while remote.get("state") == "PROCESSING":
@@ -78,6 +85,7 @@ class GeminiScorerV4:
                 inputs.extend(({"type": "text", "text": "다음 영상의 clip_id: " + clip.clip_id}, video))
             inputs.append({"type": "text", "text": json.dumps(context, ensure_ascii=False)})
             guard()
+            usage["operation_phase"] = "inference"
             result, _ = timed("inference_seconds", lambda: self.transport("POST", BASE + "/v1beta/interactions", key,
                 data=interaction_request(config["model"], config["prompt"], inputs, schema, config["max_output_tokens"],
                     thinking_level=config.get("thinking_level")), timeout=INTERACTION_TIMEOUT))

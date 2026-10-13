@@ -6,7 +6,6 @@ from .domain.contracts_v4 import ATTACHMENT_TYPES, OWNER_TYPES
 from .domain.report_narrative_v4 import NARRATIVE_VERSION, NarrativeAssessmentV4, NarrativeResponseV4
 from .domain.report_profile_v4 import ClaimV4, ReportSectionV4, ReportProfileV4
 from .gemini import ProviderError
-from .gemini_v4 import GeminiScorerV4
 from .storage import REPO_ROOT, encode
 
 ASSET = "report/content-20261007.json"
@@ -135,9 +134,7 @@ def request(worker, row, step, group, profile, guard):
             history = db.execute("SELECT usage_json FROM steps WHERE run_id=? AND stage='content_v4' AND attempt<? ORDER BY attempt DESC", (row["run_id"], step["attempt"])).fetchall()
         errors = next((json.loads(item[0])["contract_errors"] for item in history if json.loads(item[0]).get("contract_errors")), [])
         info["repair"] = repair_instruction(errors)
-    guard(); worker.reserve_call(row, step)
-    observer = worker.observer if hasattr(worker.observer, "request_v4") else GeminiScorerV4(worker.store)
-    raw, usage = observer.request_v4([], {"model": group.model, "prompt": group.prompt, "thinking_level": group.thinking_level, "max_output_tokens": group.max_output_tokens}, info, group.response_schema, guard)
+    raw, usage = worker.gemini_request(row, step, [], {"model": group.model, "prompt": group.prompt, "thinking_level": group.thinking_level, "max_output_tokens": group.max_output_tokens}, info, group.response_schema, guard)
     guard()
     try:
         assessment = normalize(profile, raw, group.model)
