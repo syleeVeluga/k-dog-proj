@@ -1,6 +1,6 @@
 # PR-GK04 Gemini 이중키 통합 인수와 운영
 
-버전: v1.0 · 작성 2026-10-13 · 착수 2026-10-14 · 상태: 구현·검증·독립 cold review·수용 수정 완료, 병합 대기 · 선행: GK03 #97 병합 `9cd4b93` · 브랜치: `veluga/gk04-gemini-fallback-acceptance`
+버전: v1.0 · 작성 2026-10-13 · 착수 2026-10-14 · 상태: 완료, [PR #98](https://github.com/syleeVeluga/k-dog-proj/pull/98) 병합 `43b3650` · 선행: GK03 #97 병합 `9cd4b93` · 브랜치: `veluga/gk04-gemini-fallback-acceptance`
 
 상위: [전체 계획](K-DOG_Gemini주키예비키적용계획_v1.0_20261013.md). 요구 GK-R12 및 GK-R01~R11 종단 회귀, 시험 GK-T20 및 GK-T01~T19 회귀. 제목 제안: `test: verify Gemini key fallback and document operations`.
 
@@ -66,5 +66,5 @@ backend/.venv/Scripts/python.exe -X utf8 scripts/verify_release.py releases/kdog
 - [x] 전체 backend·frontend build/E2E의 성공/실패/skip과 재검증 사유 기록
 - [x] 백업/복원·원문/두 ciphertext 제외·재등록·정확한 원격 cleanup 인수
 - [x] portable/online ZIP hash·설치/재시작·실제 Windows/HTTPS 검증 범위 기록
-- [ ] 운영 안내·공식 버전/API 근거·commit/PR/merge·독립 검토/triage·수용 수정 근거
+- [x] 운영 안내·공식 버전/API 근거·commit/PR/merge·독립 검토/triage·수용 수정 근거
 - [x] 실제 공급자·품질/교수/현장 실측의 완료/대기 상태를 항목별로 인계
