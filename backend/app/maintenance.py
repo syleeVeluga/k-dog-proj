@@ -242,5 +242,9 @@ def restore(store, source, destination):
                     raise HTTPException(409, "복원 DB 무결성 검사에 실패했습니다.")
                 db.execute("UPDATE users SET session_hash=NULL,session_expires=NULL")
                 references(restored, db)
+            # Preserve the snapshot DB; block environment-only Gemini keys in the restored store too.
+            marker = restored.path("secrets/gemini-registration-required")
+            marker.parent.mkdir(exist_ok=True)
+            marker.write_text("Gemini key registration required after restore.\n", encoding="utf-8")
             staged.rename(destination)
         return {"path": str(destination), "message": "백업 snapshot 복원 완료. 개발자가 새 PC의 키를 다시 등록하세요."}

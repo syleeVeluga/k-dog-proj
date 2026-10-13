@@ -24,5 +24,5 @@ class GeminiSlotState(Model):
     reference: str | None
     source: Literal["vault", "environment", "none"]
     available: bool
-    unavailable_reason: Literal["unregistered", "removed", "file_unavailable", "decrypt_failed"] | None
+    unavailable_reason: Literal["unregistered", "removed", "file_unavailable", "decrypt_failed", "restore_required"] | None
     last_test: KeyTest | None

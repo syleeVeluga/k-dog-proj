@@ -226,3 +226,44 @@ class GeminiKeySlotTests(AppCase):
         self.put("backup", "synthetic-backup")
         self.client.delete("/api/developer/keys/gemini")
         self.assertEqual(secrets.credential(self.store, "openai")[0], "synthetic-openai")
+
+    def test_failed_local_connection_test_replaces_success_for_current_reference(self):
+        backup = self.put("backup", "synthetic-backup").json()
+        for decrypt_failure in (True, False):
+            with patch("app.gemini.request", return_value=({}, {})):
+                self.client.post("/api/developer/keys/gemini/slots/backup/test")
+            if not decrypt_failure:
+                self.store.path(f"secrets/{backup['reference']}.bin").unlink()
+            with patch("app.gemini.request") as request:
+                if decrypt_failure:
+                    with patch("app.secrets.protect", side_effect=HTTPException(409, "synthetic DPAPI failure")):
+                        response = self.client.post("/api/developer/keys/gemini/slots/backup/test")
+                else:
+                    response = self.client.post("/api/developer/keys/gemini/slots/backup/test")
+                request.assert_not_called()
+            self.assertEqual(response.json()["reference"], backup["reference"])
+            self.assertEqual(response.json()["status"], "developer_settings_required")
+            self.assertEqual(self.slots()["backup"]["last_test"], response.json())
+
+    def test_environment_only_restore_requires_registration_and_preserves_snapshot_audits(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            maintenance.backup(self.store, root / "backup", "developer")
+            with self.store.connect() as db:
+                original = db.execute("SELECT COUNT(*) FROM changes WHERE action='secret.change'").fetchone()[0]
+            maintenance.restore(self.store, root / "backup", root / "restored")
+            restored = Store(root / "restored")
+            self.assertFalse(secrets.available(restored, "gemini"))
+            primary, backup = secrets.slot_states(restored)
+            self.assertEqual((primary["source"], primary["reference"], primary["unavailable_reason"]),
+                             ("none", None, "restore_required"))
+            self.assertFalse(backup["available"])
+            with restored.connect() as db:
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='secret.change'").fetchone()[0], original)
+            with self.assertRaises(ProviderError):
+                secrets.credential(restored, "gemini")
+            maintenance.clean(restored)
+            self.assertFalse(secrets.available(restored, "gemini"))
+            key = secrets.change(restored, "gemini", "synthetic-reregistered", "developer",
+                                 expected_reference=None, check_reference=True)
+            self.assertEqual(secrets.credential(restored, "gemini")[1], key["reference"])

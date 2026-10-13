@@ -29,6 +29,8 @@ PyPI JSON과 npm 공식 registry의 최신 안정판 및 runtime/peer를 직접 
 
 선택판 registry도 재확인했다. FastAPI 0.141.1은 Pydantic >=2.9.0, Pydantic 2.13.5는 pydantic-core 2.46.5를 요구하며 기존 lockfile 조합을 유지한다. React DOM 19.2.8의 React ^19.2.8과 DOM types 19.2.7의 React types ^19.2.0 요구에 현재 잠금판이 맞는다. API는 기존 response_model/SecretStr/REST만 사용하며 새 minor의 기능을 요구하지 않는다.
 
+기존 회귀에서 사용하는 [HTTPX API](https://www.python-httpx.org/api/)/[releases](https://github.com/encode/httpx/releases), [OpenPyXL changes](https://openpyxl.readthedocs.io/en/stable/changes.html), [ReportLab releases](https://docs.reportlab.com/releases/), [Pillow releases](https://pillow.readthedocs.io/en/stable/releasenotes/index.html), [Cryptography changelog](https://cryptography.io/en/latest/changelog/), [PyPDF changelog](https://pypdf.readthedocs.io/en/stable/meta/CHANGELOG.html)도 조회했다. OpenPyXL changelog 페이지는 3.1.3을 표기하므로 최신 안정판은 registry 3.1.5로 구분했다. Cryptography 문서의 개발판 51은 안정판으로 선택하지 않았다. HTTPX의 /changelog/ 조회 실패는 공식 GitHub releases로 보완했다. 이들 기존 데이터/출력 API는 변경하지 않는다.
+
 [Gemini Interactions errors](https://ai.google.dev/gemini-api/docs/api-errors), [troubleshooting](https://ai.google.dev/gemini-api/docs/troubleshooting), [Files API](https://ai.google.dev/gemini-api/docs/files)를 확인했다. HTTP/정규 code와 로컬 credential 원인을 분리하고 provider message는 저장하지 않는다. 기존 REST와 Windows DPAPI를 사용하며 SDK 재시도를 도입하지 않는다.
 
 ## GK01 이중키 저장·API
@@ -44,6 +46,17 @@ PyPI JSON과 npm 공식 registry의 최신 안정판 및 runtime/peer를 직접 
 분리 검토 단계에서 기존 `secret.test` JSON에 slot/시각이 없는 경우 typed 응답이 실패할 수 있음을 발견해 수용했다. 감사 `happened_at`과 primary 기본값으로 읽고 현재 reference의 최신 시험을 조회하도록 수정했다. 늦은 retired 시험이 새 reference의 시험을 가리지 않도록 회귀를 추가했다. 수정 중 시험 코드 배치 오류 1건을 바로잡고 신규 10개/7.211초 통과. 독립 reviewer 및 최종 triage/PR/병합 기록은 완료 후 추가한다.
 
 추가로 전체 폐기 도중 두 번째 감사 쓰기 실패 시 두 슬롯 모두 rollback되는 시험과 두 슬롯 회전 중 Worker credential 읽기 시험 2개/1.477초를 통과했다. 신규 슬롯 시험은 고유 12개다. 로컬 구현 commit `be3df63` 이후 이 두 시험과 문서 앵커 보완을 추가했다. 백엔드 전체 회귀는 실행 중이며 독립 검토 전 원격 PR/병합은 수행하지 않는다.
+
+이후 전체 backend 759개/929.968초 결과는 756 통과·2 skip·1 실패였다. 실패는 기존 `tests.test_retirement_v4`의 keys-only 응답 기대였으며 `keys`+`gemini_slots` 확장 계약으로 수정했다. skip 2개는 고객 역사 원본 부재이고 통과로 합산하지 않는다. GK01 수용 수정 후 settings·key slots·retirement·deletion restore 26개/19.221초 통과. 신규 슬롯 시험은 최종 고유 14개다. 전체 회귀를 수용 수정 뒤 다시 성공했다고 표시하지 않으며 GK04에서 최종 전체 회귀를 수행한다.
+
+사용자의 별도 검토 에이전트 허용 후 독립 reviewer `gk01_cold_review`가 `ba8508f..8b315cb`와 관련 계약을 읽기 전용 검토했다. 발견 2건 모두 수용, 보류/거절0이다.
+
+| 발견 | 수용 수정·검증 |
+| --- | --- |
+| CR-GK01-01 / P2: 복호화/파일 읽기 실패 시험이 unavailable 참조에 저장되어 현재 참조의 옛 연결 성공이 남음 | credential 복호화 전에 같은 write fence에서 현재 등록 reference를 고정한다. DPAPI 실패/파일 유실은 당시 reference의 실패 시험으로 갱신하고 외부 요청0을 검증했다 |
+| CR-GK01-02 / 계약 인수 공백: vault 등록 이력이 없는 환경 주키 snapshot의 복원 뒤 환경 키가 바로 사용됨 | 복원 staging에 Gemini 재등록 marker를 저장하고 환경 주키 fallback을 막는다. snapshot DB/감사 원장은 바꾸지 않는다. source none/reference null/restore_required, clean 후 유지, 명시 슬롯 등록 후 사용을 검증했다. 다른 공급자 환경 정책은 유지한다 |
+
+복원 marker는 키 원문/참조가 없는 로컬 운영 경계다. 키와 함께 백업에서 제외하며 복원할 때 새 staging에 만든다. 등록 이력이 있는 슬롯은 기존 file_unavailable/removed 경계를 사용한다. 실패한 retired ciphertext 정리는 다음 키 변경에서 재시도할 수 있으며 기존 offline clean이 secrets를 지운다고 표시하지 않는다.
 
 | 요구 시험 | 실제 근거 |
 | --- | --- |

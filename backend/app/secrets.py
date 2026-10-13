@@ -57,6 +57,10 @@ def _developer(db, actor):
         raise HTTPException(403, "활성 개발자 계정만 키를 관리할 수 있습니다.")
 
 
+def _registration_required(store):
+    return store is not None and store.path("secrets/gemini-registration-required").exists()
+
+
 def state(store, provider, slot="primary"):
     with store.connect() as db:
         return _state(db, target(provider, slot))
@@ -76,9 +80,12 @@ def _credential(store, db, provider, slot):
             except (ValueError, HTTPException):
                 reason = "decrypt_failed"
     elif slot == "primary":
-        value = os.environ.get(PROVIDERS.get(provider, ""), "")
-        if value:
-            return value, "environment"
+        if provider == "gemini" and _registration_required(store):
+            reason = "restore_required"
+        else:
+            value = os.environ.get(PROVIDERS.get(provider, ""), "")
+            if value:
+                return value, "environment"
     raise ProviderError("developer_settings_required", credential_reason=reason)
 
 
@@ -94,14 +101,14 @@ def available(store, provider):
     saved = state(store, provider)
     if saved:
         return saved["available"] and store.path(f"secrets/{saved['reference']}.bin").is_file()
-    return bool(os.environ.get(PROVIDERS.get(provider, ""), ""))
+    return bool(os.environ.get(PROVIDERS.get(provider, ""), "")) and not (provider == "gemini" and _registration_required(store))
 
 
 def _slot_state(store, db, slot):
     from app.gemini import ProviderError
     name = target("gemini", slot)
     saved = _state(db, name)
-    reference = saved["reference"] if saved else ("environment" if slot == "primary" and os.environ.get("GEMINI_API_KEY") else None)
+    reference = saved["reference"] if saved else ("environment" if slot == "primary" and os.environ.get("GEMINI_API_KEY") and not _registration_required(store) else None)
     source = "vault" if saved else "environment" if reference else "none"
     reason = None
     try:
@@ -164,7 +171,7 @@ def change(store, provider, value, actor, *, slot="primary", expected_reference=
                 try:
                     path.unlink(missing_ok=True)
                 except OSError:
-                    pass  # Revoked metadata remains authoritative; offline clean can remove retired bytes.
+                    pass  # Revoked metadata remains authoritative; a later key change retries cleanup.
     return result or {"provider": provider, "reference": reference, "available": value is not None}
 
 
@@ -174,6 +181,9 @@ def connection_test(store, provider, actor, slot="primary"):
     try:
         with store.connect(write=True) as db:
             _developer(db, actor)
+            saved = _state(db, target(provider, slot))
+            if saved:
+                reference = saved["reference"]
             key, reference = _credential(store, db, provider, slot)
         url = {"gemini": BASE + "/v1beta/models?pageSize=1", "openai": "https://api.openai.com/v1/models",
                "anthropic": "https://api.anthropic.com/v1/models?limit=1"}[provider]
