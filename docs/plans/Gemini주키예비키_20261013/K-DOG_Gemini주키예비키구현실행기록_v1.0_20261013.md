@@ -60,6 +60,8 @@ PyPI JSON과 npm 공식 registry의 최신 안정판 및 runtime/peer를 직접 
 
 수용 수정 commit `1573fdb`를 reviewer가 재검토하여 두 발견의 해결과 새 actionable defect0을 확인했다. 합성 재현에서 외부 요청0, 환경 주키 복원 차단/clean/명시 재등록 및 OpenAI 환경 정책 유지를 확인했다. 초기 구현 `be3df63`, 원자 폐기·읽기 회귀 `8b315cb`, 수용 수정 `1573fdb`. 문서 상대 링크/공백 검사 및 Graft wiring freshness 통과. PR/병합은 아래에 이어 기록한다.
 
+GK01: [PR #95](https://github.com/syleeVeluga/k-dog-proj/pull/95). 원격 check rollup은 비어 있으며 위 로컬 검증/독립 검토를 근거로 병합한다. 실제 merge SHA는 후속 PR 착수 기록에 확정한다.
+
 | 요구 시험 | 실제 근거 |
 | --- | --- |
 | GK-T01 | legacy primary/reference/ciphertext 불변·environment primary·backup none |
