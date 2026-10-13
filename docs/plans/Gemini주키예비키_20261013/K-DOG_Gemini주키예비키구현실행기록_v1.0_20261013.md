@@ -91,7 +91,7 @@ GK01: [PR #95](https://github.com/syleeVeluga/k-dog-proj/pull/95), main 병합 `
 | GK-T14~15 | local hash 같음·프로젝트 URI/키 분리·각 upload/delete 같은 참조·backup 정확 정리·retired 참조 대기 유지 |
 | GK-T16 | primary uncertain/cleanup_pending + backup 성공 계량 보존·성공 단계 무재호출·기존 bytes 불변·명시 재사용 무호출/중복 계수0 |
 
-GK02: 구현 `aa1be57`, [PR #96](https://github.com/syleeVeluga/k-dog-proj/pull/96). 원격 check rollup은 비어 있으며 위 로컬 검증/독립 검토를 근거로 병합한다. 실제 merge SHA는 GK03 착수 기록에 확정한다.
+GK02: 구현 `aa1be57`, [PR #96](https://github.com/syleeVeluga/k-dog-proj/pull/96). 원격 check rollup은 비어 있었으며 위 로컬 검증/독립 검토를 근거로 main에 병합했다. merge `ad857d1cadce2929ef791e110569eb4227169a2c`. GK03는 이 merge에서 착수했다.
 
 | 요구 시험 | 실제 근거 |
 | --- | --- |
@@ -103,3 +103,27 @@ GK02: 구현 `aa1be57`, [PR #96](https://github.com/syleeVeluga/k-dog-proj/pull/
 | GK-T06 | 선택 슬롯만 요청·실패 fallback0·slot/reference/시각 고정·교체 후 옛 시험 비승계·역사/늦은 시험 조회 호환 |
 
 실제 운영 키 조회·실공급자 호출·참가자 영상 사용·운영 DB 변경·고객 배포는 수행하지 않았다.
+
+## GK03 키 관리와 실행 표시
+
+기반 GK02 병합 `ad857d1` · 브랜치 `veluga/gk03-gemini-key-ui` · 구현/검증 2026-10-14. React/DOM·TypeScript·Vite·Playwright Test·types의 공식 registry 최신 안정판과 선택 잠금판을 재확인했고 위 표와 동일하다. 기존 API와 peer 조합을 유지하며 의존성을 추가/갱신하지 않았다. Native 화면 검증은 [Python Playwright PyPI](https://pypi.org/project/playwright/) 최신/선택 1.63.0, Python >=3.10과 [release notes](https://playwright.dev/python/docs/release-notes), [Page API](https://playwright.dev/python/docs/api/class-page)를 확인한 기존 별도 runtime으로 실행했다.
+
+개발자 Gemini 두 카드에 현재 참조의 상태·시험 시각, 독립 등록/시험/제거와 전체 사용 중지를 추가했다. 제출 직후 DOM 입력을 비우고 원문 초안을 상태/브라우저 저장소에 보존하지 않는다. 409는 최신 조회 뒤 재입력을 요구하며 자동 재전송하지 않는다. 늦은 시험은 교체 전 키로 안내한다. 미등록 시험의 unavailable sentinel은 null 참조와 대응시켜 개발자 설정 필요로 표시한다. 환경 주키·복원 재등록·같은 프로젝트 할당량·모델 목록 연결 시험·진행 중 실행과 콘솔 취소의 구분을 설명한다. OpenAI/Anthropic 관리 계약은 유지한다.
+
+공통 `GeminiExecution`은 채점·독립 애착·리포트의 실제 run/attempt 역할과 전환 원인·대기·미가용·상한을 표시한다. 전환 예정과 실제 예비 사용, 재사용 출처와 현재 선택을 구분하고 역할 없는 옛 원장은 기록 없음으로 표시한다. 내부 key reference/원문은 업무 DTO/화면에 추가하지 않았다. 기존 과금 미확인/원격 정리 미완료와 호출 예약/비용 표시를 유지한다.
+
+합성 browser_server만 사용하는 fixture route에서 실제 Worker+GeminiScorer+fake REST를 조립했다. 생산 API에는 경로를 추가하지 않는다. fixture는 disposable 저장소의 기존 계정/로그인을 보존하며 합성 영상·독립 시트·의견·고정 최종본·실제 HTML/PDF까지 생성한다. 주키 실패1+예비43=채점44예약, 새 독립 애착/문장 run은 각각 주키부터 시작해 예비 성공2예약을 확인했다. 실제 공급자 요청0이다.
+
+검증: frontend build 통과(기존 chunk 크기 안내 유지), settings/retirement/scoring/키 전환/문맥 관련 E2E 8개/54.8초 통과. 최종 미등록 시험 안내 수정 후 settings+키 전환3개/40.9초 통과. backend fixture/실제 경로19개/70.639초 통과. 기존 진행/상태/업무 접근/리포트 추가 회귀는 첫15개에서14통과·리포트 재사용 선택1실패였고, 해당 파일 단독3개/18.0초와 새 서버의 동일15개/58.5초 재검증은 모두 통과했다. repeat-each=3 시도는 동일 서버/고정 upload ID로 1회차3통과 뒤 나머지6개 fixture link422가 발생해 반복 검증 근거로 쓰지 않는다. 원인 없는 제품/시험 변경을 하지 않고 GK04 전체 회귀에서도 확인한다. 최초 종단 fixture 작성 시 route mount 순서·로그인 대기·필수 고정 opinion reference·메뉴 이름 오류는 시험 조립에서 바로잡았다.
+
+Native Python Playwright로 login→개발 설정→networkidle 이후 390px/1366px의 label·버튼·원문 없는 화면과 가로 넘침 없음(레이아웃 완료 대기)을 확인했다. [390px 합성 캡처](assets/GK03_Gemini_keys_390_20261014.png), [1366px 합성 캡처](assets/GK03_Gemini_keys_1366_20261014.png)를 실제 열어 검토했다. helper 종료 뒤 남은 tests.browser_server 프로세스는 command line으로 소유를 확인해 종료했고 포트 해제를 확인했다. 실제 키/참가자 자료는 캡처/trace에 사용하지 않았다.
+
+독립 cold review 진행 중이다. 발견별 수용/보류/거절·수정 재검증과 commit/PR/병합은 완료 후 이어 기록한다.
+
+독립 reviewer `gk01_cold_review`가 `ad857d1` 이후 source/합성 fixture/두 슬롯 경합·입력 수명·공통 표시를 읽기 전용 검토했다. 발견1 수용, 보류/거절0: CR-GK03-01(P2)은 두 슬롯 로컬 미가용으로 공급자 요청0/selected_at null인 실패 step에 「주키 사용」을 표시하던 오류다. 선택 시각 없는 역할은 「선택 미완료」로 표시하며 실제 선택·전환 대기·재사용 출처 기록을 구분했다. reviewer는 실제 Worker로 실패 DTO를 재현했다.
+
+별도 인수 공백3건도 시험으로 보완했다: 키보드 Tab의 등록 버튼 focus와 미제출 입력의 메뉴 종료·로그아웃/재로그인·서버 세션 무효화 후 DOM 소멸, 옛 역할 없음/재사용 출처·현재 선택/시도·호출 상한/미가용 문구, 실제 완성된 독립 애착 DTO의 화면 역할·시도·과금 미확인 표시다. 최종 표시 경계의 결정론적 DTO와 애착 POST 응답 intercept는 실제 Worker 인수에 보조하는 UI 근거로 구분한다. 추가 시험 최초 실행은 메뉴 label 오기와 불완전 mock의 token_meters 누락으로 실패하여 시험 조립만 수정했다. 수용 수정 이후 build 통과; 최종 E2E와 reviewer 재검토 결과는 이어 기록한다.
+
+수용 수정/인수 보완 후 최종 settings+키 전환 E2E 3개/45.2초 통과. reviewer 재검토는 CR-GK03-01 해결과 추가 assertion의 범위를 확인하고 새 actionable defect0을 기록했다. 최종 E2E 실행은 작성자 검증으로 구분한다. 상대 링크29개와 공백 검사 통과, wiring graph 동기화 확인. GK04에 실제 Worker 종단 fixture와 화면/API 회귀, 백업/복원·패키지 검증을 인계한다.
+
+GK03: 구현/수용 수정 commit `f61a0a6`, [PR #97](https://github.com/syleeVeluga/k-dog-proj/pull/97). 로컬 검증·독립 검토를 근거로 병합하며 실제 merge SHA는 GK04 착수 기록에서 확정한다.

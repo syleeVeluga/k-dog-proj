@@ -1,6 +1,6 @@
 # PR-GK02 Gemini 예비키 자동 전환
 
-버전: v1.0 · 작성 2026-10-13 · 구현/검토 2026-10-14 · 상태: 구현·검증·독립 검토 완료, PR 병합 대기 · 선행: GK01 #95 병합 `7fad053` · 브랜치: `veluga/gk02-gemini-key-fallback`
+버전: v1.0 · 작성 2026-10-13 · 구현/검토 2026-10-14 · 상태: 완료, [PR #96](https://github.com/syleeVeluga/k-dog-proj/pull/96) 병합 `ad857d1` · 선행: GK01 #95 병합 `7fad053` · 브랜치: `veluga/gk02-gemini-key-fallback`
 
 상위: [전체 계획](K-DOG_Gemini주키예비키적용계획_v1.0_20261013.md). 요구 GK-R04~R09, 시험 GK-T07~T16. 제목 제안: `feat: fail over Gemini execution to the backup key`.
 
@@ -71,7 +71,7 @@ GK03에 두 슬롯 관리 API와 실행별 키 역할·전환 원인·상한/대
 - [x] 모든 Gemini 경로에서 GK-T07~T16 및 GK01 회귀 통과
 - [x] 원격 파일/정리·usage·옛 불변 파일/재사용·현재 actor/guard 증거
 - [x] 공식 오류 형식/최신·선택 잠금판 확인, 독립 검토/triage·수용 재검증
-- [ ] commit/PR/병합·GK03 DTO/화면 인계, 실공급자 검증 별도 대기 기록
+- [x] commit/PR/병합·GK03 DTO/화면 인계, 실공급자 검증 별도 대기 기록
 
 ## 6 2026-10-14 구현 기록
 

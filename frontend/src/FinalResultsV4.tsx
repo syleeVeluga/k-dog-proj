@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { accessLost, api } from './api';
+import { GeminiExecution } from './GeminiExecution';
 import { mayLeave, useEditBase } from './Editing';
 import type { Case } from './types';
 import type { AttachmentRunV4 } from './attachmentTypesV4';
@@ -102,6 +103,8 @@ export function FinalResultsV4({ item, sheets }: { item: Case; sheets: SheetSumm
         <button disabled={!selectedBasic || !metadata?.reference || !!metadata.basic && !sameBasic(metadata.basic, selectedBasic) || !!attachmentRun && ['queued', 'running', 'retry_wait'].includes(attachmentRun.status)} onClick={() => void work(startAttachment)}>완료 애착 의견을 AI로 해석</button>
         {attachmentRequest.current && !attachmentRun && <p role="status">응답 확인이 필요한 요청입니다. 같은 입력으로 다시 누르면 동일 요청 ID를 사용합니다.</p>}
         {attachmentRun && <><p>해석 실행 {attachmentRun.status} · 예약 호출 {attachmentRun.reserved_calls}회 · {attachmentRun.reference ? '이 해석 판본을 새 최종본에 연결합니다.' : '원채점 재호출 없이 처리 중이거나 보류·실패했습니다.'}</p>
+          <GeminiExecution value={attachmentRun} />
+          {!!attachmentRun.steps?.length && <details><summary>애착 해석 키 사용·시도 기록</summary>{attachmentRun.steps.map(step => <div key={step.attempt}><p>{step.attempt}차 · {step.status}</p><GeminiExecution value={step} />{step.billing_uncertain && <p>과금 여부 미확인</p>}{step.remote_cleanup_pending && <p>공급자 임시 파일 정리 미완료</p>}</div>)}</details>}
           <button onClick={() => void work(async () => { const scope = context.current; const value = await api<AttachmentRunV4>(path + `/opinions-s1/attachment-runs/${attachmentRun.run_id}`); if (alive.current && scope === context.current) setAttachmentRun(value); })}>애착 해석 상태 새로고침</button>
           {['queued', 'running', 'retry_wait'].includes(attachmentRun.status) && <button onClick={() => void work(async () => { const scope = context.current; const value = await api<AttachmentRunV4>(path + `/opinions-s1/attachment-runs/${attachmentRun.run_id}/stop`, 'POST', { expected_updated_at: attachmentRun.updated_at, reason: '사용자 명시 중지' }); if (alive.current && scope === context.current) setAttachmentRun(value); })}>애착 해석 중지</button>}</>}
       </section>}

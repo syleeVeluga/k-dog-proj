@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiError, accessLost } from './api';
+import { GeminiExecution } from './GeminiExecution';
 import type { Case, User } from './types';
 import type { PreprocessStatusV4 } from './preprocessTypesV4';
 import type { AiBasicResultV4, AiReadinessV4, AiRunV4, AiStartV4 } from './aiTypesV4';
@@ -112,6 +113,7 @@ export function AiRunsV4({ item, user }: { item: Case; user: User }) {
   return <section className="panel" aria-label="AI 실행" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <h2>AI 분석</h2><p role="status">AI 초안: {control === '중지 요청 중' ? control : draft}</p>
     {selected && <section aria-label="현재 AI 분석 실행"><p>{selected.requested_by === user.username ? '내가 시작한 이번 실행' : `실행 직원: ${selected.requested_by}`} · 입력 {selected.input_revision}판</p>
+      <GeminiExecution value={selected} />
       {selected.outdated && <p className="warning">이전 입력 기준 실행입니다.</p>}{selected.settings_outdated && <p className="warning">현재 활성 설정과 다릅니다.</p>}
       {selected.progress.state_uncertain && <p>실행 상태 확인 필요 · 현재 단계를 확인할 수 없습니다. 상태를 다시 조회하세요.</p>}
       {selected.progress.current_stage && <p>현재 단계: {stages[selected.progress.current_stage]}</p>}
@@ -144,6 +146,7 @@ export function AiRunsV4({ item, user }: { item: Case; user: User }) {
       <button disabled={busy} onClick={() => select(run.run_id)}>이 실행 상태 보기</button>
       <h3>{states[run.status] ?? run.status}{run.outdated ? ' · 이전 입력 기준' : ''}</h3>
       <p>입력 {run.input_revision}판 · {new Date(run.updated_at).toLocaleString()}</p>
+      <GeminiExecution value={run} />
       {run.judgement_status !== 'implemented_professor_test_pending' && <p>이전 애착 판단 정책으로 만든 실행입니다.</p>}
       {run.failure_code && <p role="status">실행 사유: {run.failure_code}</p>}
       {run.steps.some(step => step.billing_uncertain) && <p className="warning">응답 또는 정산이 확인되지 않은 예약 호출이 있습니다. 과금 여부 미확인 상태를 유지합니다.</p>}
@@ -152,7 +155,7 @@ export function AiRunsV4({ item, user }: { item: Case; user: User }) {
         {['failed', 'stopped', 'settings_required'].includes(run.status) && <button disabled={busy || !!pending || !verified || !reason.trim() || run.outdated} onClick={() => void work(() => api<AiRunV4>(`/runs-s1/${run.run_id}/retry`, 'POST', { expected_updated_at: run.updated_at, reason: reason.trim() }), '재시도 요청 중')}>고정 입력으로 AI 재시도</button>}</div>
       <details><summary>기술 정보 · 단계별 시간·호출·부분 실패</summary><p className="fine">실행 {run.run_id} · 기본 계획 {run.planned_provider_calls}회 · 예약 {run.reserved_calls}회 / 상한 {run.max_ai_calls}회</p><p className="fine">시간은 기록된 단계 값입니다. 수리와 전체 단계는 다른 시간 항목과 겹칠 수 있으므로 합산하지 않습니다. 빈 계량은 0으로 추정하지 않습니다.</p>
         <div className="table-wrap"><table><thead><tr><th>단계·항목군</th><th>시도·상태</th><th>시간</th><th>호출·계량</th></tr></thead><tbody>{run.steps.map((step, index) => <tr key={`${step.stage}:${step.key}:${step.attempt}:${index}`}>
-          <td>{stages[step.stage] ?? step.stage}<br />{step.key}</td><td>{step.attempt}차 · {states[step.status] ?? step.status}{step.code && <p>{step.code}</p>}{step.reused && <p>명시 재사용</p>}</td>
+          <td>{stages[step.stage] ?? step.stage}<br />{step.key}</td><td>{step.attempt}차 · {states[step.status] ?? step.status}{step.code && <p>{step.code}</p>}{step.reused && <p>명시 재사용</p>}{(step.call_reserved || step.reused || step.credential_slot || step.fallback_status) && <GeminiExecution value={step} reused={step.reused} />}</td>
           <td>{Object.keys(step.timing).length ? Object.entries(step.timing).map(([key, value]) => <p key={key}>{timers[key] ?? key}: {number(value)}초</p>) : '시간 미측정'}</td>
           <td>{step.call_reserved ? '호출 예약 있음' : '호출 예약 없음'}{step.billing_uncertain && <p>과금 여부 미확인</p>}{step.remote_cleanup_pending && <p>공급자 임시 파일 정리 미완료</p>}<p>입력 {number(step.input_tokens)} / 출력 {number(step.output_tokens)} / 합계 {number(step.total_tokens)} 토큰</p><p>비용 {step.cost_usd === null ? '미확인' : `$${step.cost_usd}`}</p>{Object.entries(step.token_meters).map(([key, value]) => <p key={key}>{key}: {value.toLocaleString()}</p>)}</td>
         </tr>)}</tbody></table></div>

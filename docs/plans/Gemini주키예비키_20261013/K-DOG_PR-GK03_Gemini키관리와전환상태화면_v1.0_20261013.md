@@ -1,6 +1,6 @@
 # PR-GK03 Gemini 키 관리와 전환 상태 화면
 
-버전: v1.0 · 2026-10-13 · 상태: 계획, 구현 미실행 · 선행: GK02 구현·검증·검토/수용 수정·병합 · 브랜치 제안: `veluga/gk03-gemini-key-ui`
+버전: v1.0 · 작성 2026-10-13 · 구현/검증 2026-10-14 · 상태: 구현·검증·독립 cold review·수용 수정 완료, 병합 대기 · 선행: GK02 #96 병합 `ad857d1` · 브랜치: `veluga/gk03-gemini-key-ui`
 
 상위: [전체 계획](K-DOG_Gemini주키예비키적용계획_v1.0_20261013.md). 요구 GK-R10~R11, 시험 GK-T17~T19. 제목 제안: `feat: manage Gemini backup keys and show fallback status`.
 
@@ -51,7 +51,9 @@ graft check
 
 ## 5 완료와 인계
 
-- [ ] GK-T17~T19·기존 developer/신판 AI 설정/업무 접근·문맥 회귀 통과
-- [ ] 두 폭의 합성 캡처·키 원문/브라우저 저장소 부재 증거
-- [ ] 공식 frontend 최신/선택 잠금판 확인, 독립 cold review·수용 수정/재검증
+실제 구현/검증과 실패·재검증 범위는 [실행 기록](K-DOG_Gemini주키예비키구현실행기록_v1.0_20261013.md#gk03-키-관리와-실행-표시)에 기록한다. 두 폭의 합성 화면: [390px](assets/GK03_Gemini_keys_390_20261014.png), [1366px](assets/GK03_Gemini_keys_1366_20261014.png).
+
+- [x] GK-T17~T19·기존 developer/신판 AI 설정/업무 접근·문맥 회귀 통과
+- [x] 두 폭의 합성 캡처·키 원문/브라우저 저장소 부재 증거
+- [x] 공식 frontend 최신/선택 잠금판 확인, 독립 cold review·수용 수정/재검증
 - [ ] commit/PR/병합과 GK04 종단 경로·시험 fixture/후속 인계

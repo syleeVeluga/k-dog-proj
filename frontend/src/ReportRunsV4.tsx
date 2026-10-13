@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { accessLost, api, ApiError } from './api';
+import { GeminiExecution } from './GeminiExecution';
 import type { Case, User } from './types';
 import type { FinalSummaryV4, FinalViewV4 } from './finalTypesV4';
 import type { ReportAccessV4, ReportPublicationV4, ReportRunV4 } from './reportTypesV4';
@@ -143,13 +144,14 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       <p>입력 {row.input_revision}판 · {new Date(row.updated_at).toLocaleString()}</p>
       <details><summary>기술 정보 · 고정 최종본</summary><p className="fine">{row.failure_code && <>실행 사유 코드 {row.failure_code}<br /></>}실행 {row.run_id}<br />고정 최종본 {row.final.final_id} · {row.final.hash}</p></details>
       {row.failure_code && <p role="status">리포트를 완성하지 못했습니다. 아래 「기술 정보」의 사유를 확인하고 필요하면 재시도하세요.</p>}
+      <GeminiExecution value={row} />
       {row.external_comparison_status === 'blocked' && <p role="status">외부 비교 제공 차단: {row.external_comparison_reason} · 당시 발급 이력과 파일은 보존됩니다.</p>}
       {row.pending_reasons.includes('G02') && <p className="fine">일부 문장은 준비 중이며 정상 발급에는 영향이 없습니다.</p>}
       <div className="toolbar">{active.has(row.status) && <button disabled={busy || !reason.trim()} onClick={() => void work(async () => { await api(`/report-runs-s1/${row.run_id}/stop`, 'POST', { expected_updated_at: row.updated_at, reason: reason.trim() }); })}>이 리포트 실행 중지</button>}
         {['failed', 'stopped'].includes(row.status) && <button disabled={busy || !reason.trim()} onClick={() => void work(async () => { await api(`/report-runs-s1/${row.run_id}/retry`, 'POST', { expected_updated_at: row.updated_at, reason: reason.trim() }); })}>고정 입력으로 리포트 재시도</button>}
         {row.normal_publish_available && <button disabled={busy} onClick={() => void work(() => openOutput(row))}>발급 요약·HTML·PDF 열기</button>}</div>
       <AccessLog path={path + `/report-runs-s1/${row.run_id}/access`} revision={`${row.updated_at}:${logTick}`} />
-      <details><summary>기술 정보 · 단계·시도·시간·재사용</summary><div className="table-wrap"><table><thead><tr><th>단계</th><th>시도·상태</th><th>시간·호출</th></tr></thead><tbody>{row.steps.map((step, index) => <tr key={index}><td>{stages[step.stage] ?? step.stage}</td><td>{step.attempt}차 · {states[step.status] ?? step.status}{step.reused && <p>명시 재사용</p>}{step.code && <p>{step.code}</p>}</td><td>{Object.entries(step.timing).map(([name, value]) => <p key={name}>{name}: {value.toFixed(2)}초</p>)}{!Object.keys(step.timing).length && '시간 미측정'}<p>공급자 호출 예약 {step.provider_calls}회</p>{step.billing_uncertain && <p>과금 여부 미확인</p>}{Object.entries(step.token_meters ?? {}).map(([name, value]) => <p key={name}>{name}: {value.toLocaleString()} 토큰</p>)}<p>비용 {step.cost_usd == null ? '미확인' : `$${step.cost_usd}`}</p></td></tr>)}</tbody></table></div></details>
+      <details><summary>기술 정보 · 단계·시도·시간·재사용</summary><div className="table-wrap"><table><thead><tr><th>단계</th><th>시도·상태</th><th>시간·호출</th></tr></thead><tbody>{row.steps.map((step, index) => <tr key={index}><td>{stages[step.stage] ?? step.stage}</td><td>{step.attempt}차 · {states[step.status] ?? step.status}{step.reused && <p>명시 재사용</p>}{step.code && <p>{step.code}</p>}{(step.provider_calls || step.reused || step.credential_slot || step.fallback_status) && <GeminiExecution value={step} reused={step.reused} />}</td><td>{Object.entries(step.timing).map(([name, value]) => <p key={name}>{name}: {value.toFixed(2)}초</p>)}{!Object.keys(step.timing).length && '시간 미측정'}<p>공급자 호출 예약 {step.provider_calls}회</p>{step.billing_uncertain && <p>과금 여부 미확인</p>}{step.remote_cleanup_pending && <p>공급자 임시 파일 정리 미완료</p>}{Object.entries(step.token_meters ?? {}).map(([name, value]) => <p key={name}>{name}: {value.toLocaleString()} 토큰</p>)}<p>비용 {step.cost_usd == null ? '미확인' : `$${step.cost_usd}`}</p></td></tr>)}</tbody></table></div></details>
     </article>)}
     {opened && <section className="panel" aria-label="리포트 발급본"><div className="section-title"><h3>{opened.header.dog_name} · 발급 결과</h3><button onClick={clearOutput}>발급본 닫기</button></div>
       <p>{new Date(opened.created_at).toLocaleString()} · {rows.find(value => value.run_id === opened.run_id)?.outdated ? '이전 입력·기준' : '고정 입력'}</p><details><summary>기술 정보</summary><p className="fine">입력 {opened.input_revision}판 · {opened.run_id}</p></details>
