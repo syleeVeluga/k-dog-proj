@@ -126,4 +126,4 @@ Native Python Playwright로 login→개발 설정→networkidle 이후 390px/136
 
 수용 수정/인수 보완 후 최종 settings+키 전환 E2E 3개/45.2초 통과. reviewer 재검토는 CR-GK03-01 해결과 추가 assertion의 범위를 확인하고 새 actionable defect0을 기록했다. 최종 E2E 실행은 작성자 검증으로 구분한다. 상대 링크29개와 공백 검사 통과, wiring graph 동기화 확인. GK04에 실제 Worker 종단 fixture와 화면/API 회귀, 백업/복원·패키지 검증을 인계한다.
 
-GK03: 구현/수용 수정 commit 61a0a6, [PR #97](https://github.com/syleeVeluga/k-dog-proj/pull/97). 로컬 검증·독립 검토를 근거로 병합하며 실제 merge SHA는 GK04 착수 기록에서 확정한다.
+GK03: 구현/수용 수정 commit `f61a0a6`, [PR #97](https://github.com/syleeVeluga/k-dog-proj/pull/97). 로컬 검증·독립 검토를 근거로 병합하며 실제 merge SHA는 GK04 착수 기록에서 확정한다.
