@@ -16,11 +16,12 @@ INTERACTION_TIMEOUT = 900
 
 
 class ProviderError(Exception):
-    def __init__(self, code: str, *, retryable=False, delay=0, uncertain=False, usage=None):
+    def __init__(self, code: str, *, retryable=False, delay=0, uncertain=False, usage=None, credential_reason=None):
         super().__init__(code)
         self.code, self.retryable, self.delay = code, retryable, delay
         self.uncertain = uncertain
         self.usage = usage if usage is not None else {}
+        self.credential_reason = credential_reason
 
 
 def interaction_request(model: str, prompt: str, inputs, schema: dict, max_output_tokens: int,

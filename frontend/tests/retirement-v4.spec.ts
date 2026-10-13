@@ -29,7 +29,7 @@ test('S1 imports use the pinned Forms workflow and old endpoints cannot save', a
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(page.getByRole('heading', { name: '공급자 키 관리', exact: true })).toBeVisible();
-  expect(Object.keys(await (await page.request.get('/api/developer/settings')).json())).toEqual(['keys']);
+  expect(Object.keys(await (await page.request.get('/api/developer/settings')).json())).toEqual(['keys', 'gemini_slots']);
   expect((await page.request.post('/api/developer/settings/drafts', { headers: { 'X-KDOG-Request': '1' }, data: {} })).status()).toBe(404);
   expect(errors).toEqual([]);
 });
