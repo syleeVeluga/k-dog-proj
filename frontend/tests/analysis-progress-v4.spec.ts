@@ -106,6 +106,7 @@ test('연구 내보내기는 리포트 하위 메뉴로 옮겨지고 독립 채�
   await login(page);
   await openMenu(page, '독립 채점');
   await page.getByRole('button', { name: 'X1 독립 채점 열기', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'AI 실행', exact: true })).toBeVisible();
   await expect(page.locator('main').getByText('연구 내보내기', { exact: true })).toHaveCount(0);
   await openMenu(page, '연구 내보내기');
   await expect(page).toHaveURL(/#\/report\/export$/);

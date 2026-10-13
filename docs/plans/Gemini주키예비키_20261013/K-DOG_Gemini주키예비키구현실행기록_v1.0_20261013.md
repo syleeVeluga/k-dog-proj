@@ -139,3 +139,14 @@ GK03: main 병합 `9cd4b932209eccbe17f5e960f40e7e3139398d31`. 원격 check rollu
 공식 최신/선택 runtime 추가 확인: [Python downloads](https://www.python.org/downloads/) 최신 안정3.15.0 / 3.14 계열3.14.8, 로컬 시험3.14.2·기존 portable pin3.14.8; [3.15 변경](https://docs.python.org/3.15/whatsnew/3.15.html) 검토 후 기존3.14 설치/ABI·runtime 해시 계약을 유지한다. [uv PyPI](https://pypi.org/project/uv/) / [0.13.0 release](https://github.com/astral-sh/uv/releases/tag/0.13.0) 최신0.13.0 / 로컬0.11.18, 기존 [locked CLI](https://docs.astral.sh/uv/reference/cli/)가 필요한 sync/export를 지원해 환경 도구를 갱신하지 않는다. [FFmpeg downloads](https://ffmpeg.org/download.html) / [CLI](https://ffmpeg.org/ffmpeg.html) 최신/portable9.0.2, 기존 build.json 해시와 대응 소스 계약을 유지한다. frontend/backend 잠금 의존성은 GK01/GK03 공식 registry/API 확인 결과를 재사용하며 신규 라이브러리/API가 없다.
 
 `uv sync --locked`, `npm ci`, frontend build 통과. npm audit에서 기존 Vite→PostCSS의 dev 의존 `source-map-js 1.2.1` high1건을 확인했다([GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q), 수정1.2.2). 외부 indexed source map을 처리할 때 event-loop DoS가 가능한 기존 개발 도구 경계다. 제품 frontend는 빌드된 static assets만 사용하며 이번 Gemini 기능에 의존성 upgrade를 섞지 않는다. 별도 개발 도구 잠금판 갱신 후속으로 남기고 audit clean으로 표시하지 않는다. 전체 회귀/ZIP 검증은 진행 중이다.
+
+깨끗한 구현 commit `4a1e6bbf514311766ba64d2432ec50b3401ea6e3`에서 두 ZIP을 만들고 verify_release를 통과했다. 기존 hash/wheel-only Python3.14.8+FFmpeg9.0.2 runtime, S1 assets/고지문을 유지한다. 계획/실행 MD7개와 합성 PNG2개가 모두 포함되고 tests·secrets·고객 원본이 제외됨을 ZIP inventory로 별도 확인했다. 검증 receipt는 ignored `releases/gk04-release-receipt.json`, 상세 로그는 저장소 밖 `%TEMP%/kdog-gk04-{portable,online}-20261014.log`다.
+
+| ZIP | SHA-256 | 실제 설치 검증 |
+| --- | --- | --- |
+| `releases/kdog-gk04-windows-x64.zip` · 75,929,185 bytes | `a01773148cadcd25c808188b80d89b7fe1075890b1ee1daa21e15d550c24b77f` | 현재 Windows 새 한글/공백 경로, PATH에서 uv/Python/FFmpeg 제외, 내장 runtime, 손상 거절·login/접수/재시작·감독 종료, 합성 발행 암호화/틀린 키·변조 거절/계정·바로가기·재설치 자료 보존 |
+| `releases/kdog-gk04-online-windows-x64.zip` · 3,099,584 bytes | `b4662629936d6dd4bcdbe3a1733da4cd3b0199ed0afe006ac60b3304cdbc4384` | 현재 Windows 새 한글/공백 경로/venv, PATH uv/FFmpeg 및 인터넷/캐시, 설치 전 안내/손상 시 venv 생성 전 거절·환경 override 격리·Python3.14/PATH FFmpeg·login/접수/Start.cmd 재시작·감독 종료 |
+
+두 검증에서 일반 업무의 developer settings403, developer 허용·공유 업무, 주키/예비키 두 슬롯의 available=false/reference=null을 확인했다. 외부 AI 호출0. 실제 깨끗한 OS/다른 PC3대/ARM·현장 업로드 시간의 대체 증거는 아니다. package 검증은 loopback HTTP이며 실제 조직 TLS proxy/인증서·원격 HTTPS 종단은 미실행이다. 기존 backend Host/Origin/Secure-cookie 회귀와 운영 HTTPS 설정 문서를 인계하며 TLS 실측 완료로 표시하지 않는다. 평가 카탈로그/규칙/고객 원본을 변경하지 않아 추가 source importer는 실행하지 않았다; 전체 회귀의 source-dependent skip은 실제 결과에 별도 기록한다.
+
+첫 전체 frontend E2E는134개 중132통과·2실패(11.1분)였다. 연구 내보내기 메뉴 시험은 참가자 열기 click 후 실제 AI 화면 응답을 기다리지 않고 다른 메뉴로 이동해 선택 문맥이 비어 있었다. 이 시험에 AI 실행 영역 확인을 추가해 요청 완료 후 이동하도록 했다. 다른 연구 export 시험의 socket hang up은 제품 수정 없이 새 서버에서 재검증했다. 해당 두 파일7개/33.1초 통과. 초기 전체 실패를 숨기지 않으며 최종 전체 E2E를 새 임시 서버에서 다시 수행한다. ZIP 제품 내용 변경은 없고 이 시험 대기만 보완했다.
