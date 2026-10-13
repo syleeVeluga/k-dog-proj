@@ -125,3 +125,5 @@ Native Python Playwright로 login→개발 설정→networkidle 이후 390px/136
 별도 인수 공백3건도 시험으로 보완했다: 키보드 Tab의 등록 버튼 focus와 미제출 입력의 메뉴 종료·로그아웃/재로그인·서버 세션 무효화 후 DOM 소멸, 옛 역할 없음/재사용 출처·현재 선택/시도·호출 상한/미가용 문구, 실제 완성된 독립 애착 DTO의 화면 역할·시도·과금 미확인 표시다. 최종 표시 경계의 결정론적 DTO와 애착 POST 응답 intercept는 실제 Worker 인수에 보조하는 UI 근거로 구분한다. 추가 시험 최초 실행은 메뉴 label 오기와 불완전 mock의 token_meters 누락으로 실패하여 시험 조립만 수정했다. 수용 수정 이후 build 통과; 최종 E2E와 reviewer 재검토 결과는 이어 기록한다.
 
 수용 수정/인수 보완 후 최종 settings+키 전환 E2E 3개/45.2초 통과. reviewer 재검토는 CR-GK03-01 해결과 추가 assertion의 범위를 확인하고 새 actionable defect0을 기록했다. 최종 E2E 실행은 작성자 검증으로 구분한다. 상대 링크29개와 공백 검사 통과, wiring graph 동기화 확인. GK04에 실제 Worker 종단 fixture와 화면/API 회귀, 백업/복원·패키지 검증을 인계한다.
+
+GK03: 구현/수용 수정 commit 61a0a6, [PR #97](https://github.com/syleeVeluga/k-dog-proj/pull/97). 로컬 검증·독립 검토를 근거로 병합하며 실제 merge SHA는 GK04 착수 기록에서 확정한다.
