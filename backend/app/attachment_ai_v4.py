@@ -7,7 +7,6 @@ from .domain.attachment_v4 import AttachmentAssessmentV4, AttachmentResponseV4
 from .domain.contracts_v4 import DecisionV4
 from .domain.results_v4 import CalculationsV4
 from .gemini import ProviderError
-from .gemini_v4 import GeminiScorerV4
 from .storage import encode
 
 VERSION = "attachment-20261007-rp02"
@@ -133,10 +132,8 @@ def request(worker, row, step, group, context, guard):
                 (row["run_id"], group.stage, step["attempt"])).fetchall()
         errors = next((json.loads(value[0]).get("contract_errors") for value in history if json.loads(value[0]).get("contract_errors")), [])
         info["repair"] = repair_instruction(errors)
-    worker.reserve_call(row, step)
-    observer = worker.observer if hasattr(worker.observer, "request_v4") else GeminiScorerV4(worker.store)
     config = {"model": group.model, "prompt": group.prompt, "thinking_level": group.thinking_level, "max_output_tokens": group.max_output_tokens}
-    raw, usage = observer.request_v4([], config, info, group.response_schema, guard)
+    raw, usage = worker.gemini_request(row, step, [], config, info, group.response_schema, guard)
     guard()
     try:
         result = normalize(context, raw, group.model)

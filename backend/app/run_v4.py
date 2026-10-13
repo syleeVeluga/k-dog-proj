@@ -11,7 +11,7 @@ from .domain.runs_v4 import ActionV4, ReuseV4, RunConfigV4, RunInputV4, StartV4
 from .domain.sheets_v4 import BatchPointerV4, InputPointerV4
 from .input_models_v4 import ManifestV4
 from .intake import selected_session
-from . import preprocess_v4
+from . import preprocess_v4, gemini_keys
 from .sheets_v4 import manager
 from .storage import encode, now, uid
 from .usage import token_meters
@@ -216,6 +216,7 @@ def view(store, run_id, user):
                 ("total_tokens", ("total_tokens",)),
             )}
             steps.append({"stage": step["stage"], "key": step["branch_key"], "attempt": step["attempt"], "status": step["status"],
+                **gemini_keys.public(usage),
                 "code": usage.get("code"), "billing_uncertain": bool(usage.get("billing_uncertain") or step["call_reserved"] and step["status"] == "running"),
                 "remote_cleanup_pending": bool(usage.get("remote_cleanup_pending")),
                 "call_reserved": bool(step["call_reserved"]), "reused": bool(usage.get("reused")), "timing": timing,
@@ -226,6 +227,7 @@ def view(store, run_id, user):
         progress, retry_at = _progress(row, config, raw_steps)
         from . import settings_v4
         return {"run_id": run_id, "case_id": row["case_id"], "session_id": row["session_id"], "kind": "s1", "input_revision": row["input_revision"],
+            **gemini_keys.view(db, run_id),
             "requested_by": snapshot.requested_by, "created_at": row["created_at"], "retry_at": retry_at, "progress": progress,
             "status": row["status"], "updated_at": row["updated_at"], "outdated": row["input_revision"] != case["input_revision"] or row["session_id"] != case["selected_session_id"],
             "settings_outdated": config.active_settings_version is not None and config.active_settings_version != settings_v4.active(db),
@@ -327,7 +329,7 @@ def process(worker, row):
                 source = db.execute("SELECT * FROM runs WHERE run_id=?", (entry.source_run_id,)).fetchone()
                 step = db.execute("SELECT * FROM steps WHERE step_id=?", (entry.step_id,)).fetchone()
                 payload = step_payload(worker.store, source, step)
-            perform = lambda step, payload=payload, entry=entry: {**payload, "usage": {"reused": True, "source_run_id": entry.source_run_id}}
+            perform = lambda step, payload=payload, entry=entry: {**payload, "usage": gemini_keys.reused_usage(payload.get("usage", {}), entry.source_run_id)}
         else:
             perform = work
         def timed(step, operation=perform, stage=group.stage):

@@ -17,7 +17,6 @@ from .domain.scoring_ai_v4 import AiResponseV4
 from .domain.sheets_v4 import AI_ACCOUNT, SheetDocumentV4, SheetInputV4, SheetReferenceV4
 from .auth import password_hash
 from .gemini import ProviderError
-from .gemini_v4 import GeminiScorerV4
 from .recording_v4 import build_windows_v4
 from .scoring_v4 import RULE_HASH, RULE_VERSION, calculate, verify_rules, vocal_score
 from .storage import encode, now
@@ -512,9 +511,7 @@ def handler(worker, snapshot, group, row):
         files = [(worker.store.path(getattr(clip, group.input_variant).ref),
                   SimpleNamespace(clip_id=clip.clip_id, size_bytes=getattr(clip, group.input_variant).size_bytes))
                  for clip in clips_for(snapshot, group)]
-        worker.reserve_call(row, step)
-        observer = worker.observer if hasattr(worker.observer, "request_v4") else GeminiScorerV4(worker.store)
-        raw, usage = observer.request_v4(files, config, info, group.response_schema, lambda: guarded(worker, row, snapshot))
+        raw, usage = worker.gemini_request(row, step, files, config, info, group.response_schema, lambda: guarded(worker, row, snapshot))
         try:
             payload = {**normalize(snapshot, group, raw), "response": raw, "usage": usage}
             if step["attempt"] > 1:

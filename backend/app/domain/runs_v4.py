@@ -115,7 +115,16 @@ class ActionV4(Model):
     reason: Text
 
 
-class RunStepViewV4(Model):
+class GeminiAttemptView(Model):
+    credential_slot: Literal["primary", "backup"] | None = None
+    fallback_reason: str | None = None
+    fallback_status: Literal["backup_unavailable", "attempt_limit", "call_limit", "backup_retry_wait"] | None = None
+    credential_selected_at: str | None = None
+    source_credential_slot: Literal["primary", "backup"] | None = None
+    source_fallback_reason: str | None = None
+
+
+class RunStepViewV4(GeminiAttemptView):
     stage: Literal["score_v4", "calculate_v4", "attachment_v4", "publish_v4"]
     key: Text
     attempt: Annotated[int, Field(ge=1)]
@@ -155,7 +164,7 @@ class RunProgressV4(Model):
     stages: list[RunProgressStageV4]
 
 
-class RunViewV4(Model):
+class RunViewV4(GeminiAttemptView):
     run_id: MediaKey
     case_id: MediaKey
     session_id: MediaKey

@@ -1,6 +1,6 @@
 # PR-GK01 Gemini 이중키 저장과 API
 
-버전: v1.0 · 2026-10-13 · 상태: 구현·검증·독립 검토·수용 수정 완료, PR 병합 대기 · 선행: 계획 #94 병합 `ba8508f` · 브랜치: `veluga/gk01-gemini-key-slots`
+버전: v1.0 · 2026-10-13 · 상태: 구현·검증·독립 검토·수용 수정·병합 완료 (#95 / `7fad053`) · 선행: 계획 #94 병합 `ba8508f` · 브랜치: `veluga/gk01-gemini-key-slots`
 
 상위: [전체 계획](K-DOG_Gemini주키예비키적용계획_v1.0_20261013.md). 요구 GK-R01~R03, 시험 GK-T01~T06. 제목 제안: `feat: add protected Gemini primary and backup key slots`.
 
@@ -62,7 +62,7 @@ GK02에 두 슬롯 상태/로컬 미가용 사유·정확한 활성 reference �
 - [x] 기존·두 슬롯 API/DPAPI/백업/동시성 회귀와 문서 링크/whitespace 통과
 - [x] 공식 최신/선택 의존성·API 확인일/출처/유지 이유 기록
 - [x] 독립 cold review·triage·수용 수정/재검증
-- [ ] 구현 commit/PR/병합·GK02 인계 기록
+- [x] 구현 commit/PR/병합·GK02 인계 기록
 
 ## 6 2026-10-13 구현 기록
 

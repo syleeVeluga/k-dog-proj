@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from app.analysis import adopt, check_access, claim, guard, later, step_payload, step_output, write_output
 from app.gemini import ProviderError
 from app.gemini_v4 import GeminiScorerV4
+from app import gemini_keys
 from app.media import MediaError
 from app.storage import encode, now, uid
 
@@ -44,8 +45,9 @@ class Worker:
     def check(self, row):
         return guard(self.store, row["run_id"], row["claim_token"])
 
-    def reserve_call(self, row, step):
+    def reserve_call(self, row, step, *, credential_actor=None):
         self.check(row)
+        selected = failure = None
         with self.store.connect(write=True) as db:
             current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
             if current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
@@ -59,6 +61,22 @@ class Worker:
                                  "AND claim_token=? AND call_reserved=0", (step["step_id"], row["run_id"], row["claim_token"])).rowcount
             if not changed:
                 raise HTTPException(409, "호출은 현재 점유한 attempt에서 한 번만 예약할 수 있습니다.")
+            if credential_actor is not None:
+                try:
+                    selected = gemini_keys.select(self.store, db, row, step, credential_actor)
+                except ProviderError as exc:
+                    failure = exc
+        if failure:
+            raise failure
+        return selected
+
+    def gemini_request(self, row, step, files, config, context, schema, guard):
+        guard()
+        observer = self.observer if hasattr(self.observer, "request_v4") else GeminiScorerV4(self.store)
+        selected = self.reserve_call(row, step, credential_actor=context["audit_actor"] if isinstance(observer, GeminiScorerV4) else None)
+        if isinstance(observer, GeminiScorerV4):
+            return observer.request_v4(files, config, context, schema, guard, selected=selected)
+        return observer.request_v4(files, config, context, schema, guard)
 
     def stage(self, row, stage, branch, validate, work):
         self.check(row)
@@ -70,6 +88,12 @@ class Worker:
                                   (row["run_id"], stage, branch)).fetchone()
         if previous and previous["status"] == "succeeded":
             return validate(step_payload(self.store, row, previous))
+        if provider_stage:
+            with self.store.connect() as db:
+                waiting = db.execute("SELECT 1 FROM steps WHERE run_id=? AND status='retry_wait' AND retry_at>? "
+                                     "AND json_extract(usage_json,'$.fallback_status')='backup_retry_wait' LIMIT 1", (row["run_id"], now())).fetchone()
+            if waiting:
+                return None
         if previous and previous["status"] == "failed" and not row.get("retry_failed", False):
             return None
         if previous and previous["status"] == "running":
@@ -88,7 +112,7 @@ class Worker:
                         raise HTTPException(409, "복구 중 실행 점유가 변경되었습니다.")
                     check_access(self.store, db, current)
                     db.execute("UPDATE steps SET status='abandoned',usage_json=?,updated_at=? WHERE step_id=? AND status='running'",
-                               (encode({"code": "worker_interrupted", "billing_uncertain": bool(provider_stage and previous["call_reserved"])}), now(), previous["step_id"]))
+                               (encode({**json.loads(previous["usage_json"]), "code": "worker_interrupted", "billing_uncertain": bool(provider_stage and previous["call_reserved"])}), now(), previous["step_id"]))
         attempt = previous["attempt"] + 1 if previous else 1
         maximum = json.loads(row["config_snapshot_json"]).get("max_attempts", 3)
         if attempt > maximum:
@@ -124,13 +148,13 @@ class Worker:
             adopt(self.store, row, step, ref, output_hash, payload.get("usage", {}))
             return parsed
         except ProviderError as exc:
-            usage = {**exc.usage, "code": exc.code, "billing_uncertain": exc.uncertain}
             with self.store.connect() as db:
                 schema_failures = sum(json.loads(s[0]).get("code") == schema_code for s in db.execute(
                     "SELECT usage_json FROM steps WHERE run_id=? AND stage=? AND branch_key=?", (row["run_id"], stage, branch)))
             retry = exc.retryable and attempt < maximum and not (exc.code == schema_code and schema_failures >= repair_limit)
+            usage = {**exc.usage, "code": exc.code, "billing_uncertain": exc.uncertain}
             self.fail(row, step, "retry_wait" if retry else "failed", usage,
-                      later(max(exc.delay, 10 * 2 ** (attempt - 1))) if retry else None)
+                      later(max(exc.delay, 10 * 2 ** (attempt - 1))), provider_error=exc, maximum=maximum)
         except MediaError as exc:
             self.fail(row, step, "failed", {"code": str(exc)}, None)
         except (ValueError, KeyError):
@@ -139,13 +163,24 @@ class Worker:
             self.fail(row, step, "failed", {"code": "artifact_invalid", "billing_uncertain": bool(reserved)}, None)
         return None
 
-    def fail(self, row, step, status, usage, retry_at):
+    def fail(self, row, step, status, usage, retry_at, *, provider_error=None, maximum=None):
         self.check(row)
         with self.store.connect(write=True) as db:
             current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
-            if current["claim_token"] != row["claim_token"] or current["status"] != "running":
+            if current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
                 raise HTTPException(409, "실행 점유가 변경되었습니다.")
             check_access(self.store, db, current)
+            saved = db.execute("SELECT usage_json FROM steps WHERE step_id=?", (step["step_id"],)).fetchone()
+            usage = {**json.loads(saved[0]), **usage}
+            if provider_error is not None:
+                fallback = gemini_keys.request_fallback(self.store, db, row, step, provider_error, maximum)
+                usage.update(provider_error.usage)
+                if fallback:
+                    status = "retry_wait"
+                elif provider_error.usage.get("fallback_status") in ("attempt_limit", "call_limit"):
+                    status = "failed"
+                if status != "retry_wait":
+                    retry_at = None
             db.execute("UPDATE steps SET status=?,usage_json=?,retry_at=?,updated_at=? WHERE step_id=? AND claim_token=? AND status='running'",
                        (status, encode(usage), retry_at, now(), step["step_id"], row["claim_token"]))
 

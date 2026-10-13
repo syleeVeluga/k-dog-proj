@@ -264,7 +264,7 @@ def pending_remote_cleanup(store):
 
 def retry_remote_cleanup(store, actor, *, delete=None):
     from app.gemini import BASE, ProviderError, request
-    from app.secrets import credential
+    from app.secrets import credential_for_reference
 
     with store.connect() as db:
         _actor(db, actor)
@@ -274,9 +274,7 @@ def retry_remote_cleanup(store, actor, *, delete=None):
             continue
         try:
             if delete is None:
-                key, reference = credential(store, "gemini")
-                if reference != item["credential_reference"]:
-                    continue  # A replacement key does not prove ownership of the former remote file.
+                key, reference = credential_for_reference(store, item["credential_reference"])
                 request("DELETE", BASE + "/v1beta/" + name, key)
             else:
                 delete(name, item["credential_reference"])

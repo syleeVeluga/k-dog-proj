@@ -16,12 +16,14 @@ INTERACTION_TIMEOUT = 900
 
 
 class ProviderError(Exception):
-    def __init__(self, code: str, *, retryable=False, delay=0, uncertain=False, usage=None, credential_reason=None):
+    def __init__(self, code: str, *, retryable=False, delay=0, uncertain=False, usage=None, credential_reason=None,
+                 http_status=None, provider_code=None):
         super().__init__(code)
         self.code, self.retryable, self.delay = code, retryable, delay
         self.uncertain = uncertain
         self.usage = usage if usage is not None else {}
         self.credential_reason = credential_reason
+        self.http_status, self.provider_code = http_status, provider_code
 
 
 def interaction_request(model: str, prompt: str, inputs, schema: dict, max_output_tokens: int,
@@ -114,6 +116,7 @@ def request(method, url, key, *, data=None, headers=None, provider="gemini", tim
             except (ValueError, TypeError):
                 pass
         error_usage = {}
+        provider_code = None
         try:
             raw = exc.read(64 * 1024 + 1)
             if len(raw) <= 64 * 1024:
@@ -121,20 +124,24 @@ def request(method, url, key, *, data=None, headers=None, provider="gemini", tim
                 error = payload.get("error", {}) if isinstance(payload, dict) else {}
                 if isinstance(error, dict):
                     status = error.get("status")
-                    if isinstance(status, str) and re.fullmatch(r"[A-Z][A-Z0-9_]{0,63}", status):
+                    if status in ("INVALID_ARGUMENT", "UNAUTHENTICATED", "PERMISSION_DENIED", "RESOURCE_EXHAUSTED", "INTERNAL", "UNAVAILABLE", "DEADLINE_EXCEEDED"):
                         error_usage["provider_error_status"] = status
-                    message = error.get("message")
-                    if isinstance(message, str):
-                        message = message.replace(key, "[REDACTED]") if key else message
-                        message = re.sub(r"https?://\S+", "[URL]", " ".join(message.split()))
-                        message = re.sub(r"files/[A-Za-z0-9_-]+", "files/[REDACTED]", message)
-                        error_usage["provider_error_message"] = message[:500]
+                    if error.get("code") in ("authentication", "permission_denied", "payment_required", "rate_limit_exceeded", "quota_exceeded", "too_many_requests", "api_error", "service_unavailable", "deadline_exceeded"):
+                        provider_code = error["code"]
+                    details = error.get("details", [])
+                    if isinstance(details, list) and any(isinstance(item, dict)
+                        and item.get("@type") == "type.googleapis.com/google.rpc.ErrorInfo"
+                        and item.get("domain") == "googleapis.com" and item.get("reason") == "API_KEY_INVALID" for item in details):
+                        provider_code = "API_KEY_INVALID"
+                    if provider_code:
+                        error_usage["provider_error_code"] = provider_code
         except (ValueError, TypeError, OSError, AttributeError):
             pass
         code = "developer_settings_required" if exc.code in (401, 403) else f"provider_http_{exc.code}"
         exc.close()
-        raise ProviderError(code, retryable=exc.code == 429 or exc.code >= 500,
-                            delay=delay, uncertain=exc.code >= 500, usage=error_usage) from None
+        raise ProviderError(code, retryable=exc.code == 429 or exc.code in (500, 502, 503, 504),
+                            delay=delay, uncertain=exc.code >= 500, usage=error_usage,
+                            http_status=exc.code, provider_code=provider_code) from None
     except (URLError, TimeoutError, OSError, HTTPTransportError):
         raise ProviderError("provider_connection_lost", retryable=True, uncertain=True) from None
     except (ValueError, KeyError):

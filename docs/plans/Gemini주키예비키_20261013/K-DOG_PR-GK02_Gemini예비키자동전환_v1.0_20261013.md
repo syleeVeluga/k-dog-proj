@@ -1,6 +1,6 @@
 # PR-GK02 Gemini 예비키 자동 전환
 
-버전: v1.0 · 2026-10-13 · 상태: 계획, 구현 미실행 · 선행: GK01 구현·검증·검토/수용 수정·병합 · 브랜치 제안: `veluga/gk02-gemini-key-fallback`
+버전: v1.0 · 작성 2026-10-13 · 구현/검토 2026-10-14 · 상태: 구현·검증·독립 검토 완료, PR 병합 대기 · 선행: GK01 #95 병합 `7fad053` · 브랜치: `veluga/gk02-gemini-key-fallback`
 
 상위: [전체 계획](K-DOG_Gemini주키예비키적용계획_v1.0_20261013.md). 요구 GK-R04~R09, 시험 GK-T07~T16. 제목 제안: `feat: fail over Gemini execution to the backup key`.
 
@@ -68,7 +68,11 @@ graft check
 
 GK03에 두 슬롯 관리 API와 실행별 키 역할·전환 원인·상한/대기/실패·옛 기록 없음 DTO를 인계한다. 단순히 GeminiScorerV4를 직접 부른 시험만으로 완료하지 않고 실제 Worker 예약·실패·재시작·게시까지 확인한다.
 
-- [ ] 모든 Gemini 경로에서 GK-T07~T16 및 GK01 회귀 통과
-- [ ] 원격 파일/정리·usage·옛 불변 파일/재사용·현재 actor/guard 증거
-- [ ] 공식 오류 형식/최신·선택 잠금판 확인, 독립 검토/triage·수용 재검증
+- [x] 모든 Gemini 경로에서 GK-T07~T16 및 GK01 회귀 통과
+- [x] 원격 파일/정리·usage·옛 불변 파일/재사용·현재 actor/guard 증거
+- [x] 공식 오류 형식/최신·선택 잠금판 확인, 독립 검토/triage·수용 재검증
 - [ ] commit/PR/병합·GK03 DTO/화면 인계, 실공급자 검증 별도 대기 기록
+
+## 6 2026-10-14 구현 기록
+
+[실제 구현·검증·독립 검토 근거](K-DOG_Gemini주키예비키구현실행기록_v1.0_20261013.md#gk02-자동-전환-실행)를 따른다. 공유 `gemini_keys` 선택/공개 metadata helper와 `Worker.gemini_request`를 사용하며 세 실제 호출점에 누락 없이 적용했다. DTO의 `credential_slot`, `fallback_reason`, `fallback_status`, `credential_selected_at`은 optional이다. 재사용 출처는 `source_credential_slot`/`source_fallback_reason`이고 현재 선택이 아니다. 내부 reference/원문은 일반 업무 DTO에서 제외한다. 독립 발견0으로 수용 변경도0이다.
