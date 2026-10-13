@@ -1,6 +1,6 @@
 # PR-GK01 Gemini 이중키 저장과 API
 
-버전: v1.0 · 2026-10-13 · 상태: 계획, 구현 미실행 · 선행: 최신 main/조사 기준 확인 · 브랜치 제안: `veluga/gk01-gemini-key-slots`
+버전: v1.0 · 2026-10-13 · 상태: 구현·검증·독립 검토·수용 수정 완료, PR 병합 대기 · 선행: 계획 #94 병합 `ba8508f` · 브랜치: `veluga/gk01-gemini-key-slots`
 
 상위: [전체 계획](K-DOG_Gemini주키예비키적용계획_v1.0_20261013.md). 요구 GK-R01~R03, 시험 GK-T01~T06. 제목 제안: `feat: add protected Gemini primary and backup key slots`.
 
@@ -59,7 +59,11 @@ graft check
 
 GK02에 두 슬롯 상태/로컬 미가용 사유·정확한 활성 reference 조회·원자 폐기·회전 경계·API/시험 경로를 인계한다. 키 선택 후 시작한 attempt의 기존 원문을 중간에 바꾸지 않는 의미를 명시한다. GK01만 병합된 상태에서는 자동 전환이 아직 없다는 운영 경계를 유지한다.
 
-- [ ] 기존·두 슬롯 API/DPAPI/백업/동시성 회귀와 문서 링크/whitespace 통과
-- [ ] 공식 최신/선택 의존성·API 확인일/출처/유지 이유 기록
-- [ ] 독립 cold review·triage·수용 수정/재검증
+- [x] 기존·두 슬롯 API/DPAPI/백업/동시성 회귀와 문서 링크/whitespace 통과
+- [x] 공식 최신/선택 의존성·API 확인일/출처/유지 이유 기록
+- [x] 독립 cold review·triage·수용 수정/재검증
 - [ ] 구현 commit/PR/병합·GK02 인계 기록
+
+## 6 2026-10-13 구현 기록
+
+실제 구현·지정 시험·백업/복원·독립 검토 수용 수정은 [구현 실행 기록](K-DOG_Gemini주키예비키구현실행기록_v1.0_20261013.md#gk01-이중키-저장api)을 따른다. 수용 수정 후 관련 26개가 통과했고 reviewer가 두 발견 해결과 신규 결함0을 확인했다. 병합 완료는 실제 PR 기록으로 확정한다.

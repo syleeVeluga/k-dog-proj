@@ -15,3 +15,14 @@ class KeyTest(Model):
     provider: Literal["gemini", "openai", "anthropic"]
     reference: str
     status: str
+    slot: Literal["primary", "backup"] = "primary"
+    tested_at: str
+
+
+class GeminiSlotState(Model):
+    slot: Literal["primary", "backup"]
+    reference: str | None
+    source: Literal["vault", "environment", "none"]
+    available: bool
+    unavailable_reason: Literal["unregistered", "removed", "file_unavailable", "decrypt_failed", "restore_required"] | None
+    last_test: KeyTest | None

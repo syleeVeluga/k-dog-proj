@@ -56,8 +56,17 @@ class SecretEdit(Model):
     value: Annotated[SecretStr, Field(min_length=8, max_length=512)]
 
 
+class GeminiSlotAction(Model):
+    expected_reference: Annotated[str, Field(max_length=128)] | None
+
+
+class GeminiSlotEdit(GeminiSlotAction, SecretEdit):
+    pass
+
+
 class DeveloperKeys(Model):
     keys: list[settings.KeyState]
+    gemini_slots: list[settings.GeminiSlotState]
 
 
 class FormsFile(Model):
@@ -160,7 +169,8 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.get("/api/developer/settings", response_model=DeveloperKeys)
     def developer_settings(user=Depends(developer)):
         return {"keys": [{"provider": provider, "available": vault.available(store, provider),
-            "reference": (vault.state(store, provider) or {}).get("reference", "environment")} for provider in vault.PROVIDERS]}
+            "reference": (vault.state(store, provider) or {}).get("reference", "environment")} for provider in vault.PROVIDERS],
+            "gemini_slots": vault.slot_states(store)}
 
     @app.get("/api/settings-s1", response_model=settings_v4.AiSettingsViewV4)
     def ai_settings_s1(user=Depends(developer)):
@@ -227,6 +237,20 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.post("/api/developer/keys/{provider}/test", response_model=settings.KeyTest)
     def test_key(provider: Literal["gemini", "openai", "anthropic"], user=Depends(developer)):
         return vault.connection_test(store, provider, user.username)
+
+    @app.put("/api/developer/keys/gemini/slots/{slot}", response_model=settings.GeminiSlotState)
+    def register_gemini_slot(slot: Literal["primary", "backup"], value: GeminiSlotEdit, user=Depends(developer)):
+        return vault.change(store, "gemini", value.value.get_secret_value(), user.username,
+                            slot=slot, expected_reference=value.expected_reference, check_reference=True)
+
+    @app.delete("/api/developer/keys/gemini/slots/{slot}", response_model=settings.GeminiSlotState)
+    def remove_gemini_slot(slot: Literal["primary", "backup"], value: GeminiSlotAction, user=Depends(developer)):
+        return vault.change(store, "gemini", None, user.username,
+                            slot=slot, expected_reference=value.expected_reference, check_reference=True)
+
+    @app.post("/api/developer/keys/gemini/slots/{slot}/test", response_model=settings.KeyTest)
+    def test_gemini_slot(slot: Literal["primary", "backup"], user=Depends(developer)):
+        return vault.connection_test(store, "gemini", user.username, slot)
 
     @app.post("/api/admin/backups", status_code=201)
     def backup_data(user=Depends(administrator)):

@@ -22,7 +22,7 @@ class RetirementV4Tests(AppCase):
         self.client = self.client_for("developer")
         response = self.client.get("/api/developer/settings")
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(set(response.json()), {"keys"})
+        self.assertEqual(set(response.json()), {"keys", "gemini_slots"})
         self.assertEqual({key["provider"] for key in response.json()["keys"]}, {"gemini", "openai", "anthropic"})
         for method, path, body in (
             ("post", "/api/developer/settings/drafts", {}),
