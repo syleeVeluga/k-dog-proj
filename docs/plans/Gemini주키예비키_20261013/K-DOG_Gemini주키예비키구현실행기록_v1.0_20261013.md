@@ -91,6 +91,8 @@ GK01: [PR #95](https://github.com/syleeVeluga/k-dog-proj/pull/95), main 병합 `
 | GK-T14~15 | local hash 같음·프로젝트 URI/키 분리·각 upload/delete 같은 참조·backup 정확 정리·retired 참조 대기 유지 |
 | GK-T16 | primary uncertain/cleanup_pending + backup 성공 계량 보존·성공 단계 무재호출·기존 bytes 불변·명시 재사용 무호출/중복 계수0 |
 
+GK02: 구현 `aa1be57`, [PR #96](https://github.com/syleeVeluga/k-dog-proj/pull/96). 원격 check rollup은 비어 있으며 위 로컬 검증/독립 검토를 근거로 병합한다. 실제 merge SHA는 GK03 착수 기록에 확정한다.
+
 | 요구 시험 | 실제 근거 |
 | --- | --- |
 | GK-T01 | legacy primary/reference/ciphertext 불변·environment primary·backup none |
