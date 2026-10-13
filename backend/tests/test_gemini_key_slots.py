@@ -109,6 +109,37 @@ class GeminiKeySlotTests(AppCase):
             self.assertEqual(sorted(executor.map(change, range(2))), [200, 409])
         self.assertEqual(len(list(self.store.path("secrets").glob("*.bin"))), 1)
 
+    def test_global_stop_failure_rolls_back_both_slots(self):
+        primary = self.put("primary", "synthetic-primary", "environment").json()
+        backup = self.put("backup", "synthetic-backup").json()
+        audit = self.store.audit
+        def fail_second(db, actor, target, action, detail):
+            if target == "gemini:backup" and action == "secret.change":
+                raise RuntimeError("synthetic transaction failure")
+            return audit(db, actor, target, action, detail)
+        with patch.object(self.store, "audit", side_effect=fail_second), self.assertRaises(RuntimeError):
+            secrets.change(self.store, "gemini", None, "developer")
+        self.assertEqual(secrets.credential(self.store, "gemini")[1], primary["reference"])
+        self.assertEqual(secrets.credential(self.store, "gemini", "backup")[1], backup["reference"])
+
+    def test_worker_reads_consistent_credentials_during_both_slot_rotations(self):
+        def rotate(slot):
+            for index in range(5):
+                secrets.change(self.store, "gemini", f"synthetic-{slot}-{index}", "developer", slot=slot)
+        def read():
+            for index in range(10):
+                for slot in ("primary", "backup"):
+                    try:
+                        value, reference = secrets.credential(self.store, "gemini", slot)
+                    except ProviderError as exc:
+                        self.assertEqual(exc.credential_reason, "unregistered")
+                    else:
+                        self.assertTrue(value.startswith(f"synthetic-{slot}-") or reference == "environment")
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            for future in (executor.submit(rotate, "primary"), executor.submit(rotate, "backup"), executor.submit(read)):
+                future.result()
+        self.assertEqual(len(list(self.store.path("secrets").glob("*.bin"))), 2)
+
     def test_missing_ciphertext_and_failed_decrypt_are_locally_unavailable(self):
         backup = self.put("backup", "synthetic-backup").json()
         with patch("app.secrets.protect", side_effect=HTTPException(409, "synthetic DPAPI failure")):

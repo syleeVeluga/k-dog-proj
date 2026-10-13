@@ -43,4 +43,15 @@ PyPI JSON과 npm 공식 registry의 최신 안정판 및 runtime/peer를 직접 
 
 분리 검토 단계에서 기존 `secret.test` JSON에 slot/시각이 없는 경우 typed 응답이 실패할 수 있음을 발견해 수용했다. 감사 `happened_at`과 primary 기본값으로 읽고 현재 reference의 최신 시험을 조회하도록 수정했다. 늦은 retired 시험이 새 reference의 시험을 가리지 않도록 회귀를 추가했다. 수정 중 시험 코드 배치 오류 1건을 바로잡고 신규 10개/7.211초 통과. 독립 reviewer 및 최종 triage/PR/병합 기록은 완료 후 추가한다.
 
+추가로 전체 폐기 도중 두 번째 감사 쓰기 실패 시 두 슬롯 모두 rollback되는 시험과 두 슬롯 회전 중 Worker credential 읽기 시험 2개/1.477초를 통과했다. 신규 슬롯 시험은 고유 12개다. 로컬 구현 commit `be3df63` 이후 이 두 시험과 문서 앵커 보완을 추가했다. 백엔드 전체 회귀는 실행 중이며 독립 검토 전 원격 PR/병합은 수행하지 않는다.
+
+| 요구 시험 | 실제 근거 |
+| --- | --- |
+| GK-T01 | legacy primary/reference/ciphertext 불변·environment primary·backup none |
+| GK-T02 | 실제 Windows DPAPI·슬롯 독립 회전·DB/응답/파일 원문 부재·backup secrets 제외 |
+| GK-T03 | primary-only 제거·backup 유지·원자 전체 폐기/실패 rollback·unlink 실패·환경 변수 부활 없음·복원 후 명시 재등록 |
+| GK-T04 | 세 일반 역할/익명/비활성 developer·Host400/Origin403·잘못된 slot/type/길이422·no-store·원문 미반사 |
+| GK-T05 | 다른 슬롯 동시 등록·동일 기대 참조의 한 승자/409·두 슬롯 회전 중 읽기·동일 원문/환경 주키 중복 거절 |
+| GK-T06 | 선택 슬롯만 요청·실패 fallback0·slot/reference/시각 고정·교체 후 옛 시험 비승계·역사/늦은 시험 조회 호환 |
+
 실제 운영 키 조회·실공급자 호출·참가자 영상 사용·운영 DB 변경·고객 배포는 수행하지 않았다.
