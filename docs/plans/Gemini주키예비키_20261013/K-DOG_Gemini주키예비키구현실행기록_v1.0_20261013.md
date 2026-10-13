@@ -58,6 +58,8 @@ PyPI JSON과 npm 공식 registry의 최신 안정판 및 runtime/peer를 직접 
 
 복원 marker는 키 원문/참조가 없는 로컬 운영 경계다. 키와 함께 백업에서 제외하며 복원할 때 새 staging에 만든다. 등록 이력이 있는 슬롯은 기존 file_unavailable/removed 경계를 사용한다. 실패한 retired ciphertext 정리는 다음 키 변경에서 재시도할 수 있으며 기존 offline clean이 secrets를 지운다고 표시하지 않는다.
 
+수용 수정 commit `1573fdb`를 reviewer가 재검토하여 두 발견의 해결과 새 actionable defect0을 확인했다. 합성 재현에서 외부 요청0, 환경 주키 복원 차단/clean/명시 재등록 및 OpenAI 환경 정책 유지를 확인했다. 초기 구현 `be3df63`, 원자 폐기·읽기 회귀 `8b315cb`, 수용 수정 `1573fdb`. 문서 상대 링크/공백 검사 및 Graft wiring freshness 통과. PR/병합은 아래에 이어 기록한다.
+
 | 요구 시험 | 실제 근거 |
 | --- | --- |
 | GK-T01 | legacy primary/reference/ciphertext 불변·environment primary·backup none |
