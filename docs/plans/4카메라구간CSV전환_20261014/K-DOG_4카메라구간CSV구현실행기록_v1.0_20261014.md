@@ -1,6 +1,6 @@
 # K-DOG 4카메라·구간 CSV 구현 실행 기록
 
-버전: v1.0 · 2026-10-14 · 착수 기준: `2f015c2` · 상태: VC01 #100·VC02 #101·VC03 #102 병합 완료 / VC04 구현·검증·독립 검토·최종 패키지 완료, 병합 준비
+버전: v1.0 · 2026-10-14 · 착수 기준: `2f015c2` · 상태: VC01 #100·VC02 #101·VC03 #102·VC04 #103 구현·검증·독립 검토·문서·병합 완료
 
 상위: [전환 계획](K-DOG_4카메라구간CSV전환계획_v1.0_20261014.md). 각 PR은 구현 → 검증 → 독립 cold review → 수용 건 반영·재검증 → 문서 → 병합 순서로 진행한다. 2026-10-14 사용자가 별도 검토 에이전트를 명시 허용했다. 원본 영상·운영 DB·참가자 자료·키는 커밋하지 않는다.
 
@@ -101,6 +101,10 @@ CSV 원수령은860bytes/CRLF/SHA-256 `7334c82a536fb5be82d6dc5799005b21bc2e91edb
 | kdog-vc04-online-final.zip | 3245571 | `2f11e31d26cd9ca6ead59c4c6451e8b0ef326fb952769610ba5ed8d9711102d1` |
 
 폐기 검색은 inventory 명령과 그 회귀2파일의6 literal만 남는다(§2의 명시 예외). 현행 실행 경로 참조0. 실제 로컬 운영 DB `app.manage check-removed-media`는 인수 전후 cases0/receipts0/batches0,total0/exit0. 외부 배포 DB는 미제공이므로 배포 전 동일 점검을 실행한다. 자동 삭제·이관0.
+
+PR [#103](https://github.com/syleeVeluga/k-dog-proj/pull/103), 구현 `ee6184d`·`afeeed3`, 패키지 검증 snapshot `5ea84d2`, 최종 기록 `47fad9d`, 병합 commit `73023b1` (2026-10-14) 원격·로컬 main 반영 완료.
+
+병합 후 마감 문서3개의 상태를 실제 PR 결과로 갱신했다.9문서 상대 링크143개·`git diff --check` 통과, 별도 독립 cold review actionable0·수용 수정0. 제품 코드·검증 ZIP snapshot은 변경하지 않았다.
 
 ## 6 후속 범위
 
