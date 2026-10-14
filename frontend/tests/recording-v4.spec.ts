@@ -1,8 +1,102 @@
 import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
+
+test('구간 CSV가 4영상 초안을 채우고 수동 사실 입력 후 기존 경로로 확정된다', async ({ page }, testInfo) => {
+  test.setTimeout(120000);
+  await page.goto('/');
+  await page.getByLabel('계정', { exact: true }).fill('operator');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
+  let item = await (await page.request.post('/api/cases', { headers, data: { event_id: 'VC03', participant_id: 'csv-capture', dog_name: '합성 CSV견' } })).json();
+  for (const [index, filter] of ['testsrc2', 'smptebars', 'testsrc', 'color=c=blue'].entries()) {
+    const source = index === 3 ? 'color=c=blue:size=64x64:rate=4:duration=10' : `${filter}=size=64x64:rate=4:duration=10`;
+    const bytes = execFileSync('ffmpeg', ['-v', 'error', '-nostdin', '-f', 'lavfi', '-i', source, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov', 'pipe:1']);
+    const receipt = await (await page.request.post('/api/uploads', { headers, data: { request_id: `csv-cam-${index}`, filename: `csv-cam${index + 1}.mp4`, expected_size: bytes.length } })).json();
+    expect((await page.request.put(`/api/uploads/${receipt.upload_id}/content`, { headers, params: { request_id: receipt.request_id }, data: bytes })).status()).toBe(200);
+    expect((await page.request.post(`/api/uploads/${receipt.upload_id}/link`, { headers, data: { case_id: item.case_id, session_id: item.selected_session_id, camera_id: `CAM${index + 1}`, expected_revision: item.input_revision } })).status()).toBe(200);
+    item = await (await page.request.get(`/api/cases/${item.case_id}`)).json();
+  }
+  const videos = item.manifest.sessions[0].videos;
+  const csvFile = new URL('./fixtures/segments-short.csv', import.meta.url);
+  const csvBytes = readFileSync(csvFile), hash = createHash('sha256').update(csvBytes).digest('hex');
+  await openMenu(page, '촬영 기록 (8구간)');
+  await page.getByRole('button', { name: 'csv-capture 촬영 열기' }).click();
+  const panel = page.getByLabel('촬영 기록', { exact: true });
+  await panel.getByRole('combobox', { name: '실제 촬영 절차', exact: true }).selectOption('s1_confirmed');
+  await panel.getByLabel('절차 확인 근거', { exact: true }).fill('합성 CSV와 실제 수동 기록 확인');
+  await panel.getByText('실제 8구간', { exact: true }).click();
+  const csv = panel.getByLabel('구간 CSV 가져오기', { exact: true });
+  await csv.setInputFiles({ name: 'segments-short.csv', mimeType: 'text/csv', buffer: csvBytes });
+  await expect(panel.getByText('채움: 구간 7개 끝 유도, 퇴장 끝 미입력 / 오프셋 CAM2·CAM3·CAM4', { exact: true })).toBeVisible();
+  const names = ['입장', '기준', '혼자', '재회', '무시', '걷기', '낯선 사람', '퇴장'];
+  for (const [index, name] of names.entries()) {
+    await expect(panel.getByLabel(`${name} 시작`, { exact: true })).toHaveValue(String(index + 1));
+    await expect(panel.getByLabel(`${name} 끝`, { exact: true })).toHaveValue(index === 7 ? '' : String(index + 2));
+  }
+  await panel.getByText('다른 영상 수동 오프셋', { exact: true }).click();
+  for (const [index, value] of [[2, '0.1'], [3, '-0.1'], [4, '-0.2']]) {
+    await expect(panel.getByLabel(`csv-cam${index}.mp4 오프셋 초`, { exact: true })).toHaveValue(String(value));
+    await expect(panel.getByLabel(`csv-cam${index}.mp4 수동 동기화 확인`, { exact: true })).toBeChecked();
+  }
+  await csv.setInputFiles({ name: 'segments-short.csv', mimeType: 'text/csv', buffer: csvBytes });
+  await expect(csv).toBeEnabled();
+  expect((await panel.getByRole('textbox', { name: '절차 확인 근거', exact: true }).inputValue()).split(hash)).toHaveLength(2);
+  await panel.locator('details').filter({ has: page.getByLabel('구간 CSV 가져오기', { exact: true }) }).screenshot({ path: testInfo.outputPath('segments-csv-draft.png'), animations: 'disabled' });
+  await panel.getByLabel('퇴장 끝', { exact: true }).fill('9');
+  const draft = page.waitForResponse(response => response.request().method() === 'PUT' && response.url().endsWith('/recording-s1'));
+  await panel.getByRole('button', { name: '촬영 기록 초안 저장', exact: true }).click();
+  const draftResponse = await draft;
+  expect(draftResponse.status(), await draftResponse.text()).toBe(200);
+  const saved = (await draftResponse.json()).manifest.sessions[0].recording_s1;
+  expect(saved.confirmed).toBe(false);
+  expect(saved.video_offsets.every((offset: { confirmed: boolean }) => offset.confirmed)).toBe(true);
+  expect(saved.events).toEqual([]);
+  expect(saved.walk_phases.every((phase: { start_sec: number | null }) => phase.start_sec === null)).toBe(true);
+  await expect(page.getByText('촬영 기록을 초안 저장했습니다.', { exact: true })).toBeVisible();
+  const rejected = page.waitForResponse(response => response.request().method() === 'PUT' && response.url().endsWith('/recording-s1'));
+  await panel.getByRole('button', { name: '촬영 기록 확정', exact: true }).click();
+  const rejectedResponse = await rejected;
+  expect(rejectedResponse.status()).toBe(422);
+  expect(await rejectedResponse.text()).toContain('actual performed boundaries');
+  await panel.getByText('걷기 실제 6국면', { exact: true }).click();
+  const boundaries = [6, 6.2, 6.35, 6.55, 6.7, 6.85, 7];
+  for (const [index, name] of ['이동1', '정지1', '이동2', '정지2', '이동3', '정지3'].entries()) {
+    await panel.getByLabel(`${name} 시작`, { exact: true }).fill(String(boundaries[index]));
+    await panel.getByLabel(`${name} 끝`, { exact: true }).fill(String(boundaries[index + 1]));
+    await panel.getByRole('combobox', { name: `${name} 거리 예외`, exact: true }).selectOption('none');
+  }
+  await panel.getByText('실제 사건·전환·기회', { exact: true }).click();
+  await panel.getByRole('combobox', { name: '추가할 사건', exact: true }).selectOption('stranger_contact_start');
+  const event = panel.getByRole('article', { name: '요원 실제 접촉 시작 사건', exact: true });
+  await event.getByRole('combobox', { name: '사건 상태', exact: true }).selectOption('not_occurred');
+  await event.getByLabel('실제 맥락·사유', { exact: true }).fill('합성 미접촉 사실 수동 기록');
+  const confirmed = page.waitForResponse(response => response.request().method() === 'PUT' && response.url().endsWith('/recording-s1'));
+  await panel.getByRole('button', { name: '촬영 기록 확정', exact: true }).click();
+  const confirmedResponse = await confirmed;
+  expect(confirmedResponse.status(), await confirmedResponse.text()).toBe(200);
+  expect((await confirmedResponse.json()).manifest.sessions[0].recording_s1.confirmed).toBe(true);
+  await panel.getByRole('button', { name: '확정본 수정 시작', exact: true }).click();
+  await panel.getByRole('combobox', { name: '기준 영상', exact: true }).selectOption(videos[2].video_id);
+  await expect(panel.getByLabel('입장 시작', { exact: true })).toHaveValue('');
+  await csv.setInputFiles({ name: 'segments-short.csv', mimeType: 'text/csv', buffer: csvBytes });
+  await expect(panel.getByLabel('입장 시작', { exact: true })).toHaveValue('0.9');
+  await expect(panel.getByLabel('csv-cam1.mp4 오프셋 초', { exact: true })).toHaveValue('0.1');
+  await csv.setInputFiles({ name: 'bad.csv', mimeType: 'text/csv', buffer: Buffer.from('종류,구간번호\n구간,1') });
+  await expect(panel.getByRole('alert').filter({ hasText: '기준 영상 카메라 CAM3' })).toBeVisible();
+  await expect(panel.getByLabel('입장 시작', { exact: true })).toHaveValue('0.9');
+  await panel.getByLabel('혼자 상태', { exact: true }).selectOption('not_performed');
+  await panel.getByLabel('재회 상태', { exact: true }).selectOption('not_performed');
+  await csv.setInputFiles({ name: 'segments-short.csv', mimeType: 'text/csv', buffer: csvBytes });
+  await expect(panel.getByText('혼자 구간은 미실시로 기록되어 기존 입력을 유지합니다.', { exact: true })).toBeVisible();
+  await expect(panel.getByLabel('혼자 시작', { exact: true })).toHaveValue('');
+  await expect(panel.getByLabel('혼자 상태', { exact: true })).toHaveValue('not_performed');
+});
 
 test('S1 preserved video registers its camera and source without replacing raw media', async ({ page }) => {
   await page.goto('/');

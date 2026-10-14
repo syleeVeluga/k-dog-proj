@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import { mayLeave, useEditBase } from './Editing';
 import { SessionEditor } from './MetadataEditors';
@@ -8,6 +8,7 @@ import { EVENT_CHOICES, WINDOW_NAMES } from './recordingTypesV4';
 import type { PreprocessStatusV4 } from './preprocessTypesV4';
 import type { CoverageV4, RecordingV4, RecordingViewV4, TailV4 } from './recordingTypesV4';
 import { cameraName } from './types';
+import { parseSegmentsCsv } from './segmentsCsv';
 
 const states: Record<CaptureState, string> = { performed: '실시', shortened: '단축', not_performed: '미실시', welfare_stopped: '복지 중단' };
 const phaseNames = ['이동1', '정지1', '이동2', '정지2', '이동3', '정지3'];
@@ -48,6 +49,14 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
 }) {
   const session = sessionOf(item), edit = useEditBase(item);
   const [record, setRecord] = useState<RecordingV4>(() => initial(item));
+  const [csvBusy, setCsvBusy] = useState(false), [csvError, setCsvError] = useState('');
+  const [csvSummary, setCsvSummary] = useState<{ ends: number; offsets: string[]; warnings: string[] } | null>(null);
+  const csvRequest = useRef(0), csvCurrent = useRef({ record, caseId: item.case_id, sessionId: session.session_id });
+  csvCurrent.current = { record, caseId: item.case_id, sessionId: session.session_id };
+  useEffect(() => {
+    csvRequest.current++; setCsvSummary(null); setCsvError(''); setCsvBusy(false);
+    return () => { csvRequest.current++; };
+  }, [item.case_id, session.session_id, record.video_id]);
   const [editing, setEditing] = useState(!session.recording_s1?.confirmed);
   const [view, setView] = useState<RecordingViewV4 | null>(null);
   const [viewError, setViewError] = useState('');
@@ -77,6 +86,36 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
     return () => { active = false; };
   }, [path, item.input_revision]);
   const change = (next: RecordingV4) => { edit.change(); setRecord({ ...next, confirmed: false }); };
+  async function importCsv(file: File) {
+    const request = ++csvRequest.current, current = csvCurrent.current;
+    const reference = videos.find(video => video.video_id === current.record.video_id);
+    if (!reference?.camera_id) return;
+    setCsvBusy(true); setCsvError('');
+    try {
+      const bytes = await file.arrayBuffer();
+      const result = parseSegmentsCsv(new TextDecoder('utf-8', { fatal: true }).decode(bytes), reference.camera_id, videos.flatMap(video => video.camera_id ? [video.camera_id] : []));
+      const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), value => value.toString(16).padStart(2, '0')).join('');
+      if (request !== csvRequest.current || current.caseId !== csvCurrent.current.caseId || current.sessionId !== csvCurrent.current.sessionId) return;
+      if (current.record !== csvCurrent.current.record) throw new Error('가져오는 동안 촬영 입력이 변경되었습니다. CSV를 다시 선택하세요.');
+      const source = `segments.csv ${file.name} SHA-256 ${hash}`, warnings = [...result.warnings];
+      const filled = result.segments.filter(value => {
+        const segment = current.record.segments.find(segment => segment.segment === value.segment)!;
+        if (segment.state !== 'not_performed') return true;
+        warnings.push(`${SEGMENTS_V3.find(([id]) => id === value.segment)![1]} 구간은 미실시로 기록되어 기존 입력을 유지합니다.`); return false;
+      });
+      const offsets = videos.flatMap(video => {
+        const value = result.offsets.find(value => value.camera_id === video.camera_id);
+        return video.video_id === reference.video_id || !value ? [] : [{ video_id: video.video_id, offset_seconds: value.offset_seconds, confirmed: true,
+          note: `${source} · ${video.camera_id}_영상초−${reference.camera_id}_영상초 평균, 편차 ${value.spread.toFixed(3)}초` }];
+      });
+      change({ ...current.record, segments: current.record.segments.map(segment => {
+        const value = filled.find(value => value.segment === segment.segment); return value ? { ...segment, start_sec: value.start_sec, end_sec: value.end_sec } : segment;
+      }), video_offsets: [...current.record.video_offsets.filter(value => !offsets.some(offset => offset.video_id === value.video_id)), ...offsets],
+        procedure_note: current.record.procedure_note.split('\n').some(line => line.includes(`SHA-256 ${hash}`)) ? current.record.procedure_note : [current.record.procedure_note, source].filter(Boolean).join('\n') });
+      setCsvSummary({ ends: filled.filter(value => value.end_sec !== null).length, offsets: result.offsets.map(value => value.camera_id), warnings });
+    } catch (error) { if (request === csvRequest.current) setCsvError(error instanceof Error ? error.message : 'CSV를 읽지 못했습니다.'); }
+    finally { if (request === csvRequest.current) setCsvBusy(false); }
+  }
   const eventChange = (id: string, patch: Partial<ActualEvent>) => change({ ...record, events: record.events.map(value => value.event_id === id ? { ...value, ...patch } : value) });
   const videoOptions = videos.map(video => <option key={video.video_id} value={video.video_id}>{video.camera_id ? `${cameraName(video.camera_id)} · ` : ''}{video.original_name}</option>);
   function save(confirmed: boolean) {
@@ -109,7 +148,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
     <p role="status" className="video-summary"><strong>{sessionIndex}차 촬영 · 연결된 영상 {session.videos.length}개</strong>
       {session.videos.length ? ` · 사용 가능 ${usable} · 영상 읽기 확인 대기 ${videos.length - usable}${stale ? ' · 입력이 바뀌어 전처리를 다시 해야 합니다' : ''}` : writable ? ' · 「영상 파일 업로드」 메뉴에서 영상을 올리고 파일별 촬영 정보를 저장하세요.' : ' · 연결된 영상이 없습니다.'}</p>
     <p>입력 버전 {item.input_revision} · 촬영 기록 {session.recording_s1?.confirmed ? '확정' : '초안 / 미기록'}</p>
-    {writable && <div className="toolbar recording-actions">{editing ? <><button disabled={!record.video_id} onClick={() => save(false)}>촬영 기록 초안 저장</button><button disabled={!record.video_id} onClick={() => save(true)}>촬영 기록 확정</button>
+    {writable && <div className="toolbar recording-actions">{editing ? <><button disabled={!record.video_id || csvBusy} onClick={() => save(false)}>촬영 기록 초안 저장</button><button disabled={!record.video_id || csvBusy} onClick={() => save(true)}>촬영 기록 확정</button>
       {(!record.video_id || !record.procedure_note.trim()) && <span className="fine" aria-live="polite">{!record.video_id ? (videos.length ? '기준 영상을 고르세요.' : '읽을 수 있는 영상을 먼저 연결하세요.') : '실제 촬영 절차의 확인 근거를 기록해야 저장할 수 있습니다.'}</span>}</> : <button onClick={() => setEditing(true)}>확정본 수정 시작</button>}
       {edit.dirty && <><span role="status">촬영 기록 · 저장 전</span><button onClick={() => { if (edit.discard()) { setRecord(initial(item)); setEditing(!session.recording_s1?.confirmed); } }}>촬영 입력 버리고 최신 값 보기</button></>}</div>}
     <p>입장 → 기준 → 혼자 → 재회 → 무시 → 걷기 → 낯선 사람 → 퇴장</p>
@@ -127,15 +166,24 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
       <details><summary>재촬영 세션 추가</summary><button onClick={() => { if (!mayLeave()) return; void run(async () => { await api(`/cases/${item.case_id}/sessions`, 'POST', { expected_revision: item.input_revision }); await refresh('새 촬영 세션을 시작했습니다.'); }); }}>새 촬영 시작</button></details></>}
     {edit.dirty && edit.view.input_revision !== item.input_revision && <p role="status">다른 변경이 저장되었습니다. 편집 시작 버전 {edit.view.input_revision}을 유지하며 현재 입력은 자동으로 덮어쓰지 않습니다.</p>}
     {record.video_id && <><button onClick={() => void run(async () => { await api(`/cases/${item.case_id}/videos/${record.video_id}/open`, "POST"); setOpenedVideo(record.video_id); })}>영상 열기</button>{openedVideo === record.video_id && <video src={`/api/cases/${item.case_id}/videos/${record.video_id}`} controls preload="metadata" />}</>}
-    <fieldset disabled={!writable || !editing}>
+    <fieldset disabled={!writable || !editing || csvBusy}>
       <div className="form-grid"><label>실제 촬영 절차<select value={record.procedure_edition} onChange={event => change({ ...record, procedure_edition: event.target.value as RecordingV4['procedure_edition'] })}>
         <option value="unconfirmed">미확인</option><option value="s1_confirmed">현재 절차 확인</option><option value="legacy">이전·다른 절차</option></select></label>
         <label>절차 확인 근거<textarea value={record.procedure_note} onChange={event => change({ ...record, procedure_note: event.target.value })} /></label>
         <label>기준 영상<select value={record.video_id} onChange={event => { const id = event.target.value; change({ ...record, video_id: id,
           segments: record.segments.map(value => ({ ...value, video_id: id, start_sec: null, end_sec: null })), walk_phases: record.walk_phases.map(value => ({ ...value, video_id: id, start_sec: null, end_sec: null })),
           video_offsets: record.video_offsets.filter(value => value.video_id !== id).map(value => ({ ...value, confirmed: false })) }); }}><option value="">영상 선택</option>{videoOptions}</select></label></div>
-      <p className="fine">시각은 선택 영상의 실제 초입니다. 기준 영상 변경 시 구간·국면 시각을 다시 기록하고 다른 영상의 동기화를 확인합니다. 원영상에 연결된 사건과 관찰 근거는 보존됩니다.</p>
-      <details className="recording-section"><summary>실제 8구간</summary><div className="table-wrap"><table><thead><tr><th>구간·상태</th><th>실제 시작·끝</th><th>사유</th></tr></thead><tbody>{SEGMENTS_V3.map(([id, label]) => {
+      <p className="fine">시각은 선택 영상의 실제 초입니다. 기준 영상 변경 시 구간·국면 시각을 다시 기록하고 다른 영상의 동기화를 확인합니다. 원영상에 연결된 사건과 관찰 근거는 보존됩니다. 기준 영상을 바꾸면 CSV를 다시 가져오세요.</p>
+      <details className="recording-section"><summary>실제 8구간</summary>
+        <label>구간 CSV 가져오기<input type="file" accept=".csv" aria-label="구간 CSV 가져오기" disabled={!videos.find(video => video.video_id === record.video_id)?.camera_id || csvBusy} onChange={event => {
+          const file = event.target.files?.[0]; event.target.value = ''; if (file) void importCsv(file);
+        }} /></label>
+        {csvBusy && <p role="status">구간 CSV를 읽는 중…</p>}
+        {csvError && <p role="alert" className="error">{csvError}</p>}
+        {csvSummary && <div aria-label="구간 CSV 가져오기 결과"><p>채움: 구간 {csvSummary.ends}개 끝 유도, 퇴장 끝 미입력 / 오프셋 {csvSummary.offsets.join('·') || '없음'}</p>
+          <p>채우지 못함: 걷기 6국면, 사건, 관찰 근거, 꼬리 선택. 퇴장 끝과 실제 관찰 기록을 직접 입력하세요.</p>
+          {!!csvSummary.warnings.length && <ul>{csvSummary.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}</div>}
+        <div className="table-wrap"><table><thead><tr><th>구간·상태</th><th>실제 시작·끝</th><th>사유</th></tr></thead><tbody>{SEGMENTS_V3.map(([id, label]) => {
         const segment = record.segments.find(value => value.segment === id)!;
         const update = (patch: Partial<typeof segment>) => change({ ...record, segments: record.segments.map(value => value.segment === id ? { ...value, ...patch } : value),
           walk_phases: id === 'walk' && patch.state ? patch.state === 'not_performed' ? [] : record.walk_phases.length ? record.walk_phases : phases(record.video_id) : record.walk_phases });
