@@ -1,6 +1,6 @@
 # PR-VC01 INSV·360 통합 MP4 경로 제거
 
-버전: v1.0 · 2026-10-14 · 상태: 구현·검증·독립 cold review 수용 반영 완료, 병합 준비 · 선행: 없음 · 브랜치 제안: `veluga/vc01-remove-insv-360` · 제목 제안: `refactor: remove INSV storage and external 360 MP4 paths`
+버전: v1.0 · 2026-10-14 · 상태: #100 병합 완료 (`0cae5d3`) · 선행: 없음 · 브랜치 제안: `veluga/vc01-remove-insv-360` · 제목 제안: `refactor: remove INSV storage and external 360 MP4 paths`
 
 상위: [전체 계획](K-DOG_4카메라구간CSV전환계획_v1.0_20261014.md) §4.3·§5. 범위: VC-R01/R02.
 

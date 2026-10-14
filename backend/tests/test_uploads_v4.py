@@ -64,6 +64,16 @@ class UploadsV4Tests(unittest.TestCase):
         with self.store.connect() as db:
             return dict(self.store.case(db, case["case_id"]))
 
+    def test_cam4_links_without_an_original_number(self):
+        receipt = self.received(filename="6_CAM4_오른쪽.mkv")
+        case = self.case()
+        linked = self.link(receipt, case, camera="CAM4")
+        with self.store.connect() as db:
+            video = self.store.manifest(self.store.case(db, case["case_id"])).sessions[0].videos[0]
+        self.assertEqual(video.video_id, linked.video_id)
+        self.assertEqual(video.camera_id, "CAM4")
+        self.assertIsNone(video.source_original_number)
+
     def test_three_receives_and_revision_conflicts_recover_without_reupload(self):
         case = self.case()
         data = [b"synthetic-camera-one", b"synthetic-camera-two", b"synthetic-camera-three"]

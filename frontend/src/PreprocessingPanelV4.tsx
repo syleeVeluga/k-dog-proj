@@ -44,7 +44,7 @@ export function PreprocessingPanelV4({ item, username, executionId, writable, ru
   const [connected, setConnected] = useState(false), [checked, setChecked] = useState('');
   const [pollTick, setPollTick] = useState(0);
   const [error, setError] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(false);
-  const [priority, setPriority] = useState(() => [...new Set(['CAM1', 'CAM2', 'CAM3', ...session.videos.flatMap(video => video.camera_id ? [video.camera_id] : [])])]);
+  const [priority, setPriority] = useState(() => [...new Set(['CAM1', 'CAM2', 'CAM3', 'CAM4', ...session.videos.flatMap(video => video.camera_id ? [video.camera_id] : [])])]);
   const [audio, setAudio] = useState(''), [clipId, setClipId] = useState(''), [variant, setVariant] = useState<'original' | 'ai'>('original');
   const alive = useRef(true), running = useRef(false), sequence = useRef(0), postGeneration = useRef(0);
   const inFlight = useRef(false), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
