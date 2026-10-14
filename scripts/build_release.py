@@ -53,6 +53,10 @@ OPERATING_DOCUMENTS = frozenset({
     "docs/plans/360통합MP4업로드_20261012/evidence/mp03-long-filename-360.png",
     "docs/plans/Gemini주키예비키_20261013/assets/GK03_Gemini_keys_390_20261014.png",
     "docs/plans/Gemini주키예비키_20261013/assets/GK03_Gemini_keys_1366_20261014.png",
+    "docs/plans/4카메라구간CSV전환_20261014/segments.csv",
+    "docs/plans/4카메라구간CSV전환_20261014/vc02-four-camera-uploads.png",
+    "docs/plans/4카메라구간CSV전환_20261014/vc02-four-camera-priority.png",
+    "docs/plans/4카메라구간CSV전환_20261014/vc03-segments-csv-draft.png",
 })
 
 
