@@ -1,6 +1,6 @@
 # K-DOG 4카메라·구간 CSV 구현 실행 기록
 
-버전: v1.0 · 2026-10-14 · 착수 기준: `2f015c2` · 상태: VC01 #100·VC02 #101·VC03 #102 병합 완료 / VC04 구현·검증·독립 검토 완료, 최종 패키지·병합 준비
+버전: v1.0 · 2026-10-14 · 착수 기준: `2f015c2` · 상태: VC01 #100·VC02 #101·VC03 #102 병합 완료 / VC04 구현·검증·독립 검토·최종 패키지 완료, 병합 준비
 
 상위: [전환 계획](K-DOG_4카메라구간CSV전환계획_v1.0_20261014.md). 각 PR은 구현 → 검증 → 독립 cold review → 수용 건 반영·재검증 → 문서 → 병합 순서로 진행한다. 2026-10-14 사용자가 별도 검토 에이전트를 명시 허용했다. 원본 영상·운영 DB·참가자 자료·키는 커밋하지 않는다.
 
@@ -68,7 +68,7 @@ PR [#102](https://github.com/syleeVeluga/k-dog-proj/pull/102), 구현 commit `85
 - 기존 개발 간접 의존성 source-map-js 1.2.1은 `npm ci`/`npm audit --json`의 high1건이다. [보안 공지](https://github.com/advisories/GHSA-68fv-2mgg-jv7q)의 수정판은1.2.2. `npm audit --omit=dev --json`은0건이며 개발 도구 업그레이드는 별도 후속으로 남긴다.
 - 브라우저 인수는 webapp-testing 스킬의 기존 Python Playwright1.63.0/Chromium을 사용했다. FFmpeg는 2026-10-14 [공식 릴리스](https://ffmpeg.org/download.html)의 최신9.0.2 확인. 기존 portable9.0.2 봉인 빌드/source/license, 개발 PATH8.1.1과 PTS 보존 API를 유지하고 이번 범위 밖 runtime 업그레이드를 하지 않았다.
 - 독립 cold review: actionable finding0·수용 수정0. 검토자가 두 checked ZIP의 CSV/PNG·manifest hash·원본 제외,777/139/20건 로그, 실제4클립·무음 증거를 대조했다. 최종 문서·새 PNG 커밋 뒤 ZIP 재빌드·설치 검증은 최종 패키지 기록으로 닫는다.
-- 문서: DEVELOPMENT4대/MKV/CSV 모듈·시험, PILOT CSV·수동 남은 항목·offset 확인 해제·음성 카메라·AI 예산, 후속 대장 E01 종료·P01 고객 확인 대기를 갱신했다. `git diff --check`,9문서 상대 링크141개 통과. `graft build`는3521 wiring nodes/10306 edges를 생성해 wiring 동기화를 확인했다. meaning tier0%/manifest 없음은 기존 상태이며 의미 요약 완료로 주장하지 않는다.
+- 문서: DEVELOPMENT4대/MKV/CSV 모듈·시험, PILOT CSV·수동 남은 항목·offset 확인 해제·음성 카메라·AI 예산, 후속 대장 E01 종료·P01 고객 확인 대기를 갱신했다. `git diff --check`,9문서 상대 링크143개 통과. 문서 재검토의 링크 수 정정1건(141→143)을 수용했다. `graft build`는3521 wiring nodes/10306 edges를 생성해 wiring 동기화를 확인했다. meaning tier0%/manifest 없음은 기존 상태이며 의미 요약 완료로 주장하지 않는다.
 
 ### 실제 파일 기술 인수
 
@@ -91,10 +91,17 @@ CSV 원수령은860bytes/CRLF/SHA-256 `7334c82a536fb5be82d6dc5799005b21bc2e91edb
 
 ### 패키지·배포 전 점검
 
-`build_release.py` portable/online → `verify_release.py`는 새 설치/손상 거절/로그인/접수/재시작/감독 종료, portable의 봉인·틀린 키/변조 거절·계정/자료 보존·재설치를 통과했다. CSV 경로 수정 commit `afeeed3`의 두 checked ZIP은 CSV·화면3개의 포함/hash와 원본/폐기 도구 제외를 확인했고 portable 설치를 재검증했다. 최종 문서·화면4개를 포함한 ZIP은 완료 기록으로 연결한다. 깨끗한 OS·물리 다른PC는 별도 후속이다.
+`build_release.py` portable/online → `verify_release.py`는 새 설치/손상 거절/로그인/접수/재시작/감독 종료, portable의 봉인·틀린 키/변조 거절·계정/자료 보존·재설치를 통과했다. CSV 경로 수정 commit `afeeed3`의 두 checked ZIP은 CSV·화면3개의 포함/hash와 원본/폐기 도구 제외를 확인했고 portable 설치를 재검증했다.
+
+최종 검증 ZIP은 commit `5ea84d2d904a9aa716ce578ddc27f73258ec170f`의 깨끗한 작업 트리에서 생성했다. 문서·CSV·화면4개의8개 파일은 이 commit의 바이트 및 manifest hash와 일치하고, 원본 MKV/INSV·폐기 도구 미포함을 재확인했다. 두 ZIP의 `verify_release.py`가 모두 통과했으며 외부 AI0건, 현재 호스트 새 설치/재시작 검증이다. 이후 commit은 검증 결과·문서 숫자·병합 상태 기록만 갱신한다. 깨끗한 OS·물리 다른PC는 별도 후속이다.
+
+| 인수 ZIP(임시 시험 산출물) | bytes | SHA-256 |
+| --- | --- | --- |
+| kdog-vc04-portable-final.zip | 76075190 | `202b11b5a23c39806e946ed15d68e466f518a7b6af70780a8e699d64abdbecf4` |
+| kdog-vc04-online-final.zip | 3245571 | `2f11e31d26cd9ca6ead59c4c6451e8b0ef326fb952769610ba5ed8d9711102d1` |
 
 폐기 검색은 inventory 명령과 그 회귀2파일의6 literal만 남는다(§2의 명시 예외). 현행 실행 경로 참조0. 실제 로컬 운영 DB `app.manage check-removed-media`는 인수 전후 cases0/receipts0/batches0,total0/exit0. 외부 배포 DB는 미제공이므로 배포 전 동일 점검을 실행한다. 자동 삭제·이관0.
 
 ## 6 후속 범위
 
-VC04는 선행 PR 병합 후 진행한다. 고객 사양·카탈로그 변경, 실제 공급자 품질, 물리3PC, 음성 녹음 카메라와 4대 배치의 고객 확인은 이번 구현 완료와 별도다. 실제 AI 호출은 이번 인수에서 수행하지 않는다.
+고객 사양·카탈로그 변경, 실제 공급자 품질, 물리3PC, 음성 녹음 카메라와 4대 배치의 고객 확인은 이번 구현 완료와 별도다. 실제 AI 호출은 이번 인수에서 수행하지 않았다. 기존 개발 도구 source-map-js 보완도 별도 후속이다.

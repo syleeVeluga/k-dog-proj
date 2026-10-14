@@ -1,6 +1,6 @@
 # PR-VC04 통합 검증과 운영 문서
 
-버전: v1.0 · 2026-10-14 · 상태: 구현·검증·독립 cold review 완료, 최종 패키지·병합 준비 · 선행: [VC01](K-DOG_PR-VC01_INSV360경로제거_v1.0_20261014.md)·[VC02](K-DOG_PR-VC02_4카메라식별과전처리기본값_v1.0_20261014.md)·[VC03](K-DOG_PR-VC03_구간CSV가져오기_v1.0_20261014.md) 병합 · 브랜치 제안: `veluga/vc04-four-camera-acceptance` · 제목 제안: `docs: record four-camera CSV acceptance and operations`
+버전: v1.0 · 2026-10-14 · 상태: 구현·검증·독립 cold review·최종 패키지 완료, 병합 준비 · 선행: [VC01](K-DOG_PR-VC01_INSV360경로제거_v1.0_20261014.md)·[VC02](K-DOG_PR-VC02_4카메라식별과전처리기본값_v1.0_20261014.md)·[VC03](K-DOG_PR-VC03_구간CSV가져오기_v1.0_20261014.md) 병합 · 브랜치 제안: `veluga/vc04-four-camera-acceptance` · 제목 제안: `docs: record four-camera CSV acceptance and operations`
 
 상위: [전체 계획](K-DOG_4카메라구간CSV전환계획_v1.0_20261014.md) §6. 범위: VC-R06과 VC-R01~R05의 통합 회귀.
 
