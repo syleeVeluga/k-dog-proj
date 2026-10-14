@@ -81,6 +81,7 @@ class ViewWindowV4(ContractV4):
     source_start_seconds: Seconds | None = None
     source_end_seconds: Seconds | None = None
     clip_ids: tuple[MediaKey, ...] = ()
+    # Retained conversion_required for previously stored batch JSON.
     availability: Literal["available", "partial", "missing", "offset_unconfirmed", "camera_unassigned",
                           "conversion_required", "failed", "no_frames"]
     visual_state: Literal["unobserved", "whole_observed", "partial_observed", "occluded", "body_unobserved"] = "unobserved"

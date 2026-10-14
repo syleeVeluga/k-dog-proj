@@ -108,11 +108,6 @@ test('세 브라우저 업로드·연결 충돌·재접속은 파일 재전송 �
     await pages[0].getByText(/^정보 저장 완료한 파일/).click();
     for (let i = 0; i < 3; i++) await expect(pages[0].getByRole('article', { name: `업로드 파일 three-browser-cam${i + 1}.mp4`, exact: true }).getByText('등록됨 · 영상 읽기 확인 대기', { exact: true })).toBeVisible();
     expect(transmissions).toBe(3);
-    await pages[0].getByLabel('영상 파일', { exact: true }).setInputFiles({ name: 'synthetic-source.insv', mimeType: 'application/octet-stream', buffer: Buffer.from('synthetic INSV storage only') });
-    await pages[0].getByRole('button', { name: '업로드 시작·재시도', exact: true }).click();
-    const insv = pages[0].getByRole('article', { name: '업로드 파일 synthetic-source.insv', exact: true });
-    await expect(insv.getByText(/INSV 원본 보관 전용/)).toBeVisible();
-    await expect(insv.getByRole('link', { name: '보관 원본 내려받기' })).toBeVisible();
     await pages[0].screenshot({ path: testInfo.outputPath('three-browser-uploads.png'), animations: 'disabled' });
     expect(errors).toEqual([]);
   } finally { await Promise.allSettled(contexts.map(context => context.close())); }

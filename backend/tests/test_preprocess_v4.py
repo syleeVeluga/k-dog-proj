@@ -56,7 +56,7 @@ class PreprocessV4Tests(unittest.TestCase):
             return dict(self.store.case(db, self.case_id))
 
     def upload(self, name="one", camera="CAM1", **changes):
-        data = changes.pop("data", self.samples.get(name, b"synthetic-insv"))
+        data = changes.pop("data", self.samples.get(name, b"synthetic-original"))
         receipt = uploads.create_receipt(self.store, UploadCreateV4(request_id="upload-" + name,
             filename=changes.pop("filename", name + ".mp4"), expected_size=len(data), **changes), "op")
         asyncio.run(uploads.receive(self.store, receipt.upload_id, receipt.request_id, chunks(data), "op"))
@@ -153,14 +153,13 @@ class PreprocessV4Tests(unittest.TestCase):
         self.assertEqual(window.representative_audio_video_id, one.video_id)
         self.assertEqual(batch.status, "partial")
 
-    def test_insv_and_camera_decode_failure_leave_usable_camera_output(self):
+    def test_camera_decode_failure_leave_usable_camera_output(self):
         one = self.upload()
-        insv = self.upload("raw", "CAM2", filename="raw.insv")
         broken = self.upload("broken", "CAM3", data=b"invalid-synthetic-container")
-        self.recording(one.video_id, ((insv.video_id, 0), (broken.video_id, 0)))
+        self.recording(one.video_id, ((broken.video_id, 0),))
         batch = self.run_batch()
         window = next(value for value in batch.windows if value.window.window_id == "entry_whole")
-        self.assertEqual([view.availability for view in window.views], ["available", "conversion_required", "failed"])
+        self.assertEqual([view.availability for view in window.views], ["available", "failed"])
         self.assertEqual(len(batch.clips), 1)
         self.assertEqual(batch.clips[0].status, "complete")
 
@@ -191,7 +190,7 @@ class PreprocessV4Tests(unittest.TestCase):
         self.assertEqual(invalid.exception.status_code, 409)
 
     def test_same_size_source_tamper_and_conversion_parent_tamper_are_rejected(self):
-        parent = self.upload("raw", "CAM2", filename="raw.insv")
+        parent = self.upload("raw", "CAM2", filename="raw.mp4")
         converted = self.upload("one", "CAM1", source_kind="received_conversion",
             parents=[MediaParentV4(upload_id=parent.upload_id, sha256=parent.sha256, video_id=parent.video_id)],
             conversion=ConversionV4(tool="synthetic converter", tool_version="1", settings={"ref": "literal-not-a-link"}))
@@ -336,7 +335,7 @@ class PreprocessV4Tests(unittest.TestCase):
             expected_input=batch.input, expected_revision=batch.input_revision).batch_id, batch.batch_id)
 
     def test_backup_restore_explicit_reuse_and_deletion_ledger_cover_typed_artifacts_only(self):
-        parent = self.upload("raw", "CAM2", filename="raw.insv")
+        parent = self.upload("raw", "CAM2", filename="raw.mp4")
         video = self.upload("one", "CAM1", source_kind="received_conversion",
             parents=[MediaParentV4(upload_id=parent.upload_id, sha256=parent.sha256, video_id=parent.video_id)],
             conversion=ConversionV4(tool="synthetic", tool_version="1", settings={

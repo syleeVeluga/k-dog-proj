@@ -60,15 +60,14 @@ S1 고객 원본은 로컬 전용 `docs/요구사항_20261003/`이다. [원본 �
 
 ## 전처리와 실행
 
-360 통합 MP4는 「영상 파일 업로드」의 「360 통합 MP4 (Studio 등에서 내보낸 파일)」로 원본 INSV 없이 등록한다. 새 `external_360_mp4`는 MP4·부모0·conversion null·typed external_processing 계약이며 `EXT360`/원본 번호 null로 저장한다. 기존 request JSON과 과거 입력 판본은 보존한다. `PATCH /api/cases/{case_id}/videos/{video_id}/external-processing`은 session_id·expected_revision·처리 정보만 받아 같은 파일의 새 입력 판본을 만든다. 이전 앱은 이 종류를 이해하지 못하므로 업데이트한 전체 앱으로 동일 운영 DB를 사용한다.
+배포 전 제거 대상 영상 점검은 다음 명령으로 수행한다. 원본 DB와 WAL을 임시 폴더로 복사하여 검사하며 운영 자료를 변경하지 않는다. 점검 중 DB가 바뀌면 API·worker를 종료하고 재실행한다. `total: 0`/exit0 확인 뒤 배포한다. 1건 이상이면 case/receipt/batch 식별자만 보고하고, 처리 방법은 사용자가 결정한다. 자동 삭제·이관은 하지 않는다. 이전 앱을 같은 운영 DB에 병행 실행하지 않는다.
 
-flat/preserved만 영상 클립 후보다. 펼침/미확인 배치 또는 편집/미확인 시간은 해당 파일의 전처리 제한으로 남는다. edited/unknown은 기준·사건·관찰 근거·확정 offset의 시간 앵커로 확정할 수 없고 펼침/preserved의 시간 근거는 별도로 허용된다. timeline 정정이 사용한 시간 근거에 영향을 주면 촬영 기록을 다시 확정한다. metadata 정정은 자동 전처리/AI 실행을 만들지 않으며 과거 실행은 당시 metadata와 입력 pin으로 조회한다.
+```powershell
+# backend/; 배포 대상의 실제 데이터 루트를 지정
+uv run --locked python -X utf8 -m app.manage --data-dir "D:/K-DOG/data" check-removed-media
+```
 
-관련 회귀는 `tests.test_external_media_v4`, `tests.test_external_media_acceptance_v4`, `frontend/tests/external-media-v4.spec.ts`다. 기존 전체 명령에 포함된다. 설치 ZIP의 기존 감독·계정·손상·재시작 검증 뒤 `backend/.venv/Scripts/python.exe -X utf8 scripts/verify_mp4_package.py <ZIP>`로 새 종류의 설치 런타임 접수·보관·정정·재시작/download 계약도 확인한다. 이 추가 검사는 합성 bytes를 package interpreter로 보관하며 HTTP 전송/decode 검증은 실제 합성 브라우저/전처리 시험이 담당한다. 실제 Studio 품질·GB급 성능은 [실행 기록](plans/360통합MP4업로드_20261012/K-DOG_360통합MP4구현실행기록_v1.0_20261012.md)의 미실측 항목을 따른다.
-
-UI 없는 INSV 판독·MP4 재포장/압축 실험은 [독립 변환 도구](../tools/insv_converter/README.md)를 사용한다. 스티칭·제품 직접 분석 지원과 구별하며 결과는 저장소 밖에 저장한다.
-
-실제 8구간·사건·카메라 offset을 확정하고 명시 요청으로 실행한다. S1은 공통시각과 각 영상 시각, 원본/변환본/AI용 클립을 구분하며 AI용 1fps 실제 프레임 PTS와 hash를 고정한다. INSV 수신은 보관이며 직접 분석 지원 선언이 아니다. 규칙은 `resources/rules/preprocess-v4.json`이다.
+실제 8구간·사건·카메라 offset을 확정하고 명시 요청으로 실행한다. S1은 공통시각과 각 영상 시각, 원본/변환본/AI용 클립을 구분하며 AI용 1fps 실제 프레임 PTS와 hash를 고정한다. 규칙은 `resources/rules/preprocess-v4.json`이다.
 
 ```powershell
 # backend/; 화면에서 확인한 현재 입력 revision과 새 요청 ID를 지정

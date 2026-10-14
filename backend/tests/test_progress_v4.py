@@ -25,8 +25,7 @@ class ProgressV4Tests(unittest.TestCase):
 
     def view(self, confirmed=False, videos=("v1", "v2")):
         recording = SimpleNamespace(confirmed=confirmed) if confirmed is not None else None
-        session = SimpleNamespace(session_id="S1", recording_s1=recording, videos=[SimpleNamespace(video_id=name, media_status="pending_probe") for name in videos]
-                                  + [SimpleNamespace(video_id="insv", media_status="storage_only")])
+        session = SimpleNamespace(session_id="S1", recording_s1=recording, videos=[SimpleNamespace(video_id=name, media_status="pending_probe") for name in videos])
         return SimpleNamespace(case_id="C1", input_revision=self.revision, manifest=SimpleNamespace(selected_session_id="S1", sessions=[session]))
 
     def audit(self, action, detail, target="C1"):
@@ -52,7 +51,7 @@ class ProgressV4Tests(unittest.TestCase):
     def test_a_new_participant_starts_at_the_recording_stage(self):
         value = self.build("operator")
         self.assertEqual((value.stage, value.recording, value.preprocess, value.scoring, value.final, value.report), ("recording", False, "none", "none", False, False))
-        self.assertEqual((value.videos_total, value.videos_usable), (2, 0))  # storage-only INSV is not a readable video
+        self.assertEqual((value.videos_total, value.videos_usable), (2, 0))
 
     def test_preprocess_states_and_usable_videos_come_from_real_clips(self):
         self.audit("preprocess_v4.started", {"session_id": "S1", "input_revision": 3})

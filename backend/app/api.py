@@ -45,7 +45,7 @@ from app import validation_data_v4, exports_v4, activity_v4
 from app.domain.runs_v4 import ActionV4, RunViewV4, StartV4, RunRequestLookupV4
 from app.domain.preprocess_v4 import (BatchV4, PreprocessRequestV4, PreprocessStatusV4,
                                       PreprocessExecutionPageV4, PreprocessExecutionDetailV4)
-from app.domain.media_v4 import ExternalProcessingEditV4, PreservedMediaRegistrationV4, StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
+from app.domain.media_v4 import PreservedMediaRegistrationV4, StoredMediaV4, UploadCreateV4, UploadLinkV4, UploadReceiptV4
 from app import secrets as vault
 from app.input_models import Model
 from app.input_models_v3 import CaseCreateV3, CaseEditV3, SurveyEditV3
@@ -484,7 +484,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
             if isinstance(video, StoredMediaV4):
                 path = uploads.linked_video_path(store, case_id, video_id, user.username)
                 return FileResponse(path, filename=video.original_name,
-                    content_disposition_type="attachment" if video.media_status == "storage_only" else "inline")
+                    content_disposition_type="inline")
             path = store.path(video.storage_ref)
             if not path.is_file() or path.stat().st_size != video.size_bytes:
                 raise HTTPException(409, "영상 파일이 없거나 크기가 변경되었습니다.")
@@ -550,9 +550,6 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         with store.connect() as db:
             return store.view(store.case(db, case_id))
 
-    @app.patch("/api/cases/{case_id}/videos/{video_id}/external-processing", response_model=CaseViewV4)
-    def video_external_processing(case_id: Key, video_id: Key, value: ExternalProcessingEditV4, user=Depends(writer)):
-        return uploads.update_external_processing(store, case_id, video_id, value, user.username)
 
     @app.get("/api/catalog/protocol-s1")
     def protocol_s1(user=Depends(reader)):

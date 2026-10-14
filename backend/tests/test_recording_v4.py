@@ -253,7 +253,7 @@ class RecordingV4Tests(unittest.TestCase):
         self.assertEqual(result.status, "unconfirmed")
         self.assertEqual(result.reference_seconds, (116, 130, 129))
 
-    def test_media_hash_length_cross_camera_and_insv_are_validated_without_real_probe(self):
+    def test_media_hash_length_cross_camera_are_validated_without_real_probe(self):
         with tempfile.TemporaryDirectory(prefix="kdog-recording-test-") as folder:
             root = Path(folder)
             payload = b"synthetic-not-real-media"
@@ -267,11 +267,6 @@ class RecordingV4Tests(unittest.TestCase):
                 with self.assertRaises(HTTPException) as caught:
                     validate_recording_media_v4(store, session, recording())
                 self.assertEqual(caught.exception.status_code, 422)
-            video.media_status = "storage_only"
-            with self.assertRaises(HTTPException) as caught:
-                validate_recording_media_v4(store, session, recording())
-            self.assertEqual(caught.exception.status_code, 422)
-            video.media_status = "pending_probe"
             (root / "v1.mp4").write_bytes(b"x" * len(payload))
             with self.assertRaises(HTTPException) as caught:
                 validate_recording_media_v4(store, session, recording())

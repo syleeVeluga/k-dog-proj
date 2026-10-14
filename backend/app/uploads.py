@@ -11,7 +11,7 @@ from typing import BinaryIO
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from .domain.media_v4 import (CAMERA_ORIGINALS, ExternalProcessingEditV4, MediaParentV4, PreservedMediaRegistrationV4, StoredMediaV4,
+from .domain.media_v4 import (CAMERA_ORIGINALS, MediaParentV4, PreservedMediaRegistrationV4, StoredMediaV4,
                               UploadCreateV4, UploadLinkV4, UploadReceiptV4)
 from .intake import selected_session
 from .storage import encode, now, uid
@@ -78,8 +78,7 @@ def _view(row):
         upload_id=row["upload_id"], request_id=row["request_id"], creator=row["creator"],
         filename=request["filename"], state=row["state"], expected_size=request["expected_size"],
         size_bytes=row["size_bytes"], sha256=row["sha256"], source_kind=request["source_kind"],
-        external_processing=request.get("external_processing"),
-        media_status="storage_only" if Path(request["filename"]).suffix.lower() == ".insv" else "pending_probe",
+        media_status="pending_probe",
         case_id=row["linked_case_id"] or row["scope_case_id"],
         session_id=row["linked_session_id"] or row["scope_session_id"], video_id=row["video_id"],
         camera_id=link.get("camera_id"), linked_revision=row["linked_revision"], failure_code=row["failure_code"],
@@ -357,14 +356,12 @@ def link_receipt(store, upload_id, value: UploadLinkV4, actor) -> UploadReceiptV
             raise HTTPException(409, "파일 수신을 완료한 후 연결하세요.")
         case, manifest, session = _case(store, db, value.case_id, value.session_id, value.expected_revision)
         request = UploadCreateV4.model_validate_json(receipt["request_json"])
-        if request.source_kind == "external_360_mp4" and (value.camera_id != "EXT360" or value.source_original_number is not None):
-            raise HTTPException(422, "360 통합 영상은 원본 번호 없이 통합 영상으로 등록하세요.")
         parents = _parents(store, db, request, actor, (value.case_id, value.session_id))
         existing = next((video for video in session.videos if video.sha256 == receipt["sha256"]), None)
         if existing is not None:
             if not isinstance(existing, StoredMediaV4) or (existing.camera_id, existing.source_original_number,
-                    existing.source_kind, existing.parents, existing.conversion, existing.external_processing) != (
-                    value.camera_id, binding["source_original_number"], request.source_kind, parents, request.conversion, request.external_processing):
+                    existing.source_kind, existing.parents, existing.conversion) != (
+                    value.camera_id, binding["source_original_number"], request.source_kind, parents, request.conversion):
                 raise HTTPException(409, "이 회차에 동일 파일이 다른 촬영 정보로 등록되어 있습니다.")
             video_id, revision = existing.video_id, case["input_revision"]
         else:
@@ -373,7 +370,7 @@ def link_receipt(store, upload_id, value: UploadLinkV4, actor) -> UploadReceiptV
                 original_name=request.filename, storage_ref=receipt["storage_ref"], sha256=receipt["sha256"],
                 size_bytes=receipt["size_bytes"], camera_id=value.camera_id,
                 source_original_number=binding["source_original_number"], source_kind=request.source_kind,
-                parents=parents, conversion=request.conversion, external_processing=request.external_processing,
+                parents=parents, conversion=request.conversion,
                 media_status=_view(receipt).media_status))
             store.save(db, case, manifest, actor, "video.receipt.link")
             revision = manifest.input_revision
@@ -397,8 +394,7 @@ def register_preserved_video(store, case_id: str, session_id: str, video_id: str
         try:
             request = UploadCreateV4(request_id=value.request_id, filename=video.original_name,
                 expected_size=video.size_bytes, expected_sha256=video.sha256, case_id=case_id, session_id=session_id,
-                source_kind=value.source_kind, parents=value.parents, conversion=value.conversion,
-                external_processing=value.external_processing)
+                source_kind=value.source_kind, parents=value.parents, conversion=value.conversion)
         except ValidationError:
             raise HTTPException(422, "보존된 파일 형식과 원본·변환 출처 정보가 맞지 않습니다.") from None
         binding = UploadLinkV4(case_id=case_id, session_id=session_id, camera_id=value.camera_id,
@@ -459,8 +455,8 @@ def register_preserved_video(store, case_id: str, session_id: str, video_id: str
         registered = StoredMediaV4(video_id=video_id, upload_id=upload_id, original_name=current.original_name,
             storage_ref=current.storage_ref, sha256=current.sha256, size_bytes=current.size_bytes,
             camera_id=value.camera_id, source_original_number=binding["source_original_number"], source_kind=request.source_kind,
-            parents=parents, conversion=request.conversion, external_processing=request.external_processing,
-            media_status="storage_only" if Path(current.original_name).suffix.lower() == ".insv" else "pending_probe")
+            parents=parents, conversion=request.conversion,
+            media_status="pending_probe")
         session.videos = [registered if item.video_id == video_id else item for item in session.videos]
         store.save(db, case, manifest, actor, "video.preserved.register")
         db.execute("INSERT INTO upload_receipts(upload_id,creator,request_id,request_hash,request_json,state,scope_case_id,scope_session_id,"
@@ -471,67 +467,6 @@ def register_preserved_video(store, case_id: str, session_id: str, video_id: str
         store.audit(db, actor, upload_id, "upload.register_preserved", {"case_id": case_id, "video_id": video_id,
                     "linked_revision": manifest.input_revision, "source_kind": request.source_kind})
         return _view(_row(store, db, upload_id, actor))
-
-
-def _external_source(store, db, case_id, video, actor):
-    source = _linked_source(store, db, case_id, video.video_id, actor)
-    try:
-        if hashlib.sha256(source["request_json"].encode()).hexdigest() != source["request_hash"]:
-            raise ValueError("request hash")
-        request = UploadCreateV4.model_validate_json(source["request_json"])
-        binding = json.loads(source["link_json"])
-        if request.request_id != source["request_id"] or source["state"] != "linked" or (request.expected_sha256 is not None and request.expected_sha256 != video.sha256):
-            raise ValueError("declared file hash or state")
-        if (request.case_id, request.session_id) != (source["scope_case_id"], source["scope_session_id"]):
-            raise ValueError("receipt scope")
-        if request.case_id is not None and (request.case_id, request.session_id) != (case_id, source["linked_session_id"]):
-            raise ValueError("declared target")
-        if (binding["case_id"], binding["session_id"]) != (case_id, source["linked_session_id"]):
-            raise ValueError("registered target")
-        if (request.source_kind, request.filename, request.expected_size, request.parents, request.conversion,
-                binding["camera_id"], binding["source_original_number"]) != (
-                video.source_kind, video.original_name, video.size_bytes, list(video.parents), video.conversion,
-                video.camera_id, video.source_original_number):
-            raise ValueError("immutable provenance")
-    except (ValueError, KeyError, TypeError):
-        raise HTTPException(409, "영상의 고정 수신 요청·출처·등록 정보가 다릅니다.") from None
-    return source
-
-
-def update_external_processing(store, case_id, video_id, value: ExternalProcessingEditV4, actor):
-    value = ExternalProcessingEditV4.model_validate_json(value.model_dump_json())
-    with store.connect() as db:
-        login_hash = _account(db, actor)["session_hash"]
-        _, _, session = _case(store, db, case_id, value.session_id, value.expected_revision)
-        video = next((item for item in session.videos if item.video_id == video_id), None)
-        if not isinstance(video, StoredMediaV4) or video.source_kind != "external_360_mp4":
-            raise HTTPException(422, "외부 처리 MP4의 처리 정보만 정정할 수 있습니다.")
-        source = _external_source(store, db, case_id, video, actor)
-        immutable = tuple(source[key] for key in ("request_json", "request_hash", "link_json"))
-        sources = _lineage(db, source)
-    identities = _verify_sources(store, sources)
-    with store.connect(write=True) as db:
-        if _account(db, actor)["session_hash"] != login_hash:
-            raise HTTPException(403, "처리 정보 확인 중 로그인 권한이 변경되었습니다.")
-        row, manifest, session = _case(store, db, case_id, value.session_id, value.expected_revision)
-        _assert_sources(store, db, sources, identities)
-        current = next((item for item in session.videos if item.video_id == video_id), None)
-        if current != video:
-            raise HTTPException(409, "확인 중 영상 입력이 변경되었습니다.")
-        source = _external_source(store, db, case_id, current, actor)
-        if tuple(source[key] for key in ("request_json", "request_hash", "link_json")) != immutable:
-            raise HTTPException(409, "확인 중 영상의 고정 출처가 변경되었습니다.")
-        if current.external_processing == value.external_processing:
-            return store.view(row)
-        if current.external_processing.timeline != value.external_processing.timeline and session.recording_s1:
-            from .recording_v4 import recording_time_sources_v4
-            if video_id in recording_time_sources_v4(session.recording_s1):
-                session.recording_review_required = True
-                session.recording_s1 = session.recording_s1.model_copy(update={"confirmed": False})
-        updated = current.model_copy(update={"external_processing": value.external_processing})
-        session.videos = [updated if item.video_id == video_id else item for item in session.videos]
-        store.save(db, row, manifest, actor, "video.external_processing.update")
-        return store.view(store.case(db, case_id))
 
 
 def download_path(store, upload_id, actor):

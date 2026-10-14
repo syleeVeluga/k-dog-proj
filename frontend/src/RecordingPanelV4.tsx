@@ -7,7 +7,7 @@ import type { ActualEvent, CaptureState, Case, Run, SegmentId } from './types';
 import { EVENT_CHOICES, WINDOW_NAMES } from './recordingTypesV4';
 import type { PreprocessStatusV4 } from './preprocessTypesV4';
 import type { CoverageV4, RecordingV4, RecordingViewV4, TailV4 } from './recordingTypesV4';
-import { cameraName, ProcessingNotice } from './ExternalProcessing';
+import { cameraName } from './types';
 
 const states: Record<CaptureState, string> = { performed: '실시', shortened: '단축', not_performed: '미실시', welfare_stopped: '복지 중단' };
 const phaseNames = ['이동1', '정지1', '이동2', '정지2', '이동3', '정지3'];
@@ -21,7 +21,7 @@ const statusNames: Record<string, string> = { confirmed: '시각 확정', partia
 function initial(item: Case): RecordingV4 {
   const session = sessionOf(item);
   if (session.recording_s1) return structuredClone(session.recording_s1);
-  const videoId = session.videos.find(video => video.media_status !== 'storage_only')?.video_id ?? '';
+  const videoId = session.videos[0]?.video_id ?? '';
   return { procedure_edition: 'unconfirmed', procedure_note: '', video_id: videoId, confirmed: false,
     segments: SEGMENTS_V3.map(([segment]) => ({ segment, video_id: videoId, state: 'performed', start_sec: null, end_sec: null, reason: null })),
     walk_phases: phases(videoId), events: [], video_offsets: [], coverage: [], tail_selections: [], linked_memos: [], safe_base_sequence: null };
@@ -52,7 +52,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
   const [view, setView] = useState<RecordingViewV4 | null>(null);
   const [viewError, setViewError] = useState('');
   const path = `/cases/${item.case_id}/sessions/${session.session_id}/recording-s1`;
-  const videos = session.videos.filter(video => video.media_status !== 'storage_only');
+  const videos = session.videos;
   const [verified, setVerified] = useState<Set<string>>(new Set());
   const [stale, setStale] = useState(false);
   const [openedVideo, setOpenedVideo] = useState<string | null>(null);
@@ -67,7 +67,6 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
     return () => { active = false; };
   }, [item.case_id, session.session_id, item.input_revision]);
   const usable = videos.filter(video => verified.has(video.video_id)).length;
-  const keptOnly = session.videos.length - videos.length;
   useEffect(() => {
     if (!edit.dirty) { setRecord(initial(item)); setEditing(!session.recording_s1?.confirmed); }
   }, [item.case_id, session.session_id, item.input_revision]);
@@ -108,9 +107,8 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
   return <section className="panel" aria-label="촬영 기록">
     <div className="section-title"><h2>{item.dog_name} · {item.participant_id}</h2><button onClick={close}>닫기</button></div>
     <p role="status" className="video-summary"><strong>{sessionIndex}차 촬영 · 연결된 영상 {session.videos.length}개</strong>
-      {session.videos.length ? ` · 사용 가능 ${usable} · 영상 읽기 확인 대기 ${videos.length - usable}${keptOnly ? ` · 원본 보관 전용 ${keptOnly}` : ''}${stale ? ' · 입력이 바뀌어 전처리를 다시 해야 합니다' : ''}` : writable ? ' · 「영상 파일 업로드」 메뉴에서 영상을 올리고 파일별 촬영 정보를 저장하세요.' : ' · 연결된 영상이 없습니다.'}</p>
+      {session.videos.length ? ` · 사용 가능 ${usable} · 영상 읽기 확인 대기 ${videos.length - usable}${stale ? ' · 입력이 바뀌어 전처리를 다시 해야 합니다' : ''}` : writable ? ' · 「영상 파일 업로드」 메뉴에서 영상을 올리고 파일별 촬영 정보를 저장하세요.' : ' · 연결된 영상이 없습니다.'}</p>
     <p>입력 버전 {item.input_revision} · 촬영 기록 {session.recording_s1?.confirmed ? '확정' : '초안 / 미기록'}</p>
-    {videos.filter(video => video.source_kind === 'external_360_mp4' && video.external_processing).map(video => <article key={video.video_id}><p>360 통합 영상 · {video.original_name}</p><ProcessingNotice value={video.external_processing!} /></article>)}
     {writable && <div className="toolbar recording-actions">{editing ? <><button disabled={!record.video_id} onClick={() => save(false)}>촬영 기록 초안 저장</button><button disabled={!record.video_id} onClick={() => save(true)}>촬영 기록 확정</button>
       {(!record.video_id || !record.procedure_note.trim()) && <span className="fine" aria-live="polite">{!record.video_id ? (videos.length ? '기준 영상을 고르세요.' : '읽을 수 있는 영상을 먼저 연결하세요.') : '실제 촬영 절차의 확인 근거를 기록해야 저장할 수 있습니다.'}</span>}</> : <button onClick={() => setEditing(true)}>확정본 수정 시작</button>}
       {edit.dirty && <><span role="status">촬영 기록 · 저장 전</span><button onClick={() => { if (edit.discard()) { setRecord(initial(item)); setEditing(!session.recording_s1?.confirmed); } }}>촬영 입력 버리고 최신 값 보기</button></>}</div>}
@@ -127,7 +125,6 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
       <ul>{session.recording.video_offsets.map(value => <li key={value.video_id}>{session.videos.find(video => video.video_id === value.video_id)?.original_name} · 오프셋 {value.offset_seconds}초 · {value.confirmed ? '확인됨' : '미확인'} · {value.note}</li>)}</ul></details>}
     {writable && <><SessionEditor item={item} session={session} run={run} refresh={refresh} /><p>「영상 파일 업로드」 메뉴에서 원본·변환 파일을 올리고 참가자·촬영 회차·촬영 카메라 번호를 저장하세요.</p>
       <details><summary>재촬영 세션 추가</summary><button onClick={() => { if (!mayLeave()) return; void run(async () => { await api(`/cases/${item.case_id}/sessions`, 'POST', { expected_revision: item.input_revision }); await refresh('새 촬영 세션을 시작했습니다.'); }); }}>새 촬영 시작</button></details></>}
-    {session.videos.some(video => video.media_status === 'storage_only') && <p>INSV 원본은 보관 중입니다. 변환 파일을 연결한 뒤 관찰 시각을 기록하세요.</p>}
     {edit.dirty && edit.view.input_revision !== item.input_revision && <p role="status">다른 변경이 저장되었습니다. 편집 시작 버전 {edit.view.input_revision}을 유지하며 현재 입력은 자동으로 덮어쓰지 않습니다.</p>}
     {record.video_id && <><button onClick={() => void run(async () => { await api(`/cases/${item.case_id}/videos/${record.video_id}/open`, "POST"); setOpenedVideo(record.video_id); })}>영상 열기</button>{openedVideo === record.video_id && <video src={`/api/cases/${item.case_id}/videos/${record.video_id}`} controls preload="metadata" />}</>}
     <fieldset disabled={!writable || !editing}>

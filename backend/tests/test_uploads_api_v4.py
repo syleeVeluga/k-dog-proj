@@ -55,10 +55,10 @@ class UploadApiV4Tests(AppCase):
             response = self.client.get(f"/api/uploads/{receipt['upload_id']}/content")
             self.assertEqual(response.content, f"synthetic camera {i}".encode())
 
-    def test_receipt_roles_and_complete_insv_remain_storage_only(self):
-        receipt = self.receive(1, b"synthetic INSV", filename="source.insv")
+    def test_receipt_roles_and_complete_original_remain_pending_probe(self):
+        receipt = self.receive(1, b"synthetic original", filename="source.mp4")
         self.assertFalse(receipt["analysis_ready"])
-        self.assertEqual(receipt["media_status"], "storage_only")
+        self.assertEqual(receipt["media_status"], "pending_probe")
         for role, status in ((None, 401), ("reviewer", 200), ("developer", 200)):
             client = self.client_for(role)
             for path in ("/api/uploads", f"/api/uploads/{receipt['upload_id']}/content"):
@@ -116,7 +116,7 @@ class UploadApiV4Tests(AppCase):
 
     def test_conversion_raw_settings_are_not_backup_links_and_deletion_purges_descendants(self):
         item = self.make_case()
-        parent = self.receive(1, b"parent source", filename="parent.insv")
+        parent = self.receive(1, b"parent source", filename="parent.mp4")
         self.assertEqual(self.link(parent, item).status_code, 200)
         parent = self.client.get(f"/api/uploads/{parent['upload_id']}").json()
         child = self.receive(2, b"converted mp4", source_kind="received_conversion",

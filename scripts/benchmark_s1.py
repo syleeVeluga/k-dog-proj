@@ -358,8 +358,7 @@ def inspect_trial(store, trial, user, stamps):
             for item in run_v4.view(store, trial.ai.run_id, user)["steps"] if item["call_reserved"]],
         "timing": timing(trace) if trace else None, "quality": result_quality,
         "cache": trial.cache, "fps_condition": trial.fps_condition, "pc_upload_mode": trial.pc_upload_mode,
-        "provider_execution": trial.provider_execution, "multiview_input_count": len(videos),
-        "insv": {"storage": "implemented_not_field_measured", "conversion": "unmeasured", "direct_read": "unsupported_storage_only", "accuracy": "unmeasured"}}
+        "provider_execution": trial.provider_execution, "multiview_input_count": len(videos)}
     # Paths/names/IDs embedded in probe metadata are private; emit only technical fields.
     safe_fields = {"duration_seconds", "fps", "width", "height", "video_codec", "has_audio", "conversion_tool", "conversion_settings_hash"}
     result["source_metadata"] = [{key: value for key, value in entry.model_dump(mode="json").items() if key in safe_fields} for entry in pairing.media]
@@ -421,7 +420,6 @@ def summarize(manifest, store=None, user=None):
         report_runs_v4.check_stamps(store, stamps)
     return {"version": VERSION, "sample_kind": manifest.sample_kind, "app_commit": manifest.app_commit,
         "environment": manifest.environment, "conditions": rows, "trials": results, "real_measurement_complete": False,
-        "insv_followup": {"storage": "field_unmeasured", "conversion": "field_unmeasured", "direct_read": "unsupported_storage_only", "accuracy": "field_unmeasured"},
         "accuracy_threshold": None, "note": "Recorded measurements are not accuracy approval or S16 field acceptance. Missing rows are never extrapolated."}
 
 

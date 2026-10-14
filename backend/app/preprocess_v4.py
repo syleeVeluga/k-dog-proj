@@ -9,7 +9,7 @@ from fastapi import HTTPException
 
 from . import media
 from .domain.catalog_v4 import RESOURCES, load_catalog_v4, load_rules_v4
-from .domain.media_v4 import StoredMediaV4, external_media_reasons
+from .domain.media_v4 import StoredMediaV4
 from .domain.preprocess_v4 import (BatchV4, ClipFileV4, FileV4, PhysicalClipV4, PreprocessRequestV4,
                                     PreprocessStatusV4, TimeRangeV4, ViewWindowV4, WindowV4)
 from .intake import selected_session
@@ -87,8 +87,6 @@ def _recording(session):
             *(item.video_id for item in recording.events), *(item.video_id for item in recording.coverage)}
     if not used <= known:
         raise HTTPException(409, "촬영 기록이 없는 영상 식별자를 참조합니다.")
-    from .recording_v4 import validate_recording_timeline_v4
-    validate_recording_timeline_v4(session, recording)
     return recording
 
 
@@ -226,14 +224,6 @@ def verified_batch(store, case_id, session_id, pointer: FileV4, actor, *, expect
                 raise HTTPException(409, "고정 입력의 대상·회차·revision이 다릅니다.")
             session = selected_session(manifest, session_id)
         files, _ = _source_snapshot(store, db, case_id, session, actor)
-        external = [video for video in session.videos if getattr(video, "source_kind", None) == "external_360_mp4"]
-        if external:
-            _recording(session)
-            if batch.source_metadata != tuple(video.model_dump(mode="json") for video in session.videos):
-                raise HTTPException(409, "전처리의 고정 처리 정보가 입력 판본과 다릅니다.")
-            blocked = {video.video_id for video in external if external_media_reasons(video)}
-            if any(clip.video_id in blocked for clip in batch.clips):
-                raise HTTPException(409, "미지원 통합 영상의 클립은 재사용할 수 없습니다.")
     if batch.source_files != files or batch.asset_hashes != _assets():
         raise HTTPException(409, "전처리 원본 또는 적용 규칙이 변경되었습니다.")
     identities = _verify_files(store, (batch.input, *files, *_artifacts(batch)))
@@ -281,12 +271,6 @@ def _prepare_clips(store, session, recording, windows, directory, guard):
             unavailable[video.video_id] = "camera_unassigned"
             continue
         offset = recording.offset(video.video_id)
-        if video.media_status == "storage_only":
-            unavailable[video.video_id] = "conversion_required"
-            continue
-        if external_media_reasons(video):
-            unavailable[video.video_id] = "conversion_required"
-            continue
         if offset is None:
             unavailable[video.video_id] = "offset_unconfirmed"
             continue
@@ -370,7 +354,6 @@ def _window_results(session, recording, windows, clips, unavailable, request):
                 clip_ids=tuple(clip.clip_id for clip in found), availability=availability, visual_state=state,
                 visual_ranges=_ranges(visual), audio_ranges=_ranges(audio), quality_event_ids=tuple(event.event_id for event in events),
                 reasons=tuple(dict.fromkeys([*(clip.reason for clip in found if clip.reason),
-                    *external_media_reasons(video),
                     *([availability] if availability != "available" else []),
                     *(["audio_absent_or_unavailable"] if not audio and spans else [])]))))
         candidates = [view for view in views if view.audio_ranges]

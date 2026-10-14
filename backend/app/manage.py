@@ -40,6 +40,7 @@ def main():
     restore.add_argument("destination", type=Path)
     clean = sub.add_parser("clean", help="API·worker 종료 후 미참조 파일 정리")
     sub.add_parser("recovery-status")
+    sub.add_parser("check-removed-media", help="배포 전 제거 대상 영상의 참조를 읽기 전용으로 점검")
     sub.add_parser("provision-accounts", help="발행 패키지의 업무·개발자 계정을 표준입력 JSON으로 생성 (설치 프로그램용)")
     reset_s1 = sub.add_parser("reset-s1", help="원입력을 보존하고 구판 평가 결과를 S1으로 초기화 (API·worker 종료 필요)")
     reset_s1.add_argument("--actor", required=True, help="활성 업무 계정")
@@ -55,6 +56,17 @@ def main():
     usage.add_argument("--event-id")
     usage.add_argument("--prices", type=Path, help="통화·출처·모델별 계량 단가 JSON")
     args = parser.parse_args()
+    if args.command == "check-removed-media":
+        import json
+        from app.removed_media_check import check
+        try:
+            result = check(args.data_dir)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            parser.error(f"영상 점검 실패: {exc}")
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        if result["total"]:
+            parser.exit(1)
+        return
     if args.command == "reset-s1":
         import json
         from fastapi import HTTPException
