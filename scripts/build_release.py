@@ -57,6 +57,7 @@ OPERATING_DOCUMENTS = frozenset({
     "docs/plans/4카메라구간CSV전환_20261014/vc02-four-camera-uploads.png",
     "docs/plans/4카메라구간CSV전환_20261014/vc02-four-camera-priority.png",
     "docs/plans/4카메라구간CSV전환_20261014/vc03-segments-csv-draft.png",
+    "docs/plans/4카메라구간CSV전환_20261014/vc04-actual-audio.png",
 })
 
 

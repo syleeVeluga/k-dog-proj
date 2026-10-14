@@ -69,6 +69,8 @@ uv run --locked python -X utf8 -m app.manage --data-dir "D:/K-DOG/data" check-re
 
 실제 8구간·사건·카메라 offset을 확정하고 명시 요청으로 실행한다. S1은 공통시각과 각 영상 시각, 원본/변환본/AI용 클립을 구분하며 AI용 1fps 실제 프레임 PTS와 hash를 고정한다. 규칙은 `resources/rules/preprocess-v4.json`이다.
 
+기본 카메라 우선순위는 CAM1~CAM4다. MKV는 FFmpeg로 디코드하며 전처리 클립은 MP4로 만든다. `N_CAMk_설명`/`CAMk_설명` 파일명은 촬영 카메라를 제안하고 CAM4의 사양 원본 번호는 null을 유지한다. 프론트엔드 `src/segmentsCsv.ts`는 UTF-8/BOM 구간 CSV를 열 이름으로 읽어 촬영 기록 초안을 채운다. 기준 카메라의 8구간 시작·다음 번호 시작으로 유도한 끝, 연결 카메라 평균 offset과 파일 SHA-256을 기록하며 퇴장 끝·걷기 국면·사건·관찰 근거·꼬리 선택은 수동 입력이다. 순수 파서 회귀는 `tests/segments-csv.spec.ts`, 초안 저장·기존 확정 검증은 `tests/recording-v4.spec.ts`를 사용한다. [4카메라 실행 기록](plans/4카메라구간CSV전환_20261014/K-DOG_4카메라구간CSV구현실행기록_v1.0_20261014.md)에 실제 파일 인수와 합성 관찰 입력의 범위를 구분한다.
+
 ```powershell
 # backend/; 화면에서 확인한 현재 입력 revision과 새 요청 ID를 지정
 uv run --locked python -X utf8 -m app.manage --data-dir "D:/K-DOG/data" preprocess CASE_ID --actor manager --expected-revision 7 --request-id PREPROCESS-001

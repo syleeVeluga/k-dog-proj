@@ -1,6 +1,6 @@
 # PR-VC03 구간 CSV 가져오기
 
-버전: v1.0 · 2026-10-14 · 상태: 구현·검증·독립 cold review 완료, 병합 준비 · 선행: [VC02](K-DOG_PR-VC02_4카메라식별과전처리기본값_v1.0_20261014.md) 병합 · 브랜치 제안: `veluga/vc03-segments-csv` · 제목 제안: `feat: fill S1 capture segments and offsets from the recording tool CSV`
+버전: v1.0 · 2026-10-14 · 상태: [#102](https://github.com/syleeVeluga/k-dog-proj/pull/102) 병합 완료(`e1228af`) · 선행: [VC02](K-DOG_PR-VC02_4카메라식별과전처리기본값_v1.0_20261014.md) 병합 · 브랜치 제안: `veluga/vc03-segments-csv` · 제목 제안: `feat: fill S1 capture segments and offsets from the recording tool CSV`
 
 상위: [전체 계획](K-DOG_4카메라구간CSV전환계획_v1.0_20261014.md) §4.2. 범위: VC-R04/R05. 형식 근거: [`segments.csv`](../확정%20영상%20및%20구분_20261014/segments.csv).
 
