@@ -1,6 +1,6 @@
 # K-DOG 4카메라·구간 CSV 구현 실행 기록
 
-버전: v1.0 · 2026-10-14 · 착수 기준: `2f015c2` · 상태: VC01 #100·VC02 #101 병합 완료 / VC03 구현·검증·독립 검토 완료, 병합 준비
+버전: v1.0 · 2026-10-14 · 착수 기준: `2f015c2` · 상태: VC01 #100·VC02 #101·VC03 #102 병합 완료 / VC04 구현·검증·독립 검토·최종 패키지 완료, 병합 준비
 
 상위: [전환 계획](K-DOG_4카메라구간CSV전환계획_v1.0_20261014.md). 각 PR은 구현 → 검증 → 독립 cold review → 수용 건 반영·재검증 → 문서 → 병합 순서로 진행한다. 2026-10-14 사용자가 별도 검토 에이전트를 명시 허용했다. 원본 영상·운영 DB·참가자 자료·키는 커밋하지 않는다.
 
@@ -57,6 +57,51 @@ PR [#101](https://github.com/syleeVeluga/k-dog-proj/pull/101), 구현 commit `91
 - 최초 E2E의 textarea 정확한 label 조회와 중첩 `has` screenshot locator2건을 역할 이름·상대 선택자로 정정했다. 미실시 경고의 조사 오류는 「구간은」으로 수정했다. 위 최종14건 재실행 통과. 이전 전체 backend777건을 재실행했다고 주장하지 않으며 최종 통합 전체는 VC04에서 실행한다.
 - 독립 cold review: actionable finding0, 수용 수정0. 검토자가 sample fixture와 원본 CSV의 SHA-256 일치를 확인했다. [CSV 초안 화면](vc03-segments-csv-draft.png)은 합성 영상·짧은 CSV만 사용한다.
 
-## 5 후속 범위
+PR [#102](https://github.com/syleeVeluga/k-dog-proj/pull/102), 구현 commit `85f3aa7`, 병합 commit `e1228af` (2026-10-14) 원격·로컬 main 반영 완료.
 
-VC04는 선행 PR 병합 후 진행한다. 고객 사양·카탈로그 변경, 실제 공급자 품질, 물리3PC, 음성 녹음 카메라와 4대 배치의 고객 확인은 이번 구현 완료와 별도다. 실제 AI 호출은 이번 인수에서 수행하지 않는다.
+## 5 VC04
+
+- 구현: ZIP의 운영 문서 목록에 커밋된 샘플 CSV와 VC02/VC03/VC04 PNG를 포함한다. 첫 inventory에서 CSV의 실제 폴더와 목록 경로 불일치를 발견해 수정했다(`ee6184d` → `afeeed3`). 제품·채점·서버 계약/의존성 변경0. 원본 MKV와 폐기 도구는 포함하지 않는다.
+- 전체 backend: §2의4묶음에서147/289/155/186건, 각329.005/516.144/985.018/406.171초, **합계777건 실패·오류0**(역사 v3 원본 미보유2건 skip). 마지막 PNG 목록 보완 뒤 패키징20건/25.152초 재검증 통과.
+- S1: `uv run --locked python -X utf8 -m app.import_catalogs --spec 20261002 --check`의8개 카탈로그·규칙·mapping 통과. G01/G04 미수령 workbook·Excel 활성화 후속은 유지한다.
+- frontend: `npm ci`, `npm run build`, 전체 `npm run test:e2e` **139건/12.4분 통과**. 최초는138건 통과·기존 느린 POST의 조회 종료 단언1건 실패(기대5/실제6,14.4분). 코드 변경 없이 단독1건/17.1초와 최종 전체139건에 통과했다. 기존500kB 번들 경고는 유지한다.
+- 기존 개발 간접 의존성 source-map-js 1.2.1은 `npm ci`/`npm audit --json`의 high1건이다. [보안 공지](https://github.com/advisories/GHSA-68fv-2mgg-jv7q)의 수정판은1.2.2. `npm audit --omit=dev --json`은0건이며 개발 도구 업그레이드는 별도 후속으로 남긴다.
+- 브라우저 인수는 webapp-testing 스킬의 기존 Python Playwright1.63.0/Chromium을 사용했다. FFmpeg는 2026-10-14 [공식 릴리스](https://ffmpeg.org/download.html)의 최신9.0.2 확인. 기존 portable9.0.2 봉인 빌드/source/license, 개발 PATH8.1.1과 PTS 보존 API를 유지하고 이번 범위 밖 runtime 업그레이드를 하지 않았다.
+- 독립 cold review: actionable finding0·수용 수정0. 검토자가 두 checked ZIP의 CSV/PNG·manifest hash·원본 제외,777/139/20건 로그, 실제4클립·무음 증거를 대조했다. 최종 문서·새 PNG 커밋 뒤 ZIP 재빌드·설치 검증은 최종 패키지 기록으로 닫는다.
+- 문서: DEVELOPMENT4대/MKV/CSV 모듈·시험, PILOT CSV·수동 남은 항목·offset 확인 해제·음성 카메라·AI 예산, 후속 대장 E01 종료·P01 고객 확인 대기를 갱신했다. `git diff --check`,9문서 상대 링크143개 통과. 문서 재검토의 링크 수 정정1건(141→143)을 수용했다. `graft build`는3521 wiring nodes/10306 edges를 생성해 wiring 동기화를 확인했다. meaning tier0%/manifest 없음은 기존 상태이며 의미 요약 완료로 주장하지 않는다.
+
+### 실제 파일 기술 인수
+
+`app.manage --data-dir <새 임시 시험 저장소> serve --port 8000`과 Chromium으로 실제4 MKV 업로드 → 카메라 제안 → 참가자/회차 연결 → CAM1 기준 CSV → 초안 저장 → 기존 확정 검증 → 새 클립 전처리 → 결과 화면을 실행했다. 운영 DB는 사용하지 않았다. CAM1/1·CAM2/3·CAM3/2·CAM4/null 연결과 원수령4파일의 SHA-256/bytes = 현재 파일 = batch source_files 일치를 확인했다.
+
+CSV 원수령은860bytes/CRLF/SHA-256 `7334c82a536fb5be82d6dc5799005b21bc2e91edb0d5710e4fcccfd9c91bf031`. Git 줄바꿈 정규화 후 커밋·fixture·이번 실제 가져오기는851bytes/LF/SHA-256 `f8baaddca93d2a11f3d8e67e650b1ceae98dff9917ff72776660419e9fa13aeb`로 동일하다. BOM·열·8행 수치는 보존됐다. 시작은10.356/51.146/90.822/171.940/188.328/214.116/250.732/299.898초, offset은CAM2 +0.069/CAM3 −0.118/CAM4 −0.016초다.
+
+**기술 fixture의 한계:** CSV가 제공하지 않는 걷기6국면과 퇴장 끝은 임시 시험 기록에만 명시한 합성 입력이다(걷기 경계214.116/221/226.5/233/238.5/246/250.732, 퇴장 끝320초). 실제 행동 관찰·채점·절차 적합성의 실측 근거가 아니다. 걷기 국면 빈 확정422, 수동 fixture 뒤 확정200을 확인했다. 사건·관찰 근거·꼬리 입력은 발명하지 않았으며 관찰 미확인을 유지했다. 외부 AI·실제 채점0건이다.
+
+| 확인 | 결과 |
+| --- | --- |
+| 업로드 | 4개/합계1,339,460,190bytes,12.043초 |
+| 전처리 | 1080.781초, batch complete, CAM1~CAM4 원본 FPS·AI용 클립 모두 완성 |
+| 프레임 | CAM1/2/3/4 원본9289/9290/9289/9289개, AI용 각310개 |
+| 무음 | 클립8개 audio_ranges 없음. 영상 범위18창×4대=72view 전부 audio_absent_or_unavailable. 전체31창 대표 오디오 null/no_usable_audio/가용0초. 근거 없는13창은 기존 미관찰 상태 유지 |
+| 원본 미리보기 | Chromium CAM1 readyState4,336.9초,1920×1080,error null. pageerror0 |
+| 시간 범위 | 현재 Windows/i7-11700KF8core16thread/Python3.14.2/Node24.13.0/PATH FFmpeg8.1.1. 다른 회귀와 동시 실행한1회 기술 인수이며 전용 성능 실측·현장/다른PC 결과 아님 |
+
+[실제 파일 무음 결과](vc04-actual-audio.png)는 숫자·파일명·관찰 미확인만 보여 개인 영상 픽셀이 없고 직접 시각 확인했다. 인수 보조 스크립트의 import 경로·기본URL·CSP 문자열 평가·문구 locator 오류는 정정 후 재확인했다. 잘못 시작한 빈 시험 폴더는 생성 시각과 users/cases/receipts/runs0을 확인해 정리했다. 종료 뒤8000포트 해제를 확인했다.
+
+### 패키지·배포 전 점검
+
+`build_release.py` portable/online → `verify_release.py`는 새 설치/손상 거절/로그인/접수/재시작/감독 종료, portable의 봉인·틀린 키/변조 거절·계정/자료 보존·재설치를 통과했다. CSV 경로 수정 commit `afeeed3`의 두 checked ZIP은 CSV·화면3개의 포함/hash와 원본/폐기 도구 제외를 확인했고 portable 설치를 재검증했다.
+
+최종 검증 ZIP은 commit `5ea84d2d904a9aa716ce578ddc27f73258ec170f`의 깨끗한 작업 트리에서 생성했다. 문서·CSV·화면4개의8개 파일은 이 commit의 바이트 및 manifest hash와 일치하고, 원본 MKV/INSV·폐기 도구 미포함을 재확인했다. 두 ZIP의 `verify_release.py`가 모두 통과했으며 외부 AI0건, 현재 호스트 새 설치/재시작 검증이다. 이후 commit은 검증 결과·문서 숫자·병합 상태 기록만 갱신한다. 깨끗한 OS·물리 다른PC는 별도 후속이다.
+
+| 인수 ZIP(임시 시험 산출물) | bytes | SHA-256 |
+| --- | --- | --- |
+| kdog-vc04-portable-final.zip | 76075190 | `202b11b5a23c39806e946ed15d68e466f518a7b6af70780a8e699d64abdbecf4` |
+| kdog-vc04-online-final.zip | 3245571 | `2f11e31d26cd9ca6ead59c4c6451e8b0ef326fb952769610ba5ed8d9711102d1` |
+
+폐기 검색은 inventory 명령과 그 회귀2파일의6 literal만 남는다(§2의 명시 예외). 현행 실행 경로 참조0. 실제 로컬 운영 DB `app.manage check-removed-media`는 인수 전후 cases0/receipts0/batches0,total0/exit0. 외부 배포 DB는 미제공이므로 배포 전 동일 점검을 실행한다. 자동 삭제·이관0.
+
+## 6 후속 범위
+
+고객 사양·카탈로그 변경, 실제 공급자 품질, 물리3PC, 음성 녹음 카메라와 4대 배치의 고객 확인은 이번 구현 완료와 별도다. 실제 AI 호출은 이번 인수에서 수행하지 않았다. 기존 개발 도구 source-map-js 보완도 별도 후속이다.

@@ -1,6 +1,6 @@
 # PR-VC04 통합 검증과 운영 문서
 
-버전: v1.0 · 2026-10-14 · 상태: 계획 · 선행: [VC01](K-DOG_PR-VC01_INSV360경로제거_v1.0_20261014.md)·[VC02](K-DOG_PR-VC02_4카메라식별과전처리기본값_v1.0_20261014.md)·[VC03](K-DOG_PR-VC03_구간CSV가져오기_v1.0_20261014.md) 병합 · 브랜치 제안: `veluga/vc04-four-camera-acceptance` · 제목 제안: `docs: record four-camera CSV acceptance and operations`
+버전: v1.0 · 2026-10-14 · 상태: 구현·검증·독립 cold review·최종 패키지 완료, 병합 준비 · 선행: [VC01](K-DOG_PR-VC01_INSV360경로제거_v1.0_20261014.md)·[VC02](K-DOG_PR-VC02_4카메라식별과전처리기본값_v1.0_20261014.md)·[VC03](K-DOG_PR-VC03_구간CSV가져오기_v1.0_20261014.md) 병합 · 브랜치 제안: `veluga/vc04-four-camera-acceptance` · 제목 제안: `docs: record four-camera CSV acceptance and operations`
 
 상위: [전체 계획](K-DOG_4카메라구간CSV전환계획_v1.0_20261014.md) §6. 범위: VC-R06과 VC-R01~R05의 통합 회귀.
 
@@ -15,9 +15,9 @@
 | backend 전체 | `uv run --locked python -X utf8 -m unittest discover -s tests -v` | 전부 통과, INSV/360 skip 없음 |
 | S1 원본 검증 | `uv run --locked python -X utf8 -m app.import_catalogs --spec 20261002 --check` | 통과(카탈로그 미변경 확인) |
 | frontend | `npm ci`, `npm run build`, `npm run test:e2e`(PowerShell, dist 선행) | 전부 통과 |
-| 제거 확인 | `rg -i "external_360_mp4\|EXT360\|storage_only\|insv\|external_processing" backend frontend/src frontend/tests scripts tools docs/*.md` | 0건(역사 문서 제외) |
+| 제거 확인 | `rg -i "external_360_mp4\|EXT360\|storage_only\|insv\|external_processing" backend frontend/src frontend/tests scripts tools docs/*.md` | 0건(역사 문서와 읽기 전용 점검 명령·그 회귀 literal 제외) |
 | 운영 DB 점검 | `app.manage check-removed-media`(VC01) 로컬 운영 DB | 0건 |
-| 실제 샘플 로컬 인수 | `app.manage serve`(8000) → 「영상 파일 업로드」에서 `6_CAM1~4_*.mkv` 4개 업로드(파일명 제안 1~4 확인) → 참가자·회차 저장 → 「촬영 기록」에서 기준 CAM1, `segments.csv` 가져오기 → 퇴장 끝 입력 → 저장 → 전처리 실행 | 클립 4대 생성, 모든 view의 reason에 `audio_absent_or_unavailable`, 대표 오디오 없음(`no_usable_audio`), 원본 미리보기(Chromium). 외부 AI 호출 0건. 사용자가 승인하면 AI 분석 1회를 실행해 발성 7행 미관찰·나머지 항목 응답을 기록 |
+| 실제 샘플 로컬 인수 | `app.manage serve`(8000) → 「영상 파일 업로드」에서 `6_CAM1~4_*.mkv` 4개 업로드(파일명 제안 1~4 확인) → 참가자·회차 저장 → 「촬영 기록」에서 기준 CAM1, `segments.csv` 가져오기 → 퇴장 끝·걷기 수동 입력 → 저장·확정 → 전처리 실행 | 클립 4대 생성, 영상 범위가 있는 모든 view의 reason에 `audio_absent_or_unavailable`, 대표 오디오 없음(`no_usable_audio`), 원본 미리보기(Chromium). 외부 AI 호출 0건. 사용자가 승인하면 AI 분석 1회를 실행해 발성 7행 미관찰·나머지 항목 응답을 기록 |
 | 처리 시간 | 위 인수에서 업로드(4×~330MB)·전처리 벽시계 기록 | 수치는 실행 기록에만 기록, 목표값을 만들지 않음 |
 | 설치 ZIP | `scripts/build_release.py` 두 변형(portable·online) → 기존 ZIP 설치·감독·재시작 검증 절차 | `verify_mp4_package.py` 삭제 후 절차 문서 일치 |
 | 문서 | `git diff --check`, 상대 링크 확인(`docs/`·archive 링크 포함), `graft build`·`graft check` | 깨진 링크 0 |
@@ -42,3 +42,5 @@
 - VC-T06 전부 통과, 실행 기록에 실제 명령·결과·시간·스크린샷(PNG, 개인정보 없음) 기록.
 - 독립 cold review 수용 반영 후 push/PR. 병합 뒤 전체 계획 상태 갱신.
 - 참가자 영상·CSV 원본은 커밋하지 않는다(MKV는 ignore, 샘플 CSV만 형식 근거로 커밋).
+
+구현 결과와 실제 파일/합성 수동 입력의 구분은 [실행 기록 §5](K-DOG_4카메라구간CSV구현실행기록_v1.0_20261014.md#5-vc04)를 따른다. 전체 backend777건, E2E139건, 패키징20건 및 독립 cold review finding0을 확인했다.
