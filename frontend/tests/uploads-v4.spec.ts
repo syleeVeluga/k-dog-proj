@@ -1,6 +1,38 @@
 import { test, expect } from '@playwright/test';
 import { openMenu } from './menu';
 
+test('녹화 도구의 4개 MKV 파일명으로 카메라를 제안하고 원본 번호 1/3/2/null로 연결한다', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await page.getByLabel('계정', { exact: true }).fill('operator');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
+  const created = await page.request.post('/api/cases', { headers: { 'X-KDOG-Request': '1' }, data: { event_id: 'VC02', participant_id: 'FOUR-CAMERAS', dog_name: '합성4카메라견' } });
+  expect(created.status()).toBe(201);
+  const item = await created.json();
+  await page.reload();
+  await openMenu(page, '영상 파일 업로드');
+  const names = ['6_CAM1_복도-정면.mkv', '6_CAM2_테스트룸-입구.mkv', '6_CAM3_참여자-왼쪽.mkv', '6_CAM4_참여자-오른쪽.mkv'];
+  await page.getByLabel('영상 파일', { exact: true }).setInputFiles(names.map(name => ({ name, mimeType: 'video/x-matroska', buffer: Buffer.from(`synthetic ${name}`) })));
+  await page.getByRole('button', { name: '업로드 시작·재시도', exact: true }).click();
+  for (const [index, name] of names.entries()) {
+    const card = page.getByRole('article', { name: `업로드 파일 ${name}`, exact: true });
+    await expect(card.getByText('업로드 완료', { exact: true })).toBeVisible();
+    await expect(card.getByLabel('촬영 카메라 번호', { exact: true })).toHaveValue(String(index + 1));
+    await expect(card.getByLabel('원본 번호', { exact: true })).toHaveValue('');
+    if (index === 3) await expect(card.getByLabel('원본 번호', { exact: true })).toHaveAttribute('placeholder', '없음');
+    await card.getByLabel('참가자', { exact: true }).selectOption(item.case_id);
+    const saved = page.waitForResponse(response => response.request().method() === 'POST' && /\/uploads\/[^/]+\/link$/.test(response.url()));
+    await card.getByRole('button', { name: '영상 정보 저장', exact: true }).click();
+    expect((await saved).status()).toBe(200);
+  }
+  const current = await (await page.request.get(`/api/cases/${item.case_id}`)).json();
+  expect(current.manifest.sessions[0].videos.map((video: { camera_id: string; source_original_number: string | null }) => [video.camera_id, video.source_original_number])).toEqual([['CAM1', '1'], ['CAM2', '3'], ['CAM3', '2'], ['CAM4', null]]);
+  await page.getByText(/^정보 저장 완료한 파일/).click();
+  await expect(page.getByRole('article', { name: `업로드 파일 ${names[3]}`, exact: true }).getByText('등록됨 · 영상 읽기 확인 대기', { exact: true })).toBeVisible();
+  await page.getByRole('article', { name: `업로드 파일 ${names[3]}`, exact: true }).screenshot({ path: testInfo.outputPath('four-camera-uploads.png'), animations: 'disabled' });
+});
+
 test('S1 파일 묶음의 부분 실패·응답 유실 재시도는 완료 업로드 파일을 다시 전송하지 않는다', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('계정', { exact: true }).fill('operator');

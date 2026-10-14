@@ -51,6 +51,9 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   const panel = page.getByRole('region', { name: '다중 카메라 전처리', exact: true });
   const fresh = panel.getByRole('button', { name: '새 클립으로 전처리', exact: true });
   const reuse = panel.getByRole('button', { name: '검증된 결과 재사용', exact: true });
+  const priority = panel.getByRole('table', { name: '카메라 우선순위', exact: true });
+  await expect(priority.getByRole('row').last()).toContainText('CAM4');
+  await priority.screenshot({ path: testInfo.outputPath('four-camera-priority.png'), animations: 'disabled' });
   await expect(fresh).toBeEnabled();
   await expect(reuse).toBeDisabled();
   const firstResponse = page.waitForResponse(response => response.url().endsWith('/preprocess-s1') && response.request().method() === 'POST');
@@ -84,6 +87,11 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   expect(clipResponse.status()).toBe(200);
   expect(clipResponse.headers()['content-type']).toContain('video');
   await panel.getByRole('button', { name: 'CAM2 우선순위 올리기', exact: true }).click();
+  await expect(priority.getByRole('row').last()).toContainText('CAM4');
+  await panel.getByRole('button', { name: 'CAM4 우선순위 올리기', exact: true }).click();
+  await expect(priority.getByRole('row').nth(3)).toContainText('CAM4');
+  await panel.getByRole('button', { name: 'CAM4 우선순위 내리기', exact: true }).click();
+  await expect(priority.getByRole('row').last()).toContainText('CAM4');
   await expect(reuse).toBeDisabled();
   await panel.getByRole('button', { name: '이 결과의 설정 불러오기', exact: true }).click();
   await expect(reuse).toBeEnabled();

@@ -30,7 +30,7 @@ class TimeRangeV4(ContractV4):
 class PreprocessRequestV4(ContractV4):
     request_id: MediaKey
     expected_revision: Annotated[int, Field(ge=1)]
-    camera_priority: tuple[MediaKey, ...] = ("CAM1", "CAM2", "CAM3")
+    camera_priority: tuple[MediaKey, ...] = ("CAM1", "CAM2", "CAM3", "CAM4")
     audio_video_id: MediaKey | None = None
     ai_frames_per_second: Literal[1] = 1
     reuse: FileV4 | None = None

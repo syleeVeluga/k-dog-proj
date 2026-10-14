@@ -29,11 +29,12 @@ class PreprocessV4Tests(unittest.TestCase):
     def setUpClass(cls):
         cls.media_temp = tempfile.TemporaryDirectory(prefix="kdog-s1-synthetic-")
         cls.samples = {}
-        for name, fps, audio in (("one", 8, True), ("two", 4, True), ("silent", 8, False), ("slow", 0.25, True)):
-            path = Path(cls.media_temp.name) / (name + ".mp4")
+        for name, fps, audio in (("one", 8, True), ("two", 4, True), ("silent", 8, False), ("slow", 0.25, True), ("mkv", 8, False)):
+            path = Path(cls.media_temp.name) / (name + (".mkv" if name == "mkv" else ".mp4"))
             media.command(["ffmpeg", "-v", "error", "-nostdin", "-n", "-f", "lavfi", "-i", f"testsrc2=size=64x64:rate={fps}",
                 *(["-f", "lavfi", "-i", "sine=frequency=440:sample_rate=16000"] if audio else []),
-                "-t", "6", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(path)])
+                "-t", "6", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+                *(["-f", "matroska"] if name == "mkv" else []), str(path)])
             cls.samples[name] = path.read_bytes()
 
     @classmethod
@@ -162,6 +163,27 @@ class PreprocessV4Tests(unittest.TestCase):
         self.assertEqual([view.availability for view in window.views], ["available", "failed"])
         self.assertEqual(len(batch.clips), 1)
         self.assertEqual(batch.clips[0].status, "complete")
+
+    def test_four_cameras_include_silent_mkv_with_source_and_actual_one_fps_clips(self):
+        one = self.upload()
+        two = self.upload("two", "CAM2")
+        three = self.upload("silent", "CAM3")
+        four = self.upload("mkv", "CAM4", filename="6_CAM4_오른쪽.mkv")
+        self.assertIsNone(self.store.view(self.current()).manifest.sessions[0].videos[-1].source_original_number)
+        self.recording(one.video_id, ((two.video_id, 0), (three.video_id, 0), (four.video_id, 0)))
+        batch = self.run_batch()
+        self.assertEqual(batch.request.camera_priority, ("CAM1", "CAM2", "CAM3", "CAM4"))
+        self.assertEqual(len(batch.clips), 4)
+        for clip in batch.clips:
+            self.assertEqual(clip.status, "complete")
+            self.assertEqual(clip.original.fps_policy, "source_frames")
+            self.assertEqual(clip.ai.fps_policy, "one_actual_frame_per_second")
+            self.assertGreater(len(clip.original.frame_times_seconds), len(clip.ai.frame_times_seconds))
+        window = next(value for value in batch.windows if value.window.window_id == "entry_whole")
+        self.assertEqual(window.representative_audio_video_id, one.video_id)
+        silent = next(view for view in window.views if view.video_id == four.video_id)
+        self.assertEqual(silent.availability, "available")
+        self.assertIn("audio_absent_or_unavailable", silent.reasons)
 
     def test_subsecond_window_without_actual_frames_does_not_duplicate_one(self):
         slow = self.upload("slow")

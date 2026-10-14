@@ -95,7 +95,7 @@ export function UploadInbox({ cases, selected, user, run, refresh }: { cases: Ca
       {!busy && <button onClick={() => setQueue(queue.filter(q => q.id !== entry.id))}>목록에서 숨기기</button>}
     </li>)}</ol>
     {error && <p role="alert" className="error">{error}</p>}
-    <p className="fine">촬영 카메라 번호는 각 영상 파일을 촬영한 카메라를 구분하는 번호입니다. 파일명이 「원본1·원본2·원본3」이면 원본1 → 1번 · 원본3 → 2번 · 원본2 → 3번으로 미리 채웁니다. 실제 촬영 번호가 다르면 파일별로 고치세요.</p>
+    <p className="fine">촬영 카메라 번호는 각 영상 파일을 촬영한 카메라를 구분하는 번호입니다. 파일명 「6_CAM1_…」은 촬영 카메라 1번으로 제안합니다. 「원본1·원본2·원본3」이면 원본1 → 1번 · 원본3 → 2번 · 원본2 → 3번으로 미리 채웁니다. 실제 촬영 번호가 다르면 파일별로 고치세요.</p>
     {!!waiting.length && <h3>영상 정보 입력 대기 {waiting.length}건</h3>}
     {waiting.map(receipt => <ReceiptCard key={receipt.upload_id} receipt={receipt} cases={cases} selected={selected} user={user} run={run} changed={async message => { await load(); await refresh(message); }} />)}
     {!receipts.length && <p>업로드한 영상 파일이 없습니다.</p>}
@@ -117,7 +117,7 @@ function ReceiptCard({ receipt, cases, selected, user, run, changed }: { receipt
   const target = cases.find(c => c.case_id === caseId);
   const sessionId = receipt.session_id ?? target?.selected_session_id ?? null;
   const cameraId = /^\d+$/.test(camera.trim()) ? `CAM${camera.trim()}` : camera.trim();
-  const original = typedOriginal ?? (guess && cameraId === guess.camera ? guess.original : '');
+  const original = typedOriginal ?? (guess && cameraId === guess.camera ? guess.original ?? '' : '');
   const taken = cameraId && target && receipt.source_kind === 'original'
     ? target.manifest.sessions.find(value => value.session_id === sessionId)?.videos.find(video => video.camera_id?.toUpperCase() === cameraId.toUpperCase()) : undefined;
   const choices = cases.filter(c => c.manifest.schema_version === 'intake-4.0').filter(c => c.case_id === caseId
@@ -145,9 +145,9 @@ function ReceiptCard({ receipt, cases, selected, user, run, changed }: { receipt
         {search.trim() && !choices.some(c => c.case_id !== caseId) && <small>찾는 참가자가 없습니다.</small>}</label>
       <label>참가자<select aria-label="참가자" disabled={!!receipt.case_id} value={caseId} onChange={e => setCaseId(e.target.value)}><option value="">대상 선택</option>{choices.map(c => <option key={c.case_id} value={c.case_id}>{c.sequence_no ?? '—'}번 · {c.participant_id} · {c.dog_name} · {c.event_id}</option>)}</select></label>
       <label>촬영 카메라 번호<input aria-label="촬영 카메라 번호" value={camera} placeholder="예: 1, 2, 3" aria-invalid={taken ? true : undefined} aria-describedby={taken ? `taken-${receipt.upload_id}` : undefined} onChange={e => setCamera(e.target.value)} />
-        {guess && cameraId === guess.camera && <small>파일명 「원본{guess.original}」에 맞춰 채웠습니다. 다르면 고치세요.</small>}
+        {guess && cameraId === guess.camera && <small>파일명 {guess.original ? `「원본${guess.original}」` : `「${receipt.filename}」`}에 맞춰 채웠습니다. 다르면 고치세요.</small>}
         {taken && <small className="field-error" id={`taken-${receipt.upload_id}`}>{sessionName(target, sessionId)}에 촬영 카메라 {camera} 번호의 영상이 이미 등록되어 있습니다({taken.original_name}). 이 파일의 촬영 카메라 번호를 확인하세요.</small>}</label>
-      <label>원본 번호<input aria-label="원본 번호" value={original} placeholder={({ CAM1: '1', CAM2: '3', CAM3: '2' } as Record<string, string>)[cameraId] ?? '확인한 경우 입력'} onChange={e => setTypedOriginal(e.target.value)} /></label></div>
+      <label>원본 번호<input aria-label="원본 번호" value={original} placeholder={({ CAM1: '1', CAM2: '3', CAM3: '2' } as Record<string, string>)[cameraId] ?? (cameraId === 'CAM4' ? '없음' : '확인한 경우 입력')} onChange={e => setTypedOriginal(e.target.value)} /></label></div>
       <p className="fine">촬영 회차: {target ? sessionName(target, sessionId) : '참가자를 먼저 고르세요.'}</p>
       <div className="toolbar"><button className="primary" disabled={!!block} onClick={() => void link()}>{retry ? '다시 저장' : '영상 정보 저장'}</button>
         {block && <span className="fine" aria-live="polite">{block}</span>}</div></>}

@@ -24,7 +24,7 @@ export function PreservedMediaRegistration({ item, writable, run, refresh }: Pro
   return <section className="panel" aria-label="보존 영상 출처 등록">
     <h2>보존 영상 출처 등록</h2>
     <p>기존 영상에 촬영 카메라와 원본·변환 정보를 등록합니다. 영상 파일과 식별자는 그대로 보존됩니다.</p>
-    <p className="fine">원본 1 → CAM1 · 원본 3 → CAM2 · 원본 2 → CAM3. 시간 오프셋은 촬영 기록에서 별도로 확인합니다. 변환 MP4의 부모 원본을 먼저 같은 회차에 등록하세요.</p>
+    <p className="fine">원본 1 → CAM1 · 원본 3 → CAM2 · 원본 2 → CAM3 · CAM4는 원본 번호 없음. 시간 오프셋은 촬영 기록에서 별도로 확인합니다. 변환 MP4의 부모 원본을 먼저 같은 회차에 등록하세요.</p>
     {error && <p role="alert" className="error">{error}</p>}
     {videos.map(video => <RegistrationCard key={`${item.case_id}-${session.session_id}-${video.video_id}`} item={item} video={video} writable={writable} run={run} refresh={refresh} parents={parents} />)}
   </section>;
@@ -84,7 +84,7 @@ function RegistrationCard({ item, video, writable, run, refresh, parents }: Prop
     <form onChange={editor.change} onSubmit={event => { event.preventDefault(); void run(() => register()); }}>
       <fieldset disabled={!writable || busy || locked}><legend>확인한 촬영 정보</legend>
         <div className="form-grid">
-          <label>보존 영상 카메라<input required value={camera} onChange={event => setCamera(event.target.value)} placeholder="CAM1 / CAM2 / CAM3 / 직접 입력" pattern="[A-Za-z0-9_-]+" maxLength={100} /></label>
+          <label>보존 영상 카메라<input required value={camera} onChange={event => setCamera(event.target.value)} placeholder="CAM1 / CAM2 / CAM3 / CAM4 / 직접 입력" pattern="[A-Za-z0-9_-]+" maxLength={100} /></label>
           <label>보존 영상 원본 번호<input value={original} onChange={event => setOriginal(event.target.value)} placeholder={originalNumbers[camera] ? `미입력 시 ${originalNumbers[camera]}` : '별도 원본 번호가 있으면 입력'} /></label>
           <label>보존 영상 자료 구분<select required value={kind} onChange={event => setKind(event.target.value as typeof kind)}>
             <option value="">확인 후 선택</option><option value="original">촬영 원본</option><option value="received_conversion" disabled={!video.original_name.toLowerCase().endsWith('.mp4')}>전달받은 변환 MP4</option>
