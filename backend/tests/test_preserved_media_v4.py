@@ -97,13 +97,13 @@ class PreservedMediaV4Tests(unittest.TestCase):
                       {"source_kind": "original", "conversion": {"tool": "tool", "tool_version": "1", "settings": {}}}):
             with self.assertRaises(ValidationError):
                 PreservedMediaRegistrationV4.model_validate({**base, **extra})
-        video = self.preserved(name="source.insv")
+        video = self.preserved(name="source.mp4")
         receipt = self.register(video)
-        self.assertEqual(receipt.media_status, "storage_only")
+        self.assertEqual(receipt.media_status, "pending_probe")
         self.assertFalse(receipt.analysis_ready)
 
     def converted(self):
-        parent = self.preserved(name="source.insv", video_id="parent", data=b"synthetic-source")
+        parent = self.preserved(name="source.mp4", video_id="parent", data=b"synthetic-source")
         parent_receipt = self.register(parent, self.request(request_id="register-parent"))
         child = self.preserved(video_id="child", data=b"synthetic-converted")
         request = self.request(source_kind="received_conversion", parents=[MediaParentV4(upload_id=parent_receipt.upload_id,

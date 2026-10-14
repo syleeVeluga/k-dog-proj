@@ -5,16 +5,12 @@ export type User = { username: string; role: Role; active: boolean };
 export type Run = (work: () => Promise<void>) => Promise<void>;
 export const roleNames: Record<Role, string> = { operator: '업무 계정', reviewer: '업무 계정', admin: '업무 계정', developer: '개발자' };
 export const formFields = (form: HTMLFormElement) => Object.fromEntries(new FormData(form));
-export type MediaSourceKind = 'original' | 'received_conversion' | 'external_360_mp4';
-export type ExternalProcessing = {
-  projection: 'flat' | 'equirectangular' | 'unknown'; timeline: 'preserved' | 'edited' | 'unknown';
-  tool_name?: string | null; tool_version?: string | null; note?: string | null;
-};
+export type MediaSourceKind = 'original' | 'received_conversion';
 export type Video = {
   video_id: string; original_name: string;
-  size_bytes: number; sha256: string; media_status: 'pending_probe' | 'storage_only';
+  size_bytes: number; sha256: string; media_status: 'pending_probe';
   upload_id?: string; camera_id?: string; source_original_number?: string | null;
-  source_kind?: MediaSourceKind | 'app_derived'; external_processing?: ExternalProcessing | null;
+  source_kind?: MediaSourceKind | 'app_derived';
 };
 export type SegmentId = 'entry' | 'baseline' | 'alone' | 'stranger' | 'reunion' | 'ignore' | 'walk' | 'exit';
 // Procedure order and Korean labels (01 §2); the backend contract fixes the same order.
@@ -113,3 +109,5 @@ export type CaptureWindow = { segment: SegmentId; video_id: string; state: Captu
 export type WalkPhase = Omit<CaptureWindow, 'segment'> & { phase: string };
 export type ActualEvent = { event_id: string; kind: string; video_id: string; segment: SegmentId | null; status: 'observed' | 'not_occurred' | 'unobserved'; seconds: number | null; end_seconds: number | null; note: string; affected_codes: string[] };
 export type RecordingV3 = { video_id: string; confirmed: boolean; segments: CaptureWindow[]; walk_phases: WalkPhase[]; events: ActualEvent[]; video_offsets: { video_id: string; offset_seconds: number; confirmed: boolean; note: string }[] };
+
+export const cameraName = (camera: string | null | undefined) => camera ?? '카메라 미등록';

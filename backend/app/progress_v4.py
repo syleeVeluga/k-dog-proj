@@ -72,7 +72,7 @@ def build(store, db, views, user) -> dict[str, ProgressV4]:
         action, detail = latest.get(key, ("", {}))
         preprocess = ("done" if detail.get("input_revision") == view.input_revision else "outdated") if action == "preprocess_v4.completed" \
             else "running" if action == "preprocess_v4.started" else "failed" if action in ("preprocess_v4.failed", "preprocess_v4.superseded") else "none"
-        videos = [video for video in session.videos if video.media_status != "storage_only"]
+        videos = [video for video in session.videos]
         # 다시 실행 중이거나 실패했어도 마지막으로 완성된 결과의 영상은 읽을 수 있다.
         last = completed.get(key)
         usable = _usable_videos(str(store.root), last["ref"]) if last else frozenset()

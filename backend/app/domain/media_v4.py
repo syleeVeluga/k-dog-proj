@@ -3,13 +3,13 @@
 from pathlib import PurePath
 from typing import Annotated, Literal, Self
 
-from pydantic import Field, JsonValue, model_serializer, model_validator
+from pydantic import Field, JsonValue, model_validator
 
 from .catalog_v4 import ContractV4, Hash, Text
 
 MediaKey = Annotated[str, Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")]
 Filename = Annotated[str, Field(min_length=1, max_length=200)]
-EXTENSIONS = (".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm", ".insv")
+EXTENSIONS = (".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm")
 CAMERA_ORIGINALS = {"CAM1": "1", "CAM2": "3", "CAM3": "2"}
 
 
@@ -25,65 +25,14 @@ class ConversionV4(ContractV4):
     settings: dict[str, JsonValue]
 
 
-class ExternalProcessingV4(ContractV4):
-    projection: Literal["flat", "equirectangular", "unknown"] = "unknown"
-    timeline: Literal["preserved", "edited", "unknown"] = "unknown"
-    tool_name: Text | None = None
-    tool_version: Text | None = None
-    note: Text | None = None
-
-
-class ExternalMediaV4(ContractV4):
-    external_processing: ExternalProcessingV4 | None = None
-
-    @model_validator(mode="after")
-    def external_origin(self) -> Self:
-        if self.source_kind == "external_360_mp4":
-            if self.external_processing is None or getattr(self, "parents", ()) or getattr(self, "conversion", None):
-                raise ValueError("external MP4 requires processing metadata without registered parents")
-            name = getattr(self, "filename", getattr(self, "original_name", None))
-            if name is not None and PurePath(name).suffix.lower() != ".mp4":
-                raise ValueError("external 360 input must be MP4")
-            if hasattr(self, "camera_id") and self.camera_id is not None and self.camera_id != "EXT360":
-                raise ValueError("external 360 media uses EXT360")
-            if getattr(self, "source_original_number", None) is not None:
-                raise ValueError("external 360 media has no registered original number")
-        elif self.external_processing is not None:
-            raise ValueError("external processing belongs only to external MP4")
-        return self
-
-    @model_serializer(mode="wrap")
-    def serialize_origin(self, handler):
-        value = handler(self)
-        # Preserve pre-extension canonical JSON, including every existing null.
-        if self.source_kind != "external_360_mp4":
-            value.pop("external_processing", None)
-        return value
-
-
-class ExternalProcessingEditV4(ContractV4):
-    session_id: MediaKey
-    expected_revision: Annotated[int, Field(ge=1)]
-    external_processing: ExternalProcessingV4
-
-
-def external_media_reasons(video) -> tuple[str, ...]:
-    if getattr(video, "source_kind", None) != "external_360_mp4":
-        return ()
-    value = video.external_processing
-    return tuple(reason for reason, blocked in (
-        ("external_projection_" + value.projection, value.projection != "flat"),
-        ("external_timeline_" + value.timeline, value.timeline != "preserved")) if blocked)
-
-
-class UploadCreateV4(ExternalMediaV4):
+class UploadCreateV4(ContractV4):
     request_id: MediaKey
     filename: Filename
     expected_size: Annotated[int, Field(gt=0)]
     expected_sha256: Hash | None = None
     case_id: MediaKey | None = None
     session_id: MediaKey | None = None
-    source_kind: Literal["original", "received_conversion", "external_360_mp4"] = "original"
+    source_kind: Literal["original", "received_conversion"] = "original"
     parents: list[MediaParentV4] = Field(default_factory=list)
     conversion: ConversionV4 | None = None
 
@@ -113,12 +62,12 @@ class UploadLinkV4(ContractV4):
     expected_revision: Annotated[int, Field(ge=1)]
 
 
-class PreservedMediaRegistrationV4(ExternalMediaV4):
+class PreservedMediaRegistrationV4(ContractV4):
     request_id: MediaKey
     expected_revision: Annotated[int, Field(ge=1)]
     camera_id: MediaKey
     source_original_number: Text | None = None
-    source_kind: Literal["original", "received_conversion", "external_360_mp4"]
+    source_kind: Literal["original", "received_conversion"]
     parents: list[MediaParentV4] = Field(default_factory=list)
     conversion: ConversionV4 | None = None
 
@@ -133,7 +82,7 @@ class PreservedMediaRegistrationV4(ExternalMediaV4):
         return self
 
 
-class StoredMediaV4(ExternalMediaV4):
+class StoredMediaV4(ContractV4):
     video_id: MediaKey
     upload_id: MediaKey
     original_name: Filename
@@ -142,16 +91,14 @@ class StoredMediaV4(ExternalMediaV4):
     size_bytes: Annotated[int, Field(gt=0)]
     camera_id: MediaKey
     source_original_number: Text | None = None
-    source_kind: Literal["original", "received_conversion", "app_derived", "external_360_mp4"]
+    source_kind: Literal["original", "received_conversion", "app_derived"]
     parents: tuple[MediaParentV4, ...] = ()
     conversion: ConversionV4 | None = None
     offset_seconds: float | None = None
-    media_status: Literal["pending_probe", "storage_only"]
+    media_status: Literal["pending_probe"]
 
     @model_validator(mode="after")
     def provenance(self) -> Self:
-        if (PurePath(self.original_name).suffix.lower() == ".insv") != (self.media_status == "storage_only"):
-            raise ValueError("INSV is storage-only, not a probed analysis input")
         if self.source_kind == "original" and (self.parents or self.conversion):
             raise ValueError("original media cannot claim conversion provenance")
         if self.source_kind in ("received_conversion", "app_derived") and (not self.parents or not self.conversion):
@@ -159,7 +106,7 @@ class StoredMediaV4(ExternalMediaV4):
         return self
 
 
-class UploadReceiptV4(ExternalMediaV4):
+class UploadReceiptV4(ContractV4):
     upload_id: MediaKey
     request_id: MediaKey
     creator: MediaKey
@@ -168,8 +115,8 @@ class UploadReceiptV4(ExternalMediaV4):
     expected_size: int
     size_bytes: int | None
     sha256: Hash | None
-    media_status: Literal["pending_probe", "storage_only"]
-    source_kind: Literal["original", "received_conversion", "external_360_mp4"]
+    media_status: Literal["pending_probe"]
+    source_kind: Literal["original", "received_conversion"]
     case_id: MediaKey | None
     session_id: MediaKey | None
     video_id: MediaKey | None

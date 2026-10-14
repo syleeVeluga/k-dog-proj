@@ -203,7 +203,6 @@ class BenchmarkPinnedSourceTests(unittest.TestCase):
         self.assertIsNone(result["timing"])
         self.assertEqual(result["quality"]["status"],"no_valid_human_reference")
         self.assertEqual(result["request_fps"],[1.0])
-        self.assertEqual(result["insv"]["direct_read"],"unsupported_storage_only")
         self.assertNotIn("original_name",encode(result))
         with self.assertRaises(ValueError),readonly.connect(write=True):pass
 

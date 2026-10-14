@@ -194,10 +194,9 @@ class UploadsV4Tests(unittest.TestCase):
             self.assertEqual(uploads.references(db), {})
             self.assertEqual(db.execute("SELECT actor FROM changes WHERE action='upload.cancel' AND target=?",(receipt.upload_id,)).fetchone()[0],"other")
 
-    def test_insv_and_received_conversion_keep_provenance_and_parent_access(self):
+    def test_original_and_received_conversion_keep_provenance_and_parent_access(self):
         case = self.case()
-        parent = self.received(b"synthetic-insv", request_id="parent", filename="camera.insv")
-        self.assertEqual(parent.media_status, "storage_only")
+        parent = self.received(b"synthetic-original", request_id="parent", filename="camera.mp4")
         child = self.received(b"synthetic-mp4", request_id="child", filename="converted.mp4", source_kind="received_conversion",
             parents=[MediaParentV4(upload_id=parent.upload_id, sha256=parent.sha256)],
             conversion=ConversionV4(tool="synthetic-converter", tool_version="1.0", settings={"projection": "360"}))
@@ -264,7 +263,7 @@ class UploadsV4Tests(unittest.TestCase):
 
     def test_tampered_parent_bytes_block_derived_link_without_losing_child(self):
         case = self.case()
-        parent = self.received(b"synthetic-insv", request_id="parent", filename="camera.insv")
+        parent = self.received(b"synthetic-original", request_id="parent", filename="camera.mp4")
         self.link(parent, case)
         child = self.received(b"synthetic-mp4", request_id="child", filename="converted.mp4", source_kind="received_conversion",
             parents=[MediaParentV4(upload_id=parent.upload_id, sha256=parent.sha256)],
@@ -280,7 +279,7 @@ class UploadsV4Tests(unittest.TestCase):
 
     def test_parent_changed_after_hash_check_is_rejected_before_adoption(self):
         case = self.case()
-        parent = self.received(b"synthetic-insv", request_id="parent", filename="camera.insv")
+        parent = self.received(b"synthetic-original", request_id="parent", filename="camera.mp4")
         self.link(parent, case)
         child = self.received(b"synthetic-mp4", request_id="child", source_kind="received_conversion",
             parents=[MediaParentV4(upload_id=parent.upload_id, sha256=parent.sha256)],
@@ -298,7 +297,7 @@ class UploadsV4Tests(unittest.TestCase):
         self.assertEqual(uploads.get_receipt(self.store, child.upload_id, "op").state, "complete")
 
     def test_failed_conversion_remains_manageable_after_parent_is_cancelled(self):
-        parent = self.received(b"synthetic-insv", request_id="parent", filename="camera.insv")
+        parent = self.received(b"synthetic-original", request_id="parent", filename="camera.mp4")
         child = self.create(b"synthetic-mp4", request_id="child", source_kind="received_conversion",
             parents=[MediaParentV4(upload_id=parent.upload_id, sha256=parent.sha256)],
             conversion=ConversionV4(tool="synthetic-converter", tool_version="1.0", settings={}))
@@ -314,7 +313,7 @@ class UploadsV4Tests(unittest.TestCase):
             uploads.begin_receive(self.store, child.upload_id, child.request_id, "op")
 
     def test_changed_parent_bytes_block_receive_completion_and_derived_download(self):
-        parent = self.received(b"synthetic-insv", request_id="parent", filename="camera.insv")
+        parent = self.received(b"synthetic-original", request_id="parent", filename="camera.mp4")
         conversion = dict(source_kind="received_conversion", parents=[MediaParentV4(upload_id=parent.upload_id, sha256=parent.sha256)],
                           conversion=ConversionV4(tool="synthetic-converter", tool_version="1.0", settings={}))
         completed = self.received(b"synthetic-mp4", request_id="completed", **conversion)
@@ -343,7 +342,7 @@ class UploadsV4Tests(unittest.TestCase):
             self.assertEqual(uploads.download_path(self.store, receipt.upload_id, "op").read_bytes(), b"synthetic-media")
 
     def restore_before_case_link(self, *, already_cleaned):
-        parent = self.received(b"synthetic-insv", request_id="delete-parent", filename="camera.insv")
+        parent = self.received(b"synthetic-original", request_id="delete-parent", filename="camera.mp4")
         child = self.received(b"synthetic-child", request_id="delete-child", source_kind="received_conversion",
             parents=[MediaParentV4(upload_id=parent.upload_id, sha256=parent.sha256)],
             conversion=ConversionV4(tool="synthetic-converter", tool_version="1.0", settings={}))
@@ -481,7 +480,7 @@ class UploadsV4Tests(unittest.TestCase):
 
     def test_linked_video_reader_cannot_bypass_parent_integrity_or_revocation(self):
         case = self.case()
-        parent = self.received(b"synthetic-insv", request_id="parent", filename="camera.insv")
+        parent = self.received(b"synthetic-original", request_id="parent", filename="camera.mp4")
         self.link(parent, case)
         child = self.received(b"synthetic-mp4", request_id="child", source_kind="received_conversion",
             parents=[MediaParentV4(upload_id=parent.upload_id, sha256=parent.sha256)],
@@ -492,7 +491,7 @@ class UploadsV4Tests(unittest.TestCase):
         with self.assertRaises(HTTPException) as caught:
             uploads.linked_video_path(self.store, case["case_id"], linked.video_id, "review")
         self.assertEqual(caught.exception.status_code, 409)
-        parent_path.write_bytes(b"synthetic-insv")
+        parent_path.write_bytes(b"synthetic-original")
         verify = uploads._verify_file
         def revoke_after_check(store, row):
             path = verify(store, row)

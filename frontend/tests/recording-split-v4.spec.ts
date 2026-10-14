@@ -140,7 +140,9 @@ test('파일명으로 채운 카메라를 고치면 원본 번호는 새 카메�
   await target.getByLabel('촬영 카메라 번호', { exact: true }).fill('2');
   await expect(target.getByLabel('원본 번호', { exact: true })).toHaveValue('');
   await expect(target.getByLabel('원본 번호', { exact: true })).toHaveAttribute('placeholder', '3');
+  const saved = page.waitForResponse(response => response.request().method() === 'POST' && /\/uploads\/[^/]+\/link$/.test(response.url()));
   await target.getByRole('button', { name: '영상 정보 저장', exact: true }).click();
+  expect((await saved).ok()).toBeTruthy();
   await page.getByText(/^정보 저장 완료한 파일/).click();
   await expect(card(page, '원본1.mp4').getByText('등록됨 · 영상 읽기 확인 대기', { exact: true }).first()).toBeVisible();
   const videos = (await (await page.request.get(`/api/cases/${caseId}`)).json()).manifest.sessions[0].videos;
