@@ -76,7 +76,7 @@ def _plan(store, db):
             upgrade_to_s1(manifest)  # Validate the complete conversion before touching any records.
             cases.append({"case_id": row["case_id"], "revision": row["input_revision"],
                           "input_path": row["manifest_ref"], "input_digest": row["manifest_hash"]})
-    runs = [r[0] for r in db.execute("SELECT run_id FROM runs WHERE kind NOT IN ('s1','report_v4')")]
+    runs = [r[0] for r in db.execute("SELECT run_id FROM runs WHERE kind NOT IN ('s1','report_v4','attachment_v4')")]
     sheets = []
     for row in db.execute("SELECT s.sheet_id,s.manifest_ref,c.manifest_schema_version FROM score_sheets s JOIN cases c ON c.case_id=s.case_id"):
         try:
@@ -142,9 +142,24 @@ def _summary(plan, reset_id, status):
             "candidate_files": len(plan["files"]), "preserved_videos": len(plan["preserved_videos"])}
 
 
+def _protect_s1_runs(db, plan):
+    preserved = {row[0] for row in db.execute("SELECT run_id FROM runs WHERE kind IN ('s1','report_v4','attachment_v4')")}
+    if not preserved.intersection(plan["runs"]):
+        return plan
+    changes = []
+    for change_id in plan["changes"]:
+        row = db.execute("SELECT target,detail_json FROM changes WHERE change_id=?", (change_id,)).fetchone()
+        if row and (row["target"] in preserved or json.loads(row["detail_json"]).get("run_id") in preserved):
+            continue
+        changes.append(change_id)
+    # Old releases may already have persisted the wrong classification. Keep that audit
+    # document and its fixed file list, but never apply its deletion entries to S1 runs.
+    return {**plan, "runs": [run_id for run_id in plan["runs"] if run_id not in preserved], "changes": changes}
+
+
 def preview(store, reset_id=RESET_ID):
     with store.connect() as db:
-        plan = _record(db, reset_id, "plan") or _plan(store, db)
+        plan = _protect_s1_runs(db, _record(db, reset_id, "plan") or _plan(store, db))
         status = "complete" if _record(db, reset_id, "complete") else "cleanup_pending" if _record(db, reset_id, "commit") else "ready"
     return _summary(plan, reset_id, status)
 
@@ -159,6 +174,7 @@ def execute(store, actor, reset_id=RESET_ID):
             if plan is None:
                 plan = _plan(store, db)
                 store.audit(db, actor, reset_id, "s1.reset.plan", plan)
+            plan = _protect_s1_runs(db, plan)
             if _record(db, reset_id, "complete"):
                 return _summary(plan, reset_id, "complete")
         try:

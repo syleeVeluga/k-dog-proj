@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 from zipfile import ZipFile
@@ -287,7 +288,7 @@ class InstallerTests(unittest.TestCase):
             target = root / "0.3.0-ccccccc"
             with patch.object(installer, "check", return_value=False):
                 self.assertFalse(installer.install_files(self.product(), package, root, target))
-            self.assertEqual(list(root.iterdir()), [])  # failed check removes its temporary folder and leftovers
+            self.assertEqual(list(root.iterdir()), [root / '.tmp-leftover'])  # another install's folder is never removed
             with patch.object(installer, "check", return_value=True):
                 self.assertTrue(installer.install_files(self.product(), package, root, target))
             installed = sorted(path.relative_to(target).as_posix() for path in target.rglob("*") if path.is_file())
@@ -298,6 +299,57 @@ class InstallerTests(unittest.TestCase):
             with self.assertRaises(installer.PackageError):
                 installer.install_files(self.product({"../escape.txt": b"x"}), package, root, root / "0.3.0-ddddddd")
             self.assertFalse((Path(temporary) / "escape.txt").exists())
+            self.assertEqual(sorted(root.iterdir()), sorted([root / '.tmp-leftover', target]))
+
+    def test_concurrent_installs_preserve_each_others_active_files(self):
+        self.concurrent_installs('version-b')
+
+    def test_concurrent_same_version_rechecks_the_completed_install(self):
+        self.concurrent_installs('version-a')
+
+    def concurrent_installs(self, second_version):
+        with tempfile.TemporaryDirectory(prefix="kdog-install-concurrent-") as temporary:
+            package, root = Path(temporary) / "package", Path(temporary) / "Programs"
+            (package / "runtime/python").mkdir(parents=True)
+            (package / "runtime/python/python.exe").write_bytes(b"MZ")
+            (package / "오픈소스고지.txt").write_bytes(b"notice")
+            root.mkdir()
+            extracted, resume = threading.Event(), threading.Event()
+            result, errors = [], []
+            first_target, second_target = root / "version-a", root / second_version
+            with self.product() as first_archive, self.product() as second_archive:
+                extract = first_archive.extract
+
+                def pause_after_extract(info, destination):
+                    value = extract(info, destination)
+                    if info.filename == 'Start.cmd':
+                        extracted.set()
+                        if not resume.wait(10):
+                            raise RuntimeError('concurrent install synchronization timed out')
+                    return value
+
+                def first_install():
+                    try:
+                        result.append(installer.install_files(first_archive, package, root, first_target))
+                    except BaseException as error:
+                        errors.append(error)
+
+                with patch.object(first_archive, 'extract', side_effect=pause_after_extract), \
+                        patch.object(installer, 'check', side_effect=lambda folder: (folder / 'Start.cmd').is_file()):
+                    thread = threading.Thread(target=first_install)
+                    thread.start()
+                    try:
+                        self.assertTrue(extracted.wait(10))
+                        self.assertTrue(installer.install_files(second_archive, package, root, second_target))
+                    finally:
+                        resume.set()
+                        thread.join(10)
+                    self.assertFalse(thread.is_alive())
+            self.assertEqual(errors, [])
+            self.assertEqual(result, [True])
+            for target in (first_target, second_target):
+                self.assertEqual((target / 'Start.cmd').read_bytes(), b'@echo off\r\n')
+            self.assertEqual(sorted(root.iterdir()), sorted({first_target, second_target}))
 
     def test_shortcut_failure_falls_back_to_start_path(self):
         with tempfile.TemporaryDirectory(prefix="kdog-shortcut-") as temporary:

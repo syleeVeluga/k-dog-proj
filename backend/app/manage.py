@@ -148,7 +148,7 @@ def main():
         store = Store(args.data_dir)
         with store.connect() as db:
             old_inputs = db.execute("SELECT 1 FROM cases WHERE manifest_schema_version!='intake-4.0' LIMIT 1").fetchone()
-            old_runs = db.execute("SELECT 1 FROM runs WHERE kind NOT IN ('s1','report_v4') LIMIT 1").fetchone()
+            old_runs = db.execute("SELECT 1 FROM runs WHERE kind NOT IN ('s1','report_v4','attachment_v4') LIMIT 1").fetchone()
             if old_inputs or old_runs:
                 parser.error("S1 worker 실행 전 reset-s1 --actor <관리자> --apply로 기존 결과를 초기화하세요.")
         worker = Worker(store)
