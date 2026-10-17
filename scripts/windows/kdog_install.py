@@ -14,9 +14,9 @@ import secrets
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import unicodedata
-from uuid import uuid4
 from zipfile import BadZipFile, ZipFile
 
 from cryptography.exceptions import InvalidTag
@@ -135,41 +135,42 @@ def ask_key(data: bytes) -> bytes | None:
 
 
 def install_files(archive: ZipFile, package: Path, root: Path, target: Path) -> bool:
-    for leftover in root.glob(".tmp-*"):
-        shutil.rmtree(leftover, ignore_errors=True)
     if target.exists():
         print("같은 버전이 이미 설치되어 있어 설치 파일 확인만 다시 합니다.")
         if check(target):
             return True
         print(f"설치 폴더 확인에 실패했습니다: {target}\n이 폴더를 지운 뒤 다시 설치하세요.")
         return False
-    temporary = root / f".tmp-{uuid4().hex[:12]}"
-    for info in archive.infolist():
-        # Account information stays in memory; it never lands in the program folder.
-        if info.filename == "provision.json":
-            continue
-        if not (temporary / info.filename).resolve().is_relative_to(temporary.resolve()):
-            raise PackageError
-        archive.extract(info, temporary)
-    # Copy only the public files the sealed manifest lists, so nothing added to the extracted folder is installed.
-    listed = json.loads(archive.read("release.json"))["files"]
-    for name in listed:
-        if name.startswith("runtime/") or name == "오픈소스고지.txt":
-            (temporary / name).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(package / name, temporary / name)
-    if not check(temporary):
-        shutil.rmtree(temporary, ignore_errors=True)
-        print("설치 파일 확인에 실패했습니다. ZIP을 다시 받아 SHA-256을 확인한 뒤 설치하세요.")
+    # Each invocation owns its staging directory; another installer may still be using its own.
+    with tempfile.TemporaryDirectory(prefix=".tmp-", dir=root, ignore_cleanup_errors=True) as staging:
+        temporary = Path(staging)
+        for info in archive.infolist():
+            # Account information stays in memory; it never lands in the program folder.
+            if info.filename == "provision.json":
+                continue
+            if not (temporary / info.filename).resolve().is_relative_to(temporary.resolve()):
+                raise PackageError
+            archive.extract(info, temporary)
+        # Copy only the public files the sealed manifest lists, so nothing added to the extracted folder is installed.
+        listed = json.loads(archive.read("release.json"))["files"]
+        for name in listed:
+            if name.startswith("runtime/") or name == "오픈소스고지.txt":
+                (temporary / name).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(package / name, temporary / name)
+        if not check(temporary):
+            print("설치 파일 확인에 실패했습니다. ZIP을 다시 받아 SHA-256을 확인한 뒤 설치하세요.")
+            return False
+        # Antivirus or the search indexer may hold a new file for a moment; retry the final rename.
+        for _ in range(20):
+            try:
+                temporary.rename(target)
+                return True
+            except OSError:
+                if target.exists():
+                    return check(target)
+                time.sleep(0.5)
+        print(f"설치 폴더 이름을 바꾸지 못했습니다: {target}\n잠시 뒤 Install.cmd를 다시 실행하세요.")
         return False
-    # Antivirus or the search indexer may hold a new file for a moment; retry the final rename.
-    for _ in range(20):
-        try:
-            temporary.rename(target)
-            return True
-        except OSError:
-            time.sleep(0.5)
-    print(f"설치 폴더 이름을 바꾸지 못했습니다: {temporary}\n잠시 뒤 Install.cmd를 다시 실행하세요.")
-    return False
 
 
 def shortcut(target: Path, directory: Path | None) -> Path | None:
