@@ -51,4 +51,6 @@
 
 ## 6 병합 기록
 
-검증·독립 cold review 완료 후 실제 PR·head·원격 및 로컬 main 결과를 기록한다. 실제 배포 ZIP 발행·고객 전달은 이번 코드 병합 범위에 포함하지 않는다.
+수용 수정 및 최종 검증의 제품 코드 commit은 `256ec8479217f10b4c24b5f682db1a990f9eb2bc`이며 통합 이력은 [PR #105](https://github.com/syleeVeluga/k-dog-proj/pull/105)로 연결한다. 같은 PR의 후속 문서 commit은 이 통합 링크만 보완하며 제품 코드·시험 결과는 바꾸지 않는다. 해당 PR의 최종 merge commit을 원격·로컬 `main`의 일치 확인 기준으로 사용한다.
+
+실제 배포 ZIP 발행·고객 전달은 이번 코드 병합 범위에 포함하지 않는다.
