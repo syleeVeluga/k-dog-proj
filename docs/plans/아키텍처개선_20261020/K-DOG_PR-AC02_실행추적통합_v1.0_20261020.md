@@ -111,3 +111,5 @@ graft check
 2026-10-20 공식 확인: React/DOM 최신 19.3.1·선택 19.2.8, TypeScript 7.0.2, Vite 최신 8.3.4·선택 8.2.2, Playwright 최신 1.64.1·선택 1.63.0. 기존 Node 24.13.0·peer/engine 호환과 lock 유지. [React effect](https://react.dev/reference/react/useEffect), [Vite 지원](https://vite.dev/releases), [TypeScript](https://www.typescriptlang.org/download/), [Playwright](https://playwright.dev/docs/release-notes)와 공식 registry를 확인했다. AC05에서 통합 기록·390/1440 캡처를 연결한다.
 
 최종 통합 근거·공식 버전·실측 한계는 [제품 실행 기록](K-DOG_아키텍처개선실행기록_v1.0_20261020.md)을 따른다.
+
+2026-10-20 사용자 요청의 [PR별 추가 독립 cold review](K-DOG_아키텍처개선PR별ColdReview_v1.0_20261020.md) 결과와 후속 판단을 연결한다.
