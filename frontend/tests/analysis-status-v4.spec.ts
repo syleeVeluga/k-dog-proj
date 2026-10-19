@@ -283,3 +283,30 @@ test('AI 접수 정보 저장 실패는 POST를 보내지 않고 요청 중 상�
     await page.evaluate(() => (window as unknown as { restoreAiStorage: () => void }).restoreAiStorage());
   }
 });
+
+test('손상된 AI 접수 JSON을 복원하고 명시 409 거절의 대기 상태를 정리한다', async ({ page }) => {
+  const { item, path } = await setup(page, 'AC09-AI-CORRUPT-REJECT'); await ready(page, item, path);
+  const key = `kdog-ai:operator:${item.case_id}:${item.selected_session_id}`;
+  await page.evaluate(key => sessionStorage.setItem(key, '{broken'), key);
+  const browserErrors: string[] = [];
+  page.on('pageerror', error => browserErrors.push(error.message));
+  let posts = 0;
+  await page.route(`**${path}/runs-s1`, route => {
+    if (route.request().method() === 'POST') { posts++; return route.fulfill({ status: 409, json: { detail: '합성 AI 접수 명시 거절' } }); }
+    return route.fulfill({ json: [] });
+  });
+  await open(page, 'AC09-AI-CORRUPT-REJECT');
+  const panel = page.getByRole('region', { name: 'AI 실행', exact: true });
+  await expect(panel.getByRole('button', { name: 'AI 분석 시작', exact: true })).toBeEnabled();
+  await expect(panel.getByRole('alert')).toHaveCount(0);
+  expect(await page.evaluate(key => sessionStorage.getItem(key), key)).toBe('{broken');
+  await panel.getByRole('button', { name: 'AI 분석 시작', exact: true }).click();
+  await expect(panel.getByRole('alert')).toContainText('합성 AI 접수 명시 거절');
+  await expect(panel.getByRole('button', { name: 'AI 분석 시작', exact: true })).toBeEnabled();
+  await expect(panel.getByLabel('실행 제어 사유', { exact: true })).toBeEnabled();
+  await expect(panel.getByText('요청 접수 여부 확인 중 · 상태 조회로 같은 요청을 확인합니다.', { exact: true })).toHaveCount(0);
+  expect(JSON.parse((await page.evaluate(key => sessionStorage.getItem(key), key))!)).toEqual({});
+  await panel.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true })).toBeEnabled();
+  expect(posts).toBe(1); expect(browserErrors).toEqual([]);
+});

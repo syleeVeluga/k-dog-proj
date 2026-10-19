@@ -334,3 +334,69 @@ test('느린 목록 조회가 완료되면 수동 갱신의 대기 타이머도 
   await expect(page.getByRole('heading', { name: '아직 실행한 전처리가 없습니다.' })).toBeVisible();
   await page.waitForTimeout(2500); expect(reads).toBe(1);
 });
+
+test('손상된 전처리 접수 JSON을 복원하고 미접수 409 거절을 정리한다', async ({ page }) => {
+  const { item, path } = await setup(page, 'AC09-PREPROCESS-CORRUPT-REJECT');
+  const key = `kdog-preprocess:operator:${item.case_id}:${item.selected_session_id}:current`;
+  await page.evaluate(key => sessionStorage.setItem(key, '{broken'), key);
+  const browserErrors: string[] = [];
+  page.on('pageerror', error => browserErrors.push(error.message));
+  let posts = 0;
+  await page.route('**/api/preprocess-s1/executions?**', route => route.fulfill({ json: { items: [], next_cursor: null } }));
+  await page.route(`**${path}`, route => {
+    if (route.request().method() === 'POST') { posts++; return route.fulfill({ status: 409, json: { detail: '합성 전처리 접수 명시 거절' } }); }
+    return route.fulfill({ json: shared(item) });
+  });
+  await choose(page, 'AC09-PREPROCESS-CORRUPT-REJECT');
+  const panel = page.getByRole('region', { name: '다중 카메라 전처리', exact: true });
+  await expect(panel.getByRole('button', { name: '새 클립으로 전처리', exact: true })).toBeEnabled();
+  await expect(panel.getByRole('alert')).toHaveCount(0);
+  expect(await page.evaluate(key => sessionStorage.getItem(key), key)).toBe('{broken');
+  await panel.getByRole('button', { name: '새 클립으로 전처리', exact: true }).click();
+  await expect(panel.getByRole('alert')).toContainText('합성 전처리 접수 명시 거절 상태와 최신 입력을 새로고침한 뒤 다시 실행하세요.');
+  await expect(panel.getByRole('status')).toHaveText('실행 가능 · 합성 준비 상태');
+  await expect(panel.getByRole('button', { name: '새 클립으로 전처리', exact: true })).toBeEnabled();
+  expect(JSON.parse((await page.evaluate(key => sessionStorage.getItem(key), key))!)).toEqual({});
+  await panel.getByRole('button', { name: '전처리 상태 새로고침', exact: true }).click();
+  await expect(panel.getByRole('button', { name: '전처리 상태 새로고침', exact: true })).toBeEnabled();
+  expect(posts).toBe(1); expect(browserErrors).toEqual([]);
+});
+
+test('조회로 확인한 전처리 접수는 늦은 POST 409 뒤에도 보존하고 완료 때 pending만 지운다', async ({ page }) => {
+  const { item, path } = await setup(page, 'AC09-PREPROCESS-TRACKED-REJECT');
+  let value = { ...execution(item, 'known-before-rejection'), message: '접수 확인된 실행' };
+  let posts = 0, request: any = null, release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/preprocess-s1/executions?**', route => {
+    const id = new URL(route.request().url()).searchParams.get('request_id');
+    return route.fulfill({ json: { items: id && id === request?.request_id ? [value] : [], next_cursor: null } });
+  });
+  await page.route(`**${path}`, async route => {
+    if (route.request().method() === 'POST') {
+      posts++; request = route.request().postDataJSON(); value.request_id = request.request_id;
+      await gate; await route.fulfill({ status: 409, json: { detail: '합성 접수 확인 후 응답 거절' } });
+    } else await route.fulfill({ json: shared(item) });
+  });
+  await page.route(`**${path}/executions/*`, route => route.fulfill({ json: value }));
+  await choose(page, 'AC09-PREPROCESS-TRACKED-REJECT');
+  const panel = page.getByRole('region', { name: '다중 카메라 전처리', exact: true });
+  await panel.getByRole('button', { name: '새 클립으로 전처리', exact: true }).click();
+  const key = `kdog-preprocess:operator:${item.case_id}:${item.selected_session_id}:current`;
+  try {
+    await expect.poll(() => posts).toBe(1);
+    await panel.getByRole('button', { name: '전처리 상태 새로고침', exact: true }).click();
+    await expect(panel.getByRole('status')).toHaveText('실행 중 · 접수 확인된 실행');
+    expect(JSON.parse((await page.evaluate(key => sessionStorage.getItem(key), key))!)).toEqual({ request, executionId: value.execution_id });
+  } catch (error) { release(); throw error; }
+  const rejected = page.waitForResponse(response => response.url().endsWith(path) && response.request().method() === 'POST');
+  release(); expect((await rejected).status()).toBe(409);
+  await expect(panel.getByRole('alert')).toContainText('합성 접수 확인 후 응답 거절');
+  await expect(panel.getByRole('status')).toHaveText('실행 중 · 접수 확인된 실행');
+  await expect(panel.getByRole('button', { name: 'CAM1 우선순위 내리기', exact: true })).toBeEnabled();
+  expect(JSON.parse((await page.evaluate(key => sessionStorage.getItem(key), key))!)).toEqual({ request, executionId: value.execution_id });
+  value = { ...value, status: 'complete', message: '접수 실행 완료' };
+  await panel.getByRole('button', { name: '전처리 상태 새로고침', exact: true }).click();
+  await expect(panel.getByRole('status')).toHaveText('완료 · 접수 실행 완료');
+  expect(JSON.parse((await page.evaluate(key => sessionStorage.getItem(key), key))!)).toEqual({ executionId: value.execution_id });
+  expect(posts).toBe(1);
+});
