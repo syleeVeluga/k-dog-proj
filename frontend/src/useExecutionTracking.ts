@@ -79,9 +79,9 @@ export function useExecutionTracking<P, D, A>(context: string, revision: number,
     const ticket = ++generation.current, handler = latest.current;
     sequence.current++; query.current?.abort(); inFlight.current = false; working.current = true;
     change({ ...current.current, busy: true, ...(pending === undefined ? {} : { pending, selectedId: '' }) });
-    if (pending !== undefined) handler.save(pending, '');
     setError(''); setRequestError(''); setControl(label); schedule(true);
     try {
+      if (pending !== undefined) handler.save(pending, '');
       const value = await operation();
       if (!live.current || ticket !== generation.current) return false;
       sequence.current++; query.current?.abort(); inFlight.current = false;

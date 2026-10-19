@@ -248,3 +248,38 @@ test('접근 상실로 정리한 요청은 늦은 POST 성공 응답으로 복�
   await expect(panel.getByRole('region', { name: '현재 AI 분석 실행', exact: true })).toHaveCount(0);
   expect(await page.evaluate(key => sessionStorage.getItem(key), key)).toBeNull();
 });
+
+test('AI 접수 정보 저장 실패는 POST를 보내지 않고 요청 중 상태를 해제한다', async ({ page }) => {
+  const { item, path } = await setup(page, 'AC02-STORAGE-FAILURE'); await ready(page, item, path);
+  let posts = 0;
+  const browserErrors: string[] = [];
+  page.on('pageerror', error => browserErrors.push(error.message));
+  await page.route(`**${path}/runs-s1`, route => {
+    if (route.request().method() === 'POST') { posts++; return route.fulfill({ json: run(item) }); }
+    return route.fulfill({ json: [] });
+  });
+  await page.route(`**${path}/runs-s1/by-request/*`, route => route.fulfill({ json: { found: false, run: null } }));
+  await open(page, 'AC02-STORAGE-FAILURE');
+  const panel = page.getByRole('region', { name: 'AI 실행', exact: true });
+  await expect(panel.getByRole('button', { name: 'AI 분석 시작', exact: true })).toBeEnabled();
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string) {
+      if (key.startsWith('kdog-ai:')) throw new DOMException('합성 접수 저장 공간 부족', 'QuotaExceededError');
+      original.call(this, key, value);
+    };
+    Object.assign(window, { restoreAiStorage: () => { Storage.prototype.setItem = original; } });
+  });
+  try {
+    await panel.getByRole('button', { name: 'AI 분석 시작', exact: true }).click();
+    await expect(panel.getByRole('alert')).toContainText('합성 접수 저장 공간 부족');
+    await expect(panel.getByText('AI 초안: 요청 접수 여부 확인 중', { exact: true })).toBeVisible();
+    await expect(panel.getByLabel('실행 제어 사유', { exact: true })).toBeEnabled();
+    expect(posts).toBe(0);
+    expect(browserErrors).toEqual([]);
+    const key = `kdog-ai:operator:${item.case_id}:${item.selected_session_id}`;
+    expect(await page.evaluate(key => sessionStorage.getItem(key), key)).toBeNull();
+  } finally {
+    await page.evaluate(() => (window as unknown as { restoreAiStorage: () => void }).restoreAiStorage());
+  }
+});
