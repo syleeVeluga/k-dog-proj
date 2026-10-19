@@ -7,7 +7,7 @@ import time
 
 from fastapi import HTTPException
 
-from app.analysis import adopt, check_access, claim, guard, later, step_payload, step_output, write_output
+from app.analysis import adopt, claim, guard, later, owned_write, step_payload, step_output, write_output
 from app.gemini import ProviderError
 from app.gemini_v4 import GeminiScorerV4
 from app import gemini_keys
@@ -48,11 +48,7 @@ class Worker:
     def reserve_call(self, row, step, *, credential_actor=None):
         self.check(row)
         selected = failure = None
-        with self.store.connect(write=True) as db:
-            current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
-            if current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
-                raise HTTPException(409, "실행 점유가 변경되었습니다.")
-            check_access(self.store, db, current)
+        with owned_write(self.store, row, conflict_detail="실행 점유가 변경되었습니다.") as (db, current):
             limit = json.loads(row["config_snapshot_json"]).get("max_ai_calls", 1000)
             used = db.execute("SELECT COUNT(*) FROM steps WHERE run_id=? AND call_reserved=1", (row["run_id"],)).fetchone()[0]
             if used >= limit:
@@ -106,11 +102,7 @@ class Worker:
                 return parsed
             except (HTTPException, ValueError, KeyError, OSError):
                 self.check(row)
-                with self.store.connect(write=True) as db:
-                    current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
-                    if current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
-                        raise HTTPException(409, "복구 중 실행 점유가 변경되었습니다.")
-                    check_access(self.store, db, current)
+                with owned_write(self.store, row, conflict_detail="복구 중 실행 점유가 변경되었습니다.") as (db, current):
                     db.execute("UPDATE steps SET status='abandoned',usage_json=?,updated_at=? WHERE step_id=? AND status='running'",
                                (encode({**json.loads(previous["usage_json"]), "code": "worker_interrupted", "billing_uncertain": bool(provider_stage and previous["call_reserved"])}), now(), previous["step_id"]))
         attempt = previous["attempt"] + 1 if previous else 1
@@ -128,11 +120,7 @@ class Worker:
                     "SELECT usage_json FROM steps WHERE run_id=? AND stage=? AND branch_key=?", (row["run_id"], stage, branch))]
             if sum(s.get("code") == schema_code for s in history) >= repair_limit + 1:
                 return None
-        with self.store.connect(write=True) as db:
-            current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
-            if current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
-                raise HTTPException(409, "실행 점유가 변경되었습니다.")
-            check_access(self.store, db, current)
+        with owned_write(self.store, row, conflict_detail="실행 점유가 변경되었습니다.") as (db, current):
             if previous and previous["status"] == "retry_wait":
                 db.execute("UPDATE steps SET status='superseded',updated_at=? WHERE step_id=? AND status='retry_wait'",
                            (now(), previous["step_id"]))
@@ -165,11 +153,7 @@ class Worker:
 
     def fail(self, row, step, status, usage, retry_at, *, provider_error=None, maximum=None):
         self.check(row)
-        with self.store.connect(write=True) as db:
-            current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
-            if current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
-                raise HTTPException(409, "실행 점유가 변경되었습니다.")
-            check_access(self.store, db, current)
+        with owned_write(self.store, row, conflict_detail="실행 점유가 변경되었습니다.") as (db, current):
             saved = db.execute("SELECT usage_json FROM steps WHERE step_id=?", (step["step_id"],)).fetchone()
             usage = {**json.loads(saved[0]), **usage}
             if provider_error is not None:

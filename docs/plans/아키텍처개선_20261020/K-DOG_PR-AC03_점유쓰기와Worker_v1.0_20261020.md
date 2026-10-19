@@ -1,6 +1,6 @@
 # PR-AC03 점유 쓰기와 Worker
 
-버전: v1.0 · 2026-10-20 · 상태: **계획 / 구현·시험 미착수** · 기준: `bdc526f` · 직접 선행: 없음 · 후속: AC04
+버전: v1.0 · 2026-10-20 · 상태: **구현·독립 검토 완료** · 기준: `bdc526f` · 직접 선행: 없음 · 후속: AC04
 
 브랜치 제안: `veluga/ac03-owned-run-write` · 제목 제안: `refactor: centralize owned run write transactions`
 
@@ -91,14 +91,16 @@ DB/schema/출력 형식을 바꾸지 않으므로 AC03 단독은 코드 revert�
 
 AC04에 interface의 실제 이름/예외·commit 규칙과 제외 경로 목록, 예약 실패 증거를 인계한다.
 
-- [ ] AC-T11~T14와 기존 세 실행 흐름 회귀 통과
-- [ ] 네 write 구간의 같은 연결 검증·기록 확인
-- [ ] credential 실패 예약 commit와 once 오류 종료 증거
-- [ ] 공식 문서·버전 확인, 독립 cold review·수용 재검증
+- [x] AC-T11~T14와 기존 세 실행 흐름 회귀 통과
+- [x] 네 write 구간의 같은 연결 검증·기록 확인
+- [x] credential 실패 예약 commit와 once 오류 종료 증거
+- [x] 공식 문서·버전 확인, 독립 cold review·수용 재검증
 
 | 실행 항목 | 결과 |
 | --- | --- |
-| 기준/구현 commit·PR | 미실행 |
-| 시험 명령·건수·시간·결과 | 미실행 |
-| cold review·발견사항 조치 | 미실행 |
-| AC04 인계 interface·commit 의미 | 미실행 |
+| 기준/구현 commit·PR | `f58b21e` → 본 AC03 commit; `veluga/ac03-owned-run-write`; AC04 쓰기 전환은 후속 commit에 분리 |
+| 시험 명령·건수·시간·결과 | 변경 전 기존 5모듈 74 tests / 309.026초 / OK. 신설 공통 시험 7 tests / 2.072초 / OK. 최초 결합 81건 중 감사 테이블명 fixture 오기 1건만 실패했고 해당 7건 수정 재검증. AC04/05에서 전체 결합 최종 결과 확정 |
+| cold review·발견사항 조치 | 독립 backend reviewer: 소스 회귀 0건, 같은 db 수명·예약 commit/외부 raise·once 제외 확인. reviewer 보강 포함 owned/scoring 29 tests / 10.165초 / OK |
+| AC04 인계 interface·commit 의미 | 예정 그대로 `analysis.owned_write(store, row, *, conflict_detail)` → `(db, current)`. 같은 Store.connect body에서 현재 claim/running/lease와 check_access 검사, 자동 갱신·재시도 없음. credential ProviderError는 내부 보관→commit→외부 raise. claim/guard/heartbeat/once/action/업로드·전처리 제외 |
+
+2026-10-20 공식 확인: Python 최신 3.15.0·3.14 계열 3.14.8, 실행 3.14.2(`>=3.14,<3.15`); FastAPI 최신 0.148.0·선택 0.141.1, Pydantic 최신 2.14.1·선택 2.13.5, httpx 0.28.1. 기존 lock/runtime 유지와 무관한 업그레이드 제외. [Python 배포](https://www.python.org/downloads/)·[contextlib](https://docs.python.org/3.14/library/contextlib.html)·[sqlite3](https://docs.python.org/3.14/library/sqlite3.html), [FastAPI](https://fastapi.tiangolo.com/release-notes/)·[Pydantic](https://pydantic.dev/docs/validation/latest/get-started/changelog/)와 공식 PyPI registry의 runtime/API·변경점을 확인했다. AC05 통합 기록에서 전체 명령·잔존 분류를 연결한다.

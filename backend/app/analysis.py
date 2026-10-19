@@ -1,5 +1,6 @@
 """S1 run claims, immutable attempt artifacts and fenced adoption."""
 
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
@@ -65,6 +66,17 @@ def check_access(store, db, row):
         from app import run_v4
         return run_v4.check_access(store, db, row)
     raise HTTPException(409, "이전 판본 실행은 종료되었습니다. S1 실행만 사용할 수 있습니다.")
+
+
+@contextmanager
+def owned_write(store, row, *, conflict_detail):
+    """Fence a live run and its actual actor inside the mutation transaction."""
+    with store.connect(write=True) as db:
+        current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
+        if not current or current["status"] != "running" or current["claim_token"] != row["claim_token"] or current["lease_expires_at"] <= now():
+            raise HTTPException(409, conflict_detail)
+        check_access(store, db, current)
+        yield db, current
 
 
 def guard(store, run_id, token, *, renew=True):
