@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import { useExecutionTracking, type ExecutionSnapshot, type ExecutionUpdate } from './useExecutionTracking';
 import { api, ApiError, accessLost } from './api';
 import { GeminiExecution } from './GeminiExecution';
 import type { Case, User } from './types';
@@ -15,99 +16,71 @@ const valueText = (value: number | string | null) => value === null ? '—' : ty
 export function AiRunsV4({ item, user }: { item: Case; user: User }) {
   const path = `/cases/${item.case_id}/sessions/${item.selected_session_id}`;
   const storageKey = `kdog-ai:${user.username}:${item.case_id}:${item.selected_session_id}`;
-  const saved = useRef<{ runId?: string; pending?: AiStartV4 }>({});
-  const initialized = useRef(false);
-  if (!initialized.current) { initialized.current = true; try { saved.current = JSON.parse(sessionStorage.getItem(storageKey) ?? '{}'); } catch { saved.current = {}; } }
-  const [runs, setRuns] = useState<AiRunV4[]>([]), [ready, setReady] = useState<AiReadinessV4 | null>(null);
-  const [preprocess, setPreprocess] = useState<PreprocessStatusV4 | null>(null), [error, setError] = useState('');
-  const [requestError, setRequestError] = useState('');
-  const [loaded, setLoaded] = useState(false);
-  const [selectedId, setSelectedId] = useState(saved.current.runId ?? ''), [pending, setPending] = useState<AiStartV4 | null>(saved.current.pending ?? null);
-  const [verified, setVerified] = useState(false), [checked, setChecked] = useState(''), [control, setControl] = useState('');
-  const [busy, setBusy] = useState(false), [loading, setLoading] = useState(false), [reuse, setReuse] = useState(''), [reason, setReason] = useState('');
-  const alive = useRef(true), sequence = useRef(0), generation = useRef(0), timer = useRef<ReturnType<typeof setTimeout> | null>(null), working = useRef(false), inFlight = useRef(false);
-  const pendingRef = useRef(pending), selectedRef = useRef(selectedId);
-  pendingRef.current = pending; selectedRef.current = selectedId;
-  function preserve(request: AiStartV4 | null, id: string) { sessionStorage.setItem(storageKey, JSON.stringify({ pending: request ?? undefined, runId: id || undefined })); }
-  function select(id: string) { selectedRef.current = id; setSelectedId(id); preserve(pendingRef.current, id); }
-  function accepted(value: AiRunV4) {
-    sequence.current++; inFlight.current = false;
-    setRuns(list => [value, ...list.filter(run => run.run_id !== value.run_id)]);
-    pendingRef.current = null; setPending(null); select(value.run_id); preserve(null, value.run_id);
+  type Data = { runs: AiRunV4[]; ready: AiReadinessV4 | null; preprocess: PreprocessStatusV4 | null; loaded: boolean };
+  type Snapshot = ExecutionSnapshot<AiStartV4, Data>;
+  const [reuse, setReuse] = useState(''), [reason, setReason] = useState('');
+  function failure(value: unknown, snapshot: Snapshot, phase: 'load' | 'request'): ExecutionUpdate<Data> {
+    const lost = accessLost(value), rejected = value instanceof ApiError && value.status < 500;
+    return { data: lost ? { ...snapshot.data, runs: [], ready: null, preprocess: null } : snapshot.data,
+      clearPending: phase === 'load' ? lost : rejected, selectedId: phase === 'load' && lost ? '' : undefined,
+      forget: lost, poll: !lost, recoverNow: phase === 'request' && !lost,
+      verified: phase === 'load' ? false : undefined,
+      error: value instanceof Error ? value.message : phase === 'load' ? 'AI 실행 상태 조회에 실패했습니다.' : 'AI 실행 요청에 실패했습니다.' };
   }
-  async function reload(background = false) {
-    if (!alive.current || background && inFlight.current) return;
-    if (timer.current) clearTimeout(timer.current);
-    const current = ++sequence.current; inFlight.current = true; if (!background) setLoading(true);
-    let again = false;
-    try {
-      if (pendingRef.current) {
-        const found = await api<{ found: boolean; run: AiRunV4 | null }>(`${path}/runs-s1/by-request/${pendingRef.current.request_id}`);
-        if (!alive.current || current !== sequence.current) return;
-        if (found.found && found.run) {
-          setRequestError('');
-          select(found.run.run_id); pendingRef.current = null; setPending(null); preserve(null, found.run.run_id);
-          setRuns(list => [found.run!, ...list.filter(run => run.run_id !== found.run!.run_id)]);
+  const tracker = useExecutionTracking<AiStartV4, Data, AiRunV4>(storageKey, item.input_revision,
+    { runs: [], ready: null, preprocess: null, loaded: false }, {
+      restore: () => {
+        try { const saved = JSON.parse(sessionStorage.getItem(storageKey) ?? '{}'); return { pending: saved?.pending ?? null, selectedId: saved?.runId ?? '' }; }
+        catch { return { pending: null, selectedId: '' }; }
+      },
+      save: (pending, runId) => sessionStorage.setItem(storageKey, JSON.stringify({ pending: pending ?? undefined, runId: runId || undefined })),
+      remove: () => sessionStorage.removeItem(storageKey),
+      failure,
+      accept: (value, snapshot) => ({ data: { ...snapshot.data, runs: [value, ...snapshot.data.runs.filter(run => run.run_id !== value.run_id)] },
+        selectedId: value.run_id, clearPending: true, requestError: '', poll: active.has(value.status) }),
+      load: async (snapshot, signal) => {
+        let current = snapshot;
+        let recovered = false;
+        try {
+          if (current.pending) {
+            const found = await api<{ found: boolean; run: AiRunV4 | null }>(`${path}/runs-s1/by-request/${current.pending.request_id}`);
+            signal.throwIfAborted();
+            if (found.found && found.run) {
+              recovered = true;
+              current = { ...current, selectedId: found.run.run_id, pending: null,
+                data: { ...current.data, runs: [found.run, ...current.data.runs.filter(run => run.run_id !== found.run!.run_id)] } };
+            }
+          }
+          const [list, config, media] = await Promise.allSettled([api<AiRunV4[]>(path + '/runs-s1'), api<AiReadinessV4>('/scoring-ai-s1/readiness'), api<PreprocessStatusV4>(path + '/preprocess-s1')]);
+          const failed = [list, config, media].find(value => value.status === 'rejected');
+          if (failed?.status === 'rejected' && accessLost(failed.reason)) throw failed.reason;
+          const data = { ...current.data };
+          let selectedId = current.selectedId;
+          if (list.status === 'fulfilled') {
+            data.runs = list.value; data.loaded = true;
+            if (!selectedId && !current.pending) selectedId = list.value.find(run => run.requested_by === user.username)?.run_id ?? '';
+          }
+          if (config.status === 'fulfilled') data.ready = config.value;
+          if (media.status === 'fulfilled') data.preprocess = media.value;
+          return { data, selectedId, clearPending: recovered, requestError: recovered ? '' : undefined,
+            verified: !failed, checked: list.status === 'fulfilled', poll: !!failed || !!current.pending || list.status === 'fulfilled' && list.value.some(run => active.has(run.status)),
+            error: failed?.status === 'rejected' ? failed.reason instanceof Error ? failed.reason.message : 'AI 상태 조회에 실패했습니다.' : '' };
+        } catch (value) {
+          const result = failure(value, current, 'load');
+          return recovered && !result.forget ? { ...result, selectedId: current.selectedId, clearPending: true, requestError: '' } : result;
         }
-      }
-      const [list, config, media] = await Promise.allSettled([api<AiRunV4[]>(path + '/runs-s1'), api<AiReadinessV4>('/scoring-ai-s1/readiness'), api<PreprocessStatusV4>(path + '/preprocess-s1')]);
-      if (alive.current && current === sequence.current) {
-        const failed = [list, config, media].find(value => value.status === 'rejected');
-        if (failed?.status === 'rejected' && accessLost(failed.reason)) { setRuns([]); setReady(null); setPreprocess(null); sessionStorage.removeItem(storageKey); throw failed.reason; }
-        if (list.status === 'fulfilled') {
-          setRuns(list.value); setLoaded(true); setChecked(new Date().toLocaleTimeString());
-          if (!selectedRef.current && !pendingRef.current) { const own = list.value.find(run => run.requested_by === user.username); if (own) select(own.run_id); }
-          again = list.value.some(run => active.has(run.status));
-        }
-        if (config.status === 'fulfilled') setReady(config.value);
-        if (media.status === 'fulfilled') setPreprocess(media.value);
-        setVerified(!failed); setError(failed?.status === 'rejected' ? failed.reason instanceof Error ? failed.reason.message : 'AI 상태 조회에 실패했습니다.' : '');
-        again = again || !!failed || !!pendingRef.current;
-      }
-    } catch (value) {
-      if (alive.current && current === sequence.current) { setVerified(false); if (accessLost(value)) { setRuns([]); setReady(null); setPreprocess(null); setPending(null); setSelectedId(''); pendingRef.current = null; selectedRef.current = ''; sessionStorage.removeItem(storageKey); } else again = true; setError(value instanceof Error ? value.message : 'AI 실행 상태 조회에 실패했습니다.'); }
-    } finally {
-      if (alive.current && current === sequence.current) {
-        setLoading(false); inFlight.current = false; if (timer.current) clearTimeout(timer.current);
-        if (again) timer.current = setTimeout(() => { void reload(true); }, 2000);
-      }
-    }
-  }
-  useEffect(() => {
-    alive.current = true; generation.current++; working.current = false; setBusy(false); setControl(''); setVerified(false); void reload();
-    const visible = () => { if (!document.hidden) void reload(); };
-    document.addEventListener('visibilitychange', visible);
-    return () => { alive.current = false; sequence.current++; generation.current++; if (timer.current) clearTimeout(timer.current); document.removeEventListener('visibilitychange', visible); };
-  }, [path, item.input_revision, user.username]);
-  async function work(operation: () => Promise<AiRunV4>, label: string) {
-    if (working.current) return;
-    const current = ++generation.current;
-    sequence.current++; inFlight.current = false;
-    working.current = true; setBusy(true); setControl(label); setError(''); setRequestError('');
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => { void reload(true); }, 2000);
-    try { const value = await operation(); if (alive.current && current === generation.current) { accepted(value); await reload(); } }
-    catch (value) {
-      if (alive.current && current === generation.current) {
-        const rejected = value instanceof ApiError && value.status < 500;
-        if (rejected) { pendingRef.current = null; setPending(null); preserve(null, selectedRef.current); }
-        setRequestError(value instanceof Error ? value.message : 'AI 실행 요청에 실패했습니다.');
-        if (accessLost(value)) { setRuns([]); setReady(null); setPreprocess(null); sessionStorage.removeItem(storageKey); }
-        else await reload(true);
-      }
-    }
-    finally { if (alive.current && current === generation.current) { working.current = false; setBusy(false); setControl(''); } }
-  }
+      },
+    });
+  const { data: { runs, ready, preprocess, loaded }, selectedId, pending, verified, checked, control, busy, loading, error, requestError, reload, select } = tracker;
   const allowed = ready?.enabled && preprocess?.result_pointer && ['complete', 'partial'].includes(preprocess.status) && !preprocess.outdated
     && preprocess.input_revision === item.input_revision;
-  async function start() {
-    if (!allowed || !preprocess?.result_pointer || !ready || pendingRef.current) throw new Error('현재 입력과 접수 상태를 확인하세요.');
-    const fields = { expected_revision: item.input_revision, preprocess_ref: preprocess.result_pointer.ref, preprocess_hash: preprocess.result_pointer.hash,
-      settings_version: ready.active_version, reuse_run_id: reuse || null };
-    const request: AiStartV4 = { ...fields, request_id: crypto.randomUUID() };
-    pendingRef.current = request; setPending(request); select(''); preserve(request, '');
-    return api<AiRunV4>(path + '/runs-s1', 'POST', request);
+  function start() {
+    if (!allowed || !preprocess?.result_pointer || !ready || pending) return;
+    const request: AiStartV4 = { expected_revision: item.input_revision, preprocess_ref: preprocess.result_pointer.ref, preprocess_hash: preprocess.result_pointer.hash,
+      settings_version: ready.active_version, reuse_run_id: reuse || null, request_id: crypto.randomUUID() };
+    void tracker.request(() => api<AiRunV4>(path + '/runs-s1', 'POST', request), '분석 요청 중', request);
   }
+  const work = tracker.request;
   const selected = runs.find(run => run.run_id === selectedId);
   const draft = pending ? busy ? '분석 요청 중' : '요청 접수 여부 확인 중' : !loaded && !error ? '확인 중' : selected ? selected.status === 'succeeded' ? selected.result_available ? '분석 완료' : '결과 게시 확인 필요' : ({ queued: '분석 대기', running: '분석 중', retry_wait: '자동 재시도 대기', partial_failed: '일부 완료 · 확인 필요', stopped: '중지됨', failed: '분석 실패', settings_required: '설정 확인 필요' } as Record<string, string>)[selected.status] ?? states[selected.status] : '준비 안 됨';
   return <section className="panel" aria-label="AI 실행" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
@@ -137,7 +110,7 @@ export function AiRunsV4({ item, user }: { item: Case; user: User }) {
     <fieldset disabled={busy || loading}><legend>명시 실행과 재사용</legend>
       <label>성공 항목군 재사용<select aria-label="성공 항목군 재사용" value={reuse} onChange={event => setReuse(event.target.value)}><option value="">재사용 없이 새 실행</option>{runs.filter(run => !run.outdated && run.steps.some(step => step.stage === 'score_v4' && step.status === 'succeeded')).map(run => <option key={run.run_id} value={run.run_id}>{run.run_id.slice(0, 8)} · {states[run.status] ?? run.status} · 성공 항목군 {run.steps.filter(step => step.stage === 'score_v4' && step.status === 'succeeded').length}개</option>)}</select></label>
       <p className="fine">재사용은 같은 원본·창·카메라·오프셋·모델·설정 해시를 다시 검증합니다. 부분 완료의 재생성도 새 실행으로 기록합니다.</p>
-      <button disabled={!allowed || !verified || !!pending} onClick={() => void work(start, '분석 요청 중')}>AI 분석 시작</button>
+      <button disabled={!allowed || !verified || !!pending} onClick={start}>AI 분석 시작</button>
       {pending && <p role="status">요청 접수 여부 확인 중 · 상태 조회로 같은 요청을 확인합니다.</p>}
       <label>실행 제어 사유<input value={reason} onChange={event => setReason(event.target.value)} maxLength={2000} placeholder="중지 또는 재시도 이유" /></label>
     </fieldset>

@@ -1,6 +1,6 @@
 # PR-AC02 실행 추적 통합
 
-버전: v1.0 · 2026-10-20 · 상태: **계획 / 구현·시험 미착수** · 기준: `bdc526f` · 직접 선행: 없음 · 권장 순서: AC01 다음
+버전: v1.0 · 2026-10-20 · 상태: **구현·국소 검증·독립 검토 완료** · 기준: `bdc526f` · 직접 선행: 없음 · 권장 순서: AC01 다음
 
 브랜치 제안: `veluga/ac02-execution-tracking` · 제목 제안: `refactor: share AI and preprocessing execution tracking`
 
@@ -96,14 +96,16 @@ graft check
 
 가장 큰 위험은 서로 다른 업무 결과를 하나의 상태로 뭉개거나, revision 변경과 사용자 문맥 변경을 같은 초기화로 처리하는 것이다. adapter별 불변조건과 AC-T06~T10을 모두 통과해야 한다. 실패 시 두 화면과 새 module을 같은 PR 단위로 되돌리며 저장 key/payload는 그대로 읽을 수 있어야 한다.
 
-- [ ] 두 실제 adapter 연결, pending/순서/타이머 공통 책임 확인
-- [ ] AC-T06~T10·관련 회귀·build와 390/1440 화면 확인
-- [ ] 계정/대상/회차 key 및 원 request_id·expected_revision 보존
-- [ ] 공식 버전 확인·cold review·수용 재검증·증거 기록
+- [x] 두 실제 adapter 연결, pending/순서/타이머 공통 책임 확인
+- [x] AC-T06~T10·관련 회귀·build와 390/1440 화면 확인
+- [x] 계정/대상/회차 key 및 원 request_id·expected_revision 보존
+- [x] 공식 버전 확인·cold review·수용 재검증·증거 기록
 
 | 실행 항목 | 결과 |
 | --- | --- |
-| 기준/구현 commit·PR | 미실행 |
-| 시험 명령·건수·시간·결과 | 미실행 |
-| cold review·발견사항 조치 | 미실행 |
-| 실제 module interface·계획 대비 차이 | 미실행 |
+| 기준/구현 commit·PR | `f58b21e` → 본 AC02 commit; `veluga/ac02-execution-tracking`. AC01 `d9a5e7a` 및 캡처 보강 `f949d55` 위에 적용 |
+| 시험 명령·건수·시간·결과 | 변경 전 §6 관련 26 passed / 2.9분. 변경 후 33 passed / 2.9분, 전처리 같은 회차 revision 추가 1 passed / 9.7초. build 통과(기존 chunk 경고); 최종 390/1440 증거는 AC05 전체 E2E에 포함 |
+| cold review·발견사항 조치 | 독립 검토 수용 3건: 조회 중 새 선택 보존, 새 전처리에 이전 상세 표시 방지, 접근 상실 후 늦은 POST 복원 차단. 각각 제어된 회귀 추가. 수정 후 reviewer actionable 잔여 0건 |
+| 실제 module interface·계획 대비 차이 | `useExecutionTracking(context, revision, initial, adapter)` → 추적 상태·reload/request/select. 기존 key/payload 보존. query·accept·failure의 업무 결과 해석은 두 adapter. storage mutation·세대·단일 timer·정리는 hook. 기존 accessLost/늦은 POST race도 명시 AC-T09를 만족하도록 함께 수정하고 추출 회귀와 구별 |
+
+2026-10-20 공식 확인: React/DOM 최신 19.3.1·선택 19.2.8, TypeScript 7.0.2, Vite 최신 8.3.4·선택 8.2.2, Playwright 최신 1.64.1·선택 1.63.0. 기존 Node 24.13.0·peer/engine 호환과 lock 유지. [React effect](https://react.dev/reference/react/useEffect), [Vite 지원](https://vite.dev/releases), [TypeScript](https://www.typescriptlang.org/download/), [Playwright](https://playwright.dev/docs/release-notes)와 공식 registry를 확인했다. AC05에서 통합 기록·390/1440 캡처를 연결한다.

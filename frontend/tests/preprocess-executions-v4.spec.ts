@@ -97,7 +97,7 @@ test('느린 POST 동안 단계와 재연결을 표시하고 종료 후 조회�
   await expect(panel.getByText('현재 단계: 클립 제작', { exact: true })).toBeVisible();
   value = { ...value, current_stage: 'windows' };
   await expect(panel.getByText('현재 단계: 관찰창 결과 정리', { exact: true })).toBeVisible({ timeout: 10000 });
-  for (const width of [1366, 390]) {
+  for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`preprocess-progress-${width}.png`), fullPage: true });
@@ -128,6 +128,111 @@ test('응답 유실은 접수 조회로 복구하고 새로고침에서 재POST�
   await expect(page.getByRole('status')).toContainText('중단됨 · 합성 중단');
   expect(posts).toBe(1);
 });
+
+test('새 실행의 상세를 기다리는 동안 이전 완료 실행을 다시 표시하지 않는다', async ({ page }) => {
+  const { item, path } = await setup(page, 'AC02-NEW-DETAIL');
+  const previous = { ...execution(item, 'previous-execution'), status: 'complete', message: '이전 완료 실행' };
+  const current = { ...execution(item, 'new-execution'), message: '새 실행 진행 중' };
+  await page.evaluate(({ key, id }) => sessionStorage.setItem(key, JSON.stringify({ executionId: id })),
+    { key: `kdog-preprocess:operator:${item.case_id}:${item.selected_session_id}:current`, id: previous.execution_id });
+  let waiting = false, release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/preprocess-s1/executions?**', route => route.fulfill({ json: { items: [], next_cursor: null } }));
+  await page.route(`**${path}`, route => route.fulfill({ json: route.request().method() === 'POST' ? { batch_id: current.execution_id } : shared(item) }));
+  await page.route(`**${path}/executions/*`, async route => {
+    if (route.request().url().endsWith('/' + current.execution_id)) { waiting = true; await gate; await route.fulfill({ json: current }); }
+    else await route.fulfill({ json: previous });
+  });
+  await choose(page, 'AC02-NEW-DETAIL');
+  const panel = page.getByRole('region', { name: '다중 카메라 전처리', exact: true });
+  await expect(panel.getByRole('status')).toContainText('완료 · 이전 완료 실행');
+  await panel.getByRole('button', { name: '새 클립으로 전처리', exact: true }).click();
+  await expect.poll(() => waiting).toBe(true);
+  try {
+    await expect(panel.getByRole('status')).toHaveText('전처리 실행 요청 중');
+    await expect(panel.getByText('현재 단계: 클립 제작', { exact: true })).toHaveCount(0);
+  } finally { release(); }
+  await expect(panel.getByRole('status')).toContainText('실행 중 · 새 실행 진행 중');
+});
+
+test('같은 회차 입력판 변경은 늦은 POST를 버리고 원래 접수 요청으로만 복구한다', async ({ page }) => {
+  const { item, path } = await setup(page, 'AC02-PREPROCESS-REVISION');
+  let revision = item.input_revision, posts = 0, details = 0, request: any = null, release!: () => void;
+  const lookups: string[] = [], gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route(`**/api/cases/${item.case_id}/sessions`, async route => {
+    const response = await route.fetch(), changed = await response.json();
+    revision = changed.input_revision;
+    await route.fulfill({ response, json: changed });
+  });
+  await page.route('**/api/preprocess-s1/executions?**', route => {
+    const id = new URL(route.request().url()).searchParams.get('request_id');
+    if (id) lookups.push(id);
+    return route.fulfill({ json: { items: [], next_cursor: null } });
+  });
+  await page.route(`**${path}`, async route => {
+    if (route.request().method() === 'POST') {
+      posts++; request = route.request().postDataJSON(); await gate;
+      await route.fulfill({ json: { batch_id: 'late-revision-execution' } });
+    } else await route.fulfill({ json: { ...shared(item), input_revision: revision } });
+  });
+  await page.route(`**${path}/executions/*`, route => {
+    details++;
+    return route.fulfill({ json: { ...execution(item, 'late-revision-execution'), message: '버려야 할 이전 입력판 실행' } });
+  });
+  await choose(page, 'AC02-PREPROCESS-REVISION');
+  const panel = page.getByRole('region', { name: '다중 카메라 전처리', exact: true });
+  await panel.getByRole('button', { name: '새 클립으로 전처리', exact: true }).click();
+  const key = `kdog-preprocess:operator:${item.case_id}:${item.selected_session_id}:current`;
+  let original: string | null;
+  try {
+    await expect.poll(() => posts).toBe(1);
+    original = await page.evaluate(key => sessionStorage.getItem(key), key);
+    expect(JSON.parse(original!).request.expected_revision).toBe(item.input_revision);
+    const changed = page.waitForResponse(response => response.url().endsWith(`/cases/${item.case_id}/sessions`) && response.request().method() === 'POST');
+    await page.getByLabel('선택 세션', { exact: true }).selectOption(item.selected_session_id);
+    expect((await changed).status()).toBe(200);
+    expect(revision).toBeGreaterThan(item.input_revision);
+    await expect(panel.getByRole('status')).toHaveText('요청 접수 여부 확인 중');
+    await expect(panel.getByRole('button', { name: 'CAM1 우선순위 내리기', exact: true })).toBeEnabled();
+    await expect.poll(() => lookups.length).toBeGreaterThan(0);
+  } catch (error) { release(); throw error; }
+  const lateResponse = page.waitForResponse(response => response.url().endsWith(path) && response.request().method() === 'POST');
+  release(); await (await lateResponse).finished();
+  const refreshed = page.waitForResponse(response => response.url().endsWith(path) && response.request().method() === 'GET');
+  await panel.getByRole('button', { name: '전처리 상태 새로고침', exact: true }).click();
+  await (await refreshed).finished();
+  await expect(panel.getByRole('button', { name: '전처리 상태 새로고침', exact: true })).toBeEnabled();
+  await expect(panel.getByRole('status')).toHaveText('요청 접수 여부 확인 중');
+  await expect(panel.getByRole('alert')).toHaveCount(0);
+  expect(await page.evaluate(key => sessionStorage.getItem(key), key)).toBe(original!);
+  expect(request.expected_revision).toBe(item.input_revision);
+  expect(lookups.every(id => id === request.request_id)).toBe(true);
+  expect(posts).toBe(1); expect(details).toBe(0);
+});
+
+for (const sharedFailure of [403, 404, 503]) {
+  test(`공유 준비 상태 ${sharedFailure}는 지정 실행을 보존하고 상세 접근 상실만 정리한다`, async ({ page }) => {
+    const { item, path } = await setup(page, `AC02-SHARED-${sharedFailure}`);
+    const value = { ...execution(item), status: 'complete', message: '보존할 지정 실행' };
+    const key = `kdog-preprocess:operator:${item.case_id}:${item.selected_session_id}:current`;
+    await page.evaluate(({ key, id }) => sessionStorage.setItem(key, JSON.stringify({ executionId: id })), { key, id: value.execution_id });
+    let detailLost = false;
+    await page.route('**/api/preprocess-s1/executions?**', route => route.fulfill({ json: { items: [], next_cursor: null } }));
+    await page.route(`**${path}`, route => route.fulfill({ status: sharedFailure, json: { detail: '공유 준비 조회 실패' } }));
+    await page.route(`**${path}/executions/*`, route => detailLost
+      ? route.fulfill({ status: 404, json: { detail: '지정 실행 접근 상실' } }) : route.fulfill({ json: value }));
+    await choose(page, `AC02-SHARED-${sharedFailure}`);
+    const panel = page.getByRole('region', { name: '다중 카메라 전처리', exact: true });
+    await expect(panel.getByRole('status')).toContainText('완료 · 보존할 지정 실행');
+    await expect(panel.getByRole('alert')).toContainText('공유 준비 조회 실패 지정 실행 결과는 보존됩니다.');
+    await expect(panel.getByRole('button', { name: '새 클립으로 전처리', exact: true })).toBeDisabled();
+    detailLost = true;
+    await panel.getByRole('button', { name: '전처리 상태 새로고침', exact: true }).click();
+    await expect(panel.getByRole('alert')).toContainText('지정 실행 접근 상실');
+    await expect(panel.getByRole('status')).not.toContainText('보존할 지정 실행');
+    expect(await page.evaluate(key => sessionStorage.getItem(key), key)).toBeNull();
+  });
+}
 
 test('늦은 running 조회가 POST 완료를 되돌리지 않고 메뉴 이동 뒤 응답을 버린다', async ({ page }) => {
   const { item, path } = await setup(page, 'ES02-LATE');
