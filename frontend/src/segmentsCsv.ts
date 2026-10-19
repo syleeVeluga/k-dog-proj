@@ -1,10 +1,35 @@
-import { SEGMENTS_V3, type SegmentId } from './types';
+import { SEGMENTS_V3, type SegmentId, type Video } from './types';
+import type { RecordingV4 } from './recordingTypesV4';
 
 export type SegmentsCsvResult = {
   segments: { segment: SegmentId; start_sec: number; end_sec: number | null }[];
   offsets: { camera_id: string; offset_seconds: number; spread: number }[];
   warnings: string[];
 };
+
+export type SegmentsCsvSummary = { ends: number; offsets: string[]; warnings: string[] };
+
+export function applySegmentsCsvDraft(record: RecordingV4, videos: Pick<Video, 'video_id' | 'camera_id'>[], text: string, filename: string, hash: string): { record: RecordingV4; summary: SegmentsCsvSummary } | null {
+  const reference = videos.find(video => video.video_id === record.video_id);
+  if (!reference?.camera_id) return null;
+  const result = parseSegmentsCsv(text, reference.camera_id, videos.flatMap(video => video.camera_id ? [video.camera_id] : []));
+  const source = `segments.csv ${filename} SHA-256 ${hash}`, warnings = [...result.warnings];
+  const filled = result.segments.filter(value => {
+    const segment = record.segments.find(segment => segment.segment === value.segment)!;
+    if (segment.state !== 'not_performed') return true;
+    warnings.push(`${SEGMENTS_V3.find(([id]) => id === value.segment)![1]} 구간은 미실시로 기록되어 기존 입력을 유지합니다.`); return false;
+  });
+  const offsets = videos.flatMap(video => {
+    const value = result.offsets.find(value => value.camera_id === video.camera_id);
+    return video.video_id === reference.video_id || !value ? [] : [{ video_id: video.video_id, offset_seconds: value.offset_seconds, confirmed: true,
+      note: `${source} · ${video.camera_id}_영상초−${reference.camera_id}_영상초 평균, 편차 ${value.spread.toFixed(3)}초` }];
+  });
+  return { record: { ...record, confirmed: false, segments: record.segments.map(segment => {
+    const value = filled.find(value => value.segment === segment.segment); return value ? { ...segment, start_sec: value.start_sec, end_sec: value.end_sec } : segment;
+  }), video_offsets: [...record.video_offsets.filter(value => !offsets.some(offset => offset.video_id === value.video_id)), ...offsets],
+    procedure_note: record.procedure_note.split('\n').some(line => line.includes(`SHA-256 ${hash}`)) ? record.procedure_note : [record.procedure_note, source].filter(Boolean).join('\n') },
+    summary: { ends: filled.filter(value => value.end_sec !== null).length, offsets: result.offsets.map(value => value.camera_id), warnings } };
+}
 
 function csvRows(text: string): string[][] {
   const rows: string[][] = [];
