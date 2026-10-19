@@ -8,7 +8,7 @@ import { EVENT_CHOICES, WINDOW_NAMES } from './recordingTypesV4';
 import type { PreprocessStatusV4 } from './preprocessTypesV4';
 import type { CoverageV4, RecordingV4, RecordingViewV4, TailV4 } from './recordingTypesV4';
 import { cameraName } from './types';
-import { parseSegmentsCsv } from './segmentsCsv';
+import { applySegmentsCsvDraft, type SegmentsCsvSummary } from './segmentsCsv';
 
 const states: Record<CaptureState, string> = { performed: '실시', shortened: '단축', not_performed: '미실시', welfare_stopped: '복지 중단' };
 const phaseNames = ['이동1', '정지1', '이동2', '정지2', '이동3', '정지3'];
@@ -50,7 +50,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
   const session = sessionOf(item), edit = useEditBase(item);
   const [record, setRecord] = useState<RecordingV4>(() => initial(item));
   const [csvBusy, setCsvBusy] = useState(false), [csvError, setCsvError] = useState('');
-  const [csvSummary, setCsvSummary] = useState<{ ends: number; offsets: string[]; warnings: string[] } | null>(null);
+  const [csvSummary, setCsvSummary] = useState<SegmentsCsvSummary | null>(null);
   const csvRequest = useRef(0), csvCurrent = useRef({ record, caseId: item.case_id, sessionId: session.session_id });
   csvCurrent.current = { record, caseId: item.case_id, sessionId: session.session_id };
   useEffect(() => {
@@ -93,26 +93,12 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
     setCsvBusy(true); setCsvError('');
     try {
       const bytes = await file.arrayBuffer();
-      const result = parseSegmentsCsv(new TextDecoder('utf-8', { fatal: true }).decode(bytes), reference.camera_id, videos.flatMap(video => video.camera_id ? [video.camera_id] : []));
+      const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
       const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), value => value.toString(16).padStart(2, '0')).join('');
       if (request !== csvRequest.current || current.caseId !== csvCurrent.current.caseId || current.sessionId !== csvCurrent.current.sessionId) return;
       if (current.record !== csvCurrent.current.record) throw new Error('가져오는 동안 촬영 입력이 변경되었습니다. CSV를 다시 선택하세요.');
-      const source = `segments.csv ${file.name} SHA-256 ${hash}`, warnings = [...result.warnings];
-      const filled = result.segments.filter(value => {
-        const segment = current.record.segments.find(segment => segment.segment === value.segment)!;
-        if (segment.state !== 'not_performed') return true;
-        warnings.push(`${SEGMENTS_V3.find(([id]) => id === value.segment)![1]} 구간은 미실시로 기록되어 기존 입력을 유지합니다.`); return false;
-      });
-      const offsets = videos.flatMap(video => {
-        const value = result.offsets.find(value => value.camera_id === video.camera_id);
-        return video.video_id === reference.video_id || !value ? [] : [{ video_id: video.video_id, offset_seconds: value.offset_seconds, confirmed: true,
-          note: `${source} · ${video.camera_id}_영상초−${reference.camera_id}_영상초 평균, 편차 ${value.spread.toFixed(3)}초` }];
-      });
-      change({ ...current.record, segments: current.record.segments.map(segment => {
-        const value = filled.find(value => value.segment === segment.segment); return value ? { ...segment, start_sec: value.start_sec, end_sec: value.end_sec } : segment;
-      }), video_offsets: [...current.record.video_offsets.filter(value => !offsets.some(offset => offset.video_id === value.video_id)), ...offsets],
-        procedure_note: current.record.procedure_note.split('\n').some(line => line.includes(`SHA-256 ${hash}`)) ? current.record.procedure_note : [current.record.procedure_note, source].filter(Boolean).join('\n') });
-      setCsvSummary({ ends: filled.filter(value => value.end_sec !== null).length, offsets: result.offsets.map(value => value.camera_id), warnings });
+      const result = applySegmentsCsvDraft(current.record, videos, text, file.name, hash);
+      if (result) { change(result.record); setCsvSummary(result.summary); }
     } catch (error) { if (request === csvRequest.current) setCsvError(error instanceof Error ? error.message : 'CSV를 읽지 못했습니다.'); }
     finally { if (request === csvRequest.current) setCsvBusy(false); }
   }

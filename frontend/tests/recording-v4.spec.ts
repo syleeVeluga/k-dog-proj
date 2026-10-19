@@ -96,6 +96,78 @@ test('구간 CSV가 4영상 초안을 채우고 수동 사실 입력 후 기존 
   await expect(panel.getByText('혼자 구간은 미실시로 기록되어 기존 입력을 유지합니다.', { exact: true })).toBeVisible();
   await expect(panel.getByLabel('혼자 시작', { exact: true })).toHaveValue('');
   await expect(panel.getByLabel('혼자 상태', { exact: true })).toHaveValue('not_performed');
+  const summary = panel.getByText('혼자 구간은 미실시로 기록되어 기존 입력을 유지합니다.', { exact: true });
+  // Release the file read explicitly so edits and context changes always win the race.
+  async function delayRead(stage: 'read' | 'hash' = 'read') {
+    await page.evaluate(stage => {
+      Object.assign(window, { releaseCsvRead: null });
+      if (stage === 'read') {
+        const original = File.prototype.arrayBuffer;
+        File.prototype.arrayBuffer = function () {
+          File.prototype.arrayBuffer = original;
+          const bytes = original.call(this);
+          return new Promise<ArrayBuffer>(resolve => {
+            Object.assign(window, { releaseCsvRead: async () => resolve(await bytes) });
+          });
+        };
+      } else {
+        const original = crypto.subtle.digest;
+        crypto.subtle.digest = function (algorithm, data) {
+          crypto.subtle.digest = original;
+          const hash = original.call(this, algorithm, data);
+          return new Promise<ArrayBuffer>(resolve => {
+            Object.assign(window, { releaseCsvRead: async () => resolve(await hash) });
+          });
+        };
+      }
+    }, stage);
+    await csv.setInputFiles({ name: 'delayed.csv', mimeType: 'text/csv', buffer: csvBytes });
+    await expect(csv).toBeDisabled();
+    await expect.poll(() => page.evaluate(() => typeof (window as unknown as { releaseCsvRead: unknown }).releaseCsvRead)).toBe('function');
+    // The normal UI blocks editing while busy; emulate an already queued edit.
+    await csv.evaluate(element => { element.closest('fieldset')!.disabled = false; });
+  }
+  async function releaseRead() {
+    await page.evaluate(() => (window as unknown as { releaseCsvRead: () => Promise<void> }).releaseCsvRead());
+  }
+  await delayRead();
+  await panel.getByRole('textbox', { name: '절차 확인 근거', exact: true }).fill('CSV 대기 중 수동 편집');
+  await releaseRead();
+  await expect(panel.getByRole('alert').filter({ hasText: 'CSV를 다시 선택하세요.' })).toBeVisible();
+  await expect(csv).toBeEnabled();
+  await expect(summary).toBeVisible();
+  await expect(panel.getByRole('textbox', { name: '절차 확인 근거', exact: true })).toHaveValue('CSV 대기 중 수동 편집');
+  await csv.setInputFiles({ name: 'invalid-utf8.csv', mimeType: 'text/csv', buffer: Buffer.from([0xff, 0xfe, 0xff]) });
+  await expect(panel.getByRole('alert')).toBeVisible();
+  await expect(csv).toBeEnabled();
+  await expect(panel.getByLabel('입장 시작', { exact: true })).toHaveValue('0.9');
+  await delayRead('hash');
+  await csv.evaluate(element => { (element as HTMLInputElement).disabled = false; });
+  await csv.setInputFiles({ name: 'newer.csv', mimeType: 'text/csv', buffer: csvBytes });
+  await expect(csv).toBeEnabled();
+  await expect(panel.getByRole('textbox', { name: '절차 확인 근거', exact: true })).toHaveValue(/newer\.csv/);
+  await releaseRead();
+  await expect(panel.getByRole('alert')).toHaveCount(0);
+  await expect(panel.getByRole('textbox', { name: '절차 확인 근거', exact: true })).not.toHaveValue(/delayed\.csv/);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`segments-csv-${width}.png`), fullPage: true, animations: 'disabled' });
+  }
+  await delayRead();
+  await panel.getByRole('combobox', { name: '기준 영상', exact: true }).selectOption(videos[0].video_id);
+  await expect(csv).toBeEnabled();
+  await releaseRead();
+  await expect(panel.getByLabel('입장 시작', { exact: true })).toHaveValue('');
+  await expect(summary).toHaveCount(0);
+  await expect(panel.getByRole('alert')).toHaveCount(0);
+  await delayRead();
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true }).click();
+  await releaseRead();
+  await page.getByRole('button', { name: 'csv-capture 촬영 열기', exact: true }).click();
+  await expect(panel.getByLabel('입장 시작', { exact: true })).toHaveValue('1');
+  await expect(panel.getByRole('alert')).toHaveCount(0);
 });
 
 test('S1 preserved video registers its camera and source without replacing raw media', async ({ page }) => {

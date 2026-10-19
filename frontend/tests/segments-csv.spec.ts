@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { parseSegmentsCsv } from '../src/segmentsCsv';
+import { applySegmentsCsvDraft, parseSegmentsCsv } from '../src/segmentsCsv';
+import { SEGMENTS_V3 } from '../src/types';
+import type { RecordingV4 } from '../src/recordingTypesV4';
 
 const sample = readFileSync(new URL('./fixtures/segments-sample.csv', import.meta.url), 'utf-8');
 const cameras = ['CAM1', 'CAM2', 'CAM3', 'CAM4'];
@@ -56,4 +58,47 @@ test('중복 번호·기준 열 없음·숫자 오류·역순·잘못된 CSV는 
     [sample.replace('51.146', '9.146'), '증가'], [sample + '\n1,구간', '열 개수'],
     [sample.replace('입장', '"입장'), '따옴표'], ['종류,종류\n구간,구간', '머리글'], ['', '머리글'],
   ]) expect(() => parseSegmentsCsv(input, 'CAM1', cameras)).toThrow(message);
+});
+
+function recording(): RecordingV4 {
+  return { procedure_edition: 's1_confirmed', procedure_note: '수동 절차 근거', video_id: 'reference', confirmed: true,
+    segments: SEGMENTS_V3.map(([segment]) => ({ segment, video_id: 'reference', state: segment === 'reunion' ? 'not_performed' : 'performed', start_sec: 90, end_sec: 99, reason: '수동 근거' })),
+    walk_phases: [{ phase: 'move_1', video_id: 'reference', state: 'performed', start_sec: 12, end_sec: 13, reason: null, proximity_exception: 'none', proximity_note: '수동 걷기' }],
+    events: [], coverage: [], tail_selections: [], linked_memos: [{ code: '개59', memo_id: 'manual', text: '수동 메모', item_codes: ['개12'], event_ids: [] }], safe_base_sequence: null,
+    video_offsets: ['cam2', 'unlinked', 'reference'].map(video_id => ({ video_id, offset_seconds: 9, confirmed: false, note: '수동 offset' })) };
+}
+
+const videos = [{ video_id: 'reference', camera_id: 'CAM1' }, { video_id: 'cam2', camera_id: 'CAM2' }, { video_id: 'cam2-copy', camera_id: 'CAM2' }, { video_id: 'same-camera', camera_id: 'CAM1' }];
+
+test('초안은 미실시·누락·수동 사실과 기존 offset 순서를 보존하고 입력을 변경하지 않는다', () => {
+  const input = recording(), before = structuredClone(input);
+  const csv = lines.filter((_, index) => index !== 3).join('\n');
+  const result = applySegmentsCsvDraft(input, videos, csv, 'sample.csv', 'hash-1')!;
+  expect(input).toEqual(before);
+  expect(result.record).toEqual({ ...before, confirmed: false,
+    segments: before.segments.map(segment => {
+      const parsed = parseSegmentsCsv(csv, 'CAM1', ['CAM2']).segments.find(value => value.segment === segment.segment);
+      return !parsed || segment.state === 'not_performed' ? segment : { ...segment, start_sec: parsed.start_sec, end_sec: parsed.end_sec };
+    }),
+    video_offsets: [before.video_offsets[1], before.video_offsets[2], ...['cam2', 'cam2-copy'].map(video_id => ({ video_id, offset_seconds: 0.069, confirmed: true,
+      note: 'segments.csv sample.csv SHA-256 hash-1 · CAM2_영상초−CAM1_영상초 평균, 편차 0.001초' }))],
+    procedure_note: '수동 절차 근거\nsegments.csv sample.csv SHA-256 hash-1' });
+  expect(result.summary.ends).toBe(4);
+  expect(result.summary.offsets).toEqual(['CAM2']);
+  expect(result.summary.warnings).toEqual(['혼자 구간 누락: 기존 입력을 유지합니다.', '재회 구간은 미실시로 기록되어 기존 입력을 유지합니다.']);
+});
+
+test('초안 출처는 hash로 중복을 막고 기준 영상·카메라 없는 연결을 임의로 채우지 않는다', () => {
+  const first = applySegmentsCsvDraft(recording(), videos, sample, 'first.csv', 'same-hash')!;
+  const repeated = applySegmentsCsvDraft(first.record, videos, sample, 'renamed.csv', 'same-hash')!;
+  expect(repeated.record.procedure_note).toBe(first.record.procedure_note);
+  expect(repeated.record.video_offsets.find(value => value.video_id === 'reference')).toEqual(recording().video_offsets[2]);
+  expect(repeated.record.video_offsets.some(value => value.video_id === 'same-camera')).toBe(false);
+  const changed = applySegmentsCsvDraft(repeated.record, videos, sample, 'changed.csv', 'new-hash')!;
+  expect(changed.record.procedure_note).toBe(first.record.procedure_note + '\nsegments.csv changed.csv SHA-256 new-hash');
+  expect(applySegmentsCsvDraft(recording(), [{ video_id: 'reference' }], sample, 'sample.csv', 'hash')).toBeNull();
+  expect(applySegmentsCsvDraft({ ...recording(), video_id: 'absent' }, videos, sample, 'sample.csv', 'hash')).toBeNull();
+  const before = recording();
+  expect(() => applySegmentsCsvDraft(before, videos, 'invalid', 'bad.csv', 'hash')).toThrow();
+  expect(before).toEqual(recording());
 });

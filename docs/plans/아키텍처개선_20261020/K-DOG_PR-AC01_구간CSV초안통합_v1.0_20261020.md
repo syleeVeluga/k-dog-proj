@@ -1,6 +1,6 @@
 # PR-AC01 구간 CSV 초안 통합
 
-버전: v1.0 · 2026-10-20 · 상태: **계획 / 구현·시험 미착수** · 기준: `bdc526f` · 직접 선행: 없음
+버전: v1.0 · 2026-10-20 · 상태: **구현·국소 검증·독립 검토 완료** · 기준: `bdc526f` · 직접 선행: 없음
 
 브랜치 제안: `veluga/ac01-recording-csv-draft` · 제목 제안: `refactor: centralize recording CSV draft application`
 
@@ -79,14 +79,16 @@ graft check
 
 주요 위험은 출처 문자열·배열 순서·summary 의미의 우발적 변경, 비동기 guard 이전의 state 반영이다. 같은 fixture의 전체 관련 JSON 비교와 지연 시험으로 확인한다. 실패하면 AC01 코드만 되돌린다. 저장 형식 변경이 없으므로 촬영 입력을 재작성하거나 삭제하지 않는다.
 
-- [ ] AC-T01~T05 및 관련 회귀·build 통과
-- [ ] 화면에 초안 병합 규칙 중복 없음, 기존 parser 사례 유지
-- [ ] 의존성 공식 확인·독립 검토·수용 수정과 재검증 기록
-- [ ] source/문구 변경 시 해당 화면 캡처 및 commit/PR 근거
+- [x] AC-T01~T05 및 관련 회귀·build 통과
+- [x] 화면에 초안 병합 규칙 중복 없음, 기존 parser 사례 유지
+- [x] 의존성 공식 확인·독립 검토·수용 수정과 재검증 기록
+- [x] source/문구 변경 시 해당 화면 캡처 및 commit/PR 근거
 
 | 실행 항목 | 결과 |
 | --- | --- |
-| 기준/구현 commit·PR | 미실행 |
-| 시험 명령·건수·시간·결과 | 미실행 |
-| cold review·발견사항 조치 | 미실행 |
-| 계획 대비 변경·후속 | 미실행 |
+| 기준/구현 commit·PR | `f58b21e` → 본 AC01 commit; 브랜치 `veluga/ac01-recording-csv-draft`. 원격 PR·최종 통합은 AC05에서 기록 |
+| 시험 명령·건수·시간·결과 | §6 명령의 기존 16건 기준 통과(52.3초). 순수 초안 2건 추가 및 파일 읽기/해시 지연·일반 편집·기준 영상·새 CSV·해제·UTF-8·390px 회귀 보강. 최종 18 passed / 39.4초; build 통과(기존 chunk 경고) |
+| cold review·발견사항 조치 | 독립 프런트 reviewer: AC01 actionable 발견 0건; merge·문구·배열 순서·요약·입력 불변 확인 |
+| 계획 대비 변경·후속 | 예정 이름 `applySegmentsCsvDraft` 사용; 기준 camera 부재는 null. bytes/hash·비동기 guard는 화면 유지. DB/DTO/저장 형식·문구 변경 없음. 실행 기록의 공식 버전·한계 참조 |
+
+2026-10-20 공식 registry·문서 확인: React/DOM 최신 19.3.1·선택 19.2.8, TS 7.0.2/7.0.2, Vite 8.3.4/8.2.2, Playwright 1.64.1/1.63.0. 기존 lock·Node 24.13.0 호환 유지, 무관한 업그레이드 없음. 근거: [React](https://react.dev/versions), [Vite](https://vite.dev/releases), [TypeScript](https://www.typescriptlang.org/download/), [Playwright](https://playwright.dev/docs/release-notes) 및 각 npm registry. AC05에서 통합 실행 기록과 캡처를 연결한다.
