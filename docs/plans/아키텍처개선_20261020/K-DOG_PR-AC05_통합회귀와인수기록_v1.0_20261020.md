@@ -103,3 +103,5 @@ Graft의 direct/transitive callers와 exhaustive 검색 결과를 함께 검토�
 | cold review·수용 수정·재검증 | 사용자 허용 독립 프런트/백엔드 검토. AC-CR01~04 수용·수정·회귀 보강, actionable 잔여 0건. backend reviewer 6건 포함 29 tests / 10.165초 통과. AC05 문서 1차 사실 검토0건·PyPI 링크 누락 보완. 후속 T09 직접 주입 근거 누락 수용·3시험 추가 검증 |
 | 원본 source check / 미실행 사유 | S1 importer exit 0, 8자산 source verified. G01/G04 실물 workbook·산식/주소는 미수령 후속 유지. 고객 원본 변경·커밋 없음 |
 | commit·PR·병합 / 실제 배포 범위 | [#111](https://github.com/syleeVeluga/k-dog-proj/pull/111). 선행4PR main 병합 완료, 통합 `36218c5`에서 source/시험17파일 동결 일치. [실행 기록 §9](K-DOG_아키텍처개선실행기록_v1.0_20261020.md#9-pr-통합과-최종-고정)에 실제 PR/병합 commit 연결; 본 PR의 최종 merge는 GitHub 이력 참조. 새 ZIP·고객 배포·운영 DB·실제 공급자·현장 3PC 검수는 미실행 |
+
+2026-10-20 사용자 요청의 [PR별 추가 독립 cold review](K-DOG_아키텍처개선PR별ColdReview_v1.0_20261020.md) 결과와 후속 판단을 연결한다.

@@ -86,3 +86,5 @@ Graft로 `claim_token`, `lease_expires_at`, `check_access`, `worker.stage`를 ex
 2026-10-20 의존성 공식 확인·선택은 AC03과 동일하다. 기존 Python 3.14.2/FastAPI 0.141.1/Pydantic 2.13.5와 lock을 유지하며 [contextlib](https://docs.python.org/3.14/library/contextlib.html)·[sqlite3](https://docs.python.org/3.14/library/sqlite3.html)의 수명·rollback 계약을 사용한다. 새 package·DB migration·DTO/저장/발급 형식 변경 없음. 최신/선택판과 이유는 AC05 통합 기록에 연결한다.
 
 최종 통합 근거·공식 버전·실측 한계는 [제품 실행 기록](K-DOG_아키텍처개선실행기록_v1.0_20261020.md)을 따른다.
+
+2026-10-20 사용자 요청의 [PR별 추가 독립 cold review](K-DOG_아키텍처개선PR별ColdReview_v1.0_20261020.md) 결과와 후속 판단을 연결한다.
