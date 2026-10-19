@@ -100,6 +100,65 @@ class OwnedRunWriteTests(unittest.TestCase):
         with self.store.connect() as db:
             self.assertEqual(db.execute("SELECT SUM(call_reserved) FROM steps WHERE run_id=?", (self.row["run_id"],)).fetchone()[0], 1)
 
+    def test_recovery_keeps_original_step_token_and_rejects_older_attempt(self):
+        step = {**self.step(), "attempt": 1, "stage": "score_v4"}
+        step["branch_key"] = step["step_id"]
+        ref, output_hash = analysis.write_output(self.store, self.row, step, {"synthetic": "valid"})
+        before = self.store.path(ref).read_bytes()
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE runs SET lease_expires_at='2000-01-01T00:00:00Z' WHERE run_id=?", (self.row["run_id"],))
+        current = analysis.claim(self.store)
+        self.assertNotEqual(current["claim_token"], step["claim_token"])
+        analysis.adopt(self.store, current, step, ref, output_hash, {})
+        with self.store.connect() as db:
+            adopted = db.execute("SELECT * FROM steps WHERE step_id=?", (step["step_id"],)).fetchone()
+            self.assertEqual((adopted["status"], adopted["claim_token"]), ("succeeded", step["claim_token"]))
+        self.assertEqual(self.store.path(ref).read_bytes(), before)
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE steps SET status='running' WHERE step_id=?", (step["step_id"],))
+            db.execute("INSERT INTO steps(step_id,run_id,stage,branch_key,attempt,status,claim_token,created_at,updated_at) "
+                       "VALUES(?,?, 'score_v4',?,2,'running',?,?,?)",
+                       (uid(), current["run_id"], step["branch_key"], current["claim_token"], now(), now()))
+        with self.assertRaises(HTTPException):
+            analysis.adopt(self.store, current, step, ref, output_hash, {})
+        with self.store.connect() as db:
+            self.assertEqual(db.execute("SELECT status FROM steps WHERE step_id=?", (step["step_id"],)).fetchone()[0], "running")
+        self.assertEqual(self.store.path(ref).read_bytes(), before)
+
+    def test_report_issue_audit_failure_rolls_back_publication_and_recovers_bytes(self):
+        from app import report_runs_v4 as reports
+        from tests.test_report_runs_v4 import ReportRunV4Tests
+        fixture = ReportRunV4Tests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        run = fixture.enqueue()
+        audit = fixture.store.audit
+        def fail_issue(db, actor, target, action, detail):
+            if action == "report.s1.issue":
+                raise RuntimeError("synthetic audit failure")
+            return audit(db, actor, target, action, detail)
+        with patch.object(fixture.store, "audit", side_effect=fail_issue):
+            with self.assertRaisesRegex(RuntimeError, "synthetic audit failure"):
+                Worker(fixture.store).once()
+        row = fixture.row(run["run_id"])
+        self.assertEqual(row["status"], "running")
+        self.assertIsNone(row["result_ref"])
+        with fixture.store.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='report.s1.issue'").fetchone()[0], 0)
+            steps = db.execute("SELECT output_ref FROM steps WHERE run_id=?", (run["run_id"],)).fetchall()
+        before = {item[0]: fixture.store.path(item[0]).read_bytes() for item in steps}
+        renders = fixture.render.call_count
+        with fixture.store.connect(write=True) as db:
+            db.execute("UPDATE runs SET lease_expires_at='2000-01-01T00:00:00Z' WHERE run_id=?", (run["run_id"],))
+        self.assertTrue(Worker(fixture.store).once())
+        self.assertEqual(fixture.row(run["run_id"])["status"], "succeeded")
+        self.assertEqual(fixture.render.call_count, renders)
+        for ref, content in before.items():
+            self.assertEqual(fixture.store.path(ref).read_bytes(), content)
+        with fixture.store.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='report.s1.issue'").fetchone()[0], 1)
+        self.assertTrue(reports.download(fixture.store, fixture.case_id, fixture.session_id, run["run_id"], "manifest", fixture.user)[0])
+
     def test_once_can_finalize_access_failure_but_never_overwrites_new_claim(self):
         for replaced in (False, True):
             with self.subTest(replaced=replaced):

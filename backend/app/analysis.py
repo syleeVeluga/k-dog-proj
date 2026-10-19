@@ -148,11 +148,7 @@ def adopt(store, row, step, ref, output_hash, usage):
         from app import report_runs_v4
         source_stamps = report_runs_v4.verify_files(store, report_runs_v4.snapshot_for(row))
         source_stamps.update(report_runs_v4.output_stamps(store, step["stage"], payload))
-    with store.connect(write=True) as db:
-        current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
-        if not current or current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
-            raise HTTPException(409, "오래된 실행 결과를 채택할 수 없습니다.")
-        check_access(store, db, current)
+    with owned_write(store, row, conflict_detail="오래된 실행 결과를 채택할 수 없습니다.") as (db, current):
         if row["kind"] == "s1":
             run_v4.check_stamps(store, source_stamps)
         if row["kind"] == "report_v4":

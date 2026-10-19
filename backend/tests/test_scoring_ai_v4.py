@@ -242,3 +242,105 @@ class AiNormalizationV4Tests(unittest.TestCase):
         self.assertEqual(payload["observations"][0]["status"], "unobserved")
         self.assertIn("유효 클립 없음", payload["program_reason"])
         self.assertEqual(ai.stored_group(source, stage, payload), payload)
+
+
+class AiPublicationV4Tests(unittest.TestCase):
+    def setUp(self):
+        from app import analysis, run_v4, settings_v4
+        from app.storage import now, uid
+        from app.worker import Worker
+        from tests.test_run_v4 import RunV4Tests
+        self.fixture = RunV4Tests()
+        self.fixture.setUp()
+        self.addCleanup(self.fixture.doCleanups)
+        self.store = self.fixture.store
+        pipeline = settings_v4.defaults()
+        pipeline.raw_observation_scope_confirmed = True
+        config = ai.configuration(None, pipeline)
+        self.fixture.enqueue(config=config)
+        self.row = analysis.claim(self.store)
+        self.source = run_v4.snapshot_for(self.row)
+        self.worker = Worker(self.store)
+        # Failed synthetic groups provide every required observation without a provider.
+        with self.store.connect(write=True) as db:
+            for stage in config.stages:
+                if stage.stage in ("score_v4", "attachment_v4"):
+                    db.execute("INSERT INTO steps(step_id,run_id,stage,branch_key,attempt,status,claim_token,usage_json,created_at,updated_at) "
+                               "VALUES(?,?,?,?,1,'failed',?,'{}',?,?)",
+                               (uid(), self.row["run_id"], stage.stage, stage.key, self.row["claim_token"], now(), now()))
+        self.calculation = ai.calc_payload(self.worker, self.row, self.source)
+
+    def publish(self):
+        return ai.publish(self.worker, self.row, self.source, self.calculation)
+
+    def counts(self):
+        from app.domain.sheets_v4 import AI_ACCOUNT
+        with self.store.connect() as db:
+            return tuple(db.execute(sql, parameters).fetchone()[0] for sql, parameters in (
+                ("SELECT COUNT(*) FROM users WHERE username=?", (AI_ACCOUNT,)),
+                ("SELECT COUNT(*) FROM score_sheets", ()),
+                ("SELECT COUNT(*) FROM basic_results", ()),
+                ("SELECT COUNT(*) FROM changes WHERE action='ai.publish'", ())))
+
+    def test_identical_publication_is_idempotent_and_conflicting_document_is_rejected(self):
+        from unittest.mock import patch
+        from fastapi import HTTPException
+        first = self.publish()
+        ref = first["basic_result"]["ref"]
+        before = self.store.path(ref).read_bytes()
+        self.assertEqual(self.publish()["basic_result"], first["basic_result"])
+        self.assertEqual(self.counts(), (1, 1, 1, 1))
+        changed = ai.basic_data(self.worker, self.row, self.calculation)
+        changed["change_reason"] = "synthetic conflicting document"
+        with patch.object(ai, "basic_data", return_value=changed):
+            with self.assertRaises(HTTPException) as error:
+                self.publish()
+        self.assertEqual(error.exception.status_code, 409)
+        self.assertEqual(self.counts(), (1, 1, 1, 1))
+        self.assertEqual(self.store.path(ref).read_bytes(), before)
+
+    def test_ai_account_collision_does_not_create_sheet_result_or_audit(self):
+        from app.domain.sheets_v4 import AI_ACCOUNT
+        from fastapi import HTTPException
+        with self.store.connect(write=True) as db:
+            db.execute("INSERT INTO users(username,password_hash,role,active) VALUES (?,?,'operator',1)", (AI_ACCOUNT, "synthetic"))
+        with self.assertRaises(HTTPException) as error:
+            self.publish()
+        self.assertEqual(error.exception.status_code, 409)
+        self.assertEqual(self.counts(), (1, 0, 0, 0))
+
+    def test_actor_revoked_after_file_checks_cannot_publish(self):
+        from unittest.mock import patch
+        from fastapi import HTTPException
+        guarded = ai.guarded
+        def revoke(worker, row, source):
+            guarded(worker, row, source)
+            with self.store.connect(write=True) as db:
+                db.execute("UPDATE users SET active=0 WHERE username='operator'")
+        with patch.object(ai, "guarded", side_effect=revoke):
+            with self.assertRaises(HTTPException):
+                self.publish()
+        self.assertEqual(self.counts(), (0, 0, 0, 0))
+
+    def test_audit_failure_rolls_back_account_sheet_result_and_retry_reuses_immutable_file(self):
+        from unittest.mock import patch
+        audit = self.store.audit
+        written = []
+        write_result = ai.judgements.write_result
+        def capture(store, data):
+            result = write_result(store, data)
+            written.append((result[0], store.path(result[0]).read_bytes()))
+            return result
+        def fail(db, actor, target, action, detail):
+            if action == "ai.publish":
+                raise RuntimeError("synthetic audit failure")
+            return audit(db, actor, target, action, detail)
+        with patch.object(ai.judgements, "write_result", side_effect=capture), patch.object(self.store, "audit", side_effect=fail):
+            with self.assertRaisesRegex(RuntimeError, "synthetic audit failure"):
+                self.publish()
+        self.assertEqual(self.counts(), (0, 0, 0, 0))
+        self.assertEqual(len(written), 1)
+        self.assertEqual(self.store.path(written[0][0]).read_bytes(), written[0][1])
+        self.publish()
+        self.assertEqual(self.counts(), (1, 1, 1, 1))
+        self.assertEqual(self.store.path(written[0][0]).read_bytes(), written[0][1])

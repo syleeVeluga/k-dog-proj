@@ -410,11 +410,7 @@ def publish(worker, row, snapshot, calculation):
     identities = run_v4.verify_files(worker.store, snapshot)
     account_hash = password_hash(secrets.token_urlsafe(48))
     doc = model.input_document
-    with worker.store.connect(write=True) as db:
-        current = run_v4.row_for(worker.store, db, row["run_id"])
-        if current["status"] != "running" or current["claim_token"] != row["claim_token"] or current["lease_expires_at"] <= now():
-            raise HTTPException(409, "S1 AI 채택 점유가 변경되었습니다.")
-        run_v4.check_access(worker.store, db, current)
+    with analysis.owned_write(worker.store, row, conflict_detail="S1 AI 채택 점유가 변경되었습니다.") as (db, current):
         run_v4.check_stamps(worker.store, identities)
         existing = db.execute("SELECT * FROM basic_results WHERE result_id=?", (model.result_id,)).fetchone()
         if existing:
