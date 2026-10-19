@@ -1,6 +1,6 @@
 # K-DOG 개발 실행 안내
 
-버전: v1.7 · 2026-10-14 · S1.1 / 통합명세 v1.3
+버전: v1.8 · 2026-10-20 · S1.1 / 통합명세 v1.3
 
 개발 기준은 [S00–S17 계획](archive/개발반영_20261003/K-DOG_개발반영계획_v1.0_20261003.md), 검증 근거는 [실행 기록](archive/개발반영_20261003/K-DOG_구현실행기록_v1.0_20261003.md)과 [인수 대장](archive/개발반영_20261003/K-DOG_인수검증대장_v1.0_20261003.md)을 따른다. 실제 영상·장비 검증과 미확정 자료/정책은 [후속 대장](archive/개발반영_20261003/K-DOG_실측및확인후속대장_v1.0_20261003.md)에 있다.
 
@@ -77,6 +77,8 @@ uv run --locked python -X utf8 -m app.manage --data-dir "D:/K-DOG/data" preproce
 ```
 
 같은 요청 재시도에는 동일 request ID를 쓴다. 다른 입력·새 처리에는 새 ID와 현재 revision을 쓴다. 성공/실패·원본 부모 hash·실제 fps·출력 hash가 batch에 고정된다. 메뉴 방문이나 입력 저장으로 자동 실행하지 않는다. AI 실행은 현재 모델/설정/예산을 고정하며 실제 공급자 호출과 재시도에는 비용이 발생할 수 있다.
+
+구조 개선 후 촬영 CSV의 순수 초안 병합은 `src/segmentsCsv.ts`의 `applySegmentsCsvDraft`, AI·전처리의 pending/응답 순서·타이머는 `src/useExecutionTracking.ts`에서 찾는다. 각 화면 adapter가 DTO·저장 payload와 부분 조회 결과를 해석한다. backend의 `app.analysis.owned_write`는 현재 실행 점유·실제 계정 확인과 같은 SQLite 쓰기 transaction의 수명을 소유하며, Worker 네 쓰기와 채택·게시 다섯 쓰기가 사용한다. claim·heartbeat·오류 종료·업로드/전처리의 별도 토큰은 기존 module에 남는다. 실제 시험과 한계는 [아키텍처 개선 실행 기록](plans/아키텍처개선_20261020/K-DOG_아키텍처개선실행기록_v1.0_20261020.md)을 따른다.
 
 ## 패키지와 종단 리허설
 

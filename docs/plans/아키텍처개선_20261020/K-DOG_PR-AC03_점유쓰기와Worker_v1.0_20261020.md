@@ -104,3 +104,5 @@ AC04에 interface의 실제 이름/예외·commit 규칙과 제외 경로 목록
 | AC04 인계 interface·commit 의미 | 예정 그대로 `analysis.owned_write(store, row, *, conflict_detail)` → `(db, current)`. 같은 Store.connect body에서 현재 claim/running/lease와 check_access 검사, 자동 갱신·재시도 없음. credential ProviderError는 내부 보관→commit→외부 raise. claim/guard/heartbeat/once/action/업로드·전처리 제외 |
 
 2026-10-20 공식 확인: Python 최신 3.15.0·3.14 계열 3.14.8, 실행 3.14.2(`>=3.14,<3.15`); FastAPI 최신 0.148.0·선택 0.141.1, Pydantic 최신 2.14.1·선택 2.13.5, httpx 0.28.1. 기존 lock/runtime 유지와 무관한 업그레이드 제외. [Python 배포](https://www.python.org/downloads/)·[contextlib](https://docs.python.org/3.14/library/contextlib.html)·[sqlite3](https://docs.python.org/3.14/library/sqlite3.html), [FastAPI](https://fastapi.tiangolo.com/release-notes/)·[Pydantic](https://pydantic.dev/docs/validation/latest/get-started/changelog/)와 공식 PyPI registry의 runtime/API·변경점을 확인했다. AC05 통합 기록에서 전체 명령·잔존 분류를 연결한다.
+
+최종 통합 근거·공식 버전·실측 한계는 [제품 실행 기록](K-DOG_아키텍처개선실행기록_v1.0_20261020.md)을 따른다.

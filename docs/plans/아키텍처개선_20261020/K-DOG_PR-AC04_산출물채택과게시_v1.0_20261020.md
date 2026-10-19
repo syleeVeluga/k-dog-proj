@@ -84,3 +84,5 @@ Graft로 `claim_token`, `lease_expires_at`, `check_access`, `worker.stage`를 ex
 | 정상 쓰기/의도적 잔존 목록 | adopt·run finish·attachment 완료·AI publish·report finish 다섯 전환. source/output/asset stamp·최신 attempt·step 원 token·종류별 pointer/감사 같은 body 유지. claim/guard/heartbeat/once/action/admission/업로드·전처리·reset/조회는 별도 책임. AC05 통합 기록에 전수 분류 |
 
 2026-10-20 의존성 공식 확인·선택은 AC03과 동일하다. 기존 Python 3.14.2/FastAPI 0.141.1/Pydantic 2.13.5와 lock을 유지하며 [contextlib](https://docs.python.org/3.14/library/contextlib.html)·[sqlite3](https://docs.python.org/3.14/library/sqlite3.html)의 수명·rollback 계약을 사용한다. 새 package·DB migration·DTO/저장/발급 형식 변경 없음. 최신/선택판과 이유는 AC05 통합 기록에 연결한다.
+
+최종 통합 근거·공식 버전·실측 한계는 [제품 실행 기록](K-DOG_아키텍처개선실행기록_v1.0_20261020.md)을 따른다.

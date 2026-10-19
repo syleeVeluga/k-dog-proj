@@ -1,6 +1,6 @@
 # PR-AC05 통합 회귀와 인수 기록
 
-버전: v1.0 · 2026-10-20 · 상태: **계획 / 구현·시험 미착수** · 직접 선행: AC01·AC02·AC04 병합(AC03 포함)
+버전: v1.0 · 2026-10-20 · 상태: **통합 검증 완료** · 직접 선행: AC01·AC02·AC04 병합(AC03 포함)
 
 브랜치 제안: `veluga/ac05-architecture-acceptance` · 제목 제안: `test: verify architecture refactors preserve S1 workflows`
 
@@ -84,22 +84,22 @@ Graft의 direct/transitive callers와 exhaustive 검색 결과를 함께 검토�
 
 문제가 있으면 해당 PR을 코드 단위로 되돌린다. backend는 AC04→AC03 순서를 지키고 데이터·출력/usage/audit는 보존한다. 오래된 동의/삭제 정책 앱으로 운영 DB를 열어 되돌리지 않는다.
 
-- [ ] 선행 네 PR의 실제 완료·검토 근거와 AC-T01~T19 추적
-- [ ] AC-T20~T22와 backend 전체·build·E2E 통과
-- [ ] 390/1440에서 CSV·AI 실행·전처리 표시와 복구 안내 확인
-- [ ] 잔존 분류·링크·Graft freshness·변경 범위 점검
-- [ ] 독립 검토 조치·최종 commit·미실측/미실행 범위 기록
+- [x] 선행 네 PR의 실제 완료·검토 근거와 AC-T01~T19 추적
+- [x] AC-T20~T22와 backend 전체·build·E2E 통과
+- [x] 390/1440에서 CSV·AI 실행·전처리 표시와 복구 안내 확인
+- [x] 잔존 분류·링크·Graft freshness·변경 범위 점검
+- [x] 독립 검토 조치·최종 commit·미실측/미실행 범위 기록
 
-## 7 실행 기록 양식
+## 7 실행 기록
 
 | 항목 | 실제 결과 |
 | --- | --- |
-| 선행 PR·시험 기준 commit·작업트리 | 미실행 |
-| 최신/선택 의존성 확인일·공식 링크 | 미실행 |
-| backend 전체 명령·건수·시간·skip 이유 | 미실행 |
-| 프런트 build·전체 E2E 건수·시간 | 미실행 |
-| AC-T20/21/22 시험 이름·결과 | 미실행 |
-| 화면 캡처·잔존 분류 | 미실행 |
-| cold review·수용 수정·재검증 | 미실행 |
-| 원본 source check / 미실행 사유 | 미실행 |
-| commit·PR·병합 / 실제 배포 범위 | 미실행 |
+| 선행 PR·시험 기준 commit·작업트리 | [AC01 #107](https://github.com/syleeVeluga/k-dog-proj/pull/107) `f949d55`, [AC02 #108](https://github.com/syleeVeluga/k-dog-proj/pull/108) `0e01185`(저장 예외 수정 `3b75014` 포함), [AC03 #109](https://github.com/syleeVeluga/k-dog-proj/pull/109) `4bbe1f0`, [AC04 #110](https://github.com/syleeVeluga/k-dog-proj/pull/110) `78f4695`. 전체 backend는 `78f4695`, 최종 frontend는 동일 source에 `3e52379`와 CSV fixture 2줄을 적용. 정규화 SHA-256으로 17파일 고정·통합 시 동일성 확인 |
+| 최신/선택 의존성 확인일·공식 링크 | 2026-10-20 공식 문서·release·registry 확인. 기존 lock 유지. [실행 기록 §2](K-DOG_아키텍처개선실행기록_v1.0_20261020.md#2-공식-버전호환성-확인) |
+| backend 전체 명령·건수·시간·skip 이유 | §4 unittest discover: 795 tests / 1352.898초 / OK (skipped=2). 역사 v3 원본 2건은 로컬 별도 확보 필요로 skip; 현재 S1 source는 별도 통과 |
+| 프런트 build·전체 E2E 건수·시간 | build 통과(기존 chunk 경고). 전체 150 passed / 9.8분. 후속 AC-T09 시험만 추가하여 별도 3 passed / 21.5초; 제품 변경 없음. 153개 전체 사례를 두 실행의 합집합으로 검증 |
+| AC-T20/21/22 시험 이름·결과 | [실행 기록 §7](K-DOG_아키텍처개선실행기록_v1.0_20261020.md#7-ac-t01t22-실제-시험-추적)의 실제 recording/preprocess/Worker acceptance·fallback·shared/actor·deployment/reset/packaging에 연결. backend 전체 및 frontend 전체150+후속3 통과 |
+| 화면 캡처·잔존 분류 | [실행 기록 §5·§8](K-DOG_아키텍처개선실행기록_v1.0_20261020.md): 9구간 전환, 12파일/44symbol/80occurrence 잔존 책임 분류. 390/1440 CSV·AI·전처리 6 PNG 최종 전체 성공 실행에서 갱신·가로 넘침 assertion/육안 확인 |
+| cold review·수용 수정·재검증 | 사용자 허용 독립 프런트/백엔드 검토. AC-CR01~04 수용·수정·회귀 보강, actionable 잔여 0건. backend reviewer 6건 포함 29 tests / 10.165초 통과. AC05 문서 1차 사실 검토0건·PyPI 링크 누락 보완. 후속 T09 직접 주입 근거 누락 수용·3시험 추가 검증 |
+| 원본 source check / 미실행 사유 | S1 importer exit 0, 8자산 source verified. G01/G04 실물 workbook·산식/주소는 미수령 후속 유지. 고객 원본 변경·커밋 없음 |
+| commit·PR·병합 / 실제 배포 범위 | [#111](https://github.com/syleeVeluga/k-dog-proj/pull/111). 선행4PR main 병합 완료, 통합 `36218c5`에서 source/시험17파일 동결 일치. [실행 기록 §9](K-DOG_아키텍처개선실행기록_v1.0_20261020.md#9-pr-통합과-최종-고정)에 실제 PR/병합 commit 연결; 본 PR의 최종 merge는 GitHub 이력 참조. 새 ZIP·고객 배포·운영 DB·실제 공급자·현장 3PC 검수는 미실행 |
