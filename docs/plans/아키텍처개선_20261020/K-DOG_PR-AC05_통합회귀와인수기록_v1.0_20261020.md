@@ -1,6 +1,6 @@
 # PR-AC05 통합 회귀와 인수 기록
 
-버전: v1.0 · 2026-10-20 · 상태: **통합 검증 완료 / PR 통합 진행** · 직접 선행: AC01·AC02·AC04 병합(AC03 포함)
+버전: v1.0 · 2026-10-20 · 상태: **통합 검증 완료** · 직접 선행: AC01·AC02·AC04 병합(AC03 포함)
 
 브랜치 제안: `veluga/ac05-architecture-acceptance` · 제목 제안: `test: verify architecture refactors preserve S1 workflows`
 
@@ -102,4 +102,4 @@ Graft의 direct/transitive callers와 exhaustive 검색 결과를 함께 검토�
 | 화면 캡처·잔존 분류 | [실행 기록 §5·§8](K-DOG_아키텍처개선실행기록_v1.0_20261020.md): 9구간 전환, 12파일/44symbol/80occurrence 잔존 책임 분류. 390/1440 CSV·AI·전처리 6 PNG 최종 전체 성공 실행에서 갱신·가로 넘침 assertion/육안 확인 |
 | cold review·수용 수정·재검증 | 사용자 허용 독립 프런트/백엔드 검토. AC-CR01~04 수용·수정·회귀 보강, actionable 잔여 0건. backend reviewer 6건 포함 29 tests / 10.165초 통과. AC05 문서 1차 사실 검토0건·PyPI 링크 누락 보완. 후속 T09 직접 주입 근거 누락 수용·3시험 추가 검증 |
 | 원본 source check / 미실행 사유 | S1 importer exit 0, 8자산 source verified. G01/G04 실물 workbook·산식/주소는 미수령 후속 유지. 고객 원본 변경·커밋 없음 |
-| commit·PR·병합 / 실제 배포 범위 | 전체 검증 근거를 이 commit에 고정하고 각 PR을 순서대로 통합한다. 실제 PR/병합 commit은 실행 기록에 연결한다. 새 ZIP·고객 배포·운영 DB·실제 공급자·현장 3PC 검수는 미실행 |
+| commit·PR·병합 / 실제 배포 범위 | [#111](https://github.com/syleeVeluga/k-dog-proj/pull/111). 선행4PR main 병합 완료, 통합 `36218c5`에서 source/시험17파일 동결 일치. [실행 기록 §9](K-DOG_아키텍처개선실행기록_v1.0_20261020.md#9-pr-통합과-최종-고정)에 실제 PR/병합 commit 연결; 본 PR의 최종 merge는 GitHub 이력 참조. 새 ZIP·고객 배포·운영 DB·실제 공급자·현장 3PC 검수는 미실행 |

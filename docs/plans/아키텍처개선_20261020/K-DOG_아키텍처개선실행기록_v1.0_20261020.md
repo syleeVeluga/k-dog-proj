@@ -1,6 +1,6 @@
 # K-DOG 아키텍처 개선 실행 기록
 
-버전: v1.0 · 2026-10-20 · 기준: `main / f58b21e` · 상태: **구현·전체 검증 완료 / PR 통합 진행**
+버전: v1.0 · 2026-10-20 · 기준: `main / f58b21e` · 상태: **AC01~AC05 구현·전체 검증 완료**
 
 상위: [전체 계획](K-DOG_아키텍처개선적용계획_v1.0_20261020.md). 사용자 `/goal`은 AC01~AC05 전체 구현과 완료 검증이다. 최초 문서 PR #106의 계획 검증과 이번 제품 검증을 구분한다. 시작 작업트리에는 사용자 소유의 untracked `.agents/`와 `.claude/skills/improve-codebase-architecture/`가 있었으며 변경·커밋하지 않는다.
 
@@ -48,7 +48,7 @@ Deletion test: AC01 module을 제거하면 화면에 초안 규칙이 되돌아�
 | 신설 owned transaction 7건 | 7 tests / 2.072초 / OK; commit/rollback/close·현재 claim/lease/actor/revision·예약 commit·중복 예약·once 오류 종료/새 점유 보존 |
 | 변경 후 AC02 국소 | 계획의 관련 7 spec 33 passed / 2.9분. 같은 회차 전처리 revision 추가 1 passed / 9.7초 |
 | 변경 후 AC04 국소 | 계획의 10모듈 111 tests / 384.546초 / OK |
-| 전체 E2E 1차 | 149건 중 148 passed / 12.3분, CSV 모바일 메뉴 fixture 1 timeout. 제품 변경 없이 회차 메뉴를 먼저 열도록 시험 한 줄 수정; 수정 후 해당 1 passed / 14.1초; 전체 최종 재검증 진행 |
+| 전체 E2E 1차 | 149건 중 148 passed / 12.3분, CSV 모바일 메뉴 fixture 1 timeout. 제품 변경 없이 회차 메뉴를 먼저 열도록 시험 한 줄 수정; 수정 후 해당 1 passed / 14.1초; 이후 최종 전체150건 통과 |
 | 저장 실패·CSV 국소 최종 | 2 passed / 17.8초; 저장 오류 시 POST 0·오류 표시·대기 해제, 390/1440 CSV 확인 |
 | backend 전체 최종 | 795 tests / 1352.898초 / OK (skipped=2); 역사 v3 로컬 원본 미확보에 따른 2건 skip, 현재 S1 source check는 별도 통과 |
 | 프런트 전체 최종 | `npm run test:e2e`: 150 passed / 9.8분. 제품/시험 동결본으로 전체 성공. 후속 문서 검토의 AC-T09 직접 주입 3건은 제품 변경 없이 별도 실행하여 3 passed / 21.5초. 전체 150건과 별도 3건의 합집합 153건 |
@@ -128,7 +128,7 @@ DB migration·schema·HTTP 경로/DTO·저장 JSON·고객 카탈로그·산식�
 
 AC05 시작 시 제품·시험 17개 변경 파일의 정규화 텍스트 SHA-256을 OS 임시 파일에 고정했다. 제품 소스는 최초 `78f4695`로 고정했다. 전체 E2E 1차에서 새 CSV 캡처가 390px에 남긴 상태로 접힌 회차 메뉴 안의 버튼을 클릭하던 fixture 1건이 timeout했다. 기존 모바일 동작대로 회차 안내를 먼저 여는 시험 한 줄만 추가하고 해당 시험 파일 hash를 갱신했다(나머지 16파일 동일). 이 모바일 fixture 수정은 제품 코드 변경이 아니다. 이후 AC-CR04 실제 hook 회귀를 추가 발견해, 진행 중이던 E2E 재실행을 36건 통과 시점에 작업 소유 프로세스만 종료했다. 후속 국소 시험에서는 CSV viewport 전환 직후 즉시 측정이 한 번 실패했다. 기존 화면 시험과 같이 같은 가로 넘침 조건을 expect.poll로 재검사하도록 바꾸고 저장 실패/CSV 2건을 17.8초에 통과했다. hook 저장 위치·저장 실패 시험·CSV fixture의 3파일 hash를 갱신했으며 최종 전체 E2E 150건을 9.8분에 통과했다. backend 코드는 `78f4695` 이후 동일하며 그 전체 결과는 계속 유효하다. AC05는 모바일 fixture 수정·문서·캡처를 추가하고 hook 수정은 AC02 PR에 `3b75014`로 별도 반영했다(통합 작업 브랜치의 동일 patch `3e52379`).
 
-Graft 최종 wiring build/check: 3575 nodes·10428 edges·294 cards, 동기화 OK. deep 의미 요약은 미생성이며 lexical source·정확한 wiring·전수 검색을 사용했다. 문서 9개 최초 검사: local 상대 링크 88개·기존 HEAD 대상 44개, 줄 범위/개행/fence/공백 오류 0건. 캡처/통합 링크 추가 후 상대 링크 97개·서로 다른 대상 51개·요구12/시험ID22·동결17파일·오류0건을 확인했다. 최종 commit에서도 committed 대상과 일치하는지 검사한다.
+Graft 최종 wiring build/check: 3575 nodes·10428 edges·294 cards, 동기화 OK. deep 의미 요약은 미생성이며 lexical source·정확한 wiring·전수 검색을 사용했다. 문서 9개 최초 검사: local 상대 링크 88개·기존 HEAD 대상 44개, 줄 범위/개행/fence/공백 오류 0건. 캡처/통합 링크 추가 후 상대 링크 97개·서로 다른 대상 51개·요구12/시험ID22·동결17파일·오류0건을 확인했다. PR 이력·동결 manifest를 더한 최종 검사는 상대 링크99개·대상52개이며 committed 대상까지 검사했다.
 
 AC05 독립 문서 1차 검토: AC-T01~T22·commit/17파일·전환9/잔존80·판본/인수 한계의 사실 불일치 0건. 공식 PyPI 7종 링크 누락 1건은 수용·보완했다. 최종 backend 문서 검토도 불일치 0건이었다. 후속 frontend 문서 검토에서 AC-T09의 손상 JSON/명시 POST 4xx 직접 주입 근거 누락을 발견해 수용했다. AI·전처리 손상 JSON 뒤 409와 조회로 접수 확인한 전처리의 늦은409 세 시험을 추가해 3 passed / 21.5초로 직접 검증했다. 이는 제품 수정 없이 시험 근거를 보완한 것이다. 이 후속 2개 시험 파일만 hash를 갱신했고 제품 11개 파일은 전체 회귀 이후 동일하다. 추가 시험은 AC02 `0e01185`에 반영했다(통합 작업 브랜치 동일 patch `a8c6574`).
 
@@ -144,3 +144,17 @@ AC05 독립 문서 1차 검토: AC-T01~T22·commit/17파일·전환9/잔존80·�
 | [preprocess-progress-390.png](evidence/preprocess-progress-390.png) | 390×2729 | `510186aa37ede8c1911ccc9abca100aba2b972aec528727f133bdac203575d28` |
 | [segments-csv-1440.png](evidence/segments-csv-1440.png) | 1440×5992 | `c3de78edc85ea8e0f41696dd10326839289dcb97901b8fe02d408531b8c0fe03` |
 | [segments-csv-390.png](evidence/segments-csv-390.png) | 390×10313 | `93f6115f972db2cbddbb5a9421bbaff6820cf78828aa8cf1a6e218bd7532a01f` |
+
+## 9 PR 통합과 최종 고정
+
+| PR | 구현 head / 실제 PR | 병합 근거 |
+| --- | --- | --- |
+| AC01 | `f949d55` / [#107](https://github.com/syleeVeluga/k-dog-proj/pull/107) | `9601a78` |
+| AC02 | `0e01185` / [#108](https://github.com/syleeVeluga/k-dog-proj/pull/108) | `924c9bc` |
+| AC03 | `4bbe1f0` / [#109](https://github.com/syleeVeluga/k-dog-proj/pull/109) | `a26d4f6` |
+| AC04 | `78f4695` / [#110](https://github.com/syleeVeluga/k-dog-proj/pull/110) | `3ede709` |
+| AC05 | 기록 기준 `bd7d65f` + `main` 통합 `36218c5` / [#111](https://github.com/syleeVeluga/k-dog-proj/pull/111) | #111의 GitHub 이력에서 최종 merge commit·상태 확인 |
+
+AC01~04를 순서대로 main에 통합했다. AC05에 main을 통합한 `36218c5`에서 제품11파일을 포함한 변경 source/시험17파일이 [정규화 SHA-256](evidence/source-test-sha256.json)과 일치함을 확인했다. AC02로 옮긴 두 patch는 통합 전후 같은 내용이며 AC05의 main 대비 차이는 문서·화면 증거·CSV 시험 fixture뿐이다. 제품 source를 다시 변경하지 않아 전체 시험 결과가 통합 후에도 유효하다.
+
+최종153건은 전체150건과 추가3건 실행의 합집합이며 한 번의153건 전체 실행으로 기록하지 않는다. 최종commit·merge는 GitHub PR 이력으로 추적한다. 실제 배포·공급자·현장 보류는 §6을 유지한다.
