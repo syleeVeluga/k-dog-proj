@@ -149,6 +149,11 @@ test('구간 CSV가 4영상 초안을 채우고 수동 사실 입력 후 기존 
   await releaseRead();
   await expect(panel.getByRole('alert')).toHaveCount(0);
   await expect(panel.getByRole('textbox', { name: '절차 확인 근거', exact: true })).not.toHaveValue(/delayed\.csv/);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`segments-csv-${width}.png`), fullPage: true, animations: 'disabled' });
+  }
   await delayRead();
   await panel.getByRole('combobox', { name: '기준 영상', exact: true }).selectOption(videos[0].video_id);
   await expect(csv).toBeEnabled();
@@ -163,9 +168,6 @@ test('구간 CSV가 4영상 초안을 채우고 수동 사실 입력 후 기존 
   await page.getByRole('button', { name: 'csv-capture 촬영 열기', exact: true }).click();
   await expect(panel.getByLabel('입장 시작', { exact: true })).toHaveValue('1');
   await expect(panel.getByRole('alert')).toHaveCount(0);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: testInfo.outputPath('segments-csv-mobile.png'), fullPage: true, animations: 'disabled' });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test('S1 preserved video registers its camera and source without replacing raw media', async ({ page }) => {
