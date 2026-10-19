@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useExecutionTracking, type ExecutionSnapshot, type ExecutionUpdate } from './useExecutionTracking';
 import { api, ApiError, accessLost } from './api';
 import { sessionOf, type Case, type Run } from './types';
 import { WINDOW_NAMES } from './recordingTypesV4';
@@ -30,79 +31,58 @@ export function PreprocessingPanelV4({ item, username, executionId, writable, ru
 }) {
   const session = sessionOf(item), path = `/cases/${item.case_id}/sessions/${session.session_id}/preprocess-s1`;
   const storageKey = `kdog-preprocess:${username}:${item.case_id}:${session.session_id}:${executionId ?? 'current'}`;
-  const saved = useRef<{ request?: PreprocessRequestV4; executionId?: string }>({});
-  const initialized = useRef(false);
-  if (!initialized.current) {
-    initialized.current = true;
-    try { saved.current = JSON.parse(sessionStorage.getItem(storageKey) ?? '{}'); } catch { saved.current = {}; }
-    if (executionId) saved.current = { executionId };
-  }
-  const [status, setStatus] = useState<PreprocessStatusV4 | null>(null);
-  const [execution, setExecution] = useState<PreprocessExecutionDetailV4 | null>(null);
-  const [tracking, setTracking] = useState(saved.current.executionId ?? '');
-  const [pending, setPending] = useState<PreprocessRequestV4 | null>(saved.current.request ?? null);
-  const [connected, setConnected] = useState(false), [checked, setChecked] = useState('');
-  const [pollTick, setPollTick] = useState(0);
-  const [error, setError] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(false);
-  const [priority, setPriority] = useState(() => [...new Set(['CAM1', 'CAM2', 'CAM3', 'CAM4', ...session.videos.flatMap(video => video.camera_id ? [video.camera_id] : [])])]);
+  type Data = { status: PreprocessStatusV4 | null; execution: PreprocessExecutionDetailV4 | null };
+  type Snapshot = ExecutionSnapshot<PreprocessRequestV4, Data>;
+  const [priority, setPriority] = useState(() => [...new Set(['CAM1', 'CAM2', 'CAM3', 'CAM4', ...session.videos.flatMap(video => video.camera_id ? [video.camera_id] : [])])] );
   const [audio, setAudio] = useState(''), [clipId, setClipId] = useState(''), [variant, setVariant] = useState<'original' | 'ai'>('original');
-  const alive = useRef(true), running = useRef(false), sequence = useRef(0), postGeneration = useRef(0);
-  const inFlight = useRef(false), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const pendingRef = useRef(pending), trackingRef = useRef(tracking);
-  pendingRef.current = pending; trackingRef.current = tracking;
-  function preserve(request: PreprocessRequestV4 | null, id: string) {
-    sessionStorage.setItem(storageKey, JSON.stringify({ request: request ?? undefined, executionId: id || undefined }));
+  function failure(value: unknown, snapshot: Snapshot, phase: 'load' | 'request'): ExecutionUpdate<Data> {
+    const lost = accessLost(value), rejected = value instanceof ApiError && value.status < 500;
+    const message = value instanceof Error ? value.message : phase === 'load' ? '전처리 상태를 불러오지 못했습니다.' : '전처리 요청에 실패했습니다.';
+    return { data: lost ? { status: null, execution: phase === 'load' ? null : snapshot.data.execution } : snapshot.data,
+      clearPending: phase === 'load' ? lost : rejected && !snapshot.selectedId,
+      selectedId: phase === 'load' && lost ? '' : undefined, forget: phase === 'load' && lost,
+      verified: phase === 'load' ? false : undefined, poll: true,
+      requestError: phase === 'load' ? '' : undefined,
+      error: phase === 'load' ? message : rejected ? `${message} 상태와 최신 입력을 새로고침한 뒤 다시 실행하세요.` : '요청 접수 여부 확인 중 · 응답을 받지 못했습니다. 상태 조회로 확인합니다.' };
   }
-  useEffect(() => { alive.current = true; return () => { alive.current = false; sequence.current++; postGeneration.current++; clearTimeout(timer.current); }; }, []);
-  async function load(background = false) {
-    if (background && inFlight.current) return;
-    const current = ++sequence.current;
-    inFlight.current = true;
-    if (!background) setLoading(true);
-    try {
-      let id = trackingRef.current;
-      if (!id && pendingRef.current) {
-        const page = await api<PreprocessExecutionPageV4>(`/preprocess-s1/executions?request_id=${encodeURIComponent(pendingRef.current.request_id)}`);
-        if (!alive.current || current !== sequence.current) return;
-        id = page.items.find(value => value.case_id === item.case_id && value.session_id === session.session_id)?.execution_id ?? '';
-        if (id) { trackingRef.current = id; setTracking(id); preserve(pendingRef.current, id); }
-      }
-      const [shared, selected] = await Promise.allSettled([
-        api<PreprocessStatusV4>(path),
-        id ? api<PreprocessExecutionDetailV4>(`${path}/executions/${id}`) : Promise.resolve(null),
-      ]);
-      if (selected.status === 'rejected') throw selected.reason;
-      const detail = selected.value;
-      if (alive.current && current === sequence.current) {
-        if (shared.status === 'fulfilled') setStatus(shared.value);
-        setExecution(detail); if (detail || shared.status === 'fulfilled') setChecked(new Date().toLocaleTimeString());
-        setConnected(shared.status === 'fulfilled');
-        setError(shared.status === 'fulfilled' ? '' : `${shared.reason instanceof Error ? shared.reason.message : '현재 입력의 준비 상태를 확인할 수 없습니다.'}${detail ? ' 지정 실행 결과는 보존됩니다.' : ''}`);
-        if (detail && detail.status !== 'running') {
-          pendingRef.current = null; setPending(null); preserve(null, id);
+  const tracker = useExecutionTracking<PreprocessRequestV4, Data, BatchV4>(storageKey, item.input_revision,
+    { status: null, execution: null }, {
+      restore: () => {
+        try { const saved = JSON.parse(sessionStorage.getItem(storageKey) ?? '{}'); return { pending: executionId ? null : saved?.request ?? null, selectedId: executionId ?? saved?.executionId ?? '' }; }
+        catch { return { pending: null, selectedId: executionId ?? '' }; }
+      },
+      save: (request, selected) => sessionStorage.setItem(storageKey, JSON.stringify({ request: request ?? undefined, executionId: selected || undefined })),
+      remove: () => sessionStorage.removeItem(storageKey),
+      failure,
+      accept: (value, snapshot) => ({ data: { ...snapshot.data, execution: null }, selectedId: value.batch_id, poll: true }),
+      load: async (snapshot, signal) => {
+        let id = snapshot.selectedId;
+        try {
+          if (!id && snapshot.pending) {
+            const page = await api<PreprocessExecutionPageV4>(`/preprocess-s1/executions?request_id=${encodeURIComponent(snapshot.pending.request_id)}`);
+            signal.throwIfAborted();
+            id = page.items.find(value => value.case_id === item.case_id && value.session_id === session.session_id)?.execution_id ?? '';
+          }
+          const [shared, selected] = await Promise.allSettled([
+            api<PreprocessStatusV4>(path),
+            id ? api<PreprocessExecutionDetailV4>(`${path}/executions/${id}`) : Promise.resolve(null),
+          ]);
+          if (selected.status === 'rejected') throw selected.reason;
+          const detail = selected.value;
+          const error = shared.status === 'fulfilled' ? '' : `${shared.reason instanceof Error ? shared.reason.message : '현재 입력의 준비 상태를 확인할 수 없습니다.'}${detail ? ' 지정 실행 결과는 보존됩니다.' : ''}`;
+          const clearPending = !!detail && detail.status !== 'running';
+          return { data: { status: shared.status === 'fulfilled' ? shared.value : snapshot.data.status, execution: detail },
+            selectedId: id, clearPending, verified: shared.status === 'fulfilled', checked: !!detail || shared.status === 'fulfilled', error, requestError: '',
+            poll: !clearPending && !!snapshot.pending || detail?.status === 'running' || !detail && shared.status === 'fulfilled' && shared.value.status === 'running' || !!error };
+        } catch (value) {
+          const result = failure(value, { ...snapshot, selectedId: id }, 'load');
+          return result.forget ? result : { ...result, selectedId: id };
         }
-      }
-    } catch (value) {
-      if (alive.current && current === sequence.current) {
-        if (accessLost(value)) { setStatus(null); setExecution(null); setPending(null); sessionStorage.removeItem(storageKey); }
-        setConnected(false); setError(value instanceof Error ? value.message : '전처리 상태를 불러오지 못했습니다.');
-      }
-    } finally { if (alive.current && current === sequence.current) { setLoading(false); inFlight.current = false; setPollTick(value => value + 1); } }
-  }
-  useEffect(() => {
-    sequence.current++; postGeneration.current++; inFlight.current = false;
-    setConnected(false); setBusy(false); running.current = false;
-    void load();
-    const visible = () => { if (!document.hidden) void load(); };
-    document.addEventListener('visibilitychange', visible);
-    return () => { sequence.current++; clearTimeout(timer.current); document.removeEventListener('visibilitychange', visible); };
-  }, [path, item.input_revision]);
-  useEffect(() => {
-    if (busy || pending || execution?.status === 'running' || !execution && status?.status === 'running' || error) {
-      timer.current = setTimeout(() => void load(true), 2000);
-    }
-    return () => clearTimeout(timer.current);
-  }, [busy, pending, execution, status, error, checked, connected, pollTick]);
+      },
+    });
+  const { data: { status }, selectedId: tracking, pending, verified: connected, checked, busy, loading, reload: load } = tracker;
+  const execution = tracker.data.execution?.execution_id === tracking ? tracker.data.execution : null;
+  const error = tracker.error || tracker.requestError;
   const batch = tracking ? execution?.result : status?.result;
   const stale = execution ? execution.outdated : !!status && (status.outdated || status.input_revision !== item.input_revision);
   const blocked = busy || !!pending || loading || !connected || !status?.ready || status.status === 'running' || execution?.status === 'running' || status.input_revision !== item.input_revision;
@@ -118,32 +98,11 @@ export function PreprocessingPanelV4({ item, username, executionId, writable, ru
     if (target >= 0 && target < next.length) { [next[index], next[target]] = [next[target], next[index]]; setPriority(next); }
   }
   function start(reuse: boolean) {
-    if (running.current || blocked || !writable || reuse && (!status?.result_pointer || stale || !sameSettings)) return;
-    running.current = true; setBusy(true); setError('');
+    if (blocked || !writable || reuse && (!status?.result_pointer || stale || !sameSettings)) return;
     const request: PreprocessRequestV4 = { request_id: crypto.randomUUID(), expected_revision: item.input_revision, camera_priority: priority,
       audio_video_id: audio || null, ai_frames_per_second: 1, reuse: reuse ? (execution?.result_pointer ?? status!.result_pointer) : null };
-    pendingRef.current = request; trackingRef.current = ''; setPending(request); setTracking(''); setExecution(null); preserve(request, '');
-    sequence.current++; inFlight.current = false;
-    const generation = ++postGeneration.current;
-    void (async () => {
-      try {
-        const result = await api<BatchV4>(path, 'POST', request);
-        if (alive.current && generation === postGeneration.current) {
-          sequence.current++; inFlight.current = false;
-          trackingRef.current = result.batch_id; setTracking(result.batch_id); preserve(request, result.batch_id);
-          await load();
-          if (alive.current && generation === postGeneration.current) await refresh(reuse ? '검증된 전처리 결과를 재사용했습니다.' : '새 전처리 결과를 만들었습니다.');
-        }
-      } catch (value) {
-        if (alive.current && generation === postGeneration.current) {
-          if (accessLost(value)) setStatus(null);
-          const message = value instanceof Error ? value.message : '전처리 요청에 실패했습니다.';
-          const rejected = value instanceof ApiError && value.status < 500;
-          if (rejected && !trackingRef.current) { pendingRef.current = null; setPending(null); preserve(null, ''); }
-          setError(rejected ? `${message} 상태와 최신 입력을 새로고침한 뒤 다시 실행하세요.` : '요청 접수 여부 확인 중 · 응답을 받지 못했습니다. 상태 조회로 확인합니다.');
-        }
-      } finally { running.current = false; if (alive.current && generation === postGeneration.current) setBusy(false); }
-    })();
+    void tracker.request(() => api<BatchV4>(path, 'POST', request), '', request,
+      () => refresh(reuse ? '검증된 전처리 결과를 재사용했습니다.' : '새 전처리 결과를 만들었습니다.'));
   }
   return <section className="panel" aria-label="다중 카메라 전처리" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
     <div className="section-head"><h2>다중 카메라 전처리</h2><button type="button" disabled={loading} onClick={() => { void run(async () => { await refresh(); await load(); }); }}>전처리 상태 새로고침</button></div>

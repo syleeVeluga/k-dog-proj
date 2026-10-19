@@ -46,7 +46,7 @@ test('이전 성공보다 선택 실행을 우선하고 예정 단계부터 게�
     await expect(card.getByText(`현재 단계: ${name}`, { exact: true })).toBeVisible();
     await expect(panel.getByText('AI 초안: 분석 중', { exact: true })).toBeVisible();
   }
-  for (const width of [1366, 390]) {
+  for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`analysis-progress-${width}.png`), fullPage: true });
@@ -179,4 +179,134 @@ test('제어 응답 이후의 중지를 늦은 running 조회가 되돌리지 �
   await page.waitForTimeout(300); await expect(panel.getByText('AI 초안: 중지됨', { exact: true })).toBeVisible();
   await panel.getByRole('button', { name: '고정 입력으로 AI 재시도', exact: true }).click();
   await expect(panel.getByText('AI 초안: 분석 대기', { exact: true })).toBeVisible();
+});
+
+test('조회 중 사용자가 선택한 실행은 늦은 목록 응답과 저장에서 유지된다', async ({ page }) => {
+  const { item, path } = await setup(page, 'AC02-SELECTION'); await ready(page, item, path);
+  const first = run(item, 'first-run', 'failed'), second = run(item, 'second-run', 'succeeded');
+  let hold = false, waiting = false, release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route(`**${path}/runs-s1`, async route => {
+    if (hold) { waiting = true; await gate; }
+    await route.fulfill({ json: [first, second] });
+  });
+  await open(page, 'AC02-SELECTION');
+  const panel = page.getByRole('region', { name: 'AI 실행', exact: true });
+  await expect(panel.getByText('AI 초안: 분석 실패', { exact: true })).toBeVisible();
+  hold = true;
+  await panel.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true }).click();
+  await expect.poll(() => waiting).toBe(true);
+  try {
+    await panel.getByRole('article', { name: 'AI 실행 기록 second-r', exact: true }).getByRole('button', { name: '이 실행 상태 보기', exact: true }).click();
+    await expect(panel.getByText('AI 초안: 분석 완료', { exact: true })).toBeVisible();
+  } finally { release(); }
+  await expect(panel.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true })).toBeEnabled();
+  await expect(panel.getByText('AI 초안: 분석 완료', { exact: true })).toBeVisible();
+  const saved = await page.evaluate(key => JSON.parse(sessionStorage.getItem(key)!), `kdog-ai:operator:${item.case_id}:${item.selected_session_id}`);
+  expect(saved).toEqual({ runId: 'second-run' });
+});
+
+test('준비 상태 조회만 실패하면 성공한 AI 목록은 보존하고 새 실행을 차단한다', async ({ page }) => {
+  const { item, path } = await setup(page, 'AC02-AI-PARTIAL'); await ready(page, item, path);
+  const current = run(item, 'partial-read-run', 'succeeded');
+  await page.route(`**${path}/runs-s1`, route => route.fulfill({ json: [current] }));
+  await page.route('**/api/scoring-ai-s1/readiness', route => route.fulfill({ status: 503, json: { detail: '합성 준비 설정 연결 실패' } }));
+  await open(page, 'AC02-AI-PARTIAL');
+  const panel = page.getByRole('region', { name: 'AI 실행', exact: true });
+  await expect(panel.getByText('AI 초안: 분석 완료', { exact: true })).toBeVisible();
+  await expect(panel.getByRole('alert')).toContainText('합성 준비 설정 연결 실패');
+  await expect(panel.getByRole('button', { name: 'AI 분석 시작', exact: true })).toBeDisabled();
+  await expect(panel.getByText('개발자가 AI 설정을 활성화해야 실행할 수 있습니다.', { exact: true })).toHaveCount(0);
+});
+
+test('접근 상실로 정리한 요청은 늦은 POST 성공 응답으로 복원하지 않는다', async ({ page }) => {
+  const { item, path } = await setup(page, 'AC02-ACCESS-LOST'); await ready(page, item, path);
+  let posted = false, release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route(`**${path}/runs-s1`, async route => {
+    if (route.request().method() === 'POST') {
+      posted = true; await gate;
+      await route.fulfill({ status: 201, json: run(item, 'late-accepted-run') });
+    } else await route.fulfill({ json: [] });
+  });
+  await page.route(`**${path}/runs-s1/by-request/*`, route => route.fulfill({ status: 403, json: { detail: '합성 실행 접근 상실' } }));
+  await open(page, 'AC02-ACCESS-LOST');
+  const panel = page.getByRole('region', { name: 'AI 실행', exact: true });
+  await panel.getByRole('button', { name: 'AI 분석 시작', exact: true }).click();
+  const key = `kdog-ai:operator:${item.case_id}:${item.selected_session_id}`;
+  try {
+    await expect.poll(() => posted).toBe(true);
+    await expect(panel.getByRole('alert')).toContainText('합성 실행 접근 상실');
+    expect(await page.evaluate(key => sessionStorage.getItem(key), key)).toBeNull();
+  } catch (error) { release(); throw error; }
+  const lateResponse = page.waitForResponse(response => response.url().endsWith(path + '/runs-s1') && response.request().method() === 'POST');
+  release(); await (await lateResponse).finished();
+  const refreshed = page.waitForResponse(response => response.url().endsWith(path + '/runs-s1') && response.request().method() === 'GET');
+  await panel.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true }).click();
+  await (await refreshed).finished();
+  await expect(panel.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true })).toBeEnabled();
+  await expect(panel.getByRole('region', { name: '현재 AI 분석 실행', exact: true })).toHaveCount(0);
+  expect(await page.evaluate(key => sessionStorage.getItem(key), key)).toBeNull();
+});
+
+test('AI 접수 정보 저장 실패는 POST를 보내지 않고 요청 중 상태를 해제한다', async ({ page }) => {
+  const { item, path } = await setup(page, 'AC02-STORAGE-FAILURE'); await ready(page, item, path);
+  let posts = 0;
+  const browserErrors: string[] = [];
+  page.on('pageerror', error => browserErrors.push(error.message));
+  await page.route(`**${path}/runs-s1`, route => {
+    if (route.request().method() === 'POST') { posts++; return route.fulfill({ json: run(item) }); }
+    return route.fulfill({ json: [] });
+  });
+  await page.route(`**${path}/runs-s1/by-request/*`, route => route.fulfill({ json: { found: false, run: null } }));
+  await open(page, 'AC02-STORAGE-FAILURE');
+  const panel = page.getByRole('region', { name: 'AI 실행', exact: true });
+  await expect(panel.getByRole('button', { name: 'AI 분석 시작', exact: true })).toBeEnabled();
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string) {
+      if (key.startsWith('kdog-ai:')) throw new DOMException('합성 접수 저장 공간 부족', 'QuotaExceededError');
+      original.call(this, key, value);
+    };
+    Object.assign(window, { restoreAiStorage: () => { Storage.prototype.setItem = original; } });
+  });
+  try {
+    await panel.getByRole('button', { name: 'AI 분석 시작', exact: true }).click();
+    await expect(panel.getByRole('alert')).toContainText('합성 접수 저장 공간 부족');
+    await expect(panel.getByText('AI 초안: 요청 접수 여부 확인 중', { exact: true })).toBeVisible();
+    await expect(panel.getByLabel('실행 제어 사유', { exact: true })).toBeEnabled();
+    expect(posts).toBe(0);
+    expect(browserErrors).toEqual([]);
+    const key = `kdog-ai:operator:${item.case_id}:${item.selected_session_id}`;
+    expect(await page.evaluate(key => sessionStorage.getItem(key), key)).toBeNull();
+  } finally {
+    await page.evaluate(() => (window as unknown as { restoreAiStorage: () => void }).restoreAiStorage());
+  }
+});
+
+test('손상된 AI 접수 JSON을 복원하고 명시 409 거절의 대기 상태를 정리한다', async ({ page }) => {
+  const { item, path } = await setup(page, 'AC09-AI-CORRUPT-REJECT'); await ready(page, item, path);
+  const key = `kdog-ai:operator:${item.case_id}:${item.selected_session_id}`;
+  await page.evaluate(key => sessionStorage.setItem(key, '{broken'), key);
+  const browserErrors: string[] = [];
+  page.on('pageerror', error => browserErrors.push(error.message));
+  let posts = 0;
+  await page.route(`**${path}/runs-s1`, route => {
+    if (route.request().method() === 'POST') { posts++; return route.fulfill({ status: 409, json: { detail: '합성 AI 접수 명시 거절' } }); }
+    return route.fulfill({ json: [] });
+  });
+  await open(page, 'AC09-AI-CORRUPT-REJECT');
+  const panel = page.getByRole('region', { name: 'AI 실행', exact: true });
+  await expect(panel.getByRole('button', { name: 'AI 분석 시작', exact: true })).toBeEnabled();
+  await expect(panel.getByRole('alert')).toHaveCount(0);
+  expect(await page.evaluate(key => sessionStorage.getItem(key), key)).toBe('{broken');
+  await panel.getByRole('button', { name: 'AI 분석 시작', exact: true }).click();
+  await expect(panel.getByRole('alert')).toContainText('합성 AI 접수 명시 거절');
+  await expect(panel.getByRole('button', { name: 'AI 분석 시작', exact: true })).toBeEnabled();
+  await expect(panel.getByLabel('실행 제어 사유', { exact: true })).toBeEnabled();
+  await expect(panel.getByText('요청 접수 여부 확인 중 · 상태 조회로 같은 요청을 확인합니다.', { exact: true })).toHaveCount(0);
+  expect(JSON.parse((await page.evaluate(key => sessionStorage.getItem(key), key))!)).toEqual({});
+  await panel.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true })).toBeEnabled();
+  expect(posts).toBe(1); expect(browserErrors).toEqual([]);
 });
