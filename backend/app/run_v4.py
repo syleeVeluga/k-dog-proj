@@ -5,7 +5,7 @@ import json
 import time
 from fastapi import HTTPException
 
-from .analysis import digest, file_stamp, step_payload
+from .analysis import digest, file_stamp, owned_write, step_payload
 from .domain.preprocess_v4 import FileV4
 from .domain.runs_v4 import ActionV4, ReuseV4, RunConfigV4, RunInputV4, StartV4
 from .domain.sheets_v4 import BatchPointerV4, InputPointerV4
@@ -351,11 +351,7 @@ def process(worker, row):
 
 def finish(worker, row, status, code, *, stamps=None):
     worker.check(row)
-    with worker.store.connect(write=True) as db:
-        current = row_for(worker.store, db, row["run_id"])
-        if current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
-            raise HTTPException(409, "오래된 S1 실행을 완료할 수 없습니다.")
-        check_access(worker.store, db, current)
+    with owned_write(worker.store, row, conflict_detail="오래된 S1 실행을 완료할 수 없습니다.") as (db, current):
         if stamps is not None:
             check_stamps(worker.store, stamps)
         published = db.execute("SELECT * FROM steps WHERE run_id=? AND stage='publish_v4' AND status='succeeded' ORDER BY rowid DESC LIMIT 1", (row["run_id"],)).fetchone()

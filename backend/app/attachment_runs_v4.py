@@ -244,11 +244,7 @@ def process(worker, row):
 
     result = worker.stage(row, group.stage, group.key, validate, work)
     guard()
-    with worker.store.connect(write=True) as db:
-        check_access(worker.store, db, row)
-        current = row_for(db, row["run_id"])
-        if current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
-            raise HTTPException(409, "애착 해석 실행 점유가 변경되었습니다.")
+    with analysis.owned_write(worker.store, row, conflict_detail="애착 해석 실행 점유가 변경되었습니다.") as (db, current):
         step = db.execute("SELECT * FROM steps WHERE run_id=? ORDER BY attempt DESC LIMIT 1", (row["run_id"],)).fetchone()
         state = "succeeded" if result else "retry_wait" if step and step["status"] == "retry_wait" else "failed"
         db.execute("UPDATE runs SET status=?,result_ref=?,result_hash=?,claim_token=NULL,lease_expires_at=NULL,updated_at=? WHERE run_id=?",

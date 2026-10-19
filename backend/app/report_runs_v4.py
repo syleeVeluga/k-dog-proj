@@ -682,11 +682,7 @@ def process(worker, row):
 def finish(worker, row, status, code, *, publication=None, stamps=None):
     worker.check(row)
     asset_identities = verify_assets(ReportConfigV4.model_validate_json(row["config_snapshot_json"]))
-    with worker.store.connect(write=True) as db:
-        current = db.execute("SELECT * FROM runs WHERE run_id=?", (row["run_id"],)).fetchone()
-        if not current or current["claim_token"] != row["claim_token"] or current["status"] != "running" or current["lease_expires_at"] <= now():
-            raise HTTPException(409, "오래된 리포트 실행은 게시할 수 없습니다.")
-        check_access(worker.store, db, current)
+    with analysis.owned_write(worker.store, row, conflict_detail="오래된 리포트 실행은 게시할 수 없습니다.") as (db, current):
         if stamps:
             check_stamps(worker.store, stamps)
         check_asset_stamps(asset_identities)

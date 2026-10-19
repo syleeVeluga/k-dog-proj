@@ -1,6 +1,6 @@
 # PR-AC04 산출물 채택과 게시
 
-버전: v1.0 · 2026-10-20 · 상태: **계획 / 구현·시험 미착수** · 조사 기준: `bdc526f` · 직접 선행: AC03 병합
+버전: v1.0 · 2026-10-20 · 상태: **구현·국소 검증·독립 검토 완료** · 조사 기준: `bdc526f` · 직접 선행: AC03 병합
 
 브랜치 제안: `veluga/ac04-owned-result-publication` · 제목 제안: `refactor: use owned transactions for result adoption and publication`
 
@@ -71,14 +71,16 @@ Graft로 `claim_token`, `lease_expires_at`, `check_access`, `worker.stage`를 ex
 
 실패 시 AC04만 되돌리면 AC03의 Worker 공통화와 기존 나머지 검사를 함께 사용할 수 있다. AC03까지 되돌릴 경우 역순으로 적용한다. 이전 실행·발급 결과와 DB를 초기화하거나 점수를 재생성하지 않는다.
 
-- [ ] AC-T15~T19·관련 회귀 통과와 다섯 쓰기 구간 증거
-- [ ] 이전 attempt 회복·현재 claim 구분 및 게시 감사 원자성 확인
-- [ ] 잔존 분류·공식 확인·독립 검토·수용 재검증 기록
-- [ ] AC05에 코드 기준·불변 산출물 비교·후속 목록 인계
+- [x] AC-T15~T19·관련 회귀 통과와 다섯 쓰기 구간 증거
+- [x] 이전 attempt 회복·현재 claim 구분 및 게시 감사 원자성 확인
+- [x] 잔존 분류·공식 확인·독립 검토·수용 재검증 기록
+- [x] AC05에 코드 기준·불변 산출물 비교·후속 목록 인계
 
 | 실행 항목 | 결과 |
 | --- | --- |
-| 선행 AC03/구현 commit·PR | 미실행 |
-| 시험 명령·건수·시간·결과 | 미실행 |
-| cold review·발견사항 조치 | 미실행 |
-| 정상 쓰기/의도적 잔존 목록 | 미실행 |
+| 선행 AC03/구현 commit·PR | AC03 `4bbe1f0` → 본 AC04 commit; `veluga/ac04-owned-result-publication`. 원격 순차 통합은 AC05에 기록 |
+| 시험 명령·건수·시간·결과 | §5의 실제 10모듈 111 tests / 384.546초 / OK. reviewer 국소 29 tests / 10.165초 / OK. 실제 공급자 호출 없음 |
+| cold review·발견사항 조치 | 독립 backend reviewer: actionable 소스 회귀 0건. 원 attempt token/최신 attempt, 최종 actor, AI 중복/충돌/전용 계정, AI/report 감사 rollback·불변 bytes 회복 6건 보강 |
+| 정상 쓰기/의도적 잔존 목록 | adopt·run finish·attachment 완료·AI publish·report finish 다섯 전환. source/output/asset stamp·최신 attempt·step 원 token·종류별 pointer/감사 같은 body 유지. claim/guard/heartbeat/once/action/admission/업로드·전처리·reset/조회는 별도 책임. AC05 통합 기록에 전수 분류 |
+
+2026-10-20 의존성 공식 확인·선택은 AC03과 동일하다. 기존 Python 3.14.2/FastAPI 0.141.1/Pydantic 2.13.5와 lock을 유지하며 [contextlib](https://docs.python.org/3.14/library/contextlib.html)·[sqlite3](https://docs.python.org/3.14/library/sqlite3.html)의 수명·rollback 계약을 사용한다. 새 package·DB migration·DTO/저장/발급 형식 변경 없음. 최신/선택판과 이유는 AC05 통합 기록에 연결한다.
