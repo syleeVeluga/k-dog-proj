@@ -103,9 +103,11 @@ graft check
 
 | 실행 항목 | 결과 |
 | --- | --- |
-| 기준/구현 commit·PR | `f58b21e` → 본 AC02 commit; `veluga/ac02-execution-tracking`. AC01 `d9a5e7a` 및 캡처 보강 `f949d55` 위에 적용 |
-| 시험 명령·건수·시간·결과 | 변경 전 §6 관련 26 passed / 2.9분. 변경 후 33 passed / 2.9분, 전처리 같은 회차 revision 추가 1 passed / 9.7초. build 통과(기존 chunk 경고); 최종 390/1440 증거는 AC05 전체 E2E에 포함 |
-| cold review·발견사항 조치 | 독립 검토 수용 3건: 조회 중 새 선택 보존, 새 전처리에 이전 상세 표시 방지, 접근 상실 후 늦은 POST 복원 차단. 각각 제어된 회귀 추가. 수정 후 reviewer actionable 잔여 0건 |
+| 기준/구현 commit·PR | `f58b21e` → `0f8445e` + 저장 예외 수정 `3b75014`·T09 시험 보강 `0e01185`; `veluga/ac02-execution-tracking`. AC01 `d9a5e7a` 및 캡처 보강 `f949d55` 위에 적용 |
+| 시험 명령·건수·시간·결과 | 변경 전 §6 관련 26 passed / 2.9분. 변경 후 33 passed / 2.9분, 전처리 같은 회차 revision 추가 1 passed / 9.7초, 저장 실패/CSV 최종 국소 2 passed / 17.8초. 손상 JSON/명시409/조회 접수 보존 추가 3 passed / 21.5초. build 통과(기존 chunk 경고); 최종 390/1440 증거는 AC05 전체 E2E에 포함 |
+| cold review·발견사항 조치 | 독립 검토 수용 4건: 조회 중 새 선택 보존, 새 전처리에 이전 상세 표시 방지, 접근 상실 후 늦은 POST 복원 차단, pending 저장 실패의 busy 정리. 각각 제어된 회귀 추가. 수정 후 reviewer actionable 잔여 0건 |
 | 실제 module interface·계획 대비 차이 | `useExecutionTracking(context, revision, initial, adapter)` → 추적 상태·reload/request/select. 기존 key/payload 보존. query·accept·failure의 업무 결과 해석은 두 adapter. storage mutation·세대·단일 timer·정리는 hook. 기존 accessLost/늦은 POST race도 명시 AC-T09를 만족하도록 함께 수정하고 추출 회귀와 구별 |
 
 2026-10-20 공식 확인: React/DOM 최신 19.3.1·선택 19.2.8, TypeScript 7.0.2, Vite 최신 8.3.4·선택 8.2.2, Playwright 최신 1.64.1·선택 1.63.0. 기존 Node 24.13.0·peer/engine 호환과 lock 유지. [React effect](https://react.dev/reference/react/useEffect), [Vite 지원](https://vite.dev/releases), [TypeScript](https://www.typescriptlang.org/download/), [Playwright](https://playwright.dev/docs/release-notes)와 공식 registry를 확인했다. AC05에서 통합 기록·390/1440 캡처를 연결한다.
+
+최종 통합 근거·공식 버전·실측 한계는 [제품 실행 기록](K-DOG_아키텍처개선실행기록_v1.0_20261020.md)을 따른다.

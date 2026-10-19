@@ -151,7 +151,7 @@ test('구간 CSV가 4영상 초안을 채우고 수동 사실 입력 후 기존 
   await expect(panel.getByRole('textbox', { name: '절차 확인 근거', exact: true })).not.toHaveValue(/delayed\.csv/);
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`segments-csv-${width}.png`), fullPage: true, animations: 'disabled' });
   }
   await delayRead();
@@ -162,6 +162,7 @@ test('구간 CSV가 4영상 초안을 채우고 수동 사실 입력 후 기존 
   await expect(summary).toHaveCount(0);
   await expect(panel.getByRole('alert')).toHaveCount(0);
   await delayRead();
+  await page.getByRole('button', { name: '회차 안내·바로가기', exact: true }).click();
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true }).click();
   await releaseRead();

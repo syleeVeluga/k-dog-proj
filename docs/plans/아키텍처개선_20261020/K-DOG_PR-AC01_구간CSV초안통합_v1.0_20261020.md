@@ -92,3 +92,5 @@ graft check
 | 계획 대비 변경·후속 | 예정 이름 `applySegmentsCsvDraft` 사용; 기준 camera 부재는 null. bytes/hash·비동기 guard는 화면 유지. DB/DTO/저장 형식·문구 변경 없음. 실행 기록의 공식 버전·한계 참조 |
 
 2026-10-20 공식 registry·문서 확인: React/DOM 최신 19.3.1·선택 19.2.8, TS 7.0.2/7.0.2, Vite 8.3.4/8.2.2, Playwright 1.64.1/1.63.0. 기존 lock·Node 24.13.0 호환 유지, 무관한 업그레이드 없음. 근거: [React](https://react.dev/versions), [Vite](https://vite.dev/releases), [TypeScript](https://www.typescriptlang.org/download/), [Playwright](https://playwright.dev/docs/release-notes) 및 각 npm registry. AC05에서 통합 실행 기록과 캡처를 연결한다.
+
+최종 통합 근거·공식 버전·실측 한계는 [제품 실행 기록](K-DOG_아키텍처개선실행기록_v1.0_20261020.md)을 따른다.
