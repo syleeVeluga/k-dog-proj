@@ -309,7 +309,7 @@ def inventory(store, user, case_id=None):
         linked = {case.case_id for view in views for case in view.cases}
         s1 = sum(1 for row in db.execute("SELECT manifest_schema_version FROM cases") if row[0] == "intake-4.0")
     counts = {"pairs": len(views), "included_confirmed": sum(view.status == "included" and view.representative_status == "confirmed" for view in views),
-              "representative_unconfirmed": sum(view.representative_status == "unconfirmed" for view in views),
+              "representative_unconfirmed": sum(view.status == "included" and view.representative_status == "unconfirmed" for view in views),
               "excluded": sum(view.status == "excluded" for view in views), "unlinked_s1_cases": max(s1 - len(linked), 0)}
     return PairInventoryV4(case_pair_id=next((view.pair_id for view in views if any(case.case_id == case_id for case in view.cases)), None)
                            if case_id else None, pairs=views, counts=counts)

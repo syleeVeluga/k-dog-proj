@@ -33,7 +33,7 @@ function AccessLog({ path, revision }: { path: string; revision: string }) {
 
 export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Case; user: User; comparisonRevision?: number }) {
   const path = `/cases/${item.case_id}/sessions/${item.selected_session_id}`;
-  const [rows, setRows] = useState<ReportRunV4[]>([]), [finals, setFinals] = useState<FinalSummaryV4[]>([]), [pairs, setPairs] = useState<PairInventoryV4['counts'] | null>(null);
+  const [rows, setRows] = useState<ReportRunV4[]>([]), [finals, setFinals] = useState<FinalSummaryV4[]>([]), [pairs, setPairs] = useState<PairInventoryV4['counts'] | null>(null), [readiness, setReadiness] = useState<{ title: string; status: string }[] | null>(null), [inventoryNote, setInventoryNote] = useState('');
   const [finalId, setFinalId] = useState(''), [reuse, setReuse] = useState(''), [reason, setReason] = useState('');
   const [cohorts, setCohorts] = useState<CohortSummaryV4[]>([]), [cohortId, setCohortId] = useState('');
   const [external, setExternal] = useState<ExternalReferenceV4 | null>(null), [externalTarget, setExternalTarget] = useState<CohortSelectionV4 | null>(null);
@@ -63,9 +63,9 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
     if (timer.current) clearTimeout(timer.current);
     const current = ++sequence.current, scope = context.current; setLoading(true);
     try {
-      const [runs, list, comparisons, inventory] = await Promise.all([api<ReportRunV4[]>(path + '/report-runs-s1'), api<FinalSummaryV4[]>(path + '/final-results-s1' + query), api<CohortSummaryV4[]>('/comparisons-s1/cohorts'), api<PairInventoryV4>('/comparisons-s1/pairs')]);
+      const [runs, list, comparisons] = await Promise.all([api<ReportRunV4[]>(path + '/report-runs-s1'), api<FinalSummaryV4[]>(path + '/final-results-s1' + query), api<CohortSummaryV4[]>('/comparisons-s1/cohorts')]);
       if (!alive.current || current !== sequence.current || scope !== context.current) return;
-      setRows(runs); setFinals(list); setCohorts(comparisons); setPairs(inventory.counts); if (clearError) setError('');
+      setRows(runs); setFinals(list); setCohorts(comparisons); if (clearError) setError('');
       if (openedId.current) {
         const id = openedId.current;
         const output = await api<ReportPublicationV4>(filePath(id, 'manifest'));
@@ -82,6 +82,16 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
     document.addEventListener('visibilitychange', visible);
     return () => { alive.current = false; sequence.current++; if (timer.current) clearTimeout(timer.current); document.removeEventListener('visibilitychange', visible); };
   }, [path, item.input_revision, comparisonRevision, user.username]);
+  // 안내용 현황은 별도로 한 번 조회한다. 실패해도 발급·기존 실행 조회는 막지 않으며 실제 값은 발급 시 서버가 고정한다.
+  useEffect(() => {
+    let current = true; setPairs(null); setReadiness(null); setInventoryNote('');
+    Promise.allSettled([api<PairInventoryV4>('/comparisons-s1/pairs'), api<{ sources: { title: string; status: string }[] }>('/comparisons-s1/sources')]).then(([inventory, sources]) => {
+      if (!current) return;
+      if (inventory.status === 'fulfilled') setPairs(inventory.value.counts); else setInventoryNote('누적 대상 현황을 확인하지 못했습니다. 발급 시 서버가 대상을 다시 확인합니다.');
+      if (sources.status === 'fulfilled') setReadiness(sources.value.sources);
+    });
+    return () => { current = false; };
+  }, [path, comparisonRevision, user.username]);
   async function work(operation: () => Promise<void>) {
     if (working.current) return;
     working.current = true; setBusy(true); setError(''); const scope = context.current;
@@ -133,10 +143,12 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       {cohort && <><p className="fine">명시한 자체 집단 {cohort.title}{cohort.outdated && ' · 일부 응답이 이후 변경됐으며 이 고정 집단의 당시 평균을 사용합니다.'}</p><details><summary>기술 정보</summary><p className="fine">{cohort.reference.snapshot_id} · {cohort.reference.hash}</p></details></>}
       {!!cohortId && !cohort && <p role="status">선택한 집단을 현재 사용할 수 없습니다. 다른 집단 또는 비교 없음을 명시적으로 선택하세요.</p>}
       <section aria-label="누적 비교 발급 안내"><h4>평소의 우리를 그래프로 · 자동 연결</h4>
-        <p className="fine">새 발급은 전 회차 참여쌍의 대표 설문으로 9개 지표의 우리 누적 평균을 계산하고, 등록된 미국 연구 기준(SF·NF)을 지표별로 연결해 발급 시점 값으로 고정합니다.</p>
-        {pairs && <p className="fine">현재 누적 대상: 포함 {pairs.included_confirmed ?? 0}쌍 · 대표 미확정 {pairs.representative_unconfirmed ?? 0} · 제외 {pairs.excluded ?? 0} · 미연결 S1 대상 {pairs.unlinked_s1_cases ?? 0}. 미확정·미연결 자료는 추정해 포함하지 않습니다.</p>}
+        <p className="fine">새 발급은 전 회차 참여쌍의 대표 설문으로 9개 지표의 우리 누적 평균을 계산합니다. 미국 연구 기준(SF·NF)은 등록되어 사용할 수 있는 지표에만 연결하며, 모든 값은 발급 시점으로 고정합니다.</p>
+        {pairs && <p className="fine">현재 누적 포함 후보: {pairs.included_confirmed ?? 0}쌍 · 포함 중 대표 미확정 {pairs.representative_unconfirmed ?? 0} · 제외 {pairs.excluded ?? 0} · 미연결 S1 대상 {pairs.unlinked_s1_cases ?? 0}. 미확정·미연결 자료는 추정해 포함하지 않으며, 실제 포함 수는 발급본에 표시됩니다.</p>}
+        {inventoryNote && <p role="status">{inventoryNote}</p>}
+        {readiness && <p className="fine">미국 연구 기준: {readiness.map(source => `${source.title} ${source.status === 'blocked' ? '연결 준비 전' : '사용 가능(대상 조건은 발급 시 확인)'}`).join(' · ')}</p>}
         {external && <p role="status">명시 외부 비교를 선택하면 이전 방식(누적 비교 없음)으로 발급합니다.</p>}</section>
-      <details><summary>이전 방식: 외부 비교 명시 선택</summary><ExternalComparisonPickerV4 target={externalTarget} value={external} onChange={value => { setExternal(value); setReuse(''); }} disabled={busy || loading} /></details>
+      <details onToggle={event => { if (!(event.currentTarget as HTMLDetailsElement).open) setExternal(null); }}><summary>이전 방식: 외부 비교 명시 선택</summary><ExternalComparisonPickerV4 target={externalTarget} value={external} onChange={value => { setExternal(value); setReuse(''); }} disabled={busy || loading} /></details>
       {!finals.length && <p>독립 채점 메뉴에서 고정 기본 결과를 선택하고 최종본을 먼저 만드세요.</p>}
       <label>실행 제어 기록<input aria-label="실행 제어 기록" value={reason} onChange={event => setReason(event.target.value)} maxLength={2000} /></label>
       <label>검증된 내용 명시 재사용<select aria-label="검증된 내용 명시 재사용" value={reuse} onChange={event => setReuse(event.target.value)}><option value="">재사용 없이 새 생성</option>{rows.filter(value => value.final.hash === selected?.reference.hash && value.steps.some(step => step.stage === 'content_v4' && step.status === 'succeeded')).map(value => <option key={value.run_id} value={value.run_id}>{value.run_id.slice(0, 8)} · {states[value.status] ?? value.status}</option>)}</select></label>

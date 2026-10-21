@@ -29,11 +29,18 @@ def assets(photo_free=False, cumulative=False):
     return {name: hashlib.sha256((REPO_ROOT / name).read_bytes()).hexdigest() for name in names}
 
 
-def comparison_panels(profile, design):
-    """One shared panel model for HTML and PDF: positions come from the pinned display strings, never recomputed means."""
+def comparison_panels(profile, design, cohort=None):
+    """One shared panel model for HTML and PDF: positions come from the pinned display strings, never recomputed means.
+
+    An explicitly selected manual cohort keeps its own validation (survey_rows) and is shown as a separate note.
+    """
     from decimal import Decimal
     pinned = profile.survey_comparison
     labels = design["labels"]
+    manual = {}
+    if cohort is not None:
+        survey_rows(profile, cohort)
+        manual = {tuple(domain.question_ids): domain for domain in CohortPublicV4.model_validate(cohort).domains}
     panels = []
     for row in pinned.rows:
         span = Decimal(row.scale_maximum - row.scale_minimum)
@@ -53,6 +60,9 @@ def comparison_panels(profile, design):
                 notes.append(f"미국 연구 참고 평균은 이번 발급에 연결하지 않았습니다: {row.external_reason}")
         sentences = [text for text in (row.external_sentence, row.cumulative_sentence) if text]
         detail = (f"원응답 {row.individual_numerator} ÷ {row.individual_denominator}" if row.individual_status == "valid" else None)
+        own = manual.get(tuple(row.question_ids))
+        if own is not None:
+            notes.append(f"명시 선택 자체 비교 집단({cohort.title}) 평균 {number(own.mean)} (유효 n={own.n}, 제외 {own.excluded_count}) · 우리 누적 평균과 별개")
         panels.append({"metric_id": row.metric_id, "title": row.title + (f" ({row.alias})" if row.alias else ""),
             "scale": f"Q{' · Q'.join(item[1:] for item in row.question_ids)} · {row.scale_minimum}~{row.scale_maximum}점 · {design['direction'][row.direction]}",
             "ticks": [str(value) for value in range(row.scale_minimum, row.scale_maximum + 1)], "lanes": lanes, "notes": notes,

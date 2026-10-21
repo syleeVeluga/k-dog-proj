@@ -69,6 +69,30 @@ class RenderedComparisonTests(RenderedComparisonFixture):
         self.assertNotIn("mark us", html)
         self.assertIn("현재n=1", text)
 
+    def test_manual_cohort_with_cumulative_run_keeps_its_checks_and_values(self):
+        from app import comparisons_v4 as comparisons
+        from app.domain.comparisons_v4 import CohortSelectionV4
+        from app.domain.sheets_v4 import InputPointerV4
+        b, c = self.others(B, C)
+        self.pair(self.fixture.case_id, "a")
+        members = []
+        for case_id in (b, c):
+            with self.store.connect() as db:
+                row = self.store.case(db, case_id)
+            members.append(CohortSelectionV4(case_id=case_id, session_id=row["selected_session_id"], expected_revision=row["input_revision"],
+                input=InputPointerV4(manifest_ref=row["manifest_ref"], manifest_hash=row["manifest_hash"])))
+        cohort = comparisons.create(self.store, comparisons.CohortCreateV4(request_id="manual", title="SYNTHETIC manual group",
+            reason="SYNTHETIC", members=members), self.user)
+        self.fixture.render.side_effect = lambda profile, header, images, **options: (render_html(profile, header, images, **options),
+            render_pdf(profile, header, images, **options))
+        self.fixture.request = self.fixture.request.model_copy(update={"comparison": cohort.reference})
+        run_id, _ = self.issue()
+        html, _, text = self.files(run_id)
+        self.assertIn("명시 선택 자체 비교 집단(SYNTHETIC manual group) 평균 1.25 (유효 n=2, 제외 0)", self.panel(html, "S03"))
+        self.assertIn("우리 누적 참여견 평균은 해당 지표의 유효 참여쌍이 2쌍 이상일 때 표시합니다(현재 n=1)", self.panel(html, "S03"))
+        self.assertNotIn('<i class="us">', html, "no US legend entry when no reference is attached")
+        self.assertIn("명시선택자체비교집단(SYNTHETICmanualgroup)평균1.25", text)
+
     def test_t22_rp04_template_bytes_and_hashes_are_preserved(self):
         self.assertNotEqual(set(assets(True)), set(assets(True, cumulative=True)))
         self.assertTrue(set(CM_ASSETS[3:]) == set(NEW_ASSETS[3:]))

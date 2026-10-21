@@ -54,9 +54,10 @@ def html(profile, header, images=(), *, cohort=None):
         charts.append(f'<div class="survey-row"><div class="bar-label"><span>{e(row["title"])}</span><span class="survey">설문 {e(number(row["value"]))}</span></div>{bar}{note(f"원척도 {row['minimum']}–{row['maximum']} · {row['detail']}")}</div>')
     external = "".join('<article class="box"><h3>'+e(row[0])+'</h3>'+"".join(note(value) for value in row[1:])+'</article>' for row in external_rows(profile))
     if profile.survey_comparison:
-        legend = "".join(f'<span><i class="{kind}"></i>{e(text)}</span>' for kind, text in (("us", document["labels"]["us"]),
-            ("cumulative", profile.survey_comparison.label), ("individual", document["labels"]["individual"])))
-        panels = comparison_panels(profile, document)
+        ready = any(row.external_status == "ready" for row in profile.survey_comparison.rows)
+        legend = "".join(f'<span><i class="{kind}"></i>{e(text)}</span>' for kind, text in ((("us", document["labels"]["us"]),) if ready else ()) +
+            (("cumulative", profile.survey_comparison.label), ("individual", document["labels"]["individual"])))
+        panels = comparison_panels(profile, document, cohort)
         section(1, f'<p>{e(document["comparison_intro"])}</p><div class="legend-marks">{legend}</div>' + note(document["fear_note"]) +
             (note(f'자체 비교 집단: {cohort.title} · 선택 {cohort.selection_count}개체') if cohort else "") + "".join(panel_html(panel, e) for panel in panels) +
             note(f'{profile.survey_comparison.label} 집계 기준일 {profile.survey_comparison.as_of}'))
@@ -168,11 +169,12 @@ def pdf(profile, header, images=(), *, cohort=None):
     section(1)
     if profile.survey_comparison:
         story.append(p(document["comparison_intro"]))
-        story.append(p(f"◆ {document['labels']['us']} (회색) · ■ {profile.survey_comparison.label} (파란색) · ● {document['labels']['individual']} (주황색)", small))
+        ready = any(row.external_status == "ready" for row in profile.survey_comparison.rows)
+        story.append(p((f"◆ {document['labels']['us']} (회색) · " if ready else "") + f"■ {profile.survey_comparison.label} (파란색) · ● {document['labels']['individual']} (주황색)", small))
         story.append(p(document["fear_note"], small))
         if cohort:
             story.append(p(f"자체 비교 집단: {cohort.title} · 선택 {cohort.selection_count}개체", small))
-        for panel in comparison_panels(profile, document):
+        for panel in comparison_panels(profile, document, cohort):
             block = [p(panel["title"], subheading), p(panel["scale"], small)]
             block.append(MetricPanel(panel, 507, color) if panel["lanes"] else p(panel["notice"]))
             block.extend(p(text) for text in panel["sentences"])

@@ -139,7 +139,8 @@ test('CM04 기본 발급은 별도 선택 없이 전 회차 누적 비교를 자
   const panel = page.getByRole('region', { name: '리포트 실행', exact: true });
   const notice = panel.getByRole('region', { name: '누적 비교 발급 안내', exact: true });
   await expect(notice).toContainText('9개 지표의 우리 누적 평균');
-  await expect(notice).toContainText(/현재 누적 대상: 포함 \d+쌍/);
+  await expect(notice).toContainText(/현재 누적 포함 후보: \d+쌍/);
+  await expect(notice).toContainText(/미국 연구 기준: .*연결 준비 전|미국 연구 기준: .*사용 가능/);
   await expect(panel.getByText('이전 방식: 외부 비교 명시 선택', { exact: true })).toBeVisible();
   const posted: Record<string, unknown>[] = [];
   page.on('request', value => { if (value.method() === 'POST' && value.url().endsWith(data.base + '/report-runs-s1')) posted.push(value.postDataJSON()); });

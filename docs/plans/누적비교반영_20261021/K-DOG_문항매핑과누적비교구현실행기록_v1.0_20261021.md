@@ -34,3 +34,13 @@ PR별 실제 commit·명령·결과·cold review·병합을 누적 기록한다.
 | 검증 | 신규 `test_cumulative_outputs_v4` 13건 OK. 초기 회귀 149건 중 28건 오류(시험 seam의 config 위치 인자)→수정 후 4건 실패(rp04 표현 판본 분기)→수정. 최종 회귀 153건 OK(352초, 로컬 원본 셀 대조 1건 skip) |
 | 전달표 사례 | C01 SF 1.00·NF 1.33(n3)/개별 0.50·1.33/미국 0.66·1.03, C02 1.50·1.75(n4), C03 SF 1.25(n2)·NF n3, 10+90쌍 1.90, 83/100 n83, 9/8→1.13 합성 시험 통과 |
 | cold review | 독립 검토 4건 모두 수용: 발급본은 자기 판본으로 열기(현재 매핑 변경이 옛 발급을 막지 않음, 새 실행만 재계산), 접수 트랜잭션에서 외부 기준 정의 재확인(변경 시 409), 기준 손상은 미준비가 아닌 기술 오류, 집계 기준일은 한국시간. 별도로 회귀에서 발견한 config 호출 형태·표현 판본 분기 회귀 2건을 수정. 수정 후 재검증 통과 |
+
+## CM04 비교 화면과 리포트
+
+| 항목 | 결과 |
+| --- | --- |
+| 브랜치·PR | `veluga/cm04-comparison-report-display` (CM03 위 누적) |
+| 구현 | 공통 패널 모델(`comparison_panels`·`comparison_sources`), HTML 점 표식·PDF `MetricPanel`, 신규 표현 자산, 리포트 화면 기본 누적 발급·안내·발급본 비교표, 연구 export 보고서 선택의 누적 기준일 |
+| 검증 | 신규 `test_cumulative_report_v4` 5건 OK. 백엔드 회귀(누적·렌더·디자인·실행·인수·패키징·API·export·참여쌍) 99건 OK(290초, 로컬 원본 셀 대조 1 skip). e2e `cumulative-comparisons-v4`·`report-v4`(신규 CM04 포함 4건)·`report-design-v4`·`report-print-v4`·`external-v4`·`comparisons-v4`·`comparison-participation-v4` 통과. 기존 `external-v4`는 이전 방식 접힘에 맞춰 펼침 단계만 추가 |
+| 시각 확인 | HTML 1100px·390px·브라우저 인쇄 확인, 서버 PDF 래스터 확인은 도구 부재로 미실행(텍스트 검증만) |
+| cold review | 발견 6·수용 6·보류 0·거절 0 |
