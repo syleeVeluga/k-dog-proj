@@ -63,6 +63,9 @@ test('AR05 common definition applies immediately and retirement preserves HTML/P
     const evidenceResponse = page.waitForResponse(value => value.url().includes('/comparisons-s1/evidence?'));
     await research.getByLabel('기준 근거 파일', { exact: true }).setInputFiles({ name: 'synthetic-definition.txt', mimeType: 'text/plain', buffer: Buffer.from('SYNTHETIC BROWSER TEST DATA ONLY') });
     expect((await evidenceResponse).status()).toBe(201);
+    await research.getByRole('button', { name: '전달 기준 수치 불러오기', exact: true }).click();
+    for (const [label, value] of [['외부 평균', '0.66'], ['외부 표준편차', '0.91'], ['외부 유효 표본 n', '42926'], ['외부 전체 표본 n', '43517']]) await expect(research.getByLabel(label, { exact: true })).toHaveValue(value);
+    await expect(research.getByLabel('수치 출처·표 위치', { exact: true })).toHaveValue(/EXT1\.1.*문항별 대조표 A46/);
     for (const [label, value] of [['외부 평균', '0.66'], ['외부 표준편차', '0.91'], ['외부 유효 표본 n', '42926'], ['외부 전체 표본 n', '43517']]) await research.getByLabel(label, { exact: true }).fill(value);
     await research.getByLabel('비교 대상 범위', { exact: true }).fill('SYNTHETIC POPULATION ONLY');
     await research.getByLabel('수치 출처·표 위치', { exact: true }).fill('SYNTHETIC FIXTURE TABLE');

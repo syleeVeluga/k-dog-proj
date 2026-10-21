@@ -1,0 +1,52 @@
+{
+  "schema_version": "4.0",
+  "artifact_kind": "survey-comparison-mapping",
+  "version": "survey-comparison-20261008-ext1.1",
+  "survey_version": "survey-20260929-v3",
+  "policy_version": "survey-policy-20261007-rp01",
+  "delivery": {
+    "filename": "외부연구값_문항대조와출력기준_누적비교반영_20261008.xlsx",
+    "sha256": "6e52a3ad3cb00cffa9675521d956af8f2e446fcf298d519384106e68a803bcfa",
+    "size": 41661,
+    "edition": "EXT1.1",
+    "delivered_at": "2026-10-08",
+    "locations": [
+      "산출·출력 기준 A13:F21 (28문항 9지표 묶음)",
+      "산출·출력 기준 A25:F31 (입력 확인·반올림·문구 처리 순서)",
+      "산출·출력 기준 A35:F40 (화면 배치 UI01~UI06)",
+      "산출·출력 기준 A44:F49 (TXT-H/L/E/M/V/I)",
+      "산출·출력 기준 A120:F136 (세 비교값 연결·누적 집계 규칙)",
+      "산출·출력 기준 A170:F175 (C01~C06 검증 사례)",
+      "문항별 대조표 A7:J34 (문항 대조)",
+      "문항별 대조표 A46:J47 (고정 참고값)"
+    ],
+    "edition_note": "첫 시트는 EXT1.1(누적 참여 평균 연결 반영), 문항별 대조표 C55는 EXT1.0으로 표기되어 있다. 누적 연결은 첫 시트 12~15절을 따르며 원본 셀은 수정하지 않는다. UI01의 '당일 또는 4쌍에 한정하지 않음'과 UI05에 따라 외부값이 없는 지표도 전 회차 누적 비교를 유지한다."
+  },
+  "metrics": [
+    {"metric_id": "S01", "alias": null, "title": "가르치는 방식", "question_ids": ["s01", "s02", "s03", "s04", "s05", "s06"], "aggregation": "mean", "scale_minimum": 1, "scale_maximum": 5, "direction": "higher_more_agreement", "missing_policy": "complete_group_required", "external_source_id": null, "location": "산출·출력 기준 A13:F13, A120:F120"},
+    {"metric_id": "S02", "alias": null, "title": "사회화에 들인 노력", "question_ids": ["s07", "s08", "s09"], "aggregation": "mean", "scale_minimum": 1, "scale_maximum": 5, "direction": "higher_more_agreement", "missing_policy": "complete_group_required", "external_source_id": null, "location": "산출·출력 기준 A14:F14, A121:F121"},
+    {"metric_id": "S03", "alias": "SF", "title": "낯선 사람 두려움", "question_ids": ["s10", "s11"], "aggregation": "mean", "scale_minimum": 0, "scale_maximum": 4, "direction": "higher_more_fear", "missing_policy": "complete_group_required", "external_source_id": "us2026-stranger-fear", "location": "산출·출력 기준 A15:F15, A122:F122"},
+    {"metric_id": "S04", "alias": "NF", "title": "비사회적 두려움", "question_ids": ["s12", "s13", "s14"], "aggregation": "mean", "scale_minimum": 0, "scale_maximum": 4, "direction": "higher_more_fear", "missing_policy": "complete_group_required", "external_source_id": "us2026-nonsocial-fear", "location": "산출·출력 기준 A16:F16, A123:F123"},
+    {"metric_id": "S05", "alias": null, "title": "정서적 친밀감", "question_ids": ["s15", "s16", "s17", "s18", "s19", "s20", "s21"], "aggregation": "mean", "scale_minimum": 1, "scale_maximum": 5, "direction": "higher_more_agreement", "missing_policy": "complete_group_required", "external_source_id": null, "location": "산출·출력 기준 A17:F17, A124:F124"},
+    {"metric_id": "S06", "alias": null, "title": "떨어졌을 때의 반응", "question_ids": ["s22", "s23"], "aggregation": "mean", "scale_minimum": 1, "scale_maximum": 5, "direction": "higher_more_agreement", "missing_policy": "complete_group_required", "external_source_id": null, "location": "산출·출력 기준 A18:F18, A125:F125"},
+    {"metric_id": "S07", "alias": null, "title": "다시 만났을 때 안정", "question_ids": ["s24"], "aggregation": "single_raw", "scale_minimum": 1, "scale_maximum": 5, "direction": "higher_more_agreement", "missing_policy": "single_response_required", "external_source_id": null, "location": "산출·출력 기준 A19:F19, A126:F126"},
+    {"metric_id": "S08", "alias": null, "title": "보호자 따라옴", "question_ids": ["s25"], "aggregation": "single_raw", "scale_minimum": 1, "scale_maximum": 5, "direction": "higher_more_agreement", "missing_policy": "single_response_required", "external_source_id": null, "location": "산출·출력 기준 A20:F20, A127:F127"},
+    {"metric_id": "S09", "alias": null, "title": "감정의 일관성", "question_ids": ["s26", "s27", "s28"], "aggregation": "reverse_mean", "scale_minimum": 1, "scale_maximum": 5, "direction": "higher_more_consistency", "missing_policy": "complete_group_required", "external_source_id": null, "location": "산출·출력 기준 A21:F21, A128:F128"}
+  ],
+  "external_sources": [
+    {"source_id": "us2026-stranger-fear", "metric_id": "S03", "alias": "SF", "subscale": "Stranger fear", "mean": 0.66, "standard_deviation": 0.91, "valid_n": 42926, "total_n": 43517, "location": "문항별 대조표 A46:J46; P1 Table 1"},
+    {"source_id": "us2026-nonsocial-fear", "metric_id": "S04", "alias": "NF", "subscale": "Nonsocial fear", "mean": 1.03, "standard_deviation": 0.78, "valid_n": 42764, "total_n": 43517, "location": "문항별 대조표 A47:J47; P1 Table 1"}
+  ],
+  "sentences": {
+    "TXT-H": "{domain} 설문 점수는 {ours}점으로, 미국 연구 참고 평균 {reference}점보다 높게 나타났습니다.",
+    "TXT-L": "{domain} 설문 점수는 {ours}점으로, 미국 연구 참고 평균 {reference}점보다 낮게 나타났습니다.",
+    "TXT-E": "{domain} 설문 점수는 {ours}점으로, 소수 둘째 자리 표시 기준에서 미국 연구 참고 평균과 같습니다.",
+    "TXT-M": "{domain}은 응답이 부족하여 이번에는 점수와 연구 평균 비교를 표시하지 않았습니다.",
+    "TXT-V": "이 설문은 연구와 같은 기준의 응답인지 확인되지 않아 외부 비교를 표시하지 않았습니다.",
+    "TXT-I": "{domain} 응답 확인이 필요하여 비교를 표시하지 않았습니다."
+  },
+  "external_limitation": "미국 연구 참여견의 참고 평균입니다. 한국어 번안과 조사 맥락의 차이가 있으며, 국내 표준이나 진단 기준은 아닙니다.",
+  "cumulative_label": "우리 누적 참여견 평균",
+  "cumulative_note": "국내 전체 평균이 아닌 우리 프로그램 누적 참여견 평균입니다. 참여쌍마다 대표 설문 1건만 포함하며 지표별 실제 유효 수(n)로 나눕니다.",
+  "minimum_cumulative_n": 2
+}
