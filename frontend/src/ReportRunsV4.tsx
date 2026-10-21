@@ -144,7 +144,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       {!!cohortId && !cohort && <p role="status">선택한 집단을 현재 사용할 수 없습니다. 다른 집단 또는 비교 없음을 명시적으로 선택하세요.</p>}
       <section aria-label="누적 비교 발급 안내"><h4>평소의 우리를 그래프로 · 자동 연결</h4>
         <p className="fine">새 발급은 전 회차 참여쌍의 대표 설문으로 9개 지표의 우리 누적 평균을 계산합니다. 미국 연구 기준(SF·NF)은 등록되어 사용할 수 있는 지표에만 연결하며, 모든 값은 발급 시점으로 고정합니다.</p>
-        {pairs && <p className="fine">현재 누적 포함 후보: {pairs.included_confirmed ?? 0}쌍 · 포함 중 대표 미확정 {pairs.representative_unconfirmed ?? 0} · 제외 {pairs.excluded ?? 0} · 미연결 S1 대상 {pairs.unlinked_s1_cases ?? 0}. 미확정·미연결 자료는 추정해 포함하지 않으며, 실제 포함 수는 발급본에 표시됩니다.</p>}
+        {pairs && <p className="fine">현재 누적 포함 후보: {pairs.included_confirmed ?? 0}쌍 · 포함 중 대표 미확정 {pairs.representative_unconfirmed ?? 0} · 제외 {pairs.excluded ?? 0} · 미연결 대상 {pairs.unlinked_s1_cases ?? 0}. 미확정·미연결 자료는 추정해 포함하지 않으며, 실제 포함 수는 발급본에 표시됩니다.</p>}
         {inventoryNote && <p role="status">{inventoryNote}</p>}
         {readiness && <p className="fine">미국 연구 기준: {readiness.map(source => `${source.title} ${source.status === 'blocked' ? '연결 준비 전' : '사용 가능(대상 조건은 발급 시 확인)'}`).join(' · ')}</p>}
         {external && <p role="status">명시 외부 비교를 선택하면 이전 방식(누적 비교 없음)으로 발급합니다.</p>}</section>

@@ -62,7 +62,7 @@ S1 고객 원본은 로컬 전용 `docs/요구사항_20261003/`이다. [원본 �
 
 [문항 매핑과 누적 비교 계획](plans/누적비교반영_20261021/K-DOG_문항매핑과누적비교적용계획_v1.0_20261021.md)의 CM01~CM05 구현이다. `resources/report/survey-comparison-20261008.json`(EXT1.1)은 28문항을 S01~S09 9지표로 묶고 SF=S03(s10·s11), NF=S04(s12~s14)만 미국 연구 참고값(SF 0.66/SD0.91/n42,926, NF 1.03/SD0.78/n42,764, 전체 43,517)에 연결한다. launcher 필수 자산이며 원본 hash·셀 위치·판본 차이를 함께 고정한다. 전달 XLSX는 무시 목록 `/docs/참고자료/`에 로컬 보존하고 커밋하지 않는다.
 
-새 리포트 발급의 기본값은 누적 비교(`report-run-20261021-cm`, `report-presentation-20261021-cm`, `resources/report/presentation-20261021.json`·`templates/report-20261021.*`)다. 접수 시 참여쌍 대표 설문 집합·9지표 정수 분자/분모·지표별 n·SF/NF 외부 기준 정의를 snapshot으로 고정하며 재시도·다운로드는 재집계하지 않는다. 옛 rp04 발급과 옛 자산은 그대로 둔다. 참여쌍 API는 `GET/POST /api/comparisons-s1/pairs`, `POST /api/comparisons-s1/pairs/{pair_id}/submissions`, `POST /api/comparisons-s1/pairs/{pair_id}/state`다.
+리포트 발급 화면의 새 발급은 `cumulative: true`로 누적 비교(`report-run-20261021-cm`, `report-presentation-20261021-cm`, `resources/report/presentation-20261021.json`·`templates/report-20261021.*`)를 사용한다. API 요청에서 `cumulative`를 생략하면 기존 rp04 계약으로 발급한다. 접수 시 참여쌍 대표 설문 집합·9지표 정수 분자/분모·지표별 n·SF/NF 외부 기준 정의를 snapshot으로 고정하며 재시도·다운로드는 재집계하지 않는다. 옛 rp04 발급과 옛 자산은 그대로 둔다. 참여쌍 API는 `GET/POST /api/comparisons-s1/pairs`, `POST /api/comparisons-s1/pairs/{pair_id}/submissions`, `POST /api/comparisons-s1/pairs/{pair_id}/state`다.
 
 ```powershell
 # backend/

@@ -86,7 +86,7 @@ export function ComparisonParticipationV4({ selected, writable }: { selected: Ca
             <button disabled={!chosen || !reason.trim()} onClick={() => void link(chosen)}>{pair ? '선택한 참여쌍으로 연결 정정' : '선택한 참여쌍에 연결'}</button></>}
         </div>
       </fieldset>}
-      <p className="fine">전체 참여쌍 {inventory.counts.pairs ?? 0} · 누적 포함 {inventory.counts.included_confirmed ?? 0} · 대표 미확정 {inventory.counts.representative_unconfirmed ?? 0} · 제외 {inventory.counts.excluded ?? 0} · 미연결 S1 대상 {inventory.counts.unlinked_s1_cases ?? 0}</p>
+      <p className="fine">전체 참여쌍 {inventory.counts.pairs ?? 0} · 누적 포함 {inventory.counts.included_confirmed ?? 0} · 대표 미확정 {inventory.counts.representative_unconfirmed ?? 0} · 제외 {inventory.counts.excluded ?? 0} · 미연결 대상 {inventory.counts.unlinked_s1_cases ?? 0}</p>
     </>}
   </section>;
 }

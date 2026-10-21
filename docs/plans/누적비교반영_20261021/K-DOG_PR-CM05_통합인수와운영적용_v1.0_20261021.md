@@ -1,6 +1,6 @@
 # PR-CM05 통합 인수와 운영 적용
 
-버전: v1.0 · 2026-10-21 · 상태: **구현 전** · 직접 선행: CM01~CM04
+버전: v1.0 · 2026-10-21 · 상태: **기술 인수 완료 · 전달표 운영 등록/운영 누적 전환 미실행** (2026-10-21) · 직접 선행: CM01~CM04
 
 상위: [전체 계획](K-DOG_문항매핑과누적비교적용계획_v1.0_20261021.md). 요구 CM-R01~R14 전수. 선행: [CM01](K-DOG_PR-CM01_확정문항매핑과기준자료_v1.0_20261021.md)·[CM02](K-DOG_PR-CM02_참여쌍과대표설문_v1.0_20261021.md)·[CM03](K-DOG_PR-CM03_누적집계와출력고정_v1.0_20261021.md)·[CM04](K-DOG_PR-CM04_비교화면과리포트_v1.0_20261021.md). 브랜치 제안: `veluga/cm05-cumulative-comparison-acceptance` · PR 제목: `test: verify mapped cumulative comparison delivery`
 
@@ -83,19 +83,48 @@ graft check
 
 ## 6 완료·복구·최종 기록
 
-- [ ] CM-R01~R14와 CM-T01~T24의 담당/결과 전수 연결
-- [ ] 최종 관련/전체 회귀·frontend build/E2E·실제 HTML/PDF 시각 확인
-- [ ] 과거 bytes/자산·backup/restore/clean·패키지 원본 제외 확인
-- [ ] 실제 전달표 등록·운영 자료 적용을 각각 실제 상태로 기록
-- [ ] 독립 cold review·수용 수정/재검증·링크/문구·PR commit 정리
+- [x] CM-R01~R14와 CM-T01~T24의 담당/결과 전수 연결 (아래 인수표)
+- [x] 최종 관련/전체 회귀·frontend build/E2E·실제 HTML/PDF 시각 확인 (서버 PDF 래스터 이미지는 도구 부재로 텍스트 검증만)
+- [x] 과거 bytes/자산·backup/restore/clean·패키지 원본 제외 확인 (설치 ZIP 생성은 미실행, 필수 자산 목록·패키징 시험으로 확인)
+- [x] 실제 전달표 등록·운영 자료 적용을 각각 실제 상태로 기록 (둘 다 미실행으로 기록)
+- [x] 독립 cold review·수용 수정/재검증·링크/문구·PR commit 정리
 
 문제가 있으면 신규 발급·누적 원장 쓰기를 중지하고 저장된 자료를 보존한 채 수정판을 적용한다. 잘못된 registry는 명시 정정으로, 잘못된 기준은 새 정의 판본으로, 잘못된 발급은 새 request로 바로잡는다. 현재 운영 DB를 새 형식 미지원 옛 앱으로 열거나 snapshot/원본을 삭제해 복구하지 않는다.
 
 | 실행 기록 항목 | 결과 |
 | --- | --- |
-| 최종 commit·PR/병합 | 미실행 |
-| 공식 버전 확인일·최신/선택·이유·링크 | 구현 착수 및 최종 실행 시 기록 |
-| 전체/집중 시험 명령·건수·시간·초기 실패/재검증/skip | 미실행 |
-| 실제 HTML/PDF·작은 화면/인쇄·패키지 검증 | 미실행 |
-| 실제 전달표 등록·운영 pair/대표/발급 대조 | 미실행 |
-| cold review·수용/보류·남은 후속 | 미실행 |
+| 최종 commit·PR/병합 | 브랜치 `veluga/cm05-cumulative-comparison-acceptance`(CM04 위 누적). PR·병합 상태는 [실행 기록](K-DOG_문항매핑과누적비교구현실행기록_v1.0_20261021.md) |
+| 공식 버전 확인일·최신/선택·이유·링크 | 2026-10-21 PyPI: openpyxl 3.1.5(최신=고정), reportlab 5.0.1(최신=고정), pydantic 2.14.1(고정 2.13.5), fastapi 0.156.4(고정 0.141.1). <https://pypi.org/project/openpyxl/> <https://pypi.org/project/reportlab/> <https://pypi.org/project/pydantic/> <https://pypi.org/project/fastapi/>. 새 의존성·lockfile 변경 없음, 무관한 업그레이드를 섞지 않음 |
+| 전체/집중 시험 명령·건수·시간·초기 실패/재검증/skip | 전체 backend `unittest discover` 835건 OK(1,434초, skip 4: 기존 원본 의존 역사 시험. `KDOG_COMPARISON_DELIVERY`로 로컬 전달표 셀 대조 포함). 이후 cold review로 추가한 종단 시나리오 포함 `test_cumulative_acceptance_v4` 2건 OK(54초). `import_catalogs --spec 20261002 --customer-dir <로컬 원본> --check` 통과, `git diff --check`·`graft check` 통과 |
+| 실제 HTML/PDF·작은 화면/인쇄·패키지 검증 | frontend build 후 전체 e2e 156건 중 155건 통과(573초), copy-guard 1건이 화면의 내부 표기 ‘S1’을 지적해 ‘미연결 대상’으로 수정 후 copy-guard·참여쌍·리포트 spec 10건 재통과. CM04 HTML 1100px·390px 캡처·브라우저 인쇄 PDF 확인. 서버 PDF 래스터 이미지·설치 ZIP 생성은 미실행(도구 부재/범위), 필수 자산 목록·패키징 시험으로 원본 XLSX 제외 확인 |
+| 실제 전달표 등록·운영 pair/대표/발급 대조 | 미실행. 로컬 XLSX hash·셀 대조(CM-T24 원본 부분)는 시험으로 통과했으나 운영 DB의 SF/NF 정의 등록, 운영 참여쌍·대표 확인, 실제 발급 대조는 운영 계정·운영 자료 접근이 필요해 수행하지 않았다. [후속대장](../../archive/개발반영_20261003/K-DOG_실측및확인후속대장_v1.0_20261003.md)에 남김 |
+| cold review·수용/보류·남은 후속 | CM05 검토 발견 7건 모두 수용: 실패 실행→참여쌍 변경→명시 재시도 snapshot 불변, 누적 기록 이전 대기 rp04 실행의 이후 처리, 같은 원자료 중복 export 거절, 발급 snapshot 손상 시 clean 중단을 종단 시험에 추가, 실행 기록·인수표 CM-T 전수 연결, 개발 문서의 API 기본값·설명서 화면 문구·포함 범위 정정. 별도로 전체 e2e copy-guard 지적 1건 수정. 전체 PR 누적 cold review: CM01 5·CM02 5·CM03 4(+회귀 2)·CM04 6·CM05 7, 보류·거절 0 |
+
+### 인수표 (합성 기술 인수)
+
+| ID | 결과 | 근거 시험 |
+| --- | --- | --- |
+| CM-T01 | 통과 | `test_comparison_mapping_v4` t01, `test_cumulative_report_v4` 9패널 |
+| CM-T02 | 통과 | `test_comparison_mapping_v4` t02_t03 (0/0·0/null·5/1·0.5/1·문자열) |
+| CM-T03 | 통과 | `test_comparison_mapping_v4` t02_t03, `test_comparison_participation_v4` 부분응답 제출 |
+| CM-T04 | 통과 | `test_cumulative_outputs_v4` C01, `test_cumulative_acceptance_v4` |
+| CM-T05 | 통과 | `test_cumulative_outputs_v4` C02(1.50·1.75, n4)·옛 발급 bytes 불변 |
+| CM-T06 | 통과 | `test_cumulative_outputs_v4` MissingAnswer, `test_cumulative_report_v4` 결측 패널 |
+| CM-T07 | 통과 | `test_cumulative_outputs_v4` t07, `test_comparison_participation_v4` 재방문, 종단 인수 |
+| CM-T08 | 통과 | 정정·제외 후 n 변화·재방문 자동 승격 없음(참여쌍·출력·종단) |
+| CM-T09 | 통과 | `test_cumulative_outputs_v4` 10+90쌍 1.90, 83/100 n83 |
+| CM-T10 | 통과 | n0/1/2 단위 시험, 단일 쌍 렌더링 |
+| CM-T11 | 통과 | 매핑 변조 거절, 판본 불일치 제출 거절·미확정 유지 |
+| CM-T12 | 통과 | 9/8→1.13(이진 float 1.12와 구별) |
+| CM-T13 | 통과 | 표시값 비교 `equal_display` |
+| CM-T14 | 통과 | NF 누적·개별 같은 x좌표·다른 줄(HTML 좌표·e2e 좌표) |
+| CM-T15 | 통과 | SF만/NF만/둘 다 미등록, 중단·전달 기준 불일치 사유 |
+| CM-T16 | 통과 | 접수 중 참여쌍·기준 변경 409, 동일 request 재사용, 참여쌍 재전송 |
+| CM-T17 | 통과 | 접수 뒤 정정·Worker 실행은 같은 snapshot, 새 요청만 재집계 |
+| CM-T18 | 통과 | snapshot 부모 손상 409, 잘못된 입력·회차 차단, 기준 손상은 기술 오류 |
+| CM-T19 | 통과 | API·HTML·PDF 텍스트·CSV 행 같은 값·snapshot hash |
+| CM-T20 | 통과 | 일반 업무 계정 교차 처리·비활성 거절·실제 actor |
+| CM-T21 | 통과 | backup→격리 restore→다운로드→clean, 손상 시 clean 중단 |
+| CM-T22 | 통과 | 옛 출처/설문 자산 hash, rp04 계약·bytes, 발급본은 자기 판본으로 열기 |
+| CM-T23 | 통과(서버 PDF 이미지 제외) | `cumulative-comparisons-v4.spec.ts` 390px·1100px·인쇄·오프라인, 내부 ID 미노출 |
+| CM-T24 | 원본 대조만 통과 | 로컬 XLSX hash·셀 대조 시험 통과. 운영 실제 등록·적용은 미실행 |

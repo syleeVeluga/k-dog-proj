@@ -162,7 +162,7 @@ class WorkedExampleTests(CumulativeOutputFixture):
         with ZipFile(BytesIO(data)) as archive:
             return list(csv.DictReader(StringIO(archive.read("comparisons.csv").decode("utf-8-sig"))))
 
-    def test_t07_t08_t16_t17_revisit_correction_exclusion_replay_and_pinned_retry(self):
+    def test_t07_t08_t16_t17_revisit_correction_exclusion_replay_and_worker_after_registry_change(self):
         b, c = self.others(B, C)
         self.pair(self.fixture.case_id, "a"); pb = self.pair(b, "b"); self.pair(c, "c")
         self.edit(b, dict(s10=4, s11=4))

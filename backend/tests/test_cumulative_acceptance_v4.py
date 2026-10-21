@@ -116,3 +116,48 @@ class CumulativeAcceptanceTests(CumulativeOutputFixture):
                 guard(); outer.calls += 1
                 return generated(context), {}
         return Provider()
+
+    def test_failed_run_retry_keeps_snapshot_queued_legacy_run_and_damaged_snapshot_blocks_clean(self):
+        from fastapi import HTTPException
+        # An rp04 run queued before any cumulative record exists is executed only after them.
+        queued = reports.enqueue(self.store, self.fixture.case_id, self.fixture.session_id,
+            self.fixture.request.model_copy(update={"request_id": "queued-rp04"}), self.user)
+        b, = self.others(B, event="RETRY")
+        self.pair(self.fixture.case_id, "a"); pb = self.pair(b, "b")
+        self.assertTrue(Worker(self.store, observer=self.provider()).once())
+        self.assertEqual(self.fixture.row(queued["run_id"])["status"], "succeeded")
+        legacy = ReportPublicationV4.model_validate_json(self.download(self.store, queued["run_id"], "manifest"))
+        self.assertIsNone(legacy.profile.survey_comparison)
+        # A cumulative run fails once, the registry changes, and an explicit retry reuses the admission snapshot.
+        job = reports.enqueue(self.store, self.fixture.case_id, self.fixture.session_id,
+            self.fixture.request.model_copy(update={"request_id": "retry-cumulative", "cumulative": True}), self.user)
+        pinned = reports.snapshot_for(self.fixture.row(job["run_id"])).profile.survey_comparison
+        real = self.fixture.render.side_effect
+        self.fixture.render.side_effect = ValueError("synthetic renderer failure")
+        self.assertTrue(Worker(self.store, observer=self.provider()).once())
+        self.assertEqual(self.fixture.row(job["run_id"])["status"], "failed")
+        self.fixture.render.side_effect = real
+        with self.store.connect() as db:
+            row = self.store.case(db, b)
+        cumulative.submit(self.store, pb.pair_id, cumulative.SubmissionCreateV4(request_id="b-fix", expected_revision=pb.revision, kind="correction",
+            case_id=b, session_id=row["selected_session_id"], expected_input_revision=row["input_revision"], evidence="SYNTHETIC"), self.user)
+        reports.action(self.store, job["run_id"], reports.ReportActionV4(expected_updated_at=self.fixture.row(job["run_id"])["updated_at"],
+            reason="SYNTHETIC retry"), self.user, retry=True)
+        self.assertTrue(Worker(self.store, observer=self.provider()).once())
+        self.assertEqual(self.fixture.row(job["run_id"])["status"], "succeeded")
+        issued = ReportPublicationV4.model_validate_json(self.download(self.store, job["run_id"], "manifest"))
+        self.assertEqual(issued.profile.survey_comparison, pinned, "a retry never re-aggregates the registry")
+        # The same raw data cannot be selected twice in one export.
+        selection = {"case_id": self.fixture.case_id, "session_id": self.fixture.session_id, "sheet": issued.profile.source.sheet.model_dump(mode="json"),
+            "final": issued.final.model_dump(mode="json"), "report_run_id": job["run_id"]}
+        with self.assertRaises(HTTPException) as caught:
+            exports.create(self.store, exports.ExportCreateV4.model_validate_json(json.dumps({"request_id": "duplicate-raw", "format": "csv_zip",
+                "reason": "SYNTHETIC", "members": [selection, {**selection, "report_run_id": queued["run_id"]}]})), self.user)
+        self.assertEqual(caught.exception.status_code, 422)
+        # A damaged issued snapshot is a technical error and stops clean before anything is removed.
+        snapshot = self.store.path(pinned.reference.ref)
+        snapshot.write_bytes(snapshot.read_bytes() + b" ")
+        with self.assertRaises(HTTPException):
+            maintenance.clean(self.store)
+        with self.assertRaises(HTTPException):
+            self.download(self.store, job["run_id"], "html")

@@ -44,3 +44,26 @@ PR별 실제 commit·명령·결과·cold review·병합을 누적 기록한다.
 | 검증 | 신규 `test_cumulative_report_v4` 5건 OK. 백엔드 회귀(누적·렌더·디자인·실행·인수·패키징·API·export·참여쌍) 99건 OK(290초, 로컬 원본 셀 대조 1 skip). e2e `cumulative-comparisons-v4`·`report-v4`(신규 CM04 포함 4건)·`report-design-v4`·`report-print-v4`·`external-v4`·`comparisons-v4`·`comparison-participation-v4` 통과. 기존 `external-v4`는 이전 방식 접힘에 맞춰 펼침 단계만 추가 |
 | 시각 확인 | HTML 1100px·390px·브라우저 인쇄 확인, 서버 PDF 래스터 확인은 도구 부재로 미실행(텍스트 검증만) |
 | cold review | 발견 6·수용 6·보류 0·거절 0 |
+
+## CM05 통합 인수와 운영 적용
+
+| 항목 | 결과 |
+| --- | --- |
+| 브랜치·PR | `veluga/cm05-cumulative-comparison-acceptance` (CM04 위 누적) |
+| 구현 | 종단 합성 인수 `test_cumulative_acceptance_v4`(두 행사·재방문·정정·두 cutoff·별도 export·backup/restore/clean·옛 rp04 보존), 운영·개발·사용 설명서와 RP06·리포트 실행 기록·추적표·인수대장·후속대장 갱신 |
+| 전체 시험 | 전체 backend `unittest discover` 835건 OK(1,434초, skip 4: 기존 원본 의존 역사 시험. `KDOG_COMPARISON_DELIVERY`로 로컬 전달표 셀 대조 포함). 이후 cold review로 추가한 종단 시나리오 포함 `test_cumulative_acceptance_v4` 2건 OK(54초). `import_catalogs --spec 20261002 --customer-dir <로컬 원본> --check` 통과, `git diff --check`·`graft check` 통과 |
+| e2e·시각 | frontend build 후 전체 e2e 156건 중 155건 통과(573초), copy-guard 1건이 화면의 내부 표기 ‘S1’을 지적해 ‘미연결 대상’으로 수정 후 copy-guard·참여쌍·리포트 spec 10건 재통과. CM04 HTML 1100px·390px 캡처·브라우저 인쇄 PDF 확인. 서버 PDF 래스터 이미지·설치 ZIP 생성은 미실행(도구 부재/범위), 필수 자산 목록·패키징 시험으로 원본 XLSX 제외 확인 |
+| cold review | CM05 검토 발견 7건 모두 수용: 실패 실행→참여쌍 변경→명시 재시도 snapshot 불변, 누적 기록 이전 대기 rp04 실행의 이후 처리, 같은 원자료 중복 export 거절, 발급 snapshot 손상 시 clean 중단을 종단 시험에 추가, 실행 기록·인수표 CM-T 전수 연결, 개발 문서의 API 기본값·설명서 화면 문구·포함 범위 정정. 별도로 전체 e2e copy-guard 지적 1건 수정. 전체 PR 누적 cold review: CM01 5·CM02 5·CM03 4(+회귀 2)·CM04 6·CM05 7, 보류·거절 0 |
+| 운영 적용 | 미실행: 운영 SF/NF 정의 등록, 운영 참여쌍·대표 확인, 실제 발급 대조. 별도 후속(허가·측정 동등성·실제 AI 품질·현장 실측) 유지 |
+
+## PR과 병합 상태
+
+| PR | 브랜치 | 상태 |
+| --- | --- | --- |
+| CM01 | `veluga/cm01-comparison-mapping` | [syleeVeluga/k-dog-proj#115](https://github.com/syleeVeluga/k-dog-proj/pull/115) |
+| CM02 | `veluga/cm02-pair-survey-submissions` | [syleeVeluga/k-dog-proj#116](https://github.com/syleeVeluga/k-dog-proj/pull/116) (CM01 위) |
+| CM03 | `veluga/cm03-cumulative-comparison-snapshots` | [syleeVeluga/k-dog-proj#117](https://github.com/syleeVeluga/k-dog-proj/pull/117) (CM02 위) |
+| CM04 | `veluga/cm04-comparison-report-display` | [syleeVeluga/k-dog-proj#118](https://github.com/syleeVeluga/k-dog-proj/pull/118) (CM03 위) |
+| CM05 | `veluga/cm05-cumulative-comparison-acceptance` | CM04 위 |
+
+병합: 이 세션의 자동 권한 판정이 `main` 병합 명령을 차단해 원격·로컬 `main` 병합은 수행하지 못했다. 사용자가 순서대로(CM01→CM05) 병합하거나 병합 권한을 허용해야 한다.
