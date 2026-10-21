@@ -9,6 +9,7 @@ from .results_v4 import ResultReferenceV4
 from .preprocess_v4 import FileV4
 from .sheets_v4 import BatchPointerV4, InputPointerV4, SheetReferenceV4
 from .comparisons_v4 import ExternalPublicV4
+from .cumulative_comparisons_v4 import CumulativePublicV4
 from .report_narrative_v4 import NarrativeAssessmentV4
 from ..survey_v4 import SurveyResultV4
 
@@ -133,12 +134,15 @@ class ReportProfileV4(ContractV4):
     sentence_bank_status: Literal["pending_G02", "generated_rp03"] = "pending_G02"
     provider_text_status: Literal["deferred_S16", "generated_professor_test_pending"] = "deferred_S16"
     narrative: NarrativeAssessmentV4 | None = Field(default=None, exclude_if=lambda value: value is None)
-    presentation_version: Literal["report-presentation-20261007-rp04"] | None = Field(default=None, exclude_if=lambda value: value is None)
+    presentation_version: Literal["report-presentation-20261007-rp04", "report-presentation-20261021-cm"] | None = Field(default=None, exclude_if=lambda value: value is None)
     external_comparison_status: Literal["not_selected", "ready_selected", "pending_D06", "approved_selected"] = "pending_D06"
     external_comparison: ExternalPublicV4 | None = Field(default=None, exclude_if=lambda value: value is None)
+    survey_comparison: CumulativePublicV4 | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def renderer_contract(self) -> Self:
+        if self.survey_comparison is not None and self.presentation_version != "report-presentation-20261021-cm":
+            raise ValueError("pinned cumulative comparison rows require the cumulative presentation")
         if self.presentation_version and (self.scenes or self.scene_notice or self.scene_review):
             raise ValueError("photo-free reports cannot contain scene presentation data")
         if (self.external_comparison is not None) != (self.external_comparison_status in ("ready_selected", "approved_selected")):

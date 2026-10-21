@@ -9,8 +9,11 @@ from .report_profile_v4 import ReportProfileV4
 from .report_render_v4 import ReportHeaderV4
 from .sheets_v4 import InputPointerV4
 from .comparisons_v4 import CohortPublicV4, CohortReferenceV4, ExternalReferenceV4
+from .cumulative_comparisons_v4 import CumulativeReferenceV4
 
 REPORT_RUN_VERSION = "report-run-20261002-s1.1-1"
+CUMULATIVE_RUN_VERSION = "report-run-20261021-cm"
+PHOTO_FREE_VERSIONS = ("report-run-20261007-rp04", CUMULATIVE_RUN_VERSION)
 REPORT_STAGES = ("content_v4", "validate_content_v4", "render_v4", "validate_output_v4", "publish_report_v4")
 
 
@@ -36,7 +39,7 @@ class ReportStageV4(ContractV4):
 
 
 class ReportConfigV4(ContractV4):
-    version: Literal["report-run-20261002-s1.1-1", "report-run-20261007-rp03", "report-run-20261007-rp04"] = REPORT_RUN_VERSION
+    version: Literal["report-run-20261002-s1.1-1", "report-run-20261007-rp03", "report-run-20261007-rp04", "report-run-20261021-cm"] = REPORT_RUN_VERSION
     stages: tuple[ReportStageV4, ...]
     max_attempts: Annotated[int, Field(ge=1, le=3)] = 3
     max_schema_repairs: Annotated[int, Field(ge=0, le=1)] = 0
@@ -46,9 +49,12 @@ class ReportConfigV4(ContractV4):
     provider_text_status: Literal["deferred_S16", "generated_professor_test_pending"] = "deferred_S16"
     comparison_snapshot: CohortReferenceV4 | None = None
     external_comparison: ExternalReferenceV4 | None = Field(default=None, exclude_if=lambda value: value is None)
+    cumulative_comparison: CumulativeReferenceV4 | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def stage_order(self) -> Self:
+        if (self.version == CUMULATIVE_RUN_VERSION) != (self.cumulative_comparison is not None):
+            raise ValueError("only the cumulative report version pins a cumulative comparison snapshot")
         if tuple(item.stage for item in self.stages) != REPORT_STAGES:
             raise ValueError("report stages must preserve validation before publication")
         generated = self.version != REPORT_RUN_VERSION

@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from openpyxl import Workbook
 from pydantic import Field, field_validator
 
+from . import cumulative_comparisons_v4 as cumulative
 from . import analysis, comparisons_v4, disclosures_v4, external_comparisons_v4, final_results_v4 as finals, judgements_v4 as basics
 from . import opinions_v4 as opinions, report_runs_v4 as reports, sheets_v4 as sheets, uploads, validation_data_v4 as validation
 from .domain.catalog_v4 import RESOURCES, load_catalog_v4
@@ -164,6 +165,8 @@ def _parents(store, member, user):
     if member.report_file:
         files.extend((member.report_file, member.report.output.html, member.report.output.pdf))
         files.extend(image.file for image in member.report.output.images)
+        if member.report.profile.survey_comparison:
+            files.extend(cumulative.snapshot_files(store, member.report.profile.survey_comparison.reference))
     return files
 
 
@@ -404,6 +407,30 @@ def tables(snapshot):
                 "standard_deviation":values.standard_deviation, "valid_n":values.valid_n, "total_n":values.total_n,
                 "external_valid_n_label":"외부 유효 표본", "external_total_n_label":"외부 전체 표본",
                 "definition_sha256":definition.hash, "definition_revision":definition.revision})
+    for member in snapshot.members:
+        pinned = member.report.profile.survey_comparison if member.report else None
+        if pinned is None:
+            continue
+        # The report's own pinned rows: export never re-aggregates the current registry.
+        common = {"participant": member.pseudonym, "session": member.session_alias, "report_sha256": member.report_file.hash,
+            "snapshot_sha256": pinned.reference.hash, "aggregation_version": pinned.aggregation_version, "mapping_version": pinned.mapping_version,
+            "mapping_sha256": pinned.mapping_hash, "cutoff": pinned.cutoff, "as_of": pinned.as_of}
+        for row in pinned.rows:
+            metric = {"metric_id": row.metric_id, "alias": row.alias, "title": row.title, "question_ids": encode(row.question_ids),
+                "scale_minimum": row.scale_minimum, "scale_maximum": row.scale_maximum, "direction": row.direction}
+            output["comparisons"].append({"source": "report_individual", **common, **metric, "status": row.individual_status,
+                "raw_mean": row.individual_raw, "display": row.individual_display, "numerator": row.individual_numerator,
+                "denominator": row.individual_denominator, "n": None, "n_label": "개별 설문", "comparison": None, "sentence_id": row.notice_id})
+            output["comparisons"].append({"source": "report_cumulative", **common, **metric, "status": "shown" if row.cumulative_shown else "hidden",
+                "raw_mean": row.cumulative_raw, "display": row.cumulative_display, "numerator": row.cumulative_numerator,
+                "denominator": row.cumulative_denominator, "n": row.cumulative_n, "n_label": "지표별 유효 참여쌍", "comparison": row.cumulative_comparison,
+                "sentence_id": None})
+            if row.external_status != "not_mapped":
+                output["comparisons"].append({"source": "report_external", **common, **metric, "status": row.external_status,
+                    "raw_mean": row.external_mean, "display": row.external_display, "numerator": None, "denominator": None,
+                    "n": row.external_valid_n, "n_label": "외부 유효 표본", "external_total_n": row.external_total_n,
+                    "standard_deviation": row.external_standard_deviation, "doi": row.external_doi, "source_id": row.external_source_id,
+                    "comparison": row.external_comparison, "sentence_id": row.external_sentence_id})
     _pairs(snapshot, output, catalog)
     return output
 

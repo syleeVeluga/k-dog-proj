@@ -12,12 +12,13 @@ from pydantic import Field, field_validator
 from . import analysis, final_results_v4 as finals, media, opinions_v4 as opinions
 from . import comparisons_v4, external_comparisons_v4, report_profile_v4 as profiles, sheets_v4 as sheets, uploads
 from . import report_narrative_v4 as narrative
-from .domain.comparisons_v4 import CohortReferenceV4, ExternalReferenceV4
+from . import comparison_mapping_v4, cumulative_comparisons_v4 as cumulative
+from .domain.comparisons_v4 import CohortReferenceV4, CohortSelectionV4, ExternalReferenceV4
 from .domain.final_results_v4 import FinalReferenceV4, FinalResultV4
 from .domain.preprocess_v4 import BatchV4, FileV4
 from .domain.report_profile_v4 import ReportProfileV4
 from .domain.report_render_v4 import ReportHeaderV4, SceneImageV4
-from .domain.report_runs_v4 import (REPORT_STAGES, ReportConfigV4, ReportImageV4, ReportInputV4,
+from .domain.report_runs_v4 import (CUMULATIVE_RUN_VERSION, PHOTO_FREE_VERSIONS, REPORT_STAGES, ReportConfigV4, ReportImageV4, ReportInputV4,
     ReportPreparedV4, ReportPublicationV4, ReportRenderedV4, ReportReuseV4, ReportStageV4)
 from .domain.sheets_v4 import InputPointerV4
 from .domain.runs_v4 import GeminiAttemptView
@@ -42,6 +43,8 @@ class ReportStartV4(Model):
     reuse_run_id: MediaKey | None = None
     comparison: CohortReferenceV4 | None = None
     external_comparison: ExternalReferenceV4 | None = Field(default=None, exclude_if=lambda value: value is None)
+    # New cumulative mode pins the registered references automatically; omitted when false so old request hashes stay.
+    cumulative: bool = Field(default=False, exclude_if=lambda value: not value)
 
     @field_validator("final", mode="before")
     @classmethod
@@ -115,12 +118,16 @@ class ReportRunViewV4(GeminiAttemptView):
         return FinalReferenceV4.model_validate_json(encode(value)) if isinstance(value, dict) else value
 
 
-def config(comparison=None, external_comparison=None):
+def config(comparison=None, external_comparison=None, cumulative_comparison=None):
     from .report_render_v4 import assets
     hashes = {**profiles.assets()[1], narrative.ASSET: hashlib.sha256((REPO_ROOT / "resources" / narrative.ASSET).read_bytes()).hexdigest()}
-    return ReportConfigV4(version="report-run-20261007-rp04", stages=(narrative.stage(), *(ReportStageV4(stage=name) for name in REPORT_STAGES[1:])),
+    if cumulative_comparison:
+        hashes[comparison_mapping_v4.ASSET] = comparison_mapping_v4.asset_hash()
+    return ReportConfigV4(version=CUMULATIVE_RUN_VERSION if cumulative_comparison else "report-run-20261007-rp04",
+        stages=(narrative.stage(), *(ReportStageV4(stage=name) for name in REPORT_STAGES[1:])),
         max_schema_repairs=1, max_ai_calls=3, provider_text_status="generated_professor_test_pending",
-        template_hashes=assets(True), content_hashes=hashes, comparison_snapshot=comparison, external_comparison=external_comparison)
+        template_hashes=assets(True), content_hashes=hashes, comparison_snapshot=comparison, external_comparison=external_comparison,
+        cumulative_comparison=cumulative_comparison)
 
 
 OPEN_ACTION = "report.s1.open"
@@ -176,7 +183,56 @@ def _source_access(store, db, snapshot, user, viewer_sheet_id=None, *, issued_op
     if snapshot.profile.external_comparison and external_comparisons_v4.for_output(store,
             snapshot.profile.external_comparison.reference, user, new_selection=not issued_open) != snapshot.profile.external_comparison:
         raise HTTPException(409, "고정한 외부 비교의 현재 제공 조건이 변경되었습니다.")
+    if snapshot.profile.survey_comparison and survey_rows_for(store, snapshot.profile, db) != snapshot.profile.survey_comparison:
+        raise HTTPException(409, "고정한 누적 비교 자료가 원자료와 다릅니다.")
     return case, manifest, basic_row
+
+
+def survey_rows_for(store, profile, db=None):
+    """Rebuild pinned rows from the snapshot's own parents; registry changes after admission never alter them."""
+    pinned = profile.survey_comparison
+    doc = cumulative.snapshot_document(store, pinned.reference, db)
+    if (doc.case_id, doc.session_id) != (profile.case_id, profile.session_id):
+        raise HTTPException(409, "누적 비교 snapshot이 다른 대상의 접수입니다.")
+    reasons = {row.external_source_id: row.external_reason for row in pinned.rows if row.external_status == "not_ready"}
+    return cumulative.public_rows(doc, pinned.reference, profile.source.survey, profile.external_comparison, reasons)
+
+
+def _automatic_external(store, case, final, request_id, user):
+    """Pin each registered SF/NF definition independently; ordinary non-readiness omits only that reference."""
+    from .external_comparisons_v4 import ExternalCreateV4, _population
+    source = final.basic_document.input_document.source
+    session = source.session
+    individual = comparison_mapping_v4.evaluate(dict(session.survey))
+    ready, reasons = [], {}
+    for mapped in comparison_mapping_v4.load().external_sources:
+        if individual[mapped.metric_id]["status"] != "valid":
+            continue
+        with store.connect() as db:
+            comparisons_v4._account(db, user, reader=True)
+            try:
+                definition, _, _ = comparisons_v4.current_definition(store, db, mapped.source_id)
+            except HTTPException as exc:
+                raise HTTPException(409, "외부 비교 기준 정의 또는 근거 파일이 손상되었습니다.") from exc
+        if definition is None:
+            reasons[mapped.source_id] = "실제 외부 비교 기준 정의가 없습니다."; continue
+        if not isinstance(definition, comparisons_v4.ComparisonDefinitionV4):
+            reasons[mapped.source_id] = "새 누적 비교는 저장된 기준 정의가 필요합니다."; continue
+        mismatch = comparison_mapping_v4.definition_mismatch(definition)
+        if mismatch:
+            reasons[mapped.source_id] = mismatch; continue
+        gate = comparisons_v4.external_for_report(store, mapped.source_id, comparisons_v4.target_scope(mapped.source_id), user,
+            population=_population(case, definition.scope.population_requirements))
+        if gate.status == "ready":
+            ready.append(mapped.source_id)
+        else:
+            reasons[mapped.source_id] = gate.reason
+    if not ready:
+        return None, reasons
+    target = CohortSelectionV4(case_id=final.case_id, session_id=final.session_id, expected_revision=source.input_revision, input=source.input)
+    created = external_comparisons_v4.create(store, ExternalCreateV4(request_id=f"cm:{request_id}:{'+'.join(sorted(ready))}", target=target,
+        source_ids=ready, reason="누적 비교 리포트의 등록 기준 자동 연결"), user)
+    return external_comparisons_v4.for_output(store, created.reference, user, new_selection=True), reasons
 
 
 def _media_files(store, db, final, actor):
@@ -280,6 +336,8 @@ def verify_files(store, snapshot):
         pointers.append(snapshot.cohort.reference)
     if snapshot.profile.external_comparison:
         pointers.extend(external_comparisons_v4.files(store, snapshot.profile.external_comparison.reference))
+    if snapshot.profile.survey_comparison:
+        pointers.extend(cumulative.snapshot_files(store, snapshot.profile.survey_comparison.reference))
     stamps = {}
     for pointer in pointers:
         if pointer.ref not in stamps:
@@ -293,10 +351,14 @@ def verify_assets(configuration):
     from .report_render_v4 import ASSETS, NEW_ASSETS, assets
     survey_policy = profiles.RUNTIME_SURVEY_POLICY_VERSION if "rules/survey-policy-20261007.json" in configuration.content_hashes else profiles.SURVEY_POLICY_VERSION
     generated = configuration.version != "report-run-20261002-s1.1-1"
-    photo_free = configuration.version == "report-run-20261007-rp04"
-    names = (*(NEW_ASSETS if photo_free else ASSETS), *("resources/"+name for name in profiles.asset_names(survey_policy)), *(('resources/'+narrative.ASSET,) if generated else ()))
+    photo_free = configuration.version in PHOTO_FREE_VERSIONS
+    mapped = configuration.version == CUMULATIVE_RUN_VERSION
+    names = (*(NEW_ASSETS if photo_free else ASSETS), *("resources/"+name for name in profiles.asset_names(survey_policy)), *(('resources/'+narrative.ASSET,) if generated else ()),
+             *(("resources/"+comparison_mapping_v4.ASSET,) if mapped else ()))
     stamps = {name: analysis.file_stamp(REPO_ROOT/name) for name in names}
     hashes = profiles.assets(survey_policy)[1]
+    if mapped:
+        hashes = {**hashes, comparison_mapping_v4.ASSET: comparison_mapping_v4.asset_hash()}
     if generated:
         hashes = {**hashes, narrative.ASSET: hashlib.sha256((REPO_ROOT / "resources" / narrative.ASSET).read_bytes()).hexdigest()}
         if configuration.stages[0] != narrative.stage():
@@ -355,9 +417,20 @@ def enqueue(store, case_id, session_id, value: ReportStartV4, user):
     if FinalReferenceV4.model_validate_json(encode(shown["reference"])) != value.final:
         raise HTTPException(409, "리포트로 선택한 최종 결과 pin이 다릅니다.")
     final = FinalResultV4.model_validate_json(encode(shown["document"]))
-    configuration = config(value.comparison, value.external_comparison)
+    if value.cumulative and value.external_comparison:
+        raise HTTPException(422, "누적 비교 발급은 등록된 외부 기준을 자동으로 연결합니다. 외부 비교를 따로 선택하지 마세요.")
     profile = profiles.from_final(store, case_id, session_id, value.final.final_id, user, value.viewer_sheet_id,
-        **({"presentation_version": "report-presentation-20261007-rp04"} if configuration.version == "report-run-20261007-rp04" else {}))
+        presentation_version="report-presentation-20261021-cm" if value.cumulative else "report-presentation-20261007-rp04")
+    pinned = None
+    if value.cumulative:
+        external, reasons = _automatic_external(store, case, final, value.request_id, user)
+        if external:
+            profile = type(profile).model_validate_json(encode({**profile.model_dump(mode="json"),
+                "external_comparison": external.model_dump(mode="json"), "external_comparison_status": "ready_selected"}))
+        pinned = cumulative.build_snapshot(store, user, value.request_id, case_id, session_id)
+        rows = cumulative.public_rows(pinned[0], pinned[1], profile.source.survey, external, reasons)
+        profile = type(profile).model_validate_json(encode({**profile.model_dump(mode="json"), "survey_comparison": rows.model_dump(mode="json")}))
+    configuration = config(value.comparison, value.external_comparison, pinned[1] if pinned else None)
     cohort = comparisons_v4.for_report(store, value.comparison, user) if value.comparison else None
     if value.external_comparison:
         external = external_comparisons_v4.for_output(store, value.external_comparison, user, new_selection=True)
@@ -398,6 +471,8 @@ def enqueue(store, case_id, session_id, value: ReportStartV4, user):
             run_id = previous["run_id"]
         else:
             run_id = uid()
+            if pinned:
+                cumulative.adopt_snapshot(store, db, *pinned, user)
             db.execute("INSERT INTO runs(run_id,case_id,session_id,input_revision,input_snapshot_json,config_snapshot_json,reuse_manifest_json,"
                 "status,created_at,updated_at,kind,request_id,request_hash,input_hash) VALUES(?,?,?,?,?,?,?,'queued',?,?,?,?,?,?)",
                 (run_id, case_id, session_id, case["input_revision"], snapshot.model_dump_json(), configuration.model_dump_json(),
@@ -493,7 +568,8 @@ def validate_prepared(store, snapshot, prepared, configuration=None):
     if prepared.profile_hash != analysis.digest(prepared.profile.model_dump(mode="json")):
         raise ValueError("report content hash differs")
     if configuration and configuration.version != "report-run-20261002-s1.1-1":
-        if bool(prepared.profile.presentation_version) != (configuration.version == "report-run-20261007-rp04"):
+        if bool(prepared.profile.presentation_version) != (configuration.version in PHOTO_FREE_VERSIONS) or (
+                prepared.profile.presentation_version == "report-presentation-20261021-cm") != (configuration.version == CUMULATIVE_RUN_VERSION):
             raise ValueError("report presentation differs from pinned configuration")
         narrative.validate(snapshot.profile, prepared.profile)
     elif prepared.profile != snapshot.profile or prepared.profile_hash != snapshot.profile_hash:
@@ -563,8 +639,11 @@ def process(worker, row):
     configuration = ReportConfigV4.model_validate_json(row["config_snapshot_json"])
     if configuration.comparison_snapshot != (snapshot.cohort.reference if snapshot.cohort else None):
         raise ValueError("cohort input and configuration pins differ")
-    if configuration.external_comparison != (snapshot.profile.external_comparison.reference if snapshot.profile.external_comparison else None):
+    if configuration.external_comparison != (snapshot.profile.external_comparison.reference if snapshot.profile.external_comparison else None) and not (
+            configuration.version == CUMULATIVE_RUN_VERSION and configuration.external_comparison is None):
         raise ValueError("external comparison input and configuration pins differ")
+    if configuration.cumulative_comparison != (snapshot.profile.survey_comparison.reference if snapshot.profile.survey_comparison else None):
+        raise ValueError("cumulative comparison input and configuration pins differ")
     worker.check(row); verify_assets(configuration); verify_files(worker.store, snapshot)
     if configuration.stages[0].provider_call and (snapshot.profile.status == "review_required" or any(issue.blocking for issue in snapshot.profile.validation_issues)):
         finish(worker, row, "review_required", "report_content_review_required")
@@ -707,7 +786,7 @@ def _outdated(store, db, row, snapshot, case):
     configuration = ReportConfigV4.model_validate_json(row["config_snapshot_json"])
     try:
         verify_assets(configuration)
-        current = config()
+        current = config(cumulative_comparison=configuration.cumulative_comparison)
         assets_changed = (configuration.version, configuration.content_hashes, configuration.template_hashes) != (
             current.version, current.content_hashes, current.template_hashes)
     except (HTTPException, OSError, ValueError):
