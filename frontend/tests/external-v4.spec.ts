@@ -72,6 +72,7 @@ test('AR05 common definition applies immediately and retirement preserves HTML/P
     await research.getByLabel('기준 변경 기록', { exact: true }).fill('합성 기준 정의 저장·적용');
     await research.getByRole('button', { name: '기준 정의 저장·적용', exact: true }).click();
     await expect(research.getByRole('status')).toContainText('기준 정의를 저장하고 적용했습니다');
+    await expect(research.getByText('현재 기준 정의가 전달 기준과 다릅니다')).toHaveCount(0);
     await research.getByLabel('외부 평균', { exact: true }).fill('0.67');
     await research.getByLabel('기준 변경 기록', { exact: true }).fill('보존할 미저장 입력');
     const latest = await (await operator.request.get('/api/comparisons-s1/definitions')).json();

@@ -1,5 +1,6 @@
 """Confirmed survey→metric comparison mapping (delivered EXT1.1); no runtime workbook parsing."""
 import hashlib
+from string import Formatter
 from typing import Annotated, Literal, Self
 
 from pydantic import Field, model_validator
@@ -74,6 +75,17 @@ class ComparisonMappingV4(ContractV4):
             raise ValueError("every survey question belongs to exactly one metric")
         if len(self.sentences) != 6:
             raise ValueError("all fixed comparison sentences are required")
+        fields = {"TXT-H": {"domain", "ours", "reference"}, "TXT-L": {"domain", "ours", "reference"}, "TXT-E": {"domain", "ours"},
+                  "TXT-M": {"domain"}, "TXT-V": set(), "TXT-I": {"domain"}}
+        for key, text in self.sentences.items():
+            if {name for _, name, _, _ in Formatter().parse(text) if name is not None} != fields[key]:
+                raise ValueError("fixed comparison sentence placeholders differ")
+        for metric in self.metrics:
+            direction = ("higher_more_consistency" if metric.aggregation == "reverse_mean" else
+                         "higher_more_fear" if metric.scale_minimum == 0 else "higher_more_agreement")
+            missing = "single_response_required" if metric.aggregation == "single_raw" else "complete_group_required"
+            if (metric.direction, metric.missing_policy) != (direction, missing):
+                raise ValueError("comparison metric direction or missing policy differs from its scale/aggregation")
         linked = {metric.external_source_id: metric for metric in self.metrics if metric.external_source_id}
         if (set(linked) != {source.source_id for source in self.external_sources} or len(linked) != len(self.external_sources)
                 or sum(bool(metric.external_source_id) for metric in self.metrics) != len(linked)):
@@ -111,6 +123,8 @@ def load():
         allowed = {value for item in metric.question_ids for value in questions[item].allowed_values}
         if metric.aggregation != group.aggregation or reverse != {metric.aggregation == "reverse_mean"}:
             raise ValueError("comparison metric aggregation or reverse scoring differs from policy")
+        if (metric.missing_policy == "single_response_required") != (group.partial_status == "missing"):
+            raise ValueError("comparison metric missing policy differs from the survey policy")
         if (min(allowed), max(allowed)) != (metric.scale_minimum, metric.scale_maximum) or len(allowed) != metric.scale_maximum - metric.scale_minimum + 1:
             raise ValueError("comparison metric scale differs from the survey catalog")
     from .comparisons_v4 import _sources
@@ -118,8 +132,9 @@ def load():
     for source in mapping.external_sources:
         metric = next(item for item in mapping.metrics if item.metric_id == source.metric_id)
         known = sources.get(source.source_id)
-        if known is None or (tuple(known["question_ids"]), known["scale_minimum"], known["scale_maximum"], known["direction"], known["aggregation"]) != (
-                metric.question_ids, metric.scale_minimum, metric.scale_maximum, metric.direction, metric.aggregation):
+        if known is None or (tuple(known["question_ids"]), known["scale_minimum"], known["scale_maximum"], known["direction"], known["aggregation"],
+                known["missing_policy"]) != (metric.question_ids, metric.scale_minimum, metric.scale_maximum, metric.direction, metric.aggregation,
+                metric.missing_policy):
             raise ValueError("comparison external mapping differs from its source definition")
         if known["reference_values"] != {"mean": source.mean, "standard_deviation": source.standard_deviation,
                                          "valid_n": source.valid_n, "total_n": source.total_n}:
@@ -172,6 +187,12 @@ def definition_mismatch(definition, mapping=None):
         return "전달 기준에 연결되지 않은 외부 출처입니다."
     metric = next(item for item in mapping.metrics if item.metric_id == source.metric_id)
     scope = definition.scope
+    from .comparisons_v4 import _sources, target_scope
+    if definition.source_asset_hash != _sources()[1]:
+        return "기준 정의가 현재 외부 출처 판본과 다릅니다."
+    if (scope.survey_version, scope.policy_version) != (mapping.survey_version, mapping.policy_version) or scope.model_dump(
+            mode="json", exclude={"population_requirements"}) != target_scope(definition.source_id).model_dump(mode="json", exclude={"population_requirements"}):
+        return "기준 정의의 설문 판본·산출 정책·문항 원문이 전달 기준과 다릅니다."
     if (tuple(scope.question_ids), scope.scale_minimum, scope.scale_maximum, scope.direction, scope.aggregation, scope.missing_policy) != (
             metric.question_ids, metric.scale_minimum, metric.scale_maximum, metric.direction, metric.aggregation, metric.missing_policy):
         return "기준 정의의 문항·척도·방향·산식이 전달 기준과 다릅니다."

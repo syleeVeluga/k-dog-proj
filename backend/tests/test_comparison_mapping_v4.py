@@ -18,6 +18,7 @@ from app.survey_v4 import survey_scores_v4
 from tests import test_comparisons_v4 as comparison_fixture
 from tests import test_external_comparisons_v4 as external_fixture
 
+MAPPING_SHA256 = "7ad7b8f1cf451c1a23a87398c063ffe1415c47c3e481b0597eb4f72d98c277bb"
 DELIVERY = "외부연구값_문항대조와출력기준_누적비교반영_20261008.xlsx"
 PRESERVED = {"report/comparison-sources-v4.json": "9ad069bfd05b04697e9296fb76f6880daae76088e72210dfd7ee0ee22aef0e9b",
              "catalogs/survey-v3.json": "4d6963a22c30c03d4784a3a1702290762b2ffcf1a107aa01c561f2a95215df1b",
@@ -92,6 +93,12 @@ class MappingContractTests(unittest.TestCase):
         broken.append(extra)
         reverse = json.loads(json.dumps(document)); reverse["metrics"][8]["aggregation"] = "mean"
         broken.append(reverse)
+        missing = json.loads(json.dumps(document)); missing["metrics"][6]["missing_policy"] = "complete_group_required"
+        broken.append(missing)
+        direction = json.loads(json.dumps(document)); direction["metrics"][8]["direction"] = "higher_more_fear"
+        broken.append(direction)
+        sentence = json.loads(json.dumps(document)); sentence["sentences"]["TXT-H"] = "고정 문장 없음"
+        broken.append(sentence)
         for item in broken:
             with self.subTest(item=item["metrics"][0]["question_ids"]), patch.object(mapping, "raw", return_value=encode(item).encode()):
                 with self.assertRaises(ValueError):
@@ -103,6 +110,10 @@ class MappingContractTests(unittest.TestCase):
         self.assertEqual(comparisons._sources()[1], PRESERVED["report/comparison-sources-v4.json"])
         self.assertNotIn(mapping.ASSET, comparisons.assets())
         self.assertNotIn("resources/" + mapping.ASSET, comparisons.assets())
+
+    def test_committed_mapping_bytes_are_pinned(self):
+        # Titles, labels and sentences are reviewed against the delivery; any edit needs a new reviewed pin.
+        self.assertEqual(mapping.asset_hash(), MAPPING_SHA256)
 
     def test_runtime_asset_is_required_for_release(self):
         from app.launcher import REQUIRED
@@ -156,3 +167,20 @@ class DefinitionMappingTests(comparison_fixture.ComparisonFixture):
             db.execute("UPDATE users SET active=0 WHERE username='operator'")
         with self.assertRaises(HTTPException):
             comparisons.definition_inventory(self.store, self.user)
+
+    def test_t15_t18_retired_scope_variant_and_mapping_failure_are_distinguished(self):
+        pointer, _ = external_fixture.define(self.store)
+        retired = external_fixture.retire(self.store, pointer)
+        self.assertIsNone(comparisons.definition_inventory(self.store, self.user)["mapping_mismatches"][external_fixture.SOURCE])
+        self.assertFalse(comparisons.definition_document(self.store, retired).enabled)
+        document = comparisons.definition_document(self.store, retired)
+        variant = document.model_copy(update={"scope": document.scope.model_copy(update={"policy_version": "survey-policy-20261002-s1.1"})})
+        self.assertIn("정책", mapping.definition_mismatch(variant))
+        other_hash = document.model_copy(update={"source_asset_hash": "0" * 64})
+        self.assertIn("출처 판본", mapping.definition_mismatch(other_hash))
+        with patch.object(mapping, "raw", return_value=b"{}"):
+            inventory = comparisons.definition_inventory(self.store, self.user)
+        self.assertIsNone(inventory["mapping"])
+        self.assertTrue(inventory["mapping_error"])
+        self.assertEqual(inventory["mapping_mismatches"], {})
+        self.assertIsNotNone(inventory["documents"][external_fixture.SOURCE], "existing definitions stay visible")
