@@ -60,10 +60,10 @@ PR별 실제 commit·명령·결과·cold review·병합을 누적 기록한다.
 
 | PR | 브랜치 | 상태 |
 | --- | --- | --- |
-| CM01 | `veluga/cm01-comparison-mapping` | [syleeVeluga/k-dog-proj#115](https://github.com/syleeVeluga/k-dog-proj/pull/115) |
-| CM02 | `veluga/cm02-pair-survey-submissions` | [syleeVeluga/k-dog-proj#116](https://github.com/syleeVeluga/k-dog-proj/pull/116) (CM01 위) |
-| CM03 | `veluga/cm03-cumulative-comparison-snapshots` | [syleeVeluga/k-dog-proj#117](https://github.com/syleeVeluga/k-dog-proj/pull/117) (CM02 위) |
-| CM04 | `veluga/cm04-comparison-report-display` | [syleeVeluga/k-dog-proj#118](https://github.com/syleeVeluga/k-dog-proj/pull/118) (CM03 위) |
-| CM05 | `veluga/cm05-cumulative-comparison-acceptance` | CM04 위 |
+| CM01 | `veluga/cm01-comparison-mapping` | [syleeVeluga/k-dog-proj#115](https://github.com/syleeVeluga/k-dog-proj/pull/115) 병합 `8d81357` |
+| CM02 | `veluga/cm02-pair-survey-submissions` | [syleeVeluga/k-dog-proj#116](https://github.com/syleeVeluga/k-dog-proj/pull/116) 병합 `498312a` |
+| CM03 | `veluga/cm03-cumulative-comparison-snapshots` | [syleeVeluga/k-dog-proj#117](https://github.com/syleeVeluga/k-dog-proj/pull/117) 병합 `ffb054e` |
+| CM04 | `veluga/cm04-comparison-report-display` | [syleeVeluga/k-dog-proj#118](https://github.com/syleeVeluga/k-dog-proj/pull/118) 병합 `322635f` |
+| CM05 | `veluga/cm05-cumulative-comparison-acceptance` | [syleeVeluga/k-dog-proj#119](https://github.com/syleeVeluga/k-dog-proj/pull/119) 병합 `cc8a2e6` |
 
-병합: 이 세션의 자동 권한 판정이 `main` 병합 명령을 차단해 원격·로컬 `main` 병합은 수행하지 못했다. 사용자가 순서대로(CM01→CM05) 병합하거나 병합 권한을 허용해야 한다.
+병합: 2026-10-21 각 PR을 누적 순서(CM01→CM05)로 원격 `main`에 병합했다. 앞 PR 병합 뒤 다음 PR의 기준 브랜치를 `main`으로 바꾸고 검증한 head SHA 조건으로 병합했다. 병합 뒤 원격 `main`(`cc8a2e6`)의 tree는 CM05 검증 head와 같고, 로컬 `main`을 fast-forward해 일치시켰다. 첫 병합 시도는 세션 권한 판정에 막혔다가 권한 모드 변경 뒤 수행했다.
