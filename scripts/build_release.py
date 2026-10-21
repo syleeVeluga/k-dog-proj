@@ -1,7 +1,8 @@
-"""Build an allowlisted Windows ZIP; never package local runtime data.
+"""Build an allowlisted distribution ZIP; never package local runtime data.
 
 portable (default): bundled Python and FFmpeg, nothing to install. online: the user installs uv and FFmpeg, and
 Install.cmd downloads Python 3.14 and the locked dependencies into backend/.venv (the S15 installation).
+macos-online uses Install.command and the user's native uv/FFmpeg, with no bundled runtime.
 """
 
 import argparse
@@ -14,7 +15,7 @@ import subprocess
 import tempfile
 import tomllib
 from urllib.request import urlopen
-from zipfile import ZipFile, ZIP_DEFLATED
+from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -173,7 +174,7 @@ def build(destination, variant="portable"):
     files = {name: ROOT / name for name in tracked if product_file(name)}
     for name in ("README.md", "docs/PILOT_OPERATIONS.md"):
         files[name] = ROOT / name
-    if variant == "online":
+    if variant in ("online", "macos-online"):
         # The user's Install.cmd runs uv sync --locked; a stale lock must fail here, not on their PC.
         uv = shutil.which("uv")
         if not uv:
@@ -181,8 +182,13 @@ def build(destination, variant="portable"):
         subprocess.run([uv, "lock", "--check"], cwd=ROOT / "backend", check=True)
         for name in ("backend/pyproject.toml", "backend/uv.lock"):
             files[name] = ROOT / name
-        for name in ("Install.cmd", "install.ps1", "Start.cmd"):
-            files[name] = ROOT / "scripts/windows/online" / name
+        installer = ROOT / ("scripts/macos/online" if variant == "macos-online" else "scripts/windows/online")
+        names = ("Install.command", "Start.command", "macOS_설치안내.md") if variant == "macos-online" else (
+            "Install.cmd", "install.ps1", "Start.cmd")
+        for name in names:
+            files[name] = installer / name
+        if variant == "macos-online":
+            files["Verify.py"] = ROOT / "scripts/verify_macos_release.py"
     else:
         files["Start.cmd"] = ROOT / "scripts/windows/Start.cmd"
     files.update({path.relative_to(ROOT).as_posix(): path for path in (ROOT / "frontend/dist").rglob("*") if path.is_file()})
@@ -190,8 +196,8 @@ def build(destination, variant="portable"):
         version = tomllib.load(project_file)["project"]["version"]
     with tempfile.TemporaryDirectory(prefix="kdog-release-") as temporary:
         staging = Path(temporary)
-        if variant == "online":
-            notice(staging, files, ROOT / "scripts/windows/online/오픈소스고지.txt", "licenses")
+        if variant in ("online", "macos-online"):
+            notice(staging, files, installer / "오픈소스고지.txt", "licenses")
         else:
             files.update(python_runtime(staging))
             files.update(ffmpeg_runtime())
@@ -200,11 +206,23 @@ def build(destination, variant="portable"):
             "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT).decode().strip(),
             "working_tree_dirty": False, **({"python": PYTHON_VERSION} if variant == "portable" else {}),
             "files": {name: sha256(path) for name, path in sorted(files.items())}}
+        if variant == "macos-online":
+            manifest["platform"] = "darwin"
+        manifest_bytes = json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8")
         destination.parent.mkdir(parents=True, exist_ok=True)
         with ZipFile(destination, "x", ZIP_DEFLATED) as archive:
             for name, path in sorted(files.items()):
-                archive.write(path, name)
-            archive.writestr("release.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+                if variant == "macos-online":
+                    info = ZipInfo(name)
+                    info.create_system = 3
+                    info.external_attr = (0o100755 if name.endswith(".command") else 0o100644) << 16
+                    archive.writestr(info, path.read_bytes(), compress_type=ZIP_DEFLATED)
+                else:
+                    archive.write(path, name)
+            archive.writestr("release.json", manifest_bytes)
+            if variant == "macos-online":
+                sums = {**manifest["files"], "release.json": hashlib.sha256(manifest_bytes).hexdigest()}
+                archive.writestr("SHA256SUMS", "".join(f"{digest}  {name}\n" for name, digest in sorted(sums.items())))
     digest = sha256(destination)
     destination.with_suffix(destination.suffix + ".sha256").write_text(digest + "  " + destination.name + "\n", encoding="utf-8")
     print(json.dumps({"package": str(destination), "files": len(files), "bytes": destination.stat().st_size,
@@ -214,7 +232,7 @@ def build(destination, variant="portable"):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("destination", type=Path)
-    parser.add_argument("--variant", choices=("portable", "online"), default="portable",
+    parser.add_argument("--variant", choices=("portable", "online", "macos-online"), default="portable",
                         help="portable: Python·FFmpeg 내장 (기본). online: 사용자가 uv·FFmpeg를 설치하고 설치 때 인터넷 사용")
     args = parser.parse_args()
     build(args.destination, args.variant)

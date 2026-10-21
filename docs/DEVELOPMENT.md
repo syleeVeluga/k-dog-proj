@@ -6,6 +6,8 @@
 
 ## 환경과 실행
 
+macOS 사용자 설치형은 `uv run --project backend --locked python scripts/build_release.py releases/kdog-s1-macos-online.zip --variant macos-online`으로 빌드한다. 깨끗한 커밋 트리와 기존 frontend 의존성이 필요하다. [macOS 설치 안내](../scripts/macos/online/macOS_설치안내.md), [구현·검증 기록](plans/K-DOG_macOS사용자설치형_v1.0_20261021.md)을 따른다. Windows 배포 두 종류와 별도이며 macOS 포터블은 만들지 않는다.
+
 React 빌드를 FastAPI가 제공하고 SQLite·불변 파일·별도 worker를 사용한다. Python 3.14, Node.js 24, uv, npm, FFmpeg/ffprobe가 필요하다. 패키지 버전은 lockfile에 고정하며 공식 최신/선택 버전·호환성·확인일은 실행 기록에 남긴다. 새 의존성 사용 전 공식 문서와 registry를 확인한다.
 
 저장소 루트에서 처음 한 번 실행한다.

@@ -1,9 +1,10 @@
-"""Current-user Windows DPAPI vault; ciphertext is excluded from data backups."""
+"""Current-user OS vault; ciphertext is excluded from data backups."""
 
 import ctypes
 from ctypes import wintypes
 import json
 import os
+import sys
 
 from fastapi import HTTPException
 
@@ -14,8 +15,11 @@ PROVIDERS = {"gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY", "anthropic"
 
 
 def protect(data: bytes, *, decrypt=False) -> bytes:
+    if sys.platform == "darwin":
+        from app.macos_keychain import protect as macos_protect
+        return macos_protect(data, decrypt=decrypt)
     if os.name != "nt":
-        raise HTTPException(409, "이 로컬 키 저장소는 Windows 서비스 계정의 DPAPI가 필요합니다.")
+        raise HTTPException(409, "이 로컬 키 저장소는 Windows DPAPI 또는 macOS 키체인이 필요합니다.")
 
     class Blob(ctypes.Structure):
         _fields_ = [("size", wintypes.DWORD), ("data", ctypes.POINTER(ctypes.c_ubyte))]

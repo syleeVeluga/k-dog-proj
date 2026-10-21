@@ -37,7 +37,7 @@ export function DeveloperSettings() {
     finally { setBusy(false); }
   }
   return <><section className="panel developer-settings"><h2>공급자 키 관리</h2>
-    <p className="fine">Windows 실행 계정의 DPAPI로 보호합니다. 등록 후 원문은 조회할 수 없습니다. 폐기하면 환경 변수 키로 자동 복귀하지 않습니다. 신판 AI 설정은 아래에서 별도로 저장·활성화합니다.</p>
+    <p className="fine">현재 운영체제의 사용자 키 저장소로 보호합니다. 등록 후 원문은 조회할 수 없습니다. 폐기하면 환경 변수 키로 자동 복귀하지 않습니다. 신판 AI 설정은 아래에서 별도로 저장·활성화합니다.</p>
     <Notification message={error} kind="error" onClose={() => setError('')} /><Notification message={message} onClose={() => setMessage('')} />
     {data && <fieldset disabled={busy}>
       <label>키 공급자<select value={provider} onChange={e => setProvider(e.target.value)}><option value="gemini">Gemini</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select></label>

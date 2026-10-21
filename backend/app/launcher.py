@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -26,22 +27,37 @@ from app.storage import REPO_ROOT, Store, install_id
 from app.maintenance import offline, runtime_lock
 
 
+def supervisor_exit():
+    # POSIX children run in isolated sessions; include FFmpeg descendants on pipe EOF.
+    if os.name != "nt" and os.getpgrp() == os.getpid():
+        os.killpg(os.getpid(), signal.SIGKILL)
+    os._exit(0)
+
+
 def watch_supervisor():
     # An inherited pipe closes even if the launcher is killed or its window closes.
     if os.environ.get("KDOG_SUPERVISED") == "1":
         if sys.stdin.buffer.read(1) != b"1":
-            os._exit(0)
+            supervisor_exit()
         def watch():
             sys.stdin.buffer.read(1)
-            os._exit(0)
+            supervisor_exit()
         threading.Thread(target=watch, daemon=True).start()
 
 
 @contextmanager
 def process_group():
-    """Windows also terminates media subprocess descendants when the launcher dies."""
+    """Terminate media descendants together with their API/worker session."""
     if os.name != "nt":
-        yield lambda child: None
+        groups = []
+        try:
+            yield lambda child: groups.append(child.pid)
+        finally:
+            for pid in groups:
+                try:
+                    os.killpg(pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
         return
     import ctypes as c
     from ctypes import wintypes as w
@@ -218,7 +234,7 @@ def launch(data_dir, port=8000, *, open_browser=True, stop_event=None, ready=Non
             try:
                 for arguments in (["serve", "--port", str(port)], ["worker"]):
                     children.append(subprocess.Popen(command + arguments, cwd=REPO_ROOT / "backend",
-                        env=env, stdin=subprocess.PIPE,
+                        env=env, stdin=subprocess.PIPE, start_new_session=(os.name != "nt"),
                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)))
                     attach(children[-1])
                     children[-1].stdin.write(b"1")
