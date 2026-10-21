@@ -137,6 +137,7 @@ class CumulativeAcceptanceTests(CumulativeOutputFixture):
         self.assertTrue(Worker(self.store, observer=self.provider()).once())
         self.assertEqual(self.fixture.row(job["run_id"])["status"], "failed")
         self.fixture.render.side_effect = real
+        self.edit(b, dict(s10=4, s11=4, s12=4, s13=4, s14=4))
         with self.store.connect() as db:
             row = self.store.case(db, b)
         cumulative.submit(self.store, pb.pair_id, cumulative.SubmissionCreateV4(request_id="b-fix", expected_revision=pb.revision, kind="correction",
@@ -147,6 +148,7 @@ class CumulativeAcceptanceTests(CumulativeOutputFixture):
         self.assertEqual(self.fixture.row(job["run_id"])["status"], "succeeded")
         issued = ReportPublicationV4.model_validate_json(self.download(self.store, job["run_id"], "manifest"))
         self.assertEqual(issued.profile.survey_comparison, pinned, "a retry never re-aggregates the registry")
+        self.assertEqual({row.metric_id: row.cumulative_display for row in pinned.rows}["S03"], "0.75", "values stay at the admission cutoff")
         # The same raw data cannot be selected twice in one export.
         selection = {"case_id": self.fixture.case_id, "session_id": self.fixture.session_id, "sheet": issued.profile.source.sheet.model_dump(mode="json"),
             "final": issued.final.model_dump(mode="json"), "report_run_id": job["run_id"]}
@@ -157,7 +159,11 @@ class CumulativeAcceptanceTests(CumulativeOutputFixture):
         # A damaged issued snapshot is a technical error and stops clean before anything is removed.
         snapshot = self.store.path(pinned.reference.ref)
         snapshot.write_bytes(snapshot.read_bytes() + b" ")
-        with self.assertRaises(HTTPException):
+        before = sorted(path for path in self.store.root.rglob("*") if path.is_file() and not path.name.startswith(".") and "sqlite3" not in path.name)
+        with self.assertRaises(HTTPException) as caught:
             maintenance.clean(self.store)
-        with self.assertRaises(HTTPException):
+        self.assertEqual(caught.exception.status_code, 409)
+        self.assertEqual(sorted(path for path in self.store.root.rglob("*") if path.is_file() and not path.name.startswith(".") and "sqlite3" not in path.name), before, "nothing is removed")
+        with self.assertRaises(HTTPException) as caught:
             self.download(self.store, job["run_id"], "html")
+        self.assertEqual(caught.exception.status_code, 409)
