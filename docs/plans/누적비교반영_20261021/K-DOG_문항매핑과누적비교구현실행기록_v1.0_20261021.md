@@ -14,3 +14,13 @@ PR별 실제 commit·명령·결과·cold review·병합을 누적 기록한다.
 | 검증 | backend 43건 OK, packaging 20건 OK(build 후), S1 catalog check 통과, e2e `external-v4.spec.ts` OK |
 | cold review | 발견 5·수용 5·보류 0·거절 0, 수정 후 재검증 통과 |
 | 실제 기준 등록 | 미실행 — 운영 계정의 실제 근거 업로드·저장은 CM05에서 상태로 기록 |
+
+## CM02 참여쌍과 대표 설문
+
+| 항목 | 결과 |
+| --- | --- |
+| 브랜치·PR | `veluga/cm02-pair-survey-submissions` (CM01 위 누적) |
+| 구현 | `backend/app/cumulative_comparisons_v4.py`, `backend/app/domain/cumulative_comparisons_v4.py`, API 4개, `maintenance.references` typed 분기, 설문 상세 `ComparisonParticipationV4` 패널 |
+| 검증 | 신규 11건·관련 회귀 107건 OK, e2e 4건 OK |
+| cold review | 발견 5·수용 5·보류 0·거절 0 |
+| 운영 자료 | 운영 DB 참여쌍 연결·대표 확인은 미실행(CM05). 기존 자료 자동 편입 없음 |

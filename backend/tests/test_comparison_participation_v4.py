@@ -1,5 +1,6 @@
 """Comparison pairs and representative survey submissions; every identity and answer is synthetic."""
 import shutil
+from unittest.mock import patch
 from types import SimpleNamespace
 
 from fastapi import HTTPException
@@ -121,10 +122,13 @@ class PairRegistryTests(ParticipationFixture):
         previous = pairs.pair_view(self.store, self.user, old.pair_id)
         self.assertEqual((previous.cases, previous.representative_status), ((), "unconfirmed"))
         self.assertEqual(len(previous.submissions), 1, "the moved representative stays as history")
+        reincluded = pairs.set_status(self.store, old.pair_id, pairs.PairStatusV4(request_id="include", expected_revision=previous.revision,
+            status="included", reason="SYNTHETIC"), self.user)
+        self.assertEqual((reincluded.status, reincluded.representative_status), ("included", "unconfirmed"),
+                         "re-inclusion never resurrects the moved representative")
         with self.assertRaises(HTTPException) as caught:
-            pairs.set_status(self.store, old.pair_id, pairs.PairStatusV4(request_id="include", expected_revision=previous.revision,
-                status="included", reason="SYNTHETIC"), self.user)
-        self.assertEqual(caught.exception.status_code, 409)
+            self.submit(reincluded, 0, "first", "foreign-case")
+        self.assertEqual(caught.exception.status_code, 409, "the moved case now belongs to another pair")
 
     def test_t18_t20_wrong_inputs_inactive_accounts_and_shared_business_access(self):
         pair = self.link(0, "link", user=SimpleNamespace(username="admin"))
@@ -194,3 +198,28 @@ class PairMaintenanceTests(ParticipationFixture):
         damaged.write_bytes(damaged.read_bytes() + b" ")
         with self.assertRaises(HTTPException):
             maintenance.clean(self.store)
+
+
+class PairReviewFixTests(ParticipationFixture):
+    def test_correction_stays_on_the_representative_case(self):
+        pair = self.link(0, "a")
+        pair = self.link(1, "b", pair=pair)
+        pair = self.submit(pair, 0, "first", "first")
+        with self.assertRaises(HTTPException) as caught:
+            self.submit(pair, 1, "correction", "other-case")
+        self.assertEqual(caught.exception.status_code, 409)
+        self.assertEqual(self.submit(pair, 1, "revisit", "revisit-b").revision, pair.revision)
+
+    def test_unconfirmed_pair_can_be_excluded_and_reincluded(self):
+        pair = self.link(0, "a")
+        excluded = pairs.set_status(self.store, pair.pair_id, pairs.PairStatusV4(request_id="x", expected_revision=1, status="excluded", reason="SYNTHETIC"), self.user)
+        included = pairs.set_status(self.store, pair.pair_id, pairs.PairStatusV4(request_id="i", expected_revision=excluded.revision, status="included", reason="SYNTHETIC"), self.user)
+        self.assertEqual((included.status, included.representative_status), ("included", "unconfirmed"))
+
+    def test_reinclusion_rechecks_question_identity(self):
+        pair = self.submit(self.link(0, "a"), 0, "first", "first")
+        excluded = pairs.set_status(self.store, pair.pair_id, pairs.PairStatusV4(request_id="x", expected_revision=pair.revision, status="excluded", reason="SYNTHETIC"), self.user)
+        with patch.object(pairs.mapping, "question_signature", return_value="0" * 64):
+            with self.assertRaises(HTTPException) as caught:
+                pairs.set_status(self.store, pair.pair_id, pairs.PairStatusV4(request_id="i", expected_revision=excluded.revision, status="included", reason="SYNTHETIC"), self.user)
+        self.assertEqual(caught.exception.status_code, 409)

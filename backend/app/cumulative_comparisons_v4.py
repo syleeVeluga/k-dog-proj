@@ -206,6 +206,9 @@ def submit(store, pair_id, value: SubmissionCreateV4, user):
                 raise HTTPException(409, "이 참여쌍에 연결된 대상의 설문만 제출할 수 있습니다.")
             if (value.kind == "first") != (state.representative is None):
                 raise HTTPException(409, "최초 제출은 대표가 없을 때만, 정정·재방문은 대표가 있을 때만 기록합니다.")
+            if value.kind == "correction" and read_submission(store, state.representative).case_id != value.case_id:
+                # A correction fixes the representative's own mis-entry; it never promotes another visit or case.
+                raise HTTPException(409, "오입력 정정은 현재 대표 설문과 같은 대상에서만 기록합니다.")
             pinned = value.input
             if pinned is None:
                 # Without an explicit preserved pointer the submission pins the case's current input revision.
@@ -247,9 +250,13 @@ def set_status(store, pair_id, value: PairStatusV4, user):
             state = _current(store, db, pair_id, value.expected_revision)
             if state.status == value.status:
                 raise HTTPException(409, "이미 같은 포함 상태입니다.")
-            if value.status == "included":
-                # Re-including re-verifies membership; a preserved historical pointer alone is not eligibility.
-                representative_input(store, db, state)
+            if value.status == "included" and state.representative is not None:
+                # Re-including re-verifies membership and question identity; a preserved pointer alone is not eligibility.
+                submission, _ = representative_input(store, db, state)
+                loaded = mapping.load()
+                if (submission.question_signature, submission.mapping_version, submission.policy_version) != (
+                        mapping.question_signature(), loaded.version, loaded.policy_version):
+                    raise HTTPException(409, "대표 설문의 문항·매핑 판본이 현재 기준과 달라 다시 포함할 수 없습니다. 대표를 다시 확인하세요.")
             _state(store, db, user, state, pair_id, target, action="exclude" if value.status == "excluded" else "include",
                    reason=value.reason, status=value.status, status_reason=value.reason if value.status == "excluded" else None)
             store.audit(db, user.username, target, REQUEST_ACTION, {"request_hash": digest, "pair_id": pair_id})

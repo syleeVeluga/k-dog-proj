@@ -16,7 +16,7 @@ const day = (value: string) => value.slice(0, 10);
 export function ComparisonParticipationV4({ selected, writable }: { selected: Case; writable: boolean }) {
   const [inventory, setInventory] = useState<PairInventoryV4 | null>(null), [target, setTarget] = useState(''), [reason, setReason] = useState('');
   const [submittedAt, setSubmittedAt] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
-  const generation = useRef(0), working = useRef(false);
+  const generation = useRef(0), working = useRef(false), pending = useRef<{ key: string; id: string } | null>(null);
   const pair = inventory?.pairs.find(item => item.pair_id === inventory.case_pair_id) ?? null;
   async function reload(current = generation.current) {
     const value = await api<PairInventoryV4>(`/comparisons-s1/pairs?case_id=${encodeURIComponent(selected.case_id)}`);
@@ -28,21 +28,31 @@ export function ComparisonParticipationV4({ selected, writable }: { selected: Ca
     reload(current).catch(e => { if (current === generation.current) setError(e instanceof Error ? e.message : '참여쌍을 조회하지 못했습니다.'); });
     return () => { generation.current++; };
   }, [selected.case_id, selected.input_revision]);
-  async function work(message: string, action: (request_id: string) => Promise<unknown>) {
+  // A retried request with the same content reuses its ID so a lost response is never recorded twice.
+  async function work(message: string, key: string, action: (request_id: string) => Promise<unknown>) {
     if (working.current) return;
     const current = generation.current; working.current = true; setBusy(true); setError(''); setNotice('');
-    try { await action(crypto.randomUUID()); if (current === generation.current) { setReason(''); setSubmittedAt(''); setNotice(message); await reload(current); } }
-    catch (e) { if (current === generation.current) { setError(e instanceof Error ? e.message : '처리에 실패했습니다.'); await reload(current).catch(() => undefined); } }
-    finally { working.current = false; setBusy(false); }
+    if (pending.current?.key !== key) pending.current = { key, id: crypto.randomUUID() };
+    try {
+      try { await action(pending.current.id); }
+      catch (e) { if (current === generation.current) { setError(e instanceof Error ? e.message : '처리에 실패했습니다.'); await reload(current).catch(() => undefined); } return; }
+      pending.current = null;
+      if (current !== generation.current) return;
+      setReason(''); setSubmittedAt(''); setNotice(message);
+      try { await reload(current); } catch { if (current === generation.current) setNotice(`${message} 화면 새로고침에 실패했으니 다시 조회하세요.`); }
+    } finally { working.current = false; setBusy(false); }
   }
-  const link = (destination: PairViewV4 | null) => work(destination ? '참여쌍에 연결했습니다.' : '새 참여쌍을 만들었습니다.', request_id => api('/comparisons-s1/pairs', 'POST', {
-    request_id, case_id: selected.case_id, pair_id: destination?.pair_id ?? null, expected_revision: destination?.revision ?? 0,
-    expected_case_pair_id: pair?.pair_id ?? null, expected_case_pair_revision: pair?.revision ?? null, reason: reason.trim() }));
-  const submit = (kind: keyof typeof KIND) => pair && work(`${KIND[kind]}을 기록했습니다.`, request_id => api(`/comparisons-s1/pairs/${pair.pair_id}/submissions`, 'POST', {
-    request_id, expected_revision: pair.revision, kind, case_id: selected.case_id, session_id: selected.selected_session_id,
-    expected_input_revision: selected.input_revision, evidence: reason.trim(), submitted_at: submittedAt.trim() || null }));
-  const status = (value: 'included' | 'excluded') => pair && work(value === 'excluded' ? '누적 비교에서 제외했습니다.' : '누적 비교에 다시 포함했습니다.', request_id => api(`/comparisons-s1/pairs/${pair.pair_id}/state`, 'POST', {
-    request_id, expected_revision: pair.revision, status: value, reason: reason.trim() }));
+  function send(message: string, path: string, body: Record<string, unknown>) {
+    return work(message, JSON.stringify([path, body]), request_id => api(path, 'POST', { request_id, ...body }));
+  }
+  const link = (destination: PairViewV4 | null) => send(destination ? '참여쌍에 연결했습니다.' : '새 참여쌍을 만들었습니다.', '/comparisons-s1/pairs', {
+    case_id: selected.case_id, pair_id: destination?.pair_id ?? null, expected_revision: destination?.revision ?? 0,
+    expected_case_pair_id: pair?.pair_id ?? null, expected_case_pair_revision: pair?.revision ?? null, reason: reason.trim() });
+  const submit = (kind: keyof typeof KIND) => pair && send(`${KIND[kind]}을 기록했습니다.`, `/comparisons-s1/pairs/${pair.pair_id}/submissions`, {
+    expected_revision: pair.revision, kind, case_id: selected.case_id, session_id: selected.selected_session_id,
+    expected_input_revision: selected.input_revision, evidence: reason.trim(), submitted_at: submittedAt.trim() || null });
+  const status = (value: 'included' | 'excluded') => pair && send(value === 'excluded' ? '누적 비교에서 제외했습니다.' : '누적 비교에 다시 포함했습니다.', `/comparisons-s1/pairs/${pair.pair_id}/state`, {
+    expected_revision: pair.revision, status: value, reason: reason.trim() });
   const others = inventory?.pairs.filter(item => item.pair_id !== pair?.pair_id) ?? [];
   const chosen = others.find(item => item.pair_id === target) ?? null;
   const representative = pair?.submissions.find(item => item.representative);

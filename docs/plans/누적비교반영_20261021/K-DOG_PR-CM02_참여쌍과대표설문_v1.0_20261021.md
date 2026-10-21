@@ -1,6 +1,6 @@
 # PR-CM02 참여쌍과 대표 설문
 
-버전: v1.0 · 2026-10-21 · 상태: **구현 전** · 직접 선행: CM01
+버전: v1.0 · 2026-10-21 · 상태: **구현·검증·cold review 반영 완료** (2026-10-21) · 직접 선행: CM01
 
 상위: [전체 계획](K-DOG_문항매핑과누적비교적용계획_v1.0_20261021.md). 요구 CM-R03·R04·R05·R09·R10·R12. 선행: [CM01](K-DOG_PR-CM01_확정문항매핑과기준자료_v1.0_20261021.md). 브랜치 제안: `veluga/cm02-pair-survey-submissions` · PR 제목: `feat: record comparison pairs and representative surveys`
 
@@ -114,17 +114,17 @@ graft check
 
 유지보수 시험은 신규 participation 시험에 실제 임시 backup/restore/clean을 포함한다. 기존 관련 시험 파일은 착수 시 Graft로 확인해 추가한다. 운영 DB·실제 참가자 신원으로 시험하지 않는다.
 
-- [ ] 고정 registry/submission 및 공통 업무 API·설문 패널 연결
-- [ ] 동시성·재전송·회차 변경·원입력/평가자 불변·참조 폐쇄 통과
-- [ ] 기존 자료 자동 편입 없음, 미확정 사유/건수 조회 가능
-- [ ] 독립 검토·수용 재검증·CM03 interface 인계
+- [x] 고정 registry/submission 및 공통 업무 API·설문 패널 연결
+- [x] 동시성·재전송·회차 변경·원입력/평가자 불변·참조 폐쇄 통과
+- [x] 기존 자료 자동 편입 없음, 미확정 사유/건수 조회 가능
+- [x] 독립 검토·수용 재검증·CM03 interface 인계
 
 되돌릴 때 원장·원입력을 지우지 않는다. 새 제출/연결 쓰기를 중지하고 수정판을 적용한다. 신원 오류의 정정은 새 state로 남기며 과거 발급 snapshot을 다시 쓰지 않는다.
 
 | 실행 기록 항목 | 결과 |
 | --- | --- |
-| 기준/구현 commit·PR | 미실행 |
-| 공식 버전 확인일·최신/선택·이유·링크 | 구현 착수 시 기록 |
-| 명령·시험 수·시간·결과 | 미실행 |
-| cold review·판정·수용 수정 | 미실행 |
-| 확정 API/타입·참조 action·CM03 인계 | 미실행 |
+| 기준/구현 commit·PR | 브랜치 `veluga/cm02-pair-survey-submissions`(CM01 위 누적). commit·PR은 [실행 기록](K-DOG_문항매핑과누적비교구현실행기록_v1.0_20261021.md) |
+| 공식 버전 확인일·최신/선택·이유·링크 | 2026-10-21 CM01 기록과 동일(새 의존성 없음, lockfile 불변). 프런트는 기존 React/Playwright 고정판 사용 |
+| 명령·시험 수·시간·결과 | `test_comparison_participation_v4` 11건 OK. 관련 회귀(comparisons·api·forms·deletion_restore·intake_api·business_access·shared_outputs 포함) 107건 OK(94초). e2e `comparison-participation-v4`·`survey-v4`·`importer-v4` 4건 OK, 390px 가로 넘침 없음 |
+| cold review·판정·수용 수정 | 원장/수명주기 검토 2건·화면/API 검토 3건, 5건 모두 수용: 재포함 시 문항 signature·매핑·정책 재확인, 정정은 대표와 같은 대상만, 같은 내용 재시도 시 request ID 재사용, 대표 미확정 제외 쌍의 재포함 허용(기여 없음 유지), 저장 성공 후 새로고침 실패 문구 분리. 재검증 통과 |
+| 확정 API/타입·참조 action·CM03 인계 | `GET/POST /api/comparisons-s1/pairs`, `POST .../pairs/{pair_id}/submissions`, `POST .../pairs/{pair_id}/state`. changes action `comparison.pair_state`·`comparison.pair_case`·`comparison.submission`·`comparison.pair_request`. artifact `comparison-pair-state`·`comparison-survey-submission`. CM03 interface: `pair_ids`·`pair_head`·`read_state`·`representative_input` |
