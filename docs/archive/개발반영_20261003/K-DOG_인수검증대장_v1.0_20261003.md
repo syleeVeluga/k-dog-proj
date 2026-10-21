@@ -6,6 +6,8 @@
 
 **2026-10-08 리포트 후속:** [RP01~RP05 실행 기록](../리포트개편_20261007/K-DOG_리포트구현실행기록_v1.0_20261007.md)에 회신 적용 검증을 분리했다. RP01~RP04 원격·로컬 병합 및 설문 정책·근거 기반 애착/문장·사진 없는 출력 검증을 완료했다. T22/O10의 사진 출력 부분은 새 요구로 대체하며 분석 사건·타임라인·중복 방지는 보존한다. RP05 기술 통합 검증을 완료했다. 초기 실패와 수정 후 재검증은 구별한다. 아래 2026-10-03~04 수치를 새 개편 결과로 전용하지 않는다. 실제 공급자·교수 검토·RP06 두 기준표의 실제 적용은 대기다.
 
+**2026-10-21 누적 비교 후속:** T14/T25/O09와 D06/P06의 외부 비교 부분을 [누적 비교 계획](../../plans/누적비교반영_20261021/K-DOG_문항매핑과누적비교적용계획_v1.0_20261021.md)의 CM-T 결과에 연결했다(§6). 기술 구현 완료와 실제 기준 등록·운영 적용은 구별하며, 폴더 이동이나 이 갱신이 남은 인수를 종료하지 않는다.
+
 버전: v1.0 · 2026-10-03 · 기준: 통합명세 v1.3/S1.1 · 상태: **자동·합성 시험 근거 갱신, 실측·실물·정책 확인 분리** · 갱신: 2026-10-04
 
 2026-10-04 통합 cold review의 수용/거절·구판 실행 제거·최신 회귀·검증 ZIP은 [통합 Cold Review](K-DOG_통합ColdReview_v1.0_20261004.md)를 따른다. 아래685개/기존 ZIP의 수치는 제거 전 S15 검증 이력이며 최신 결과와 구별한다.
@@ -186,3 +188,16 @@ S15에서 기본 구조 인수를 묶고, S16/S17 실자료·연구 확인은 �
 `scripts/verify_release.py`로 실제 ZIP을 **현재 Windows 호스트의 새 한글·공백 경로와 새 가상환경**에 설치했다. 설치 전 손상 거절, 환경 변수 격리, S1 자산 확인, 실제 HTTP 로그인·접수·재시작 후 조회, supervisor 종료를 모두 통과했고 외부 공급자 호출은0이었다. 별도 읽기 전용 감사에서는 ZIP manifest·파일별 hash·sidecar, 필수 S1 자산, 고객 원본·시험·키·런타임 자료 제외와 문서/이미지 링크를 확인했다. 실제 운영 참가자 자료를 설치 fixture에 넣지 않았다.
 
 이 결과는 깨끗한 OS나 두 번째 PC·현장 LAN3PC 검증이 아니다. 문서 보완 뒤 최종 ZIP의 commit/hash는 S15 배포 기록으로 연결한다. 별도 최종 전체 backend 실행은 **685개, 780.886초, OK(exit0)**로 통과했으며 위 좁은 회귀 수를 중복 합산하지 않는다.
+
+## 6 2026-10-21 누적 비교 연결
+
+2026-10-08자 전달 기준표(EXT1.1, 로컬 SHA-256 `6e52a3ad…bcfa`)를 수령해 CM01~CM04로 구현했다. 아래 자동 시험은 합성 fixture이며 운영 DB의 실제 기준 등록·참여쌍 적용을 대신하지 않는다.
+
+| 기존 행 | 새 검증(CM-T) | 자동 시험 근거 | 상태 |
+| --- | --- | --- | --- |
+| T14 | CM-T01·T02·T06: SF/NF 묶음 평균, 0/null·범위 밖 구별, 한 묶음 결측 시 해당 지표만 제외 | [test_comparison_mapping_v4.py](../../../backend/tests/test_comparison_mapping_v4.py), [test_cumulative_outputs_v4.py](../../../backend/tests/test_cumulative_outputs_v4.py) | 자동·합성 통과 |
+| T25 | CM-T03·T06·T09·T15: 지표별 유효 n, 한 지표 결측이 다른 지표를 막지 않음, SF/NF 한쪽만 유효 | [test_comparison_mapping_v4.py](../../../backend/tests/test_comparison_mapping_v4.py), [test_cumulative_outputs_v4.py](../../../backend/tests/test_cumulative_outputs_v4.py) | 자동·합성 통과 · 기타 결측정책은 S1 설문 정책 유지 |
+| O09 | CM-T04~T08·T10·T16~T22: 참여쌍 대표 1건·재방문/정정, n<2 표식 생략, 접수 시 snapshot 고정, 리포트 출력·연구 export 일치, backup/restore/clean, 옛 rp04 발급 보존 | [test_comparison_participation_v4.py](../../../backend/tests/test_comparison_participation_v4.py), [test_cumulative_outputs_v4.py](../../../backend/tests/test_cumulative_outputs_v4.py), [test_cumulative_report_v4.py](../../../backend/tests/test_cumulative_report_v4.py), [comparison-participation-v4.spec.ts](../../../frontend/tests/comparison-participation-v4.spec.ts), [cumulative-comparisons-v4.spec.ts](../../../frontend/tests/cumulative-comparisons-v4.spec.ts) | 자동·합성 통과(CM01~CM04 범위) |
+| D06/P06 | CM-T24: 전달표 hash·셀 전사와 실제 등록 판본 일치 | 로컬 원본 셀 대조(원본 없으면 해당 1건 skip) | 기준표 수령·전사 대조 완료 · 운영 DB 실제 SF/NF 정의 등록 미실행 |
+
+통합 종단 인수(CM-T 전수 연결, 최종 전체 회귀)는 [CM05](../../plans/누적비교반영_20261021/K-DOG_PR-CM05_통합인수와운영적용_v1.0_20261021.md)와 [누적 비교 구현 실행 기록](../../plans/누적비교반영_20261021/K-DOG_문항매핑과누적비교구현실행기록_v1.0_20261021.md)에 기록한다. 운영 참여쌍·대표 설문 확인과 실제 발급 대조, 사용 허가·한국어 측정 동등성은 [후속 대장](K-DOG_실측및확인후속대장_v1.0_20261003.md)에 남는다.

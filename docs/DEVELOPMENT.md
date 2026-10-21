@@ -58,6 +58,23 @@ S1 고객 원본은 로컬 전용 `docs/요구사항_20261003/`이다. [원본 �
 
 `docs/큐브전달_20260929/`의 역사 원본15개는 2026-10-04 저장소에서 삭제하고 로컬 전용으로 제외했다. 이전 근거는 commit `8b9c960`에 남는다. 역사 원본 대조가 필요하면 담당자가 제공한 해시 검증 전달 묶음을 별도 확보하고 `app.import_catalogs --spec 20260929 --customer-dir <로컬_원본_폴더> --check`를 실행한다. `*-v3.json`은 역사 카탈로그와 현재도 쓰는28문항 설문 근거다. 역사 원본이 없으면 원본 의존 시험2개만 명시 skip하며 원본 대조 통과로 표시하지 않는다. v1/v2/v3 코드/자산 중 공통 worker/저장/시험에서 참조하는 것만 남아 있으며 새 제품 쓰기 경로는 S1이다. 이 값들을 S1 기대값으로 사용하지 않는다. G01 빈 채점양식과 G04 정정 원본 확인 전 실제 S1 Excel 점수 가져오기는 비활성이다. 검수 참고파일 등록은 점수 가져오기와 별개다.
 
+## 문항 매핑과 누적 비교(2026-10-21)
+
+[문항 매핑과 누적 비교 계획](plans/누적비교반영_20261021/K-DOG_문항매핑과누적비교적용계획_v1.0_20261021.md)의 CM01~CM05 구현이다. `resources/report/survey-comparison-20261008.json`(EXT1.1)은 28문항을 S01~S09 9지표로 묶고 SF=S03(s10·s11), NF=S04(s12~s14)만 미국 연구 참고값(SF 0.66/SD0.91/n42,926, NF 1.03/SD0.78/n42,764, 전체 43,517)에 연결한다. launcher 필수 자산이며 원본 hash·셀 위치·판본 차이를 함께 고정한다. 전달 XLSX는 무시 목록 `/docs/참고자료/`에 로컬 보존하고 커밋하지 않는다.
+
+새 리포트 발급의 기본값은 누적 비교(`report-run-20261021-cm`, `report-presentation-20261021-cm`, `resources/report/presentation-20261021.json`·`templates/report-20261021.*`)다. 접수 시 참여쌍 대표 설문 집합·9지표 정수 분자/분모·지표별 n·SF/NF 외부 기준 정의를 snapshot으로 고정하며 재시도·다운로드는 재집계하지 않는다. 옛 rp04 발급과 옛 자산은 그대로 둔다. 참여쌍 API는 `GET/POST /api/comparisons-s1/pairs`, `POST /api/comparisons-s1/pairs/{pair_id}/submissions`, `POST /api/comparisons-s1/pairs/{pair_id}/state`다.
+
+```powershell
+# backend/
+uv run --locked python -X utf8 -m unittest tests.test_comparison_mapping_v4 tests.test_comparison_participation_v4 tests.test_cumulative_outputs_v4 tests.test_cumulative_report_v4 tests.test_cumulative_acceptance_v4 -v
+# 로컬 전달 XLSX 셀 대조(선택): 기본 위치 docs/참고자료/에 없으면 경로 지정, 둘 다 없으면 해당 1건만 skip
+$env:KDOG_COMPARISON_DELIVERY = "D:/로컬/외부연구값_문항대조와출력기준_누적비교반영_20261008.xlsx"
+# frontend/ — 전체 npm run test:e2e에 포함
+npx playwright test tests/comparison-participation-v4.spec.ts tests/cumulative-comparisons-v4.spec.ts
+```
+
+셀 대조 skip은 원본 대조 통과가 아니다. 합성 시험은 운영 DB의 실제 SF/NF 기준 등록·참여쌍 확인을 대신하지 않는다. 운영 절차는 [운영 안내](PILOT_OPERATIONS.md), 실제 결과는 [구현 실행 기록](plans/누적비교반영_20261021/K-DOG_문항매핑과누적비교구현실행기록_v1.0_20261021.md)을 따른다.
+
 ## 전처리와 실행
 
 배포 전 제거 대상 영상 점검은 다음 명령으로 수행한다. 원본 DB와 WAL을 임시 폴더로 복사하여 검사하며 운영 자료를 변경하지 않는다. 점검 중 DB가 바뀌면 API·worker를 종료하고 재실행한다. `total: 0`/exit0 확인 뒤 배포한다. 1건 이상이면 case/receipt/batch 식별자만 보고하고, 처리 방법은 사용자가 결정한다. 자동 삭제·이관은 하지 않는다. 이전 앱을 같은 운영 DB에 병행 실행하지 않는다.
