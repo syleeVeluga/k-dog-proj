@@ -110,6 +110,11 @@ def references(store, db):
                         elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-external":
                             visit({"input": document["target"]["input"],
                                    "definitions": [entry["gate"].get("definition") or entry["gate"].get("confirmation") for entry in document["entries"]]})
+                        elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-pair-state":
+                            # Pair heads link only their previous state and representative submission.
+                            visit({"previous": document.get("previous"), "representative": document.get("representative")})
+                        elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-survey-submission":
+                            visit({"input": document["input"], "replaces": document.get("replaces")})
                         elif isinstance(document, dict) and document.get("artifact_kind") == "validation-reference":
                             visit(document["source"])
                         elif isinstance(document, dict) and document.get("artifact_kind") == "research-export":

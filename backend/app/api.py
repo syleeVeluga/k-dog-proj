@@ -41,6 +41,7 @@ from app import run_v4, scoring_ai_v4, settings_v4
 from app import opinions_v4, final_results_v4, attachment_runs_v4
 from app import report_runs_v4, comparisons_v4
 from app import external_comparisons_v4
+from app import cumulative_comparisons_v4
 from app import validation_data_v4, exports_v4, activity_v4
 from app.domain.runs_v4 import ActionV4, RunViewV4, StartV4, RunRequestLookupV4
 from app.domain.preprocess_v4 import (BatchV4, PreprocessRequestV4, PreprocessStatusV4,
@@ -810,6 +811,22 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def comparison_s1_external_view(snapshot_id:Key,purpose: Literal["open"] | None = None, user=Depends(reader)):
         value = external_comparisons_v4.view(store,snapshot_id,user)
         return activity_v4.opened(store, user, snapshot_id, "comparison.external.open", value, purpose)
+
+    @app.get("/api/comparisons-s1/pairs", response_model=cumulative_comparisons_v4.PairInventoryV4)
+    def comparison_s1_pairs(case_id: Key | None = None, user=Depends(reader)):
+        return cumulative_comparisons_v4.inventory(store, user, case_id)
+
+    @app.post("/api/comparisons-s1/pairs", response_model=cumulative_comparisons_v4.PairViewV4)
+    def comparison_s1_pair_link(value: cumulative_comparisons_v4.PairLinkV4, user=Depends(writer)):
+        return cumulative_comparisons_v4.link(store, value, user)
+
+    @app.post("/api/comparisons-s1/pairs/{pair_id}/submissions", response_model=cumulative_comparisons_v4.PairViewV4)
+    def comparison_s1_pair_submission(pair_id: Key, value: cumulative_comparisons_v4.SubmissionCreateV4, user=Depends(writer)):
+        return cumulative_comparisons_v4.submit(store, pair_id, value, user)
+
+    @app.post("/api/comparisons-s1/pairs/{pair_id}/state", response_model=cumulative_comparisons_v4.PairViewV4)
+    def comparison_s1_pair_state(pair_id: Key, value: cumulative_comparisons_v4.PairStatusV4, user=Depends(writer)):
+        return cumulative_comparisons_v4.set_status(store, pair_id, value, user)
 
     @app.get("/api/comparisons-s1/definitions")
     def comparison_s1_research(user=Depends(writer)):
