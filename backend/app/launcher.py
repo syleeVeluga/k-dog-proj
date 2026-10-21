@@ -99,6 +99,8 @@ REQUIRED = ("frontend/dist/index.html", "resources/catalogs/behavior-v4.json", "
             "resources/report/comparison-sources-v4.json", "resources/report/survey-comparison-20261008.json",
             "resources/report/presentation-v4.json",
             "resources/report/templates/s1.html", "resources/report/templates/s1.css",
+            "resources/report/presentation-20261021.json", "resources/report/templates/report-20261021.html",
+            "resources/report/templates/report-20261021.css",
             "resources/fonts/NanumGothic-Regular.ttf", "resources/fonts/NotoSansSymbols.ttf")
 
 

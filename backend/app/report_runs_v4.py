@@ -108,6 +108,7 @@ class ReportRunViewV4(GeminiAttemptView):
     external_comparison: ExternalReferenceV4 | None = None
     external_comparison_status: Literal["not_selected", "ready", "approved", "blocked"] = "not_selected"
     external_comparison_reason: str | None = None
+    cumulative_comparison_as_of: str | None = None
     planned_provider_calls: int = 0
     max_ai_calls: int = 0
     provider_text_status: str = "deferred_S16"
@@ -126,8 +127,8 @@ def config(comparison=None, external_comparison=None, cumulative_comparison=None
     return ReportConfigV4(version=CUMULATIVE_RUN_VERSION if cumulative_comparison else "report-run-20261007-rp04",
         stages=(narrative.stage(), *(ReportStageV4(stage=name) for name in REPORT_STAGES[1:])),
         max_schema_repairs=1, max_ai_calls=3, provider_text_status="generated_professor_test_pending",
-        template_hashes=assets(True), content_hashes=hashes, comparison_snapshot=comparison, external_comparison=external_comparison,
-        cumulative_comparison=cumulative_comparison)
+        template_hashes=assets(True, cumulative=bool(cumulative_comparison)), content_hashes=hashes, comparison_snapshot=comparison,
+        external_comparison=external_comparison, cumulative_comparison=cumulative_comparison)
 
 
 OPEN_ACTION = "report.s1.open"
@@ -357,12 +358,12 @@ def verify_files(store, snapshot):
 
 
 def verify_assets(configuration):
-    from .report_render_v4 import ASSETS, NEW_ASSETS, assets
+    from .report_render_v4 import ASSETS, CM_ASSETS, NEW_ASSETS, assets
     survey_policy = profiles.RUNTIME_SURVEY_POLICY_VERSION if "rules/survey-policy-20261007.json" in configuration.content_hashes else profiles.SURVEY_POLICY_VERSION
     generated = configuration.version != "report-run-20261002-s1.1-1"
     photo_free = configuration.version in PHOTO_FREE_VERSIONS
     mapped = configuration.version == CUMULATIVE_RUN_VERSION
-    names = (*(NEW_ASSETS if photo_free else ASSETS), *("resources/"+name for name in profiles.asset_names(survey_policy)), *(('resources/'+narrative.ASSET,) if generated else ()),
+    names = (*(CM_ASSETS if mapped else NEW_ASSETS if photo_free else ASSETS), *("resources/"+name for name in profiles.asset_names(survey_policy)), *(('resources/'+narrative.ASSET,) if generated else ()),
              *(("resources/"+comparison_mapping_v4.ASSET,) if mapped else ()))
     stamps = {name: analysis.file_stamp(REPO_ROOT/name) for name in names}
     hashes = profiles.assets(survey_policy)[1]
@@ -372,7 +373,7 @@ def verify_assets(configuration):
         hashes = {**hashes, narrative.ASSET: hashlib.sha256((REPO_ROOT / "resources" / narrative.ASSET).read_bytes()).hexdigest()}
         if configuration.stages[0] != narrative.stage():
             raise HTTPException(409, "AI 문장 지침·모델·출력 계약이 변경되었습니다.")
-    if configuration.template_hashes != assets(photo_free) or configuration.content_hashes != hashes:
+    if configuration.template_hashes != assets(photo_free, cumulative=mapped) or configuration.content_hashes != hashes:
         raise HTTPException(409, "실행 중 문장·선택 기준 또는 출력 템플릿이 변경되었습니다.")
     check_asset_stamps(stamps)
     return stamps
@@ -851,7 +852,8 @@ def view(store, run_id, user, viewer_sheet_id=None):
             "provider_text_status": configuration.provider_text_status,
             "final": snapshot.final.model_dump(mode="json"), "steps": steps,
             "external_comparison":external.reference.model_dump(mode="json") if external else None,
-            "external_comparison_status":external_status,"external_comparison_reason":external_reason}
+            "external_comparison_status":external_status,"external_comparison_reason":external_reason,
+            "cumulative_comparison_as_of":snapshot.profile.survey_comparison.as_of if snapshot.profile.survey_comparison else None}
 
 
 def list_runs(store, case_id, session_id, user):

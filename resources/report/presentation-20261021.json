@@ -1,0 +1,12 @@
+{
+  "version": "report-presentation-20261021-cm",
+  "source": "누적비교반영 PR-CM04, 전달표 EXT1.1 UI01~UI06",
+  "colors": {"background": "#F5F1E9", "paper": "#FFFFFF", "ink": "#292C36", "muted": "#676974", "accent": "#80633B", "survey": "#846FAD", "video": "#5C735D", "line": "#DDD8CE", "us": "#8A8D96", "cumulative": "#2F6DB5", "individual": "#E07A1F"},
+  "sections": ["함께 읽는 핵심 결과", "평소의 우리를 그래프로", "설문과 영상 함께 보기", "관찰의 세부 설명", "총평과 실천", "관찰 범위와 출처"],
+  "legend": "보호자 설문은 평소의 경험, 영상 관찰은 이번에 확인한 행동입니다.",
+  "scale_notice": "설문 원척도와 영상의 행동별 눈금은 서로 다릅니다. 같은 점수나 길이가 같은 의미를 뜻하지 않습니다.",
+  "comparison_intro": "평소의 응답을 원래 눈금 위의 점으로 표시합니다. 값의 크기만으로 좋고 나쁨을 정하지 않습니다.",
+  "fear_note": "높을수록 보고된 두려움이 큽니다. 두려움은 사회성 전체와 같지 않습니다.",
+  "labels": {"us": "미국 연구 평균", "individual": "우리 아이"},
+  "direction": {"higher_more_agreement": "높을수록 해당 진술에 동의", "higher_more_fear": "높을수록 보고된 두려움", "higher_more_consistency": "높을수록 보고된 감정의 일관성"}
+}

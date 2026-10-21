@@ -7,6 +7,7 @@ import type { ReportAccessV4, ReportPublicationV4, ReportRunV4 } from './reportT
 import type { CohortSelectionV4, CohortSummaryV4 } from './comparisonTypesV4';
 import type { ExternalReferenceV4 } from './externalTypesV4';
 import { ExternalComparisonPickerV4 } from './ExternalComparisonPickerV4';
+import type { PairInventoryV4 } from './ComparisonParticipationV4';
 
 const active = new Set(['queued', 'running', 'retry_wait']);
 const states: Record<string, string> = { queued: '대기', running: '생성 중', retry_wait: '재시도 대기', succeeded: '발급 완료', failed: '실패·검토 필요', stopped: '중지', available: '관찰됨', partial: '일부 관찰', insufficient: '관찰 부족', held: '판단 보류' };
@@ -32,7 +33,7 @@ function AccessLog({ path, revision }: { path: string; revision: string }) {
 
 export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Case; user: User; comparisonRevision?: number }) {
   const path = `/cases/${item.case_id}/sessions/${item.selected_session_id}`;
-  const [rows, setRows] = useState<ReportRunV4[]>([]), [finals, setFinals] = useState<FinalSummaryV4[]>([]);
+  const [rows, setRows] = useState<ReportRunV4[]>([]), [finals, setFinals] = useState<FinalSummaryV4[]>([]), [pairs, setPairs] = useState<PairInventoryV4['counts'] | null>(null);
   const [finalId, setFinalId] = useState(''), [reuse, setReuse] = useState(''), [reason, setReason] = useState('');
   const [cohorts, setCohorts] = useState<CohortSummaryV4[]>([]), [cohortId, setCohortId] = useState('');
   const [external, setExternal] = useState<ExternalReferenceV4 | null>(null), [externalTarget, setExternalTarget] = useState<CohortSelectionV4 | null>(null);
@@ -62,9 +63,9 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
     if (timer.current) clearTimeout(timer.current);
     const current = ++sequence.current, scope = context.current; setLoading(true);
     try {
-      const [runs, list, comparisons] = await Promise.all([api<ReportRunV4[]>(path + '/report-runs-s1'), api<FinalSummaryV4[]>(path + '/final-results-s1' + query), api<CohortSummaryV4[]>('/comparisons-s1/cohorts')]);
+      const [runs, list, comparisons, inventory] = await Promise.all([api<ReportRunV4[]>(path + '/report-runs-s1'), api<FinalSummaryV4[]>(path + '/final-results-s1' + query), api<CohortSummaryV4[]>('/comparisons-s1/cohorts'), api<PairInventoryV4>('/comparisons-s1/pairs')]);
       if (!alive.current || current !== sequence.current || scope !== context.current) return;
-      setRows(runs); setFinals(list); setCohorts(comparisons); if (clearError) setError('');
+      setRows(runs); setFinals(list); setCohorts(comparisons); setPairs(inventory.counts); if (clearError) setError('');
       if (openedId.current) {
         const id = openedId.current;
         const output = await api<ReportPublicationV4>(filePath(id, 'manifest'));
@@ -90,7 +91,8 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
   }
   async function start() {
     if (!selected || cohortId && !cohort) return;
-    const fields = { expected_revision: item.input_revision, final: selected.reference, reuse_run_id: reuse || null, comparison: cohort?.reference ?? null, ...(external ? { external_comparison: external } : {}) };
+    // 기본 발급은 전 회차 누적·등록 외부 기준을 자동으로 고정한다. 명시 외부 선택은 이전 방식으로 보존한다.
+    const fields = { expected_revision: item.input_revision, final: selected.reference, reuse_run_id: reuse || null, comparison: cohort?.reference ?? null, ...(external ? { external_comparison: external } : { cumulative: true }) };
     const fingerprint = JSON.stringify(fields);
     if (request.current?.fingerprint !== fingerprint) request.current = { fingerprint, request_id: crypto.randomUUID() };
     await api(path + '/report-runs-s1', 'POST', { ...fields, request_id: request.current.request_id }); request.current = null;
@@ -130,7 +132,11 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       <label>리포트 자체 비교집단<select aria-label="리포트 자체 비교집단" value={cohortId} onChange={event => { setCohortId(event.target.value); setReuse(''); }}><option value="">비교 없이 생성</option>{cohorts.map(value => <option key={value.reference.snapshot_id} value={value.reference.snapshot_id}>{value.title} · 선택 {value.selection_count}대상{value.outdated ? ' · 이전 응답 기준' : ''}</option>)}</select></label>
       {cohort && <><p className="fine">명시한 자체 집단 {cohort.title}{cohort.outdated && ' · 일부 응답이 이후 변경됐으며 이 고정 집단의 당시 평균을 사용합니다.'}</p><details><summary>기술 정보</summary><p className="fine">{cohort.reference.snapshot_id} · {cohort.reference.hash}</p></details></>}
       {!!cohortId && !cohort && <p role="status">선택한 집단을 현재 사용할 수 없습니다. 다른 집단 또는 비교 없음을 명시적으로 선택하세요.</p>}
-      <ExternalComparisonPickerV4 target={externalTarget} value={external} onChange={value => { setExternal(value); setReuse(''); }} disabled={busy || loading} />
+      <section aria-label="누적 비교 발급 안내"><h4>평소의 우리를 그래프로 · 자동 연결</h4>
+        <p className="fine">새 발급은 전 회차 참여쌍의 대표 설문으로 9개 지표의 우리 누적 평균을 계산하고, 등록된 미국 연구 기준(SF·NF)을 지표별로 연결해 발급 시점 값으로 고정합니다.</p>
+        {pairs && <p className="fine">현재 누적 대상: 포함 {pairs.included_confirmed ?? 0}쌍 · 대표 미확정 {pairs.representative_unconfirmed ?? 0} · 제외 {pairs.excluded ?? 0} · 미연결 S1 대상 {pairs.unlinked_s1_cases ?? 0}. 미확정·미연결 자료는 추정해 포함하지 않습니다.</p>}
+        {external && <p role="status">명시 외부 비교를 선택하면 이전 방식(누적 비교 없음)으로 발급합니다.</p>}</section>
+      <details><summary>이전 방식: 외부 비교 명시 선택</summary><ExternalComparisonPickerV4 target={externalTarget} value={external} onChange={value => { setExternal(value); setReuse(''); }} disabled={busy || loading} /></details>
       {!finals.length && <p>독립 채점 메뉴에서 고정 기본 결과를 선택하고 최종본을 먼저 만드세요.</p>}
       <label>실행 제어 기록<input aria-label="실행 제어 기록" value={reason} onChange={event => setReason(event.target.value)} maxLength={2000} /></label>
       <label>검증된 내용 명시 재사용<select aria-label="검증된 내용 명시 재사용" value={reuse} onChange={event => setReuse(event.target.value)}><option value="">재사용 없이 새 생성</option>{rows.filter(value => value.final.hash === selected?.reference.hash && value.steps.some(step => step.stage === 'content_v4' && step.status === 'succeeded')).map(value => <option key={value.run_id} value={value.run_id}>{value.run_id.slice(0, 8)} · {states[value.status] ?? value.status}</option>)}</select></label>
@@ -146,6 +152,7 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       {row.failure_code && <p role="status">리포트를 완성하지 못했습니다. 아래 「기술 정보」의 사유를 확인하고 필요하면 재시도하세요.</p>}
       <GeminiExecution value={row} />
       {row.external_comparison_status === 'blocked' && <p role="status">외부 비교 제공 차단: {row.external_comparison_reason} · 당시 발급 이력과 파일은 보존됩니다.</p>}
+      {row.cumulative_comparison_as_of && <p className="fine">누적 비교 집계 기준일 {row.cumulative_comparison_as_of} · 발급 시점 값으로 고정</p>}
       {row.pending_reasons.includes('G02') && <p className="fine">일부 문장은 준비 중이며 정상 발급에는 영향이 없습니다.</p>}
       <div className="toolbar">{active.has(row.status) && <button disabled={busy || !reason.trim()} onClick={() => void work(async () => { await api(`/report-runs-s1/${row.run_id}/stop`, 'POST', { expected_updated_at: row.updated_at, reason: reason.trim() }); })}>이 리포트 실행 중지</button>}
         {['failed', 'stopped'].includes(row.status) && <button disabled={busy || !reason.trim()} onClick={() => void work(async () => { await api(`/report-runs-s1/${row.run_id}/retry`, 'POST', { expected_updated_at: row.updated_at, reason: reason.trim() }); })}>고정 입력으로 리포트 재시도</button>}
@@ -157,6 +164,14 @@ export function ReportRunsV4({ item, user, comparisonRevision = 0 }: { item: Cas
       <p>{new Date(opened.created_at).toLocaleString()} · {rows.find(value => value.run_id === opened.run_id)?.outdated ? '이전 입력·기준' : '고정 입력'}</p><details><summary>기술 정보</summary><p className="fine">입력 {opened.input_revision}판 · {opened.run_id}</p></details>
       <div className="form-grid" aria-label="리포트 네 결과 요약">{opened.profile.cards.map(card => <article className="panel" key={card.key}><h4>{card.title}</h4><p>{card.label ?? states[card.status]}</p>{card.claims.map(claim => <p key={claim.claim_id}>{claim.text}</p>)}</article>)}</div>
       {opened.cohort && <section aria-label="발급 당시 자체 집단"><h4>{opened.cohort.title} · 선택 {opened.cohort.selection_count}대상</h4><p>{opened.cohort.interpretation_note}</p><p>{opened.cohort.selection_note}</p><div className="table-wrap"><table><thead><tr><th>영역·원척도</th><th>평균·유효 n</th><th>제외</th></tr></thead><tbody>{opened.cohort.domains.map(domain => <tr key={domain.domain}><td>{domain.domain} · {domain.scale_minimum}~{domain.scale_maximum}</td><td>{domain.mean === null ? '평균 없음' : domain.mean.toLocaleString(undefined, { maximumFractionDigits: 3 })} · n={domain.n}</td><td>{domain.excluded_count}개{Object.entries(domain.exclusion_reasons).map(([why, count]) => <p key={why}>{why}: {count}</p>)}</td></tr>)}</tbody></table></div><details><summary>기술 정보</summary><p className="fine">비교 출처 {opened.cohort.reference.hash}</p></details></section>}
+      {opened.profile.survey_comparison && <section aria-label="발급 당시 누적 비교"><h4>{opened.profile.survey_comparison.label} · 집계 기준일 {opened.profile.survey_comparison.as_of}</h4>
+        <p className="fine">포함 참여쌍 {opened.profile.survey_comparison.included_pairs} · {opened.profile.survey_comparison.note}</p>
+        <div className="table-wrap"><table><thead><tr><th>지표</th><th>우리 아이</th><th>우리 누적(n)</th><th>미국 연구</th></tr></thead><tbody>{opened.profile.survey_comparison.rows.map(row => <tr key={row.metric_id}>
+          <td>{row.title}{row.alias ? ` (${row.alias})` : ''}<p className="fine">{row.scale_minimum}~{row.scale_maximum}점</p></td>
+          <td>{row.individual_display ?? row.notice}</td>
+          <td>{row.cumulative_shown ? `${row.cumulative_display} (n=${row.cumulative_n})` : `표시 안 함 (n=${row.cumulative_n})`}</td>
+          <td>{row.external_status === 'ready' ? `${row.external_display} (유효 n=${row.external_valid_n?.toLocaleString()})` : row.external_status === 'not_mapped' ? '대응값 없음' : row.external_reason}</td></tr>)}</tbody></table></div>
+        <p className="fine">{opened.profile.survey_comparison.external_limitation}</p></section>}
       {opened.profile.external_comparison && <section aria-label="발급 당시 외부 비교"><h4>확인된 외부 참고 · 자체 집단과 별도</h4>{opened.profile.external_comparison.entries.map(entry => <article key={entry.gate.source_id}><h5>{entry.title}</h5><p>이 대상의 설문 평균 {entry.local_mean} · 유효 응답 {entry.local_n}문항</p><p>외부 참고 평균 {entry.gate.values.mean} · 표준편차 {entry.gate.values.standard_deviation} · 유효 n={entry.gate.values.valid_n} / 전체 n={entry.gate.values.total_n}</p><p>{entry.population_scope} · 원척도 {entry.gate.scope.scale_minimum}~{entry.gate.scope.scale_maximum}</p><p>{entry.literature} · DOI {entry.doi}</p><p className="fine">기준 정의 {(entry.gate.definition ?? entry.gate.confirmation)?.revision}판. 영상 규준·진단·백분위가 아닙니다.</p></article>)}</section>}
       {Object.entries(opened.output.image_issues).map(([scene, note]) => <p key={scene}>장면 {scene}: {note}</p>)}
       <div className="toolbar"><button disabled={busy} onClick={() => void work(() => download('html'))}>HTML 저장</button><button disabled={busy} onClick={() => void work(() => download('pdf'))}>PDF 저장</button><button disabled={busy} onClick={() => void work(() => download('manifest'))}>출처 manifest 저장</button><a href={'/api' + filePath(opened.run_id, 'html', true)} target="_blank" rel="noopener noreferrer">HTML 새 창</a><button disabled={busy} onClick={() => void work(print)}>열린 리포트 인쇄</button></div>
