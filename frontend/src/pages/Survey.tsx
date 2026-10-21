@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { SurveyView } from '../SurveyView';
+import { ComparisonParticipationV4 } from '../ComparisonParticipationV4';
 import { CaseFilters, matchesCase } from '../CaseFilters';
 import type { CaseFilterProps } from '../CaseFilters';
 import { SURVEY_TOTAL, sessionOf, surveyDomains, surveyHandled } from '../types';
@@ -57,6 +58,7 @@ export function Survey({ cases, selected, select, filters, catalog, writable, go
         <div className="score-grid">{result.domains.map(d => <div className="score-card" key={d.domain}><strong>{d.domain}. {surveyDomains[d.domain]}</strong><p>응답 {d.answered_count}/{d.target_count}{d.answered_count < d.target_count && ` · 미응답·해당 없음 ${d.target_count - d.answered_count}`}</p></div>)}
           <div className="score-card"><strong>D. {surveyDomains.D}</strong><p>분리 유형: {result.separation.label ?? `없음 (${result.separation.reason ?? '미응답'})`}</p></div></div>
       </> : resultError ? <p className="error" role="alert">{resultError}</p> : <p role="status">결과 조회 중…</p>}
+      {result && 'policy_version' in result && <ComparisonParticipationV4 selected={selected} writable={writable} />}
       <SurveyView key={`${selected.case_id}-${selected.input_revision}`} session={session} catalog={catalog} />
     </section>}
   </>;
