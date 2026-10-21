@@ -1,5 +1,7 @@
 # K-DOG Windows 설치·S1 운영 안내
 
+macOS 사용자 설치형은 별도 `kdog-s1-macos-online.zip`의 [macOS 설치 안내](../scripts/macos/online/macOS_설치안내.md)를 따른다. ZIP 최상위에도 `macOS_설치안내.md`가 있다. macOS에서는 `Install.command` → `Start.command`를 사용한다. 아래의 `.cmd`·DPAPI·Windows 설치 설명은 Windows용이다.
+
 버전: v2.1 · 2026-10-14 · 통합명세 v1.3 / S1.1
 
 ## 일반 사용자 실행

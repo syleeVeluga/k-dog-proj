@@ -1,0 +1,9 @@
+K-DOG macOS 사용자 설치형 오픈소스 고지
+
+Python·FFmpeg 실행 파일은 ZIP에 동봉하지 않습니다. 설치 시 uv와 Homebrew 또는 사용자가 설치한 도구를 사용합니다.
+Python 패키지 버전과 라이선스는 backend/uv.lock 및 설치 후 backend/.venv/lib/python3.14/site-packages/<이름>-<버전>.dist-info에서 확인합니다.
+Homebrew FFmpeg는 GPL-3.0-or-later이며 사용자가 별도로 설치합니다: https://formulae.brew.sh/formula/ffmpeg
+uv: Apache-2.0 OR MIT, https://github.com/astral-sh/uv
+CPython: PSF-2.0, https://docs.python.org/3/license.html
+나눔고딕(NanumGothic): SIL Open Font License 1.1 (resources/fonts/OFL.txt)
+Noto Sans Symbols: SIL Open Font License 1.1 (resources/fonts/OFL-NotoSansSymbols.txt)

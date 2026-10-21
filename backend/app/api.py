@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import secrets
 import sqlite3
+import sys
 import time
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal
@@ -84,7 +85,8 @@ class ValidationFileV4(WorkbookFileV4):
 
 
 COOKIE = "kdog_session"
-DEFAULT_DATA = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "K-DOG" / "data"
+DEFAULT_DATA = (Path.home() / "Library/Application Support" if sys.platform == "darwin" else
+                Path(os.environ.get("LOCALAPPDATA", str(Path.home())))) / "K-DOG" / "data"
 
 
 def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127.0.0.1:8000") -> FastAPI:
