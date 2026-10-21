@@ -252,6 +252,8 @@ def validate_profile(profile, final, final_ref, *, batch=None, common_events=())
         # External comparison is a separately validated explicit output selection.
         if profile.external_comparison:
             expected = expected.model_copy(update={"external_comparison": profile.external_comparison, "external_comparison_status": profile.external_comparison_status})
+        if profile.survey_comparison:
+            expected = expected.model_copy(update={"survey_comparison": profile.survey_comparison})
         return validate(expected, profile)
     if profile != expected:
         raise ValueError("report contains an unsupported claim, value, type, scene, source, or policy")

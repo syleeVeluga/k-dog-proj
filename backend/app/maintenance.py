@@ -113,6 +113,11 @@ def references(store, db):
                         elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-pair-state":
                             # Pair heads link only their previous state and representative submission.
                             visit({"previous": document.get("previous"), "representative": document.get("representative")})
+                        elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-cumulative":
+                            # A pinned cumulative snapshot keeps every pair head, representative and raw input it read.
+                            visit({"states": [item["state"] for item in (*document["members"], *document["exclusions"])],
+                                   "submissions": [item["submission"] for item in document["members"]],
+                                   "inputs": [item["input"] for item in document["members"]]})
                         elif isinstance(document, dict) and document.get("artifact_kind") == "comparison-survey-submission":
                             visit({"input": document["input"], "replaces": document.get("replaces")})
                         elif isinstance(document, dict) and document.get("artifact_kind") == "validation-reference":

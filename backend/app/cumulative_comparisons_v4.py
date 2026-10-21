@@ -3,6 +3,8 @@
 Raw survey bytes and case inputs are never edited here. Each write pins the actual actor, an
 expected pair revision and an idempotent request; history is the immutable previous-state chain.
 """
+from decimal import Decimal, ROUND_HALF_UP
+import hashlib
 import json
 from typing import Annotated, Literal
 
@@ -10,8 +12,9 @@ from fastapi import HTTPException
 from pydantic import Field, field_validator
 
 from . import analysis, comparison_mapping_v4 as mapping, comparisons_v4 as comparisons
-from .domain.cumulative_comparisons_v4 import (PairCaseV4, PairInventoryV4, PairStateReferenceV4, PairStateV4, PairViewV4,
-    SubmissionReferenceV4, SubmissionSummaryV4, SubmissionV4)
+from .domain.cumulative_comparisons_v4 import (ComparisonRowV4, CumulativeExclusionV4, CumulativeMemberV4, CumulativeMetricV4,
+    CumulativePublicV4, CumulativeReferenceV4, CumulativeSnapshotV4, MemberMetricV4, PairCaseV4, PairInventoryV4, PairStateReferenceV4,
+    PairStateV4, PairViewV4, SubmissionReferenceV4, SubmissionSummaryV4, SubmissionV4)
 from .domain.sheets_v4 import InputPointerV4
 from .input_models import Model
 from .input_models_v4 import ManifestV4
@@ -310,3 +313,211 @@ def inventory(store, user, case_id=None):
               "excluded": sum(view.status == "excluded" for view in views), "unlinked_s1_cases": max(s1 - len(linked), 0)}
     return PairInventoryV4(case_pair_id=next((view.pair_id for view in views if any(case.case_id == case_id for case in view.cases)), None)
                            if case_id else None, pairs=views, counts=counts)
+
+
+# CM03: admission-time cumulative aggregation pinned into report outputs.
+SNAPSHOT_ACTION = "comparison.cumulative.snapshot"
+CUMULATIVE_SENTENCES = {
+    "higher": "{domain} 설문 점수는 {ours}점으로, 우리 누적 참여견 평균 {cumulative}점(n={n})보다 높게 나타났습니다.",
+    "lower": "{domain} 설문 점수는 {ours}점으로, 우리 누적 참여견 평균 {cumulative}점(n={n})보다 낮게 나타났습니다.",
+    "equal_display": "{domain} 설문 점수는 {ours}점으로, 소수 둘째 자리 표시 기준에서 우리 누적 참여견 평균(n={n})과 같습니다.",
+}
+NOT_READY = "사용 가능한 외부 비교 기준 정의가 없습니다."
+
+
+def display(numerator, denominator):
+    """Excel ROUND(x,2) for non-negative exact ratios: half-up on the exact value, never on binary floats."""
+    return str((Decimal(numerator) / Decimal(denominator)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
+def local_date(recorded_at):
+    """Operator-facing reference date in Korea time (UTC+9, no daylight saving)."""
+    from datetime import datetime, timedelta, timezone
+    return datetime.fromisoformat(recorded_at).astimezone(timezone(timedelta(hours=9))).date().isoformat()
+
+
+def compare(ours, other):
+    left, right = Decimal(ours), Decimal(other)
+    return "higher" if left > right else "lower" if left < right else "equal_display"
+
+
+def _assets():
+    return {name: hashlib.sha256((comparisons.RESOURCES / name).read_bytes()).hexdigest()
+            for name in (comparisons.SURVEY_ASSETS[0], "rules/survey-policy-20261007.json")}
+
+
+def _member_metrics(session, loaded):
+    values = mapping.evaluate(dict(session.survey), loaded)
+    return tuple(MemberMetricV4(metric_id=key, **values[key]) for key in mapping.METRIC_IDS)
+
+
+def _aggregate(members, loaded):
+    result = []
+    for metric in loaded.metrics:
+        included, excluded, numerator = [], {}, 0
+        for member in members:
+            value = next(item for item in member.metrics if item.metric_id == metric.metric_id)
+            if value.status == "valid":
+                included.append(member.pair_id); numerator += value.numerator
+            else:
+                excluded[member.pair_id] = value.status
+        denominator = len(included) * len(metric.question_ids)
+        result.append(CumulativeMetricV4(metric_id=metric.metric_id, question_ids=metric.question_ids, numerator=numerator,
+            denominator=denominator, n=len(included), mean=numerator / denominator if included else None,
+            display=display(numerator, denominator) if included else None, included_pair_ids=tuple(included), response_excluded=excluded))
+    return tuple(result)
+
+
+def _select(store, db, loaded):
+    """Read every pair head once; corruption or broken membership is a technical error, never an exclusion."""
+    heads, members, exclusions = [], [], []
+    signature = mapping.question_signature()
+    for pair_id in pair_ids(db):
+        head = pair_head(db, pair_id)
+        state = read_state(store, head)
+        heads.append(head)
+        if state.status == "excluded":
+            exclusions.append(CumulativeExclusionV4(pair_id=pair_id, state=head, reason="excluded")); continue
+        if state.representative is None:
+            exclusions.append(CumulativeExclusionV4(pair_id=pair_id, state=head, reason="representative_unconfirmed")); continue
+        submission, session = representative_input(store, db, state)
+        if (submission.question_signature, submission.survey_version, session.survey_version) != (signature, loaded.survey_version, loaded.survey_version):
+            exclusions.append(CumulativeExclusionV4(pair_id=pair_id, state=head, reason="version_unconfirmed")); continue
+        members.append(CumulativeMemberV4(pair_id=pair_id, state=head, submission=state.representative, case_id=submission.case_id,
+            session_id=submission.session_id, input_revision=submission.input_revision, input=submission.input,
+            metrics=_member_metrics(session, loaded)))
+    return tuple(heads), tuple(members), tuple(exclusions)
+
+
+def build_snapshot(store, user, request_id, case_id, session_id):
+    """Pin the representative set and nine metric aggregates once, for one new report admission."""
+    loaded = mapping.load()
+    with store.connect() as db:
+        comparisons._account(db, user, reader=True)
+        heads, members, exclusions = _select(store, db, loaded)
+    doc = CumulativeSnapshotV4(snapshot_id=uid(), request_id=request_id, actor=user.username, recorded_at=now(), case_id=case_id,
+        session_id=session_id, mapping_version=loaded.version, mapping_hash=mapping.asset_hash(), question_signature=mapping.question_signature(),
+        survey_assets=_assets(), pair_heads=heads, members=members, exclusions=exclusions, metrics=_aggregate(members, loaded))
+    file = comparisons._write(store, "cumulative", doc)
+    return doc, CumulativeReferenceV4(snapshot_id=doc.snapshot_id, ref=file.ref, hash=file.hash)
+
+
+def adopt_snapshot(store, db, doc, pointer, user):
+    """Inside the admission write: the candidate set must still be current, otherwise retry with a new request."""
+    if tuple(pair_head(db, pair_id) for pair_id in pair_ids(db)) != doc.pair_heads:
+        raise HTTPException(409, "누적 비교 대상이 접수 중 변경되었습니다. 다시 발급을 요청하세요.")
+    if (mapping.asset_hash(), _assets()) != (doc.mapping_hash, doc.survey_assets) or comparisons._read(store, pointer, CumulativeSnapshotV4) != doc:
+        raise HTTPException(409, "누적 비교 기준 또는 snapshot이 접수 중 변경되었습니다.")
+    store.audit(db, user.username, doc.snapshot_id, SNAPSHOT_ACTION, {"reference": pointer.model_dump(mode="json"), "request_id": doc.request_id,
+        "case_id": doc.case_id, "session_id": doc.session_id})
+
+
+def snapshot_document(store, pointer, db=None, *, recompute=True):
+    """Re-verify a pinned snapshot from its own parents; the current registry is never consulted.
+
+    Issued outputs (recompute=False) are read in their own edition: parent hashes are checked but the
+    current mapping/catalog never re-evaluates or blocks them. New admissions and workers recompute.
+    """
+    pointer = CumulativeReferenceV4.model_validate(pointer)
+    doc = comparisons._read(store, pointer, CumulativeSnapshotV4)
+    if doc.snapshot_id != pointer.snapshot_id:
+        raise HTTPException(409, "누적 비교 snapshot 참조가 다릅니다.")
+    if db is None:
+        with store.connect() as reader:
+            record = _latest(reader, SNAPSHOT_ACTION, pointer.snapshot_id)
+    else:
+        record = _latest(db, SNAPSHOT_ACTION, pointer.snapshot_id)
+    if record is None or record["reference"] != pointer.model_dump(mode="json"):
+        raise HTTPException(409, "채택되지 않은 누적 비교 snapshot입니다.")
+    if not recompute:
+        for item in snapshot_files(store, pointer):
+            comparisons._read(store, item, _Raw, prefix=item.ref.split("/")[0] + "/")
+        return doc
+    if doc.mapping_hash != mapping.asset_hash():
+        raise HTTPException(409, "누적 비교 문항 매핑 판본이 변경되어 새 실행에 사용할 수 없습니다.")
+    loaded = mapping.load()
+    for exclusion in doc.exclusions:
+        read_state(store, exclusion.state)
+    for member in doc.members:
+        state = read_state(store, member.state)
+        submission = read_submission(store, member.submission)
+        if state.representative != member.submission or (submission.pair_id, submission.case_id, submission.session_id, submission.input) != (
+                member.pair_id, member.case_id, member.session_id, member.input):
+            raise HTTPException(409, "누적 비교의 대표 설문 고정 참조가 다릅니다.")
+        frozen = comparisons._read(store, comparisons.FileV4(ref=member.input.manifest_ref, hash=member.input.manifest_hash), ManifestV4, prefix="inputs/")
+        session = next((item for item in frozen.sessions if item.session_id == member.session_id), None)
+        if session is None or frozen.input_revision != member.input_revision or _member_metrics(session, loaded) != member.metrics:
+            raise HTTPException(409, "누적 비교의 대표 설문 원응답이 고정값과 다릅니다.")
+    if _aggregate(doc.members, loaded) != doc.metrics:
+        raise HTTPException(409, "누적 평균·유효 n이 고정 원자료와 다릅니다.")
+    return doc
+
+
+class _Raw:
+    """Hash-only read: the bytes are verified, not reparsed under the current models."""
+    @staticmethod
+    def model_validate_json(raw):
+        return raw
+
+
+def snapshot_files(store, pointer):
+    pointer = CumulativeReferenceV4.model_validate(pointer)
+    doc = comparisons._read(store, pointer, CumulativeSnapshotV4)
+    files = {pointer.ref: pointer.hash}
+    for item in (*doc.members, *doc.exclusions):
+        files[item.state.ref] = item.state.hash
+    for member in doc.members:
+        files[member.submission.ref] = member.submission.hash
+        files[member.input.manifest_ref] = member.input.manifest_hash
+    return tuple(comparisons.FileV4(ref=ref, hash=digest) for ref, digest in sorted(files.items()))
+
+
+def public_rows(doc, pointer, survey, external=None, external_reasons=None):
+    """Renderer-ready rows from the pinned snapshot, the report's own survey and its pinned external snapshot."""
+    loaded = mapping.load()
+    individual = mapping.evaluate({item.item_id: item.raw for item in survey.items}, loaded)
+    entries = {entry.gate.source_id: entry for entry in (external.entries if external else ())}
+    edition_ok = (survey.survey_version, survey.policy_version) == (loaded.survey_version, loaded.policy_version)
+    rows = []
+    for metric, aggregate in zip(loaded.metrics, doc.metrics, strict=True):
+        own = individual[metric.metric_id] if edition_ok else {"status": "version_check", "numerator": None, "denominator": None}
+        status = own["status"]
+        valid = status == "valid"
+        ours = display(own["numerator"], own["denominator"]) if valid else None
+        shown = valid and aggregate.n >= loaded.minimum_cumulative_n
+        cumulative = compare(ours, aggregate.display) if shown else None
+        notice_id = None if valid else {"insufficient": "TXT-M", "input_check": "TXT-I", "version_check": "TXT-V"}[status]
+        source = next((item for item in loaded.external_sources if item.metric_id == metric.metric_id), None)
+        entry = entries.get(source.source_id) if source and valid else None
+        if source is None:
+            external_status, reason = "not_mapped", None
+        elif not valid:
+            external_status, reason = "individual_unavailable", "개별 응답이 비교 조건을 충족하지 않아 외부 비교를 표시하지 않습니다."
+        elif entry is None:
+            external_status, reason = "not_ready", (external_reasons or {}).get(source.source_id) or NOT_READY
+        else:
+            external_status, reason = "ready", None
+        values = entry.gate.values if entry else None
+        reference = display(Decimal(str(values.mean)), 1) if values else None
+        external_comparison = compare(ours, reference) if entry else None
+        sentence_id = {"higher": "TXT-H", "lower": "TXT-L", "equal_display": "TXT-E"}[external_comparison] if entry else None
+        rows.append(ComparisonRowV4(metric_id=metric.metric_id, alias=metric.alias, title=metric.title, question_ids=metric.question_ids,
+            scale_minimum=metric.scale_minimum, scale_maximum=metric.scale_maximum, direction=metric.direction, individual_status=status,
+            individual_raw=own["numerator"] / own["denominator"] if valid else None, individual_display=ours,
+            individual_numerator=own["numerator"], individual_denominator=own["denominator"], cumulative_n=aggregate.n,
+            cumulative_raw=aggregate.mean, cumulative_display=aggregate.display, cumulative_numerator=aggregate.numerator,
+            cumulative_denominator=aggregate.denominator, cumulative_shown=shown, cumulative_comparison=cumulative,
+            cumulative_sentence=CUMULATIVE_SENTENCES[cumulative].format(domain=metric.title, ours=ours, cumulative=aggregate.display, n=aggregate.n) if shown else None,
+            external_status=external_status, external_reason=reason, external_source_id=source.source_id if source else None,
+            external_mean=values.mean if values else None, external_display=reference, external_standard_deviation=values.standard_deviation if values else None,
+            external_valid_n=values.valid_n if values else None, external_total_n=values.total_n if values else None,
+            external_literature=entry.literature if entry else None, external_doi=entry.doi if entry else None,
+            external_comparison=external_comparison, external_sentence_id=sentence_id,
+            external_sentence=loaded.sentences[sentence_id].format(domain=metric.title, ours=ours, reference=reference) if entry else None,
+            notice_id=notice_id, notice=loaded.sentences[notice_id].format(domain=metric.title) if notice_id else None))
+    counts = {}
+    for item in doc.exclusions:
+        counts[item.reason] = counts.get(item.reason, 0) + 1
+    return CumulativePublicV4(reference=pointer, mapping_version=doc.mapping_version, mapping_hash=doc.mapping_hash, cutoff=doc.recorded_at,
+        as_of=local_date(doc.recorded_at), included_pairs=len(doc.members), exclusion_counts=counts, label=loaded.cumulative_label,
+        note=loaded.cumulative_note, external_limitation=loaded.external_limitation, rows=tuple(rows))
