@@ -51,3 +51,14 @@ macOS에서 설치 후 `backend/.venv/bin/python Verify.py`로 파일 해시·�
 공식 안내 확인: [Homebrew](https://brew.sh/)와 [설치 문서](https://docs.brew.sh/Installation)에서 Apple Silicon용 `.pkg` 설치를 확인했다. [공식 7.0.10 릴리즈](https://github.com/Homebrew/brew/releases/tag/7.0.10)의 자산 이름은 `Homebrew.pkg`이며 가이드에는 공식 latest 다운로드 링크를 사용한다. 보안 경고 절차는 [Apple 사용자 설명서](https://support.apple.com/ko-kr/guide/mac-help/mh40616/mac)와 [Apple 지원](https://support.apple.com/ko-kr/102445)을 확인했다. 보안 기능 전체 해제나 키체인 항목 삭제는 안내하지 않는다.
 
 검증: 1100px·390px Chromium에서 HTML 로딩·가로 넘침 없음·목차 이동 대상·페이지 오류 없음을 확인하고 첫 화면·계정·보안 경고 안내를 이미지로 확인했다. 패키지 회귀 1건 통과, 실제 재생성 ZIP의 가이드 포함·문서 원본 일치·전 파일 SHA-256·Unix 실행 권한을 검사한다. 이 확인은 Safari 또는 macOS 설치 실측이 아니다. 화면 확인에는 기존 Playwright 1.63.0을 사용했다. [공식 registry](https://registry.npmjs.org/@playwright/test/latest)의 최신은 1.64.1이며, 문서 보강을 위해 기존 잠금 의존성을 업그레이드하지 않았다. [공식 화면 캡처 API](https://playwright.dev/docs/screenshots)를 사용했다. 새 의존성·lockfile 변경은 없다.
+
+## 병합 전 독립 cold review (2026-10-21)
+
+사용자의 원격·로컬 병합 요청에 따라 `origin/main`의 `70082b1`과 구현·가이드 커밋 `4d5414c`·`d107539`을 대조했다. 작업 트리는 깨끗하고 선행 원격 변경과 충돌이 없었다. 서로 독립된 subagent 2개가 수정 없이 다음 범위를 검토했다.
+
+| 검토 | 범위 | 발견·처리 |
+| --- | --- | --- |
+| 런타임 | macOS Keychain 생성 경합·접근 실패·객체 수명, secrets 분기, POSIX 세션·자손 종료, 자료 기본 경로 | 재현 가능한 결함·병합 차단 사항 없음. 수용·보류·거절 수정 0건. |
+| 설치·배포 | macOS ZIP 분기·SHA256SUMS·0755/LF·Windows 분기 유지, Install/Start, 쉬운 HTML 안내, Verify.py | 재현 가능한 결함·병합 차단 사항 없음. 수용·보류·거절 수정 0건. |
+
+앞 절의 backend·브라우저·실제 ZIP 검증 기록을 확인했다. 이번 검토로 실행 코드를 변경하지 않아 동일 시험을 반복하지 않았다. macOS 실기기·공급자·영상/PDF 인수는 여전히 미완료이며, 독립 정적 검토로 이를 완료 처리하지 않는다. ZIP은 `d107539`에서 생성한 검증본을 유지한다. 원격 PR 병합 뒤 로컬 `main`을 fast-forward하고 두 HEAD의 일치를 확인한다.
