@@ -41,3 +41,6 @@ _to_delete/
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# Owner-delivered comparison workbooks (local evidence; never commit or package)
+/docs/참고자료/

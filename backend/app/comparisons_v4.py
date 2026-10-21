@@ -7,7 +7,7 @@ import os
 from fastapi import HTTPException
 from pydantic import Field,field_validator
 
-from . import analysis
+from . import analysis, comparison_mapping_v4
 from .domain.catalog_v3 import SurveyCatalogV3
 from .domain.catalog_v4 import RESOURCES,RUNTIME_SURVEY_POLICY_VERSION,SURVEY_POLICY_VERSION,validate_source_references_v4
 from .domain.comparisons_v4 import (CohortDomainV4,CohortMemberV4,CohortPublicDomainV4,CohortPublicV4,CohortReferenceV4,
@@ -322,17 +322,21 @@ def definition_inventory(store,user):
     with store.connect() as db:
         _account(db,user)
         sources,digest=_sources()
-        documents,references,errors={},{},{}
+        documents,references,errors,mismatches={},{},{},{}
+        try:mapping_public,mapping_error=comparison_mapping_v4.public(),None
+        except (OSError,ValueError):mapping_public,mapping_error=None,"전달 문항 매핑을 확인할 수 없어 대조를 표시하지 않습니다."
         for source in sources["sources"]:
             source_id=source["source_id"]
             try:
                 doc,pointer,_=current_definition(store,db,source_id)
                 documents[source_id]=doc.model_dump(mode="json") if doc else None
                 references[source_id]=pointer.model_dump(mode="json") if pointer else None
+                if isinstance(doc,ComparisonDefinitionV4) and mapping_public:mismatches[source_id]=comparison_mapping_v4.definition_mismatch(doc)
             except HTTPException as exc:
                 documents[source_id]=None;references[source_id]=None;errors[source_id]=str(exc.detail)
         return {"asset_hash":digest,"sources":[{**source,"scope":target_scope(source["source_id"]).model_dump(mode="json")} for source in sources["sources"]],
-            "references":references,"documents":documents,"document_errors":errors}
+            "references":references,"documents":documents,"document_errors":errors,
+            "mapping":mapping_public,"mapping_error":mapping_error,"mapping_mismatches":mismatches}
 
 
 def research_document(store,pointer):

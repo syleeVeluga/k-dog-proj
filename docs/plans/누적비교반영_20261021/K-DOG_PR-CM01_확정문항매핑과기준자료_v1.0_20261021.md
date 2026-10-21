@@ -1,6 +1,6 @@
 # PR-CM01 확정 문항 매핑과 기준 자료
 
-버전: v1.0 · 2026-10-21 · 상태: **구현 전** · 직접 선행: 없음
+버전: v1.0 · 2026-10-21 · 상태: **구현·검증·cold review 반영 완료** (2026-10-21) · 직접 선행: 없음
 
 상위: [전체 계획](K-DOG_문항매핑과누적비교적용계획_v1.0_20261021.md). 요구 CM-R01·R02·R03·R11·R12·R14. 브랜치 제안: `veluga/cm01-comparison-mapping` · PR 제목: `feat: define confirmed survey comparison mappings`
 
@@ -80,17 +80,17 @@ graft check
 
 ## 7 완료·되돌림·인계
 
-- [ ] CM-T01~T03·T11·T15·T18·T20·T22·T24 중 본 PR 범위 통과
-- [ ] 전달표와 자산의 출처·판본 차이 기록, 원본 미커밋/배포 미포함
-- [ ] 과거 출처·설문 자산 hash 불변, 기존 기준 정의 저장 동작 유지
-- [ ] 실제 기준 등록 여부를 합성 검증과 분리, 독립 검토·수용 재검증
+- [x] CM-T01~T03·T11·T15·T18·T20·T22·T24 중 본 PR 범위 통과 (T24는 로컬 원본 셀·hash 대조까지, 실제 운영 등록은 CM05)
+- [x] 전달표와 자산의 출처·판본 차이 기록, 원본 미커밋/배포 미포함 (`.gitignore`에 `/docs/참고자료/` 추가)
+- [x] 과거 출처·설문 자산 hash 불변, 기존 기준 정의 저장 동작 유지
+- [x] 실제 기준 등록 여부를 합성 검증과 분리, 독립 검토·수용 재검증
 
 오류 시 신규 매핑 사용 경로만 비활성하고 원본·기존 정의·기존 발급은 보존한다. 새 정의가 실제 등록된 뒤에는 원장을 삭제해 되돌리지 않고 새 판본으로 사용중단한다.
 
 | 실행 기록 항목 | 결과 |
 | --- | --- |
-| 기준/구현 commit·PR | 미실행 |
-| 공식 버전 확인일·최신/선택·이유·링크 | 구현 착수 시 기록, 새 의존성 계획 없음 |
-| 명령·시험 수·시간·결과/skip | 미실행 |
-| cold review·판정·수용 수정 | 미실행 |
-| 매핑 interface·hash·실제 기준 등록 여부 | CM02/03/05 인계 시 기록 |
+| 기준/구현 commit·PR | 기준 `main 5e46ba8`, 브랜치 `veluga/cm01-comparison-mapping`. 실제 commit·PR 번호는 [실행 기록](K-DOG_문항매핑과누적비교구현실행기록_v1.0_20261021.md) |
+| 공식 버전 확인일·최신/선택·이유·링크 | 2026-10-21 PyPI 확인: openpyxl 최신 3.1.5=고정 3.1.5, reportlab 최신 5.0.1=고정 5.0.1, pydantic 최신 2.14.1/고정 2.13.5, fastapi 최신 0.156.4/고정 0.141.1. 새 의존성 없음, 무관한 업그레이드를 섞지 않기 위해 lockfile 유지 |
+| 명령·시험 수·시간·결과/skip | `test_comparison_mapping_v4`+comparisons/api/external 43건 OK(31초, 로컬 원본 셀 대조 포함). survey/packaging 포함 74건 중 초기 5건 실패는 worktree의 `frontend/dist` 부재 때문이었고 build 후 packaging 20건 OK. `import_catalogs --spec 20261002 --customer-dir <로컬 원본> --check` 통과. e2e `external-v4.spec.ts` 1건 OK |
+| cold review·판정·수용 수정 | 독립 검토 5건 모두 수용: 결측정책·방향·문장 placeholder 교차검증, 매핑 bytes hash 고정 시험, `definition_mismatch`의 판본·정책·문항원문·출처 hash 대조, 매핑 손상 시 기존 기준 정의 화면 유지, 중단/변형 정의 시험·e2e 불일치 미표시 확인. 수정 후 43건·e2e 재통과 |
+| 매핑 interface·hash·실제 기준 등록 여부 | `comparison_mapping_v4.load/evaluate/question_signature/definition_mismatch/public`, 자산 SHA-256 `7ad7b8f1…77bb`. 실제 운영 기준 등록은 미실행(CM05 기록) |

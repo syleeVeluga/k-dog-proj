@@ -40,6 +40,13 @@ export function ExternalComparisonSettingsV4({ user, onChanged }: { user: User; 
     setConditions(Object.entries(stored?.scope.population_requirements ?? {}).map(([key, value]) => ({ key, value })));
     setDirty(false); setNotice('');
   }
+  function loadDelivered() {
+    const mapped = inventory?.mapping?.external_sources.find(row => row.source_id === sourceId), delivery = inventory?.mapping?.delivery;
+    if (!mapped || !delivery) return;
+    setValues({ mean: String(mapped.mean), standard_deviation: String(mapped.standard_deviation), valid_n: String(mapped.valid_n), total_n: String(mapped.total_n) });
+    setProvenance(`${delivery.filename} (${delivery.edition}, ${delivery.delivered_at}) · ${mapped.location}`); setDirty(true);
+    setNotice('전달 기준 수치를 불러왔습니다. 근거 파일·대상 범위를 확인한 뒤 저장해야 적용됩니다.');
+  }
   async function upload(file: File) {
     if (file.size > 16 * 1024 * 1024 || !file.size) throw new Error('근거 파일은 0바이트 초과, 16 MiB 이하로 선택하세요.');
     const response = await fetch('/api/comparisons-s1/evidence?filename=' + encodeURIComponent(file.name), { method: 'POST', credentials: 'same-origin', headers: { 'X-KDOG-Request': '1', 'Content-Type': 'application/octet-stream' }, body: file });
@@ -63,6 +70,9 @@ export function ExternalComparisonSettingsV4({ user, onChanged }: { user: User; 
         {inventory?.document_errors[sourceId] && <p role="status">{inventory.document_errors[sourceId]}</p>}
         {stale && <p role="status">작성 이후 기준이 변경됐습니다. 입력을 보존하며 새로 불러오기 전에는 최신 판본을 덮어쓰지 않습니다.</p>}<button onClick={() => choose(sourceId)}>최신 기준으로 새 작성</button>
         {prior && <details><summary>보존된 기준 출처 {prior.revision}판</summary><p>{prior.actor} · {prior.recorded_at} · {prior.reason}</p></details>}
+        {inventory?.mapping && <p>전달 문항 매핑 {inventory.mapping.version} · {inventory.mapping.delivery.filename}</p>}
+        {inventory?.mapping_mismatches?.[sourceId] && <p className="error">현재 기준 정의가 전달 기준과 다릅니다: {inventory.mapping_mismatches[sourceId]}</p>}
+        {inventory?.mapping?.external_sources.some(row => row.source_id === sourceId) && <button onClick={loadDelivered}>전달 기준 수치 불러오기</button>}
         <div className="form-grid">{numbers.map(([key, title]) => <label key={key}>{title}<input aria-label={title} type="number" step={key.endsWith('_n') ? '1' : 'any'} value={values[key]} onChange={e => { setValues({ ...values, [key]: e.target.value }); setDirty(true); }} /></label>)}</div>
         <label>비교 대상 범위<textarea aria-label="비교 대상 범위" value={population} onChange={e => { setPopulation(e.target.value); setDirty(true); }} /></label><label>수치 출처·표 위치<textarea aria-label="수치 출처·표 위치" value={provenance} onChange={e => { setProvenance(e.target.value); setDirty(true); }} /></label>
         <label>기준 근거 파일<input type="file" aria-label="기준 근거 파일" onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; if (file) void work(() => upload(file)); }} /></label>
