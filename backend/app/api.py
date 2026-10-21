@@ -104,10 +104,11 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         with runtime_lock(store, "api"):
             with store.connect(write=True) as db:
                 uploads.recover_interrupted(db)
-                try:
+            try:
+                with store.connect(write=True) as db:
                     comparisons_v4.seed_delivered_definitions(store, db)
-                except (OSError, ValueError):
-                    pass  # A damaged mapping asset leaves references unregistered; the settings screen reports it.
+            except (OSError, ValueError, HTTPException):
+                pass  # Seeding never blocks startup; unregistered references are reported on the settings screen.
             yield
 
     app = FastAPI(title="K-DOG", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)

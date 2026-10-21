@@ -73,3 +73,25 @@ class BuiltinReferenceTests(fixture.ComparisonFixture):
             self.assertEqual(client.patch(f"/api/admin/users/{comparisons.BUILTIN_ACTOR}", json={"role": "operator", "active": True}).status_code, 404)
             self.assertEqual(client.post("/api/admin/users", json={"username": comparisons.BUILTIN_ACTOR, "password": "Synthetic-Builtin-2026!", "role": "operator"}).status_code, 409)
             self.assertEqual(client.post("/api/auth/login", json={"username": comparisons.BUILTIN_ACTOR, "password": "x"}).status_code, 401)
+
+    def test_truncated_builtin_evidence_never_blocks_startup(self):
+        digest = hashlib.sha256(mapping.raw()).hexdigest()
+        partial = self.store.path(f"comparison-evidence/builtin-{digest}.json")
+        partial.parent.mkdir(parents=True, exist_ok=True)
+        partial.write_bytes(mapping.raw()[:10])
+        self.start()
+        doc = self.current(SOURCES[0])[0]
+        self.assertEqual(doc.actor, comparisons.BUILTIN_ACTOR)
+        self.assertNotEqual(doc.evidence[0].ref, partial.relative_to(self.store.root).as_posix())
+        with patch.object(comparisons, "_sources", side_effect=comparisons.HTTPException(409, "synthetic")):
+            self.start()
+
+    def test_reserved_account_cannot_receive_a_score_sheet(self):
+        from app import sheets_v4
+        self.start()
+        with self.assertRaises(comparisons.HTTPException) as caught:
+            with self.store.connect() as db:
+                case = self.store.case(db, self.ids[0])
+            sheets_v4.assign(self.store, self.ids[0], case["selected_session_id"], sheets_v4.SheetAssignmentV4(expected_revision=case["input_revision"],
+                assigned_username=comparisons.BUILTIN_ACTOR, rater_id="x", rater_name="x"), self.admin)
+        self.assertEqual(caught.exception.status_code, 422)

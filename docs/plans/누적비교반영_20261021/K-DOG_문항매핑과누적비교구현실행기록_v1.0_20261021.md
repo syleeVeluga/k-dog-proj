@@ -78,4 +78,17 @@ PR별 실제 commit·명령·결과·cold review·병합을 누적 기록한다.
 | 전체 e2e | frontend build 후 `npx playwright test` 156/156 통과(581초) |
 | 서버 PDF 래스터 | 2026-10-21 PyPI 최신 pypdfium2 5.14.0·Pillow 13.0.0을 `uv run --no-project --with`로 일회 사용(프로젝트 의존성·lockfile 변경 없음). 합성 CM 발급 PDF 6쪽 중 비교 패널 쪽을 이미지로 확인: 눈금과 표식 위치 일치, NF 누적·개별 같은 x좌표·다른 줄, 미국 표식은 SF/NF만 |
 | 설치 ZIP | 깨끗한 병합 commit `e8170c5`에서 [개발 안내](../../DEVELOPMENT.md) 명령으로 생성·검증. 포터블 `kdog-s1-windows-x64.zip` 1,461파일·SHA-256 `3b545e9a1c77bea0c7b66d7c4665f689973f51bc7130fef2965a9c05c98f319b`, 사용자 설치형 `kdog-s1-windows-x64-online.zip` 252파일·SHA-256 `6f4bf9064e39c05fdd3bfbe95823c06e50f55328ec70591785fd6922839447ad`. 두 ZIP 모두 `verify_release` 통과(170초), 원본 XLSX 미포함·신규 자산 포함 확인. 범위는 현재 Windows 호스트의 새 폴더이며 깨끗한 OS·다른 PC 실측이 아님 |
-| 운영 기준 등록·운영 누적 전환 | 미실행. 운영 DB에서 실제 업무 계정 로그인·근거 업로드·기준 저장과 실제 참여쌍 확인이 필요하며, 계획 §1·§5에 따라 사용자가 허용한 범위에서 수행한다 |
+| 운영 기준 등록·운영 누적 전환 | 기준 등록은 아래 ‘미국 연구 기준 내장 설치’로 대체. 운영 참여쌍·대표 확인과 실제 발급 대조는 사용자 결정에 따라 이후 진행 |
+
+## 미국 연구 기준 내장 설치 (2026-10-21 사용자 결정)
+
+사용자 지시: “미국 연구 기준값은 미리 넣어줘. 바뀌지 않을 테니 미리 넣어 두면 됨. 나머지는 이후 진행.” CM01 §4의 설치 시 자동 seed 금지를 이 결정으로 대체한다.
+
+| 항목 | 결과 |
+| --- | --- |
+| 구현 | `comparisons_v4.seed_delivered_definitions`를 API 시작(lifespan)의 쓰기 트랜잭션에서 실행. 기준 정의·연구 기록이 없는 출처에만 SF/NF 1판 설치, 재시작·운영자 수정·사용중단 시 재설치 없음, 매핑 손상 시 설치 생략 |
+| 출처 기록 | 예약 계정 `builtin-reference`(operator, 비활성, 무작위 비밀번호, 관리자 목록 비표시, 수정·재생성 거절, 로그인 불가). 근거 파일은 커밋된 매핑 자산 사본(`comparison-evidence/builtin-<sha256>.json`), 수치 출처에 전달표 파일명·EXT1.1·SHA-256·셀 위치 |
+| 검증 | `test_builtin_reference_v4` 4건 OK, 전체 backend 839건 OK(1,500초), 계정 관련 모듈 재실행 47건 OK, e2e `external-v4`(내장 기준 확인으로 시작 단언 조정)·비교/리포트/누적/copy-guard 14건 OK |
+| cold review | 독립 검토 3건 모두 수용: 중단된 시작이 남긴 손상 근거 파일이 있으면 새 파일로 설치하고 설치 오류가 API 시작을 막지 않음, 예약 계정에 채점지 배정 거절, CM01 §4·실행 기록에 결정 반영. 수정 후 `test_builtin_reference_v4` 6건·시트 시험 25건·API 모듈 35건·e2e external/comparisons 4건 OK |
+| 이 PC 로컬 DB 적용 | 2026-10-21 `%LOCALAPPDATA%\K-DOG\data`에 같은 자동 설치 함수를 API 잠금 상태로 실행(사전 사본 `kdog.sqlite3.before-us-reference-20261021`). SF 0.66/0.91/42,926/43,517·NF 1.03/0.78/42,764/43,517, `builtin-reference` 1판·사용 중 확인. 수동 입력 없음 |
+| 이후 진행 | 운영 참여쌍 연결·대표 설문 확인, 실제 발급 대조 |

@@ -418,8 +418,12 @@ def seed_delivered_definitions(store,db):
     for mapped in loaded.external_sources:
         if _record(db,DEFINITION_ACTION,mapped.source_id) or _record(db,RESEARCH_ACTION,mapped.source_id):continue
         data=comparison_mapping_v4.raw()
-        evidence=FileV4(ref=f"comparison-evidence/builtin-{hashlib.sha256(data).hexdigest()}.json",hash=hashlib.sha256(data).hexdigest())
+        digest_data=hashlib.sha256(data).hexdigest()
+        evidence=FileV4(ref=f"comparison-evidence/builtin-{digest_data}.json",hash=digest_data)
         path=store.path(evidence.ref)
+        if path.exists() and hashlib.sha256(path.read_bytes()).hexdigest()!=digest_data:
+            # A partial file from an interrupted start stays for clean; this start writes a fresh copy.
+            evidence=FileV4(ref=f"comparison-evidence/builtin-{digest_data}-{uid()}.json",hash=digest_data);path=store.path(evidence.ref)
         path.parent.mkdir(parents=True,exist_ok=True)
         if not path.exists():
             with path.open("xb") as handle:
