@@ -245,6 +245,30 @@ class WorkedExampleTests(CumulativeOutputFixture):
         self.assertTrue(all(self.store.path(item.ref).exists() for item in files))
         self.assertEqual(cumulative.snapshot_document(self.store, pinned).members[0].pair_id, view.pair_id)
 
+    def test_issued_report_opens_in_its_own_edition_after_mapping_change(self):
+        self.pair(self.fixture.case_id, "a")
+        run_id, publication = self.issue()
+        before = reports.download(self.store, self.fixture.case_id, self.fixture.session_id, run_id, "html", self.user)[0]
+        with patch.object(mapping, "asset_hash", return_value="f" * 64):
+            self.assertEqual(reports.download(self.store, self.fixture.case_id, self.fixture.session_id, run_id, "html", self.user)[0], before)
+            with self.assertRaises(HTTPException):
+                cumulative.snapshot_document(self.store, publication.profile.survey_comparison.reference)
+
+    def test_definition_saved_during_admission_conflicts(self):
+        self.pair(self.fixture.case_id, "a")
+        original = cumulative.build_snapshot
+
+        def racing(*args, **kwargs):
+            result = original(*args, **kwargs)
+            self.define(external_fixture.SOURCE)
+            return result
+        with patch.object(cumulative, "build_snapshot", side_effect=racing):
+            with self.assertRaises(HTTPException) as caught:
+                reports.enqueue(self.store, self.fixture.case_id, self.fixture.session_id, self.fixture.request.model_copy(update={"cumulative": True}), self.user)
+        self.assertEqual(caught.exception.status_code, 409)
+        with self.store.connect() as db:
+            self.assertFalse(db.execute("SELECT 1 FROM runs WHERE kind='report_v4'").fetchone())
+
     def test_t22_default_requests_keep_the_rp04_contract(self):
         job = reports.enqueue(self.store, self.fixture.case_id, self.fixture.session_id, self.fixture.request, self.user)
         config = json.loads(self.fixture.row(job["run_id"])["config_snapshot_json"])
@@ -310,6 +334,10 @@ class AggregationUnitTests(unittest.TestCase):
             self.assertEqual(rows["S03"].cumulative_n, count)
             self.assertIsNone(rows["S03"].cumulative_display if count == 0 else None)
             self.assertEqual((rows["S03"].external_status, rows["S01"].external_status), ("not_ready", "not_mapped"))
+
+    def test_reference_date_is_korea_time(self):
+        self.assertEqual(cumulative.local_date("2026-10-21T16:30:00+00:00"), "2026-10-22")
+        self.assertEqual(cumulative.local_date("2026-10-21T14:59:59+00:00"), "2026-10-21")
 
     def test_t12_t13_exact_half_up_and_display_comparison(self):
         self.assertEqual(cumulative.display(9, 8), "1.13")

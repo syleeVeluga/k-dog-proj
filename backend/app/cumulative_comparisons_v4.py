@@ -330,6 +330,12 @@ def display(numerator, denominator):
     return str((Decimal(numerator) / Decimal(denominator)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
+def local_date(recorded_at):
+    """Operator-facing reference date in Korea time (UTC+9, no daylight saving)."""
+    from datetime import datetime, timedelta, timezone
+    return datetime.fromisoformat(recorded_at).astimezone(timezone(timedelta(hours=9))).date().isoformat()
+
+
 def compare(ours, other):
     left, right = Decimal(ours), Decimal(other)
     return "higher" if left > right else "lower" if left < right else "equal_display"
@@ -406,8 +412,12 @@ def adopt_snapshot(store, db, doc, pointer, user):
         "case_id": doc.case_id, "session_id": doc.session_id})
 
 
-def snapshot_document(store, pointer, db=None):
-    """Re-verify a pinned snapshot from its own parents; the current registry is never consulted."""
+def snapshot_document(store, pointer, db=None, *, recompute=True):
+    """Re-verify a pinned snapshot from its own parents; the current registry is never consulted.
+
+    Issued outputs (recompute=False) are read in their own edition: parent hashes are checked but the
+    current mapping/catalog never re-evaluates or blocks them. New admissions and workers recompute.
+    """
     pointer = CumulativeReferenceV4.model_validate(pointer)
     doc = comparisons._read(store, pointer, CumulativeSnapshotV4)
     if doc.snapshot_id != pointer.snapshot_id:
@@ -419,8 +429,12 @@ def snapshot_document(store, pointer, db=None):
         record = _latest(db, SNAPSHOT_ACTION, pointer.snapshot_id)
     if record is None or record["reference"] != pointer.model_dump(mode="json"):
         raise HTTPException(409, "채택되지 않은 누적 비교 snapshot입니다.")
+    if not recompute:
+        for item in snapshot_files(store, pointer):
+            comparisons._read(store, item, _Raw, prefix=item.ref.split("/")[0] + "/")
+        return doc
     if doc.mapping_hash != mapping.asset_hash():
-        raise HTTPException(409, "누적 비교 문항 매핑 판본이 변경되어 제공을 보류합니다.")
+        raise HTTPException(409, "누적 비교 문항 매핑 판본이 변경되어 새 실행에 사용할 수 없습니다.")
     loaded = mapping.load()
     for exclusion in doc.exclusions:
         read_state(store, exclusion.state)
@@ -437,6 +451,13 @@ def snapshot_document(store, pointer, db=None):
     if _aggregate(doc.members, loaded) != doc.metrics:
         raise HTTPException(409, "누적 평균·유효 n이 고정 원자료와 다릅니다.")
     return doc
+
+
+class _Raw:
+    """Hash-only read: the bytes are verified, not reparsed under the current models."""
+    @staticmethod
+    def model_validate_json(raw):
+        return raw
 
 
 def snapshot_files(store, pointer):
@@ -498,5 +519,5 @@ def public_rows(doc, pointer, survey, external=None, external_reasons=None):
     for item in doc.exclusions:
         counts[item.reason] = counts.get(item.reason, 0) + 1
     return CumulativePublicV4(reference=pointer, mapping_version=doc.mapping_version, mapping_hash=doc.mapping_hash, cutoff=doc.recorded_at,
-        as_of=doc.recorded_at[:10], included_pairs=len(doc.members), exclusion_counts=counts, label=loaded.cumulative_label,
+        as_of=local_date(doc.recorded_at), included_pairs=len(doc.members), exclusion_counts=counts, label=loaded.cumulative_label,
         note=loaded.cumulative_note, external_limitation=loaded.external_limitation, rows=tuple(rows))

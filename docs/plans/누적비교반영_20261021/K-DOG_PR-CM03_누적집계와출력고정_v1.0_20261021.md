@@ -1,6 +1,6 @@
 # PR-CM03 누적 집계와 출력 고정
 
-버전: v1.0 · 2026-10-21 · 상태: **구현 전** · 직접 선행: CM01·CM02
+버전: v1.0 · 2026-10-21 · 상태: **구현·검증·cold review 반영 완료** (2026-10-21) · 직접 선행: CM01·CM02
 
 상위: [전체 계획](K-DOG_문항매핑과누적비교적용계획_v1.0_20261021.md). 요구 CM-R01~R10·R12·R13. 선행: [CM01](K-DOG_PR-CM01_확정문항매핑과기준자료_v1.0_20261021.md)·[CM02](K-DOG_PR-CM02_참여쌍과대표설문_v1.0_20261021.md). 브랜치 제안: `veluga/cm03-cumulative-comparison-snapshots` · PR 제목: `feat: pin cumulative survey comparisons in outputs`
 
@@ -93,17 +93,17 @@ graft check
 
 시험은 실제 enqueue/Worker retry/CSV ZIP/XLSX 경로를 사용하고 AI 응답은 기존 fake provider로 고정한다. 실제 AI 호출은 필요하지 않다. 원시 응답이 만들 수 없는 equal_display 사례는 표시 helper 단위로 검사한다.
 
-- [ ] 9지표 집계·상태·정확 원값·표시값·API와 export 완료
-- [ ] 신규 판본의 config/input/profile/publication pin 연결, 옛 bytes/대기 실행 보존
-- [ ] 후보 변경 충돌·지표별 외부 연결·참조 폐쇄·독립 검토/수용 재검증
-- [ ] CM04에 확정 DTO/상태·표시문자열·렌더/프런트 연결점 인계
+- [x] 9지표 집계·상태·정확 원값·표시값·API와 export 완료
+- [x] 신규 판본의 config/input/profile/publication pin 연결, 옛 bytes/대기 실행 보존
+- [x] 후보 변경 충돌·지표별 외부 연결·참조 폐쇄·독립 검토/수용 재검증
+- [x] CM04에 확정 DTO/상태·표시문자열·렌더/프런트 연결점 인계
 
 실패 시 신규 발급 접수만 중지하고 snapshot/기존 발급을 보존한다. 새 누적 참조가 운영에 저장된 뒤에는 해당 형식을 모르는 옛 앱으로 운영 DB를 되돌리지 않는다. 수정판은 원본을 보존한 채 새 접수를 만든다.
 
 | 실행 기록 항목 | 결과 |
 | --- | --- |
-| 기준/구현 commit·PR | 미실행 |
-| 공식 버전 확인일·최신/선택·이유·링크 | 구현 착수 시 기록 |
-| 명령·시험 수·시간·결과 | 미실행 |
-| cold review·판정·수용 수정 | 미실행 |
-| 실제 실행/표현/DTO 판본·CM04 인계 | 미실행 |
+| 기준/구현 commit·PR | 브랜치 `veluga/cm03-cumulative-comparison-snapshots`(CM02 위 누적). commit·PR은 [실행 기록](K-DOG_문항매핑과누적비교구현실행기록_v1.0_20261021.md) |
+| 공식 버전 확인일·최신/선택·이유·링크 | 2026-10-21 CM01 기록과 동일. 반올림은 표준 라이브러리 `decimal`(ROUND_HALF_UP)만 사용, 새 의존성 없음 |
+| 명령·시험 수·시간·결과 | 신규 `test_cumulative_outputs_v4` 13건 OK. 초기 회귀 149건 중 28건 오류(시험 seam의 config 위치 인자)→수정 후 4건 실패(rp04 표현 판본 분기)→수정. 최종 회귀 153건 OK(352초, 로컬 원본 셀 대조 1건 skip) |
+| cold review·판정·수용 수정 | 독립 검토 4건 모두 수용: 발급본은 자기 판본으로 열기(현재 매핑 변경이 옛 발급을 막지 않음, 새 실행만 재계산), 접수 트랜잭션에서 외부 기준 정의 재확인(변경 시 409), 기준 손상은 미준비가 아닌 기술 오류, 집계 기준일은 한국시간. 별도로 회귀에서 발견한 config 호출 형태·표현 판본 분기 회귀 2건을 수정. 수정 후 재검증 통과 |
+| 실제 실행/표현/DTO 판본·CM04 인계 | 실행 `report-run-20261021-cm`, 표현 `report-presentation-20261021-cm`, 집계 `cumulative-comparison-20261021-cm-1`. 접수 요청 `cumulative: true`(생략 시 기존 rp04 계약·hash 유지). profile `survey_comparison`(`CumulativePublicV4`, 행 `ComparisonRowV4`: 개별/누적/외부 원값·표시 문자열·n·상태·TXT 문장), config `cumulative_comparison`, changes `comparison.cumulative.snapshot`, artifact `comparison-cumulative`. 외부는 등록 기준을 지표별로 판정해 사용 가능한 출처만 기존 외부 snapshot으로 고정. 연구 export `comparisons` 표에 `report_individual/report_cumulative/report_external` 행 |
