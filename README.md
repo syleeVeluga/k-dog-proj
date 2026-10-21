@@ -8,6 +8,8 @@ Forms 자료 가져오기, 카메라별 수신·연결, 실제 구간·사건 �
 
 ## 설치와 실행
 
+맥을 처음 설치하는 사용자는 [쉬운 macOS 설치 가이드](scripts/macos/online/먼저읽어주세요_macOS설치가이드.html)를 먼저 확인하세요. 설치 ZIP에도 같은 HTML 파일이 들어 있어 Safari에서 바로 읽을 수 있습니다.
+
 macOS 사용자 설치형은 별도 `kdog-s1-macos-online.zip`을 사용한다. [macOS 설치 안내](scripts/macos/online/macOS_설치안내.md)에 따라 `Install.command` → `Start.command`를 실행한다. 최초 설치에 인터넷·uv·FFmpeg가 필요하며 macOS 15 이상 Apple Silicon을 기본 대상으로 한다. 자료 기본 위치는 `~/Library/Application Support/K-DOG/data`다. macOS 실기기 검증은 미완료이며 자세한 범위·검증 상태는 [구현 기록](docs/plans/K-DOG_macOS사용자설치형_v1.0_20261021.md)을 확인한다. 아래 `.cmd`와 발행 패키지 설명은 Windows용이다.
 
 사용자에게는 고객별 발행 패키지(ZIP)를 전달하고, 발행 키와 SHA-256은 ZIP과 다른 경로로 전달합니다. 사용자는 ZIP을 풀고 `Install.cmd`를 실행해 키를 한 번 입력하면 발행 계정과 바탕화면 K-DOG 아이콘까지 설치가 끝납니다. ZIP에 Python과 FFmpeg가 들어 있어 따로 설치할 것이나 인터넷이 필요 없습니다. uv·FFmpeg를 직접 설치하는 기존 방식이 필요하면 사용자 설치형 ZIP(암호화·발행 계정 없음, 최초 설치에 인터넷 필요)을 쓸 수 있습니다. 기존 GitHub v0.2.0 릴리즈는 구판이며 S1 설치 파일이 아닙니다. 기본 계정은 없습니다. 자세한 설치·중앙 서버/3PC 구성·백업·전환은 [운영 안내](docs/PILOT_OPERATIONS.md)를 따르세요.

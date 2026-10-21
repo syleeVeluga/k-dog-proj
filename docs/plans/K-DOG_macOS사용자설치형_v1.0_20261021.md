@@ -1,6 +1,6 @@
 # K-DOG macOS 사용자 설치형 구현·검증 기록
 
-버전: v1.0 · 2026-10-21 · S1.1
+버전: v1.1 · 2026-10-21 · S1.1
 
 ## 범위와 사용
 
@@ -43,3 +43,11 @@ uv run --project backend --locked python scripts/build_release.py releases/kdog-
 ```
 
 macOS에서 설치 후 `backend/.venv/bin/python Verify.py`로 파일 해시·독립 합성 Keychain 항목·합성 MP4 오디오·API 시작·런처 강제 종료 후 API 종료를 점검한다. `backend/tests/test_macos_distribution.py`의 네이티브 Keychain 시험도 macOS에서만 실행한다. 현재 작업 환경에는 macOS 호스트가 없어 이 네이티브 항목과 Finder 더블클릭/키체인 접근 확인창/실제 영상·PDF·공급자 인수는 미검증이다.
+
+## 쉬운 사용자 가이드 추가 (2026-10-21)
+
+[먼저읽어주세요_macOS설치가이드.html](../../scripts/macos/online/먼저읽어주세요_macOS설치가이드.html)을 ZIP 최상위에 추가했다. Safari에서 파일을 열면 별도 문서 앱이나 네트워크 없이 읽을 수 있다. 홈 폴더에 압축 해제 폴더를 두는 방법, Homebrew의 GUI 설치, K-DOG 설치·계정 질문 번역·12자 이상 숨김 비밀번호와 재확인, 매일 실행·Control+C 종료, AI 키 최초 등록, 차단·설치·로그인·키체인 오류, 자료 백업을 설명한다. 예시 명령은 안내대로 `~/K-DOG`에 설치한 경우에만 적용됨을 명시했다. README와 기존 macOS 설치 요약에서 연결한다. 앱과 설치 스크립트의 실행 동작은 변경하지 않는다.
+
+공식 안내 확인: [Homebrew](https://brew.sh/)와 [설치 문서](https://docs.brew.sh/Installation)에서 Apple Silicon용 `.pkg` 설치를 확인했다. [공식 7.0.10 릴리즈](https://github.com/Homebrew/brew/releases/tag/7.0.10)의 자산 이름은 `Homebrew.pkg`이며 가이드에는 공식 latest 다운로드 링크를 사용한다. 보안 경고 절차는 [Apple 사용자 설명서](https://support.apple.com/ko-kr/guide/mac-help/mh40616/mac)와 [Apple 지원](https://support.apple.com/ko-kr/102445)을 확인했다. 보안 기능 전체 해제나 키체인 항목 삭제는 안내하지 않는다.
+
+검증: 1100px·390px Chromium에서 HTML 로딩·가로 넘침 없음·목차 이동 대상·페이지 오류 없음을 확인하고 첫 화면·계정·보안 경고 안내를 이미지로 확인했다. 패키지 회귀 1건 통과, 실제 재생성 ZIP의 가이드 포함·문서 원본 일치·전 파일 SHA-256·Unix 실행 권한을 검사한다. 이 확인은 Safari 또는 macOS 설치 실측이 아니다. 화면 확인에는 기존 Playwright 1.63.0을 사용했다. [공식 registry](https://registry.npmjs.org/@playwright/test/latest)의 최신은 1.64.1이며, 문서 보강을 위해 기존 잠금 의존성을 업그레이드하지 않았다. [공식 화면 캡처 API](https://playwright.dev/docs/screenshots)를 사용했다. 새 의존성·lockfile 변경은 없다.

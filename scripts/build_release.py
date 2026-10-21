@@ -183,7 +183,8 @@ def build(destination, variant="portable"):
         for name in ("backend/pyproject.toml", "backend/uv.lock"):
             files[name] = ROOT / name
         installer = ROOT / ("scripts/macos/online" if variant == "macos-online" else "scripts/windows/online")
-        names = ("Install.command", "Start.command", "macOS_설치안내.md") if variant == "macos-online" else (
+        names = ("Install.command", "Start.command", "macOS_설치안내.md",
+                 "먼저읽어주세요_macOS설치가이드.html") if variant == "macos-online" else (
             "Install.cmd", "install.ps1", "Start.cmd")
         for name in names:
             files[name] = installer / name
