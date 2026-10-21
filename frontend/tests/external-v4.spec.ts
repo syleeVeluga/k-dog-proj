@@ -50,7 +50,10 @@ test('AR05 common definition applies immediately and retirement preserves HTML/P
   await page.locator('summary').filter({ hasText: /^외부 비교 기준 정의$/ }).click();
   const research = page.getByRole('region', { name: '외부 비교 기준 정의', exact: true });
   await research.getByLabel('연구 출처', { exact: true }).selectOption(sourceId);
-  await expect(research.getByLabel('외부 평균', { exact: true })).toHaveValue('');
+  // 2026-10-21: the delivered US reference values are installed as built-in definitions on first start.
+  await expect(research.getByLabel('외부 평균', { exact: true })).toHaveValue('0.66');
+  const builtin = (await (await page.request.get('/api/comparisons-s1/definitions')).json()).documents[sourceId];
+  expect(builtin).toMatchObject({ actor: 'builtin-reference', revision: 1, enabled: true, values: { mean: 0.66, valid_n: 42926 } });
   const client = await browser.newContext();
   try {
     const operator = await client.newPage(); operator.setDefaultTimeout(15000); await login(operator, 'operator');
