@@ -52,7 +52,7 @@ PR별 실제 commit·명령·결과·cold review·병합을 누적 기록한다.
 | 브랜치·PR | `veluga/cm05-cumulative-comparison-acceptance` (CM04 위 누적) |
 | 구현 | 종단 합성 인수 `test_cumulative_acceptance_v4`(두 행사·재방문·정정·두 cutoff·별도 export·backup/restore/clean·옛 rp04 보존), 운영·개발·사용 설명서와 RP06·리포트 실행 기록·추적표·인수대장·후속대장 갱신 |
 | 전체 시험 | 전체 backend `unittest discover` 835건 OK(1,434초, skip 4: 기존 원본 의존 역사 시험. `KDOG_COMPARISON_DELIVERY`로 로컬 전달표 셀 대조 포함). 이후 cold review로 추가한 종단 시나리오 포함 `test_cumulative_acceptance_v4` 2건 OK(54초). `import_catalogs --spec 20261002 --customer-dir <로컬 원본> --check` 통과, `git diff --check`·`graft check` 통과 |
-| e2e·시각 | frontend build 후 전체 e2e 156건 중 155건 통과(573초), copy-guard 1건이 화면의 내부 표기 ‘S1’을 지적해 ‘미연결 대상’으로 수정 후 copy-guard·참여쌍·리포트 spec 10건 재통과. CM04 HTML 1100px·390px 캡처·브라우저 인쇄 PDF 확인. 서버 PDF 래스터 이미지·설치 ZIP 생성은 미실행(도구 부재/범위), 필수 자산 목록·패키징 시험으로 원본 XLSX 제외 확인 |
+| e2e·시각 | frontend build 후 전체 e2e 156건 중 155건 통과(573초), copy-guard 1건이 화면의 내부 표기 ‘S1’을 지적해 ‘미연결 대상’으로 수정 후 copy-guard·참여쌍·리포트 spec 10건 재통과. CM04 HTML 1100px·390px 캡처·브라우저 인쇄 PDF 확인. 병합 후 서버 PDF 래스터 확인·설치 ZIP 생성/검증 완료(아래 ‘병합 후 최종 검증’), 원본 XLSX 미포함 |
 | cold review | CM05 검토 발견 7건 모두 수용: 실패 실행→참여쌍 변경→명시 재시도 snapshot 불변, 누적 기록 이전 대기 rp04 실행의 이후 처리, 같은 원자료 중복 export 거절, 발급 snapshot 손상 시 clean 중단을 종단 시험에 추가, 실행 기록·인수표 CM-T 전수 연결, 개발 문서의 API 기본값·설명서 화면 문구·포함 범위 정정. 별도로 전체 e2e copy-guard 지적 1건 수정. 전체 PR 누적 cold review: CM01 5·CM02 5·CM03 4(+회귀 2)·CM04 6·CM05 7, 보류·거절 0 |
 | 운영 적용 | 미실행: 운영 SF/NF 정의 등록, 운영 참여쌍·대표 확인, 실제 발급 대조. 별도 후속(허가·측정 동등성·실제 AI 품질·현장 실측) 유지 |
 
@@ -67,3 +67,15 @@ PR별 실제 commit·명령·결과·cold review·병합을 누적 기록한다.
 | CM05 | `veluga/cm05-cumulative-comparison-acceptance` | [syleeVeluga/k-dog-proj#119](https://github.com/syleeVeluga/k-dog-proj/pull/119) 병합 `cc8a2e6` |
 
 병합: 2026-10-21 각 PR을 누적 순서(CM01→CM05)로 원격 `main`에 병합했다. 앞 PR 병합 뒤 다음 PR의 기준 브랜치를 `main`으로 바꾸고 검증한 head SHA 조건으로 병합했다. 병합 뒤 원격 `main`(`cc8a2e6`)의 tree는 CM05 검증 head와 같고, 로컬 `main`을 fast-forward해 일치시켰다. 첫 병합 시도는 세션 권한 판정에 막혔다가 권한 모드 변경 뒤 수행했다.
+
+## 병합 후 최종 검증 (2026-10-21)
+
+병합된 `main`(`e8170c5`)에서 남은 검증을 수행했다.
+
+| 항목 | 결과 |
+| --- | --- |
+| CM05 최종 commit cold review | `3e8cf83`·병합 기록 commit 대상 독립 검토: 결함 0. 선택 보강 2건(정정 전 응답 변경으로 고정값 증명, clean 실패 시 409·파일 미삭제 단언)을 수용해 종단 시험에 반영, 2건 OK |
+| 전체 e2e | frontend build 후 `npx playwright test` 156/156 통과(581초) |
+| 서버 PDF 래스터 | 2026-10-21 PyPI 최신 pypdfium2 5.14.0·Pillow 13.0.0을 `uv run --no-project --with`로 일회 사용(프로젝트 의존성·lockfile 변경 없음). 합성 CM 발급 PDF 6쪽 중 비교 패널 쪽을 이미지로 확인: 눈금과 표식 위치 일치, NF 누적·개별 같은 x좌표·다른 줄, 미국 표식은 SF/NF만 |
+| 설치 ZIP | 깨끗한 병합 commit `e8170c5`에서 [개발 안내](../../DEVELOPMENT.md) 명령으로 생성·검증. 포터블 `kdog-s1-windows-x64.zip` 1,461파일·SHA-256 `3b545e9a1c77bea0c7b66d7c4665f689973f51bc7130fef2965a9c05c98f319b`, 사용자 설치형 `kdog-s1-windows-x64-online.zip` 252파일·SHA-256 `6f4bf9064e39c05fdd3bfbe95823c06e50f55328ec70591785fd6922839447ad`. 두 ZIP 모두 `verify_release` 통과(170초), 원본 XLSX 미포함·신규 자산 포함 확인. 범위는 현재 Windows 호스트의 새 폴더이며 깨끗한 OS·다른 PC 실측이 아님 |
+| 운영 기준 등록·운영 누적 전환 | 미실행. 운영 DB에서 실제 업무 계정 로그인·근거 업로드·기준 저장과 실제 참여쌍 확인이 필요하며, 계획 §1·§5에 따라 사용자가 허용한 범위에서 수행한다 |
