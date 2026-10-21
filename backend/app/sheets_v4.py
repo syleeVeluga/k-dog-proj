@@ -399,7 +399,8 @@ def assign(store, case_id, session_id, value: SheetAssignmentV4, user):
         manager(user, db)
         case, manifest = _case(store, db, case_id, value.expected_revision)
         session = selected_session(manifest, session_id)
-        if value.assigned_username == AI_ACCOUNT or not db.execute("SELECT 1 FROM users WHERE username=?", (value.assigned_username,)).fetchone():
+        from .comparisons_v4 import BUILTIN_ACTOR
+        if value.assigned_username in (AI_ACCOUNT, BUILTIN_ACTOR) or not db.execute("SELECT 1 FROM users WHERE username=?", (value.assigned_username,)).fetchone():
             raise HTTPException(422, "사람 채점의 원평가 계정 출처를 확인하세요.")
         if value.source_sheet_id:
             old = row_for(store, db, value.source_sheet_id)

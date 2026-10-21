@@ -397,6 +397,53 @@ def save_definition(store,value:SaveDefinitionV4,user):
     return pointer
 
 
+BUILTIN_ACTOR="builtin-reference"
+
+
+def seed_delivered_definitions(store,db):
+    """Install the delivered EXT1.1 SF/NF reference values once (user decision 2026-10-21).
+
+    Only a source with no recorded definition or research history is seeded; an operator's later
+    edit or retirement is never overwritten. Provenance names the built-in delivery, not a person.
+    """
+    loaded=comparison_mapping_v4.load()
+    sources,digest=_sources()
+    if not db.execute("SELECT 1 FROM users WHERE username=?",(BUILTIN_ACTOR,)).fetchone():
+        # Reserved provenance account: inactive, least privilege, random unknown password; it never signs in.
+        from .auth import password_hash
+        import secrets
+        db.execute("INSERT INTO users(username,password_hash,role,active) VALUES (?,?,'operator',0)",(BUILTIN_ACTOR,password_hash(secrets.token_urlsafe(32))))
+    known={item["source_id"]:item for item in sources["sources"]}
+    seeded=[]
+    for mapped in loaded.external_sources:
+        if _record(db,DEFINITION_ACTION,mapped.source_id) or _record(db,RESEARCH_ACTION,mapped.source_id):continue
+        data=comparison_mapping_v4.raw()
+        digest_data=hashlib.sha256(data).hexdigest()
+        evidence=FileV4(ref=f"comparison-evidence/builtin-{digest_data}.json",hash=digest_data)
+        path=store.path(evidence.ref)
+        if path.exists() and hashlib.sha256(path.read_bytes()).hexdigest()!=digest_data:
+            # A partial file from an interrupted start stays for clean; this start writes a fresh copy.
+            evidence=FileV4(ref=f"comparison-evidence/builtin-{digest_data}-{uid()}.json",hash=digest_data);path=store.path(evidence.ref)
+        path.parent.mkdir(parents=True,exist_ok=True)
+        if not path.exists():
+            with path.open("xb") as handle:
+                handle.write(data);handle.flush();os.fsync(handle.fileno())
+        delivery=loaded.delivery
+        doc=ComparisonDefinitionV4(source_id=mapped.source_id,source_asset_hash=digest,scope=target_scope(mapped.source_id),
+            values=ExternalValuesV4(mean=mapped.mean,standard_deviation=mapped.standard_deviation,valid_n=mapped.valid_n,total_n=mapped.total_n),
+            evidence=(evidence,),population_scope=known[mapped.source_id]["population_scope"],
+            number_provenance=f"{delivery.filename} ({delivery.edition}, {delivery.delivered_at}, SHA-256 {delivery.sha256}) · {mapped.location}",
+            reason="전달 기준표 EXT1.1의 미국 연구 참고값을 내장 기준으로 설치(2026-10-21 사용자 결정). 변경·사용중단은 기존 기준 정의 저장으로 합니다.",
+            definition_id=uid(),revision=1,actor=BUILTIN_ACTOR,recorded_at=now())
+        _evidence(store,doc)
+        file=_write(store,"definitions",doc)
+        pointer=DefinitionReferenceV4(definition_id=doc.definition_id,revision=1,ref=file.ref,hash=file.hash)
+        if definition_document(store,pointer)!=doc:raise HTTPException(409,"내장 기준 정의 저장 중 내용이 달라졌습니다.")
+        store.audit(db,BUILTIN_ACTOR,mapped.source_id,DEFINITION_ACTION,pointer.model_dump(mode="json"))
+        seeded.append(mapped.source_id)
+    return seeded
+
+
 def gate(source,source_hash,definition,definition_ref,activation,target,population=None):
     """Validate actual data; historical confirmation is provenance, not permission."""
     def blocked(reason):return ExternalGateV4(source_id=source["source_id"],status="blocked",reason=reason)

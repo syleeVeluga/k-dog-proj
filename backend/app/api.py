@@ -104,6 +104,11 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
         with runtime_lock(store, "api"):
             with store.connect(write=True) as db:
                 uploads.recover_interrupted(db)
+            try:
+                with store.connect(write=True) as db:
+                    comparisons_v4.seed_delivered_definitions(store, db)
+            except (OSError, ValueError, HTTPException):
+                pass  # Seeding never blocks startup; unregistered references are reported on the settings screen.
             yield
 
     app = FastAPI(title="K-DOG", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -300,12 +305,15 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     @app.get("/api/admin/users", response_model=list[UserView])
     def users(user=Depends(administrator)):
         with store.connect() as db:
-            return [user_view(row) for row in db.execute("SELECT * FROM users WHERE role!='developer' ORDER BY username")]
+            return [user_view(row) for row in db.execute("SELECT * FROM users WHERE role!='developer' AND username!=? ORDER BY username",
+                                                         (comparisons_v4.BUILTIN_ACTOR,))]
 
     @app.post("/api/admin/users", response_model=UserView, status_code=201)
     def add_user(value: UserCreate, user=Depends(administrator)):
         if value.role == "developer":
             raise HTTPException(403, "개발자 계정은 별도 로컬 관리 경로로 발급합니다.")
+        if value.username == comparisons_v4.BUILTIN_ACTOR:
+            raise HTTPException(409, "내장 기준 기록용 예약 이름입니다.")
         value = value.model_copy(update={"role": "operator"})
         with store.connect(write=True) as db:
             create_user(db, value)
@@ -316,7 +324,7 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
     def edit_user(username: Key, value: UserEdit, user=Depends(administrator)):
         with store.connect(write=True) as db:
             row = db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
-            if row is None:
+            if row is None or username == comparisons_v4.BUILTIN_ACTOR:
                 raise HTTPException(404, "계정이 없습니다.")
             if row["role"] == "developer" or value.role == "developer":
                 raise HTTPException(403, "개발자 계정은 별도 로컬 관리 경로로 변경합니다.")
