@@ -98,6 +98,7 @@ test('AR05 common definition applies immediately and retirement preserves HTML/P
     await operator.getByRole('button', { name: 'external-only-synthetic 리포트 열기', exact: true }).click();
     const report = operator.getByRole('region', { name: '리포트 실행', exact: true });
     await report.getByLabel('리포트에 고정할 최종본', { exact: true }).selectOption(data.final.reference.final_id);
+    await report.getByText('이전 방식: 외부 비교 명시 선택', { exact: true }).click();
     const picker = report.getByRole('group', { name: '이 출력의 외부 비교', exact: true });
     await expect(picker.getByRole('combobox', { name: '이 출력의 외부 비교', exact: true })).toHaveValue('');
     await picker.getByText('확인된 출처로 새 비교 고정', { exact: true }).click();
@@ -213,6 +214,7 @@ with store.connect() as db:
     expect(currentSnapshot.status).toBe('ready'); expect(currentSnapshot.document).toEqual(snapshot.document);
     expect(currentSnapshot.new_selection_available).toBe(false);
     await report.getByLabel('리포트에 고정할 최종본', { exact: true }).selectOption(data.final.reference.final_id);
+    await report.getByText('이전 방식: 외부 비교 명시 선택', { exact: true }).click();
     await picker.getByRole('button', { name: '외부 비교 조건 새로고침', exact: true }).click();
     await expect(picker.locator(`option[value="${snapshot.reference.snapshot_id}"]`)).toBeDisabled();
     const denied = await operator.request.post('/api/comparisons-s1/external-snapshots', { headers, data: { ...requests[0], request_id: 'ar05-retired-new' } });

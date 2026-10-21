@@ -16,13 +16,74 @@ ASSETS = ("resources/report/presentation-v4.json", "resources/report/templates/s
           "resources/fonts/NotoSansSymbols.ttf")
 NEW_ASSETS = ("resources/report/presentation-20261007.json", "resources/report/templates/report-20261007.html",
               "resources/report/templates/report-20261007.css", *ASSETS[3:])
+CM_ASSETS = ("resources/report/presentation-20261021.json", "resources/report/templates/report-20261021.html",
+             "resources/report/templates/report-20261021.css", *ASSETS[3:])
+CM_PRESENTATION = "report-presentation-20261021-cm"
 STATUS = {"available": "관찰됨", "partial": "일부 관찰", "insufficient": "관찰 부족", "held": "판단 보류"}
 SEGMENTS = {"entry": "입장", "baseline": "기준", "alone": "혼자", "reunion": "재회", "ignore": "무시", "walk": "걷기", "stranger": "낯선", "exit": "퇴장"}
 PHASES = {"move_1": "첫 이동", "stop_1": "첫 정지", "move_2": "둘째 이동", "stop_2": "둘째 정지", "move_3": "셋째 이동", "stop_3": "셋째 정지"}
 
 
-def assets(photo_free=False):
-    return {name: hashlib.sha256((REPO_ROOT / name).read_bytes()).hexdigest() for name in (NEW_ASSETS if photo_free else ASSETS)}
+def assets(photo_free=False, cumulative=False):
+    names = CM_ASSETS if cumulative else NEW_ASSETS if photo_free else ASSETS
+    return {name: hashlib.sha256((REPO_ROOT / name).read_bytes()).hexdigest() for name in names}
+
+
+def comparison_panels(profile, design, cohort=None):
+    """One shared panel model for HTML and PDF: positions come from the pinned display strings, never recomputed means.
+
+    An explicitly selected manual cohort keeps its own validation (survey_rows) and is shown as a separate note.
+    """
+    from decimal import Decimal
+    pinned = profile.survey_comparison
+    labels = design["labels"]
+    manual = {}
+    if cohort is not None:
+        survey_rows(profile, cohort)
+        manual = {tuple(domain.question_ids): domain for domain in CohortPublicV4.model_validate(cohort).domains}
+    panels = []
+    for row in pinned.rows:
+        span = Decimal(row.scale_maximum - row.scale_minimum)
+        def lane(kind, label, value):
+            return {"kind": kind, "label": label, "display": value,
+                    "position": float((Decimal(value) - row.scale_minimum) / span)}
+        lanes, notes = [], []
+        if row.individual_status == "valid":
+            if row.external_status == "ready":
+                lanes.append(lane("us", f"{labels['us']} {row.external_display} (유효 n={row.external_valid_n:,})", row.external_display))
+            if row.cumulative_shown:
+                lanes.append(lane("cumulative", f"{pinned.label} {row.cumulative_display} (n={row.cumulative_n})", row.cumulative_display))
+            else:
+                notes.append(f"{pinned.label}은 해당 지표의 유효 참여쌍이 2쌍 이상일 때 표시합니다(현재 n={row.cumulative_n}).")
+            lanes.append(lane("individual", f"{labels['individual']} {row.individual_display}", row.individual_display))
+            if row.external_status == "not_ready":
+                notes.append(f"미국 연구 참고 평균은 이번 발급에 연결하지 않았습니다: {row.external_reason}")
+        sentences = [text for text in (row.external_sentence, row.cumulative_sentence) if text]
+        detail = (f"원응답 {row.individual_numerator} ÷ {row.individual_denominator}" if row.individual_status == "valid" else None)
+        own = manual.get(tuple(row.question_ids))
+        if own is not None:
+            notes.append(f"명시 선택 자체 비교 집단({cohort.title}) 평균 {number(own.mean)} (유효 n={own.n}, 제외 {own.excluded_count}) · 우리 누적 평균과 별개")
+        panels.append({"metric_id": row.metric_id, "title": row.title + (f" ({row.alias})" if row.alias else ""),
+            "scale": f"Q{' · Q'.join(item[1:] for item in row.question_ids)} · {row.scale_minimum}~{row.scale_maximum}점 · {design['direction'][row.direction]}",
+            "ticks": [str(value) for value in range(row.scale_minimum, row.scale_maximum + 1)], "lanes": lanes, "notes": notes,
+            "notice": row.notice, "sentences": sentences, "detail": detail, "fear": row.direction == "higher_more_fear"})
+    return panels
+
+
+def comparison_sources(profile):
+    """Source/limitation lines for the pinned comparison: cutoff, versions, P1 citation and per-metric valid n."""
+    pinned = profile.survey_comparison
+    lines = [f"{pinned.label}: 집계 기준일 {pinned.as_of} · 포함 참여쌍 {pinned.included_pairs}" +
+             "".join(f" · {REASONS.get(key, key)} {value}" for key, value in sorted(pinned.exclusion_counts.items())), pinned.note]
+    ready = [row for row in pinned.rows if row.external_status == "ready"]
+    if ready:
+        lines.append(pinned.external_limitation)
+        lines.extend(f"{row.alias} {row.title}: {row.external_literature} · DOI {row.external_doi} · 유효 n={row.external_valid_n:,} (연구 전체 {row.external_total_n:,}마리와 구분)" for row in ready)
+    lines.append(f"누적 비교 집계 판본 {pinned.aggregation_version} · 문항 매핑 {pinned.mapping_version}")
+    return lines
+
+
+REASONS = {"excluded": "비교 제외", "representative_unconfirmed": "대표 설문 미확정", "version_unconfirmed": "판본 미확인"}
 
 
 def presentation():

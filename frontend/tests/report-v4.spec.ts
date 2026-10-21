@@ -132,3 +132,23 @@ test('AR05 reviewer creates a report from another final while an independent dra
   const after = await (await page.request.get(`/api/score-sheets-s1/${draft.sheet_id}`)).json();
   expect(after.document).toEqual(before.document); expect(after.summary.revision).toBe(before.summary.revision);
 });
+
+test('CM04 기본 발급은 별도 선택 없이 전 회차 누적 비교를 자동 연결하고 이전 방식은 접어 둔다', async ({ page, request }) => {
+  test.setTimeout(120000); const data = await fixture(request, 'cm04report-default');
+  await login(page); await open(page, 'cm04report-default');
+  const panel = page.getByRole('region', { name: '리포트 실행', exact: true });
+  const notice = panel.getByRole('region', { name: '누적 비교 발급 안내', exact: true });
+  await expect(notice).toContainText('9개 지표의 우리 누적 평균');
+  await expect(notice).toContainText(/현재 누적 포함 후보: \d+쌍/);
+  await expect(notice).toContainText(/미국 연구 기준: .*연결 준비 전|미국 연구 기준: .*사용 가능/);
+  await expect(panel.getByText('이전 방식: 외부 비교 명시 선택', { exact: true })).toBeVisible();
+  const posted: Record<string, unknown>[] = [];
+  page.on('request', value => { if (value.method() === 'POST' && value.url().endsWith(data.base + '/report-runs-s1')) posted.push(value.postDataJSON()); });
+  await panel.getByLabel('리포트에 고정할 최종본', { exact: true }).selectOption(data.final.reference.final_id);
+  await panel.getByRole('button', { name: '선택한 최종본으로 리포트 생성', exact: true }).click();
+  await expect(panel.getByRole('article').first()).toBeVisible();
+  expect(posted).toHaveLength(1); expect(posted[0].cumulative).toBe(true); expect(posted[0]).not.toHaveProperty('external_comparison');
+  const runs = await (await page.request.get(data.base + '/report-runs-s1')).json();
+  expect(runs).toHaveLength(1); expect(runs[0].cumulative_comparison_as_of).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  await expect(panel.getByText(/누적 비교 집계 기준일 \d{4}-\d{2}-\d{2}/)).toBeVisible();
+});
