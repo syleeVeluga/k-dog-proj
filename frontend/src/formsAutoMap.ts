@@ -1,5 +1,8 @@
 // 일괄 등록 열 자동 연결 제안. 헤더 문자열만 보며 셀 값으로 열의 뜻을 추정하지 않는다.
 // 서버에는 사용자가 확인한 columns만 보낸다 (서버 계약은 그대로).
+import festival from '../../resources/mappings/forms-festival-20261022.json' with { type: 'json' };
+
+export { festival };
 
 export const profileFields: [string, string][] = [
   ['event_id', '행사 ID'], ['participant_id', '참가자 ID'], ['dog_name', '반려견 이름'], ['guardian_name', '보호자 이름'],
@@ -39,6 +42,20 @@ const aliasIndex = new Map<string, string[]>();
 for (const [key, names] of Object.entries(aliases)) for (const name of names) {
   const normal = normalizeHeader(name);
   aliasIndex.set(normal, [...new Set([...(aliasIndex.get(normal) ?? []), key])]);
+}
+for (const [key, header] of [...Object.entries(festival.columns), ...festival.questions.map(q => [q.item_id, q.header])]) {
+  const normal = normalizeHeader(header);
+  aliasIndex.set(normal, [...new Set([...(aliasIndex.get(normal) ?? []), key])]);
+}
+
+// 영역마다 다시 시작하는 번호 대신 확인된 문항 원문으로만 행사 양식을 식별한다.
+export function festivalLabels(mapping: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(festival.questions.filter(q => mapping[q.item_id]
+    && normalizeHeader(mapping[q.item_id]) === normalizeHeader(q.header)).map(q => {
+    const n = Number(q.item_id.slice(1));
+    const labels = n >= 10 && n <= 14 ? festival.fear_labels : festival.agreement_labels;
+    return [q.item_id, Object.entries(labels).map(([label, value]) => `${label}=${value}`).join('\n')];
+  }));
 }
 
 const questionPattern = /^(?:(?:q|s|문항|질문)(\d{1,2})|(\d{1,2})번)(?:원응답)?(빈칸사유|빈칸이유|사유|reason)?$/;
