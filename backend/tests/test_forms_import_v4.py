@@ -14,6 +14,7 @@ from openpyxl import Workbook
 from pydantic import ValidationError
 
 from app.domain.catalog_v4 import SURVEY_VERSION
+from app.festival_forms import PROFILE as FESTIVAL
 from app.forms_v4 import (FormsCommitRequestV4, FormsMappingV4, FormsPreviewRequestV4,
                           FormsTargetV4, commit, inspect_columns, preview)
 from app.input_models_v4 import new_session_v4
@@ -100,6 +101,76 @@ class FormsImportV4Tests(unittest.TestCase):
         self.assertIsNone(manifest.sessions[0].survey["s02"])
         self.assertEqual(manifest.consents.analysis_feedback, "unknown")
         self.assertEqual(manifest.consents.stranger_contact, "unknown")
+
+    def test_festival_xlsx_labels_profiles_and_immutable_source_survive_commit(self):
+        headers = FESTIVAL["headers"]
+        raw = dict.fromkeys(headers)
+        raw.update({"보호자  성함": "합성 보호자", "보호자 연락처": "010-0000-0000", "반려견 이름": "행사 합성견",
+                    "견종": "합성 견종", "반려견 성별": "수컷", "중성화 여부 ": "완료", "반려견 나이": "1살 7개월",
+                    "반려견 크기": "중형견", "반려견과 함께 생활한 기간": "1년 반", "반려견 입양 경로": "입양(보호소 등)",
+                    "체험 희망일을 선택해 주세요": "10월 24일", "체험 희망 시간대를 선택해 주세요.": "오후 1시~2시"})
+        for i, question in enumerate(FESTIVAL["questions"], 1):
+            raw[question["header"]] = ["전혀 아니다", "약간", "보통", "꽤 그렇다", "매우 그렇다"][i - 10] if 10 <= i <= 14 else "매우 그렇다"
+        raw[FESTIVAL["questions"][25]["header"]] = "전혀 아니다"
+        data = xlsx_bytes([headers, [raw[h] for h in headers]], sheet="설문지 응답 시트1")
+        columns = {**FESTIVAL["columns"], **{q["item_id"]: q["header"] for q in FESTIVAL["questions"]}}
+        request = self.request.model_copy(deep=True)
+        request.format, request.filename = "xlsx", "synthetic-festival.xlsx"
+        request.mapping = FormsMappingV4(version=FESTIVAL["version"], source_profile=FESTIVAL["source_profile"],
+            survey_version=SURVEY_VERSION, columns=columns, answer_labels={q["item_id"]:
+                FESTIVAL["fear_labels"] if 10 <= int(q["item_id"][1:]) <= 14 else FESTIVAL["agreement_labels"]
+                for q in FESTIVAL["questions"]})
+        staged = self.stage(data, request)
+        self.assertEqual(staged.errors, [])
+        row = staged.rows[0]
+        self.assertEqual(row.registration_status, "all_answered")
+        self.assertEqual([row.answers[f"s{n:02}"] for n in range(10, 15)], [0, 1, 2, 3, 4])
+        self.assertEqual((row.answers["s07"], row.answers["s15"], row.answers["s26"]), (5, 5, 1))
+        dog = row.participant.dog
+        self.assertEqual((dog.sex, dog.age_years, dog.size, dog.adoption_route), ("수", 1, "중형", "입양"))
+        self.assertEqual(row.participant.reservation_at, "")
+        self.assertEqual(row.raw_values, raw)
+        result = self.apply(staged)
+        self.assertEqual(self.manifest(result.rows[0].case_id).sessions[0].survey, row.answers)
+        link = self.audit("forms.source_row", row.case_id)[0]
+        capsule = json.loads((self.store.root / link["ref"]).read_bytes())
+        self.assertEqual(capsule["raw_values"], raw)
+        self.assertEqual(capsule["mapping"]["version"], FESTIVAL["version"])
+        self.assertEqual(self.apply(staged), result)
+
+    def test_festival_age_units_and_unknown_text_do_not_corrupt_profile(self):
+        from app.festival_forms import participant_values
+        from app.intake import participant_row
+        for raw, expected in (("10개월", 0), ("3년 2개월", 3), ("8살 ", 8), ("15", 15), (None, None)):
+            with self.subTest(raw=raw):
+                values = participant_values({"dog_age_years": raw})
+                participant = participant_row({**values, "event_id": "TEST", "participant_id": "AGE", "dog_name": "합성견"})
+                self.assertEqual(participant.dog.age_years, expected)
+        for raw in ("약 3살", "1살 12개월", "31살", True):
+            with self.subTest(raw=raw), self.assertRaises(ValueError):
+                values = participant_values({"dog_age_years": raw})
+                participant_row({**values, "event_id": "TEST", "participant_id": "AGE", "dog_name": "합성견"})
+
+    def test_festival_explicit_field_mapping_accepts_header_variants_and_preserves_raw(self):
+        columns = {"dog_name": "반려견 이름", "dog_sex": " 반려견  성별 ", "dog_size": "반려견_크기",
+                   "dog_age_years": "반려견 나이 (필수)", "adoption_route": "반려견 입양 경로?"}
+        raw = ["합성견", "암컷", "소형견", "10개월", "가정분양"]
+        data = csv_bytes([list(columns.values()), raw])
+        request = self.request.model_copy(deep=True)
+        request.mapping = FormsMappingV4(version=FESTIVAL["version"], source_profile=FESTIVAL["source_profile"],
+                                        survey_version=SURVEY_VERSION, columns=columns)
+        staged = self.stage(data, request)
+        self.assertEqual(staged.errors, [])
+        row = staged.rows[0]
+        self.assertEqual((row.participant.dog.sex, row.participant.dog.size, row.participant.dog.age_years,
+                          row.participant.dog.adoption_route), ("암", "소형", 0, "분양"))
+        self.assertEqual(row.raw_values, dict(zip(columns.values(), raw)))
+        self.apply(staged)
+        request.request_id = "standard-header-variant"
+        request.mapping.source_profile = "google-forms"
+        strict = self.stage(data, request)
+        self.assertEqual(len(strict.errors), 1)
+        self.assertEqual(strict.rows, [])
 
     def test_same_names_and_timestamps_do_not_merge_participants(self):
         data = csv_bytes([["반려견", "문항1", "두려움", "타임스탬프"],

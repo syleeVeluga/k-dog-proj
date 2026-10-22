@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { autoMap, candidatesFor, parseLabelLines, parseQuestionRange } from '../src/formsAutoMap';
+import { autoMap, candidatesFor, festival, festivalLabels, parseLabelLines, parseQuestionRange } from '../src/formsAutoMap';
 
 // 표준 양식(backend/app/forms_v4.py TEMPLATE_PARTICIPANT)의 머리글. 양식과 별칭 표가 어긋나면 이 시험이 깨진다.
 const templateHeaders: [string, string][] = [
@@ -46,4 +46,23 @@ test('문항 범위와 라벨 입력을 엄격하게 읽는다', () => {
   for (const bad of ['', '0', '29', '3-1', '1-', 'a', '1;2']) expect(parseQuestionRange(bad), bad).toBeNull();
   expect(parseLabelLines('매우 그렇다=5\n그렇다=4')).toEqual({ values: { '매우 그렇다': 5, '그렇다': 4 } });
   for (const bad of ['라벨=6', '=3', '라벨', '가=1\n가=2']) expect(parseLabelLines(bad), bad).toHaveProperty('error');
+});
+
+test('행사 설문은 영역별 중복 번호를 문항 원문으로 연결하고 공포 척도를 분리한다', () => {
+  const proposal = autoMap(festival.headers);
+  expect(Object.keys(proposal.mapping)).toHaveLength(36);
+  expect(proposal.review).toEqual([]); expect(proposal.conflicts).toEqual([]);
+  expect(proposal.mapping.s10).toBe('1. 함께 외출 중에 낯선 사람이 반려견을 향해 곧장 다가올 때 불안해한다');
+  expect(proposal.mapping.s15).toBe('1. 반려견과 나는 서로 긍정적인 영향을 준다');
+  expect(proposal.mapping.s22).toBe('1. 내가 잠깐 자리를 비우면 반려견이 불안해한다');
+  expect(proposal.mapping.s26).toBe('1. 내 기분에 따라 반려견을 대하는 방식이 달라진다');
+  expect(proposal.mapping.guardian_name).toBe('보호자  성함');
+  expect(proposal.unmatched).toContain('보호자 연락처');
+  expect(proposal.unmatched).toContain('중성화 여부 ');
+  expect(proposal.mapping.reservation_at).toBeUndefined();
+  const labels = festivalLabels(proposal.mapping);
+  expect(parseLabelLines(labels.s10)).toEqual({ values: { '전혀 아니다': 0, '약간': 1, '보통': 2, '꽤 그렇다': 3, '매우 그렇다': 4 } });
+  expect(parseLabelLines(labels.s26)).toEqual({ values: { '전혀 아니다': 1, '아니다': 2, '보통': 3, '그렇다': 4, '매우 그렇다': 5 } });
+  expect(festivalLabels({ s01: 'Q01' })).toEqual({});
+  expect(candidatesFor('1. 다른 내용의 질문')).toEqual([]);
 });

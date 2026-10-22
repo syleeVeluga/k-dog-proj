@@ -108,6 +108,7 @@ def process_group():
 
 # S1 operation needs its pinned scoring, survey, content and renderer assets.
 REQUIRED = ("frontend/dist/index.html", "resources/catalogs/behavior-v4.json", "resources/catalogs/survey-v3.json",
+            "resources/mappings/forms-festival-20261022.json",
             "resources/rules/scoring-v4.json", "resources/rules/preprocess-v4.json", "resources/rules/protocol-v4.json",
             "resources/rules/survey-policy-v4.json", "resources/mappings/s1-input-v4.json",
             "resources/mappings/survey-behavior-v4.json", "resources/mappings/results-v4.json",

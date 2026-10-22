@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { DragEvent } from 'react';
 import { api } from './api';
-import { autoMap, itemLabel, parseLabelLines, parseQuestionRange, profileFields, questionKeys, requiredKeys } from './formsAutoMap';
+import { autoMap, festival, festivalLabels, itemLabel, parseLabelLines, parseQuestionRange, profileFields, questionKeys, requiredKeys } from './formsAutoMap';
 import type { AutoMap } from './formsAutoMap';
 import { errorFileName, errorRowsCsv, hasErrorRows } from './formsCsv';
 import { FormsPresets } from './FormsPresets';
@@ -42,6 +42,7 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [auto, setAuto] = useState<AutoMap | null>(null);
   const [labels, setLabels] = useState<Record<string, string>>({});
+  const labelLines = { ...festivalLabels(mapping), ...labels };
   const [bulkRange, setBulkRange] = useState('');
   const [bulkLabels, setBulkLabels] = useState('');
   const [bulkMessage, setBulkMessage] = useState('');
@@ -78,8 +79,11 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
     if (!nextSheet && found.selected_sheet !== INPUT_SHEET && found.sheets.includes(INPUT_SHEET)
       && !Object.keys(autoMap(found.columns.map(c => c.key)).mapping).length) found = await read(INPUT_SHEET);
     const keys = found.columns.map(c => c.key), proposal = autoMap(keys);
+    const sourceLabels = festivalLabels(proposal.mapping), isFestival = Object.keys(sourceLabels).length > 0;
     setColumns(keys); setSheets(found.sheets); setSheet(found.selected_sheet ?? ''); setMapping(proposal.mapping); setAuto(proposal);
-    setLabels({}); setTargets([]); setBulkMessage(''); invalidate();
+    setLabels({}); setProfile(isFestival ? festival.source_profile : 'google-forms');
+    setVersion(isFestival ? festival.version : 'forms-map-1');
+    setTargets([]); setBulkMessage(''); invalidate();
   }
   function chooseFile(next: File | null) {
     setFile(next); clearColumns(); setSheets([]); setSheet(''); invalidate();
@@ -91,8 +95,11 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
   }
   function parsedLabels() {
     const answerLabels: Record<string, Record<string, number>> = {};
-    for (const [question, lines] of Object.entries(labels)) {
-      if (!lines.trim()) continue;
+    for (const [question, lines] of Object.entries(labelLines)) {
+      if (!lines.trim()) {
+        if (question in labels) answerLabels[question] = {};
+        continue;
+      }
       const parsed = parseLabelLines(lines);
       if ('error' in parsed) throw new Error(`${question}: ${parsed.error}`);
       answerLabels[question] = parsed.values;
@@ -152,7 +159,11 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
   }
   function columnSelect(key: string, label: string, ariaLabel = `폼 열 ${key}`) {
     return <label key={key}>{label}<select aria-label={ariaLabel} value={mapping[key] ?? ''} onChange={e => {
-      const next = { ...mapping }; if (e.target.value) next[key] = e.target.value; else delete next[key]; setMapping(next); invalidate();
+      const next = { ...mapping }; if (e.target.value) next[key] = e.target.value; else delete next[key]; setMapping(next);
+      if (profile === 'google-forms' && version === 'forms-map-1' && Object.keys(festivalLabels(next)).length) {
+        setProfile(festival.source_profile); setVersion(festival.version);
+      }
+      invalidate();
     }}><option value="">연결 안 함</option>{columns.map(column => <option key={column} value={column}>{column}</option>)}</select></label>;
   }
 
@@ -176,6 +187,7 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
   return <section aria-label="Forms 참가자와 설문 등록">
     <div className="page-heading"><div><p className="eyebrow">UPLOAD</p><h1>일괄 등록 (CSV·Excel)</h1></div></div>
     <p className="fine">명단이나 설문 응답 파일(CSV·Excel)을 올리면 참가자와 설문을 등록합니다. 이름으로 기존 참가자를 추정하지 않습니다. 참가자 ID 열이 없으면 미리보기에서 ID를 발급하고, 동의 열이 없으면 미확인으로 남깁니다.</p>
+    {columns.length > 0 && profile === festival.source_profile && <p className="fine" role="status">{festival.name} 양식의 문항과 한글 응답 라벨을 연결했습니다. 영역별 번호는 전체 Q01~Q28에 대응합니다. 두려움 Q10~Q14는 전혀 아니다=0 · 약간=1 · 보통=2 · 꽤 그렇다=3 · 매우 그렇다=4입니다. 나이는 정수 연수로 표시하며 개월을 포함한 원문은 보존합니다. 동의·연락처·거주지·중성화 여부·희망 일시·최종 확인은 원자료에 보존합니다. 희망 일시는 확정 예약으로 등록하지 않습니다.</p>}
     <fieldset disabled={busy}><legend>① 양식 받기 (선택)</legend>
       <p className="fine">표준 양식을 채워 올리면 열 연결을 고칠 필요가 없습니다. 이미 가진 파일은 그대로 올려도 됩니다. Excel 양식(XLSX)을 권장합니다. CSV를 Excel에서 다시 저장하면 0001의 앞자리 0이 사라질 수 있습니다.</p>
       <div className="toolbar">{templates.map(([kind, name]) => <span key={kind} className="template-links"><strong>{name}</strong>
@@ -213,7 +225,7 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
         <div className="form-grid">{profileFields.filter(([key]) => !missingRequired.includes(key)).map(([key, label]) => columnSelect(key, label))}</div>
         <details><summary>28문항과 빈칸 사유 연결</summary><div className="form-grid">{questions.map((q, i) => <div key={q}>
           {columnSelect(q, `${i + 1}번 원응답`)}{columnSelect(`${q}_reason`, `${i + 1}번 빈칸 사유`)}
-          {mapping[q] && <label>{i + 1}번 원라벨=원점수<textarea aria-label={`폼 라벨 ${q}`} placeholder="전혀 그렇지 않다=1" value={labels[q] ?? ''} onChange={e => { setLabels({ ...labels, [q]: e.target.value }); invalidate(); }} /><small>숫자 원응답은 그대로 읽습니다. 문장 응답은 줄마다 원라벨=숫자로 명시하세요.</small></label>}
+          {mapping[q] && <label>{i + 1}번 원라벨=원점수<textarea aria-label={`폼 라벨 ${q}`} placeholder="전혀 그렇지 않다=1" value={labelLines[q] ?? ''} onChange={e => { setLabels({ ...labels, [q]: e.target.value }); invalidate(); }} /><small>숫자 원응답은 그대로 읽습니다. 문장 응답은 줄마다 원라벨=숫자로 명시하세요.</small></label>}
         </div>)}</div></details>
         <details><summary>선택 문항에 같은 라벨 적용</summary>
           <div className="form-grid">

@@ -17,6 +17,7 @@ from pydantic import Field, ValidationError, model_validator
 from .domain.catalog import SURVEY_IDS
 from .domain.catalog_v3 import SurveyCatalogV3
 from .domain.catalog_v4 import RESOURCES, SURVEY_VERSION
+from .festival_forms import PROFILE as FESTIVAL_PROFILE, participant_values as festival_participant_values
 from .input_models import Key, Model, Text
 from .input_models_v3 import CaseCreateV3, SurveyEditV3
 from .input_models_v4 import ManifestV4, new_session_v4
@@ -480,7 +481,8 @@ def _build_rows(store, db, rows, request, catalog, sheet_name):
                 written_name = mapped.get("dog_name")
                 if written_name is None or isinstance(written_name, str) and not written_name.strip():
                     raise ValueError("반려견 이름이 없는 행은 새 참가자로 등록할 수 없습니다. 이미 접수된 참가자 ID가 아니면 이름이 필요합니다.")
-                participant = participant_row({**mapped, "event_id": request.event_id, "participant_id": participant_id,
+                participant_values = festival_participant_values(mapped) if mapping.source_profile == FESTIVAL_PROFILE["source_profile"] else mapped
+                participant = participant_row({**participant_values, "event_id": request.event_id, "participant_id": participant_id,
                                                "dog_name": mapped.get("dog_name")})
                 if db.execute("SELECT 1 FROM cases WHERE event_id=? AND participant_id=?", (request.event_id, participant_id)).fetchone():
                     raise ValueError("이미 등록된 ID입니다. 기존 참가자와 회차를 명시적으로 연결하세요.")
