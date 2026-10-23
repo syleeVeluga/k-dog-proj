@@ -1,6 +1,6 @@
 """Provider-local S1 observations. Source identities/timestamps are assigned by the app."""
 from typing import Annotated, Literal, Self
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from .catalog_v4 import ContractV4, ItemCode, Text
 from .media_v4 import MediaKey
 
@@ -12,6 +12,15 @@ class LocalEvidenceV4(ContractV4):
     end_seconds: Annotated[float, Field(ge=0)]
     observed_seconds: Annotated[float, Field(ge=0)]
     note: Text
+
+    @field_validator("observed_seconds")
+    @classmethod
+    def clip_span(cls, value, info):
+        if "start_seconds" in info.data and "end_seconds" in info.data:
+            span = info.data["end_seconds"]-info.data["start_seconds"]
+            if span >= 0 and 0 < value-span <= 1e-9:
+                return span
+        return value
 
     @model_validator(mode="after")
     def time(self) -> Self:

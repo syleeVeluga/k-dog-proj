@@ -91,6 +91,22 @@ def fractional_snapshot(sync, cut):
 
 
 class AiNormalizationV4Tests(unittest.TestCase):
+    def test_local_fractional_span_normalizes_roundoff_before_source_mapping(self):
+        stage=group("개8")
+        item=basis("c2","baseline_whole",29.916,49.916)
+        item["observed_seconds"]=20.0
+        result=ai.normalize(fractional_snapshot(0.2,0.284),stage,
+            response(stage,"개8",0,[item],whole_interval_observed=True))
+        observed=next(value for value in result["observations"] if value["code"]=="개8")
+        self.assertEqual(observed["value"],0)
+        self.assertAlmostEqual(observed["evidence"][0]["observed_seconds"],20.0,places=9)
+
+    def test_local_span_still_rejects_real_excess_and_reversed_time(self):
+        from app.domain.scoring_ai_v4 import LocalEvidenceV4
+        for start,end,amount in ((29.916,49.916,20.001),(1.0,1.0-1e-10,0)):
+            with self.subTest(start=start,end=end,amount=amount), self.assertRaises(ValueError):
+                LocalEvidenceV4.model_validate({**basis(start=start,end=end),"observed_seconds":amount})
+
     def test_fractional_cut_and_camera_offset_preserve_whole_window_evidence(self):
         stage=group("개8")
         for sync,cut in ((0.2,0.3),(0.1,0.2)):
