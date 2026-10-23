@@ -80,5 +80,7 @@ test('S1 cohort drafts retain stale pins until explicit replacement and reports 
   expect(current.input_revision).toBe(data.item.input_revision + 1);
   const added = await page.request.post(`/api/cases/${data.item.case_id}/sessions`, { headers, data: { expected_revision: current.input_revision, note: '비교 후 추가 회차' } }); expect(added.status()).toBe(200); const next = await added.json();
   await page.getByRole('button', { name: '현재 접수 입력 새로고침', exact: true }).click(); await expect(page.getByLabel('리포트 회차', { exact: true })).toHaveValue(next.selected_session_id);
-  await page.getByLabel('선택 세션', { exact: true }).selectOption(data.item.selected_session_id); await expect(page.getByLabel('리포트 회차', { exact: true })).toHaveValue(data.item.selected_session_id);
+  await page.getByText(/^촬영 이력 \(/).click();
+  await page.getByRole('button', { name: '1차 촬영 열기', exact: true }).click();
+  await expect(page.getByRole('region', { name: '선택 참가자', exact: true }).getByRole('heading')).toContainText('1차 촬영'); await expect(page.getByLabel('리포트 회차', { exact: true })).toHaveValue(data.item.selected_session_id);
 });

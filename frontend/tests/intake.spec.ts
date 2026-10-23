@@ -122,18 +122,20 @@ test('desktop: S1 registration, two explicit media links, Forms survey, refresh 
   await page.screenshot({ path: testInfo.outputPath('desktop-list.png'), fullPage: true, animations: 'disabled' });
   await openMenu(page, '촬영 기록 (8구간)');
   await page.getByRole('button', { name: '0001 촬영 열기' }).click();
-  await expect(page.getByText('재촬영 세션 추가', { exact: true })).toBeVisible();
+  await expect(page.getByText('재촬영 등록', { exact: true })).toBeVisible();
   await openMenu(page, '영상 파일 업로드');
   await page.getByText(/^정보 저장 완료한 파일/).click();
   await expect(page.getByRole('article', { name: '업로드 파일 synthetic-file-2.mp4', exact: true }).getByText('등록됨 · 영상 읽기 확인 대기', { exact: true })).toBeVisible();
   await openMenu(page, '촬영 기록 (8구간)');
-  await page.getByText('재촬영 세션 추가', { exact: true }).click();
-  await page.getByRole('button', { name: '새 촬영 시작' }).click();
+  await page.getByText('재촬영 등록', { exact: true }).click();
+  await page.getByRole('button', { name: '새 촬영 회차 만들기' }).click();
   await expect(page.getByRole('combobox', { name: '기준 영상', exact: true }).locator('option')).toHaveCount(1);
   await openMenu(page, '참가자 접수');
 
   await expect(page.getByText('입력 버전 5', { exact: true })).toBeVisible();
-  await page.getByLabel('선택 세션', { exact: true }).selectOption(firstSession);
+  await page.getByText(/^촬영 이력 \(/).click();
+  await page.getByRole('button', { name: '1차 촬영 열기', exact: true }).click();
+  await expect(page.getByRole('region', { name: '선택 참가자', exact: true }).getByRole('heading')).toContainText('1차 촬영');
   await expect(page.getByText('영상 2개 · 구간 없음', { exact: false })).toBeVisible();
   expect(errors).toEqual([]);
 });

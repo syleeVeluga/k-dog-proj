@@ -114,7 +114,7 @@ test('최종 segments.csv는 상세 입력 없이 확정되고 누락 관찰창�
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     await expect(csv).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`final-csv-${width}.png`), fullPage: true, animations: 'disabled' });
   }
   const saved = page.waitForResponse(response => response.request().method() === 'PUT' && response.url().endsWith('/recording-s1'));
@@ -298,7 +298,6 @@ test('구간 CSV만으로 확정하고 상세 수동 사실을 추가할 수 있
   await expect(summary).toHaveCount(0);
   await expect(panel.getByRole('alert')).toHaveCount(0);
   await delayRead();
-  await page.getByRole('button', { name: '회차 안내·바로가기', exact: true }).click();
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true }).click();
   await releaseRead();
@@ -457,8 +456,8 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
       .slice(-12).map(element => ({ tag: element.tagName, class: element.className, text: element.textContent?.slice(0, 60), right: element.getBoundingClientRect().right })) }));
   expect(overflow.width <= overflow.viewport, JSON.stringify(overflow)).toBe(true);
   const firstSession = item.selected_session_id;
-  await page.getByText('재촬영 세션 추가', { exact: true }).click();
-  await page.getByRole('button', { name: '새 촬영 시작', exact: true }).click();
+  await page.getByText('재촬영 등록', { exact: true }).click();
+  await page.getByRole('button', { name: '새 촬영 회차 만들기', exact: true }).click();
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('');
   let persisted = await (await page.request.get(`/api/cases/${item.case_id}`)).json();
   const secondSession = persisted.selected_session_id;
@@ -466,7 +465,7 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
   expect(persisted.manifest.sessions.find((value: { session_id: string }) => value.session_id === secondSession).recording_s1).toBeNull();
   const returnToFirst = await page.request.post(`/api/cases/${item.case_id}/sessions`, { headers, data: { session_id: firstSession, expected_revision: persisted.input_revision } });
   expect(returnToFirst.status(), await returnToFirst.text()).toBe(200); persisted = await returnToFirst.json();
-  await expect(page.getByLabel('선택 세션', { exact: true })).toHaveValue(firstSession, { timeout: 15000 });
+  await expect(page.getByRole('region', { name: '선택 참가자', exact: true }).getByRole('heading')).toContainText('1차 촬영', { timeout: 15000 });
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('46');
   await panel.getByRole('button', { name: '확정본 수정 시작', exact: true }).click();
   await panel.getByText('실제 8구간', { exact: true }).click();
@@ -476,13 +475,12 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
   await expect(panel.getByText(/다른 변경이 저장되었습니다/)).toBeVisible({ timeout: 15000 });
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('47');
   page.once('dialog', dialog => dialog.accept());
-  await page.getByRole('button', { name: '회차 안내·바로가기', exact: true }).click();
   await page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true }).click();
   await page.getByRole('button', { name: 's1rec 촬영 기록', exact: true }).click();
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('');
   const finalReturn = await page.request.post(`/api/cases/${item.case_id}/sessions`, { headers, data: { session_id: firstSession, expected_revision: persisted.input_revision } });
   expect(finalReturn.status(), await finalReturn.text()).toBe(200); persisted = await finalReturn.json();
-  await expect(page.getByLabel('선택 세션', { exact: true })).toHaveValue(firstSession, { timeout: 15000 });
+  await expect(page.getByRole('region', { name: '선택 참가자', exact: true }).getByRole('heading')).toContainText('1차 촬영', { timeout: 15000 });
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('46');
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await page.getByLabel('계정', { exact: true }).fill('reviewer');

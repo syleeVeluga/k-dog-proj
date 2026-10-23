@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api';
-import { mayLeave, useEditBase } from './Editing';
+import { forgetEdits, mayLeave, useEditBase } from './Editing';
 import { SessionEditor } from './MetadataEditors';
 import { SEGMENTS_V3, sessionOf } from './types';
 import type { ActualEvent, CaptureState, Case, Run, SegmentId } from './types';
@@ -45,8 +45,8 @@ function CodeList({ label, value, change }: { label: string; value: string[]; ch
   return <label>{label}<input aria-label={label} placeholder="예: 개5, 바6" value={text} onChange={event => { setText(event.target.value); change(codes(event.target.value)); }} /><span className="fine">항목 코드만 쉼표로 구분하세요. 개59는 메모 자체의 코드이며 연결 항목에는 넣지 않습니다.</span></label>;
 }
 
-export function RecordingPanelV4({ item, writable, run, refresh, close }: {
-  item: Case; writable: boolean; run: Run; refresh: (message?: string) => Promise<void>; close: () => void;
+export function RecordingPanelV4({ item, writable, run, refresh, openSession, close }: {
+  item: Case; writable: boolean; run: Run; refresh: (message?: string) => Promise<void>; openSession: (item: Case) => void; close: () => void;
 }) {
   const session = sessionOf(item), edit = useEditBase(item);
   const [record, setRecord] = useState<RecordingV4>(() => initial(item));
@@ -180,7 +180,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
       <ul>{session.recording.events.map(value => <li key={value.event_id}>{EVENT_CHOICES.find(([id]) => id === value.kind)?.[1] ?? value.kind} · {session.videos.find(video => video.video_id === value.video_id)?.original_name} · {value.seconds ?? '미관찰'}~{value.end_seconds ?? '끝 미지정'}초 · {value.status === 'observed' ? '관찰됨' : value.status === 'not_occurred' ? '미발생' : '미관찰'} · {value.note} · {value.affected_codes.join(', ')}</li>)}</ul>
       <ul>{session.recording.video_offsets.map(value => <li key={value.video_id}>{session.videos.find(video => video.video_id === value.video_id)?.original_name} · 오프셋 {value.offset_seconds}초 · {value.confirmed ? '확인됨' : '미확인'} · {value.note}</li>)}</ul></details>}
     {writable && <><SessionEditor item={item} session={session} run={run} refresh={refresh} /><p>「영상 파일 업로드」 메뉴에서 원본·변환 파일을 올리고 참가자·촬영 회차·촬영 카메라 번호를 저장하세요.</p>
-      <details><summary>재촬영 세션 추가</summary><button onClick={() => { if (!mayLeave()) return; void run(async () => { await api(`/cases/${item.case_id}/sessions`, 'POST', { expected_revision: item.input_revision }); await refresh('새 촬영 세션을 시작했습니다.'); }); }}>새 촬영 시작</button></details></>}
+      <details><summary>재촬영 등록</summary><p className="fine">새로 촬영한 자료를 등록할 때만 새 회차를 만드세요. 기존 자료는 보존되며 새 회차로 복사되지 않습니다. 같은 영상의 분석 재실행은 분석 메뉴에서 진행하세요.</p><button onClick={() => { if (!mayLeave()) return; void run(async () => { const saved = await api<Case>(`/cases/${item.case_id}/sessions`, 'POST', { expected_revision: item.input_revision }); forgetEdits(); await openSession(saved); await refresh('새 촬영 회차를 시작했습니다.'); }); }}>새 촬영 회차 만들기</button></details></>}
     {edit.dirty && edit.view.input_revision !== item.input_revision && <p role="status">다른 변경이 저장되었습니다. 편집 시작 버전 {edit.view.input_revision}을 유지하며 현재 입력은 자동으로 덮어쓰지 않습니다.</p>}
     {record.video_id && <><button onClick={() => void run(async () => { await api(`/cases/${item.case_id}/videos/${record.video_id}/open`, "POST"); setOpenedVideo(record.video_id); })}>영상 열기</button>{openedVideo === record.video_id && <video src={`/api/cases/${item.case_id}/videos/${record.video_id}`} controls preload="metadata" />}</>}
     <fieldset disabled={!writable || !editing || csvBusy}>

@@ -35,6 +35,7 @@ export function App() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [selection, setSelection] = useState<Case | null>(null);
   const selectionSequence = useRef(0);
+  const caseRefreshVersion = useRef(0);
   const pinnedSession = useRef(false);
   const [viewSession, setViewSession] = useState('');
   const [search, setSearch] = useState('');
@@ -42,7 +43,6 @@ export function App() {
   const [intakeFilter, setIntakeFilter] = useState('all');
   const [listOrigin, setListOrigin] = useState<Route>('intake');
   const contextTitle = useRef<HTMLHeadingElement>(null);
-  const [contextExpanded, setContextExpanded] = useState(false);
   const observedSession = useRef('');
   const current = cases.find(item => item.case_id === selection?.case_id) ?? null;
   const selected = current ? { ...current, selected_session_id: viewSession || current.selected_session_id } : null;
@@ -61,7 +61,7 @@ export function App() {
   const modal = drawer && menuOpen;
   const writable = !!user;
   const filters = { search, eventFilter, setSearch, setEventFilter };
-  useEffect(() => { setContextExpanded(false); contextTitle.current?.focus(); }, [route, selected?.case_id, selected?.selected_session_id]);
+  useEffect(() => { contextTitle.current?.focus(); }, [route, selected?.case_id, selected?.selected_session_id]);
   useEffect(() => {
     if (!current || !writable || observedSession.current === current.selected_session_id) return;
     const previous = observedSession.current;
@@ -75,7 +75,9 @@ export function App() {
     finally { setBusy(false); }
   };
   async function reload(id?: string) {
+    const version = ++caseRefreshVersion.current;
     const values = await api<Case[]>('/cases');
+    if (version !== caseRefreshVersion.current) return;
     setCases(values); setUpdatedAt(new Date().toLocaleTimeString());
     if (id && id !== selection?.case_id) setSelected(values.find(c => c.case_id === id) ?? null);
   }
@@ -147,7 +149,9 @@ export function App() {
   }, []);
   useEffect(() => {
     if (user) void run(async () => {
-      setCases(await api<Case[]>('/cases'));
+      const version = caseRefreshVersion.current;
+      const values = await api<Case[]>('/cases');
+      if (version === caseRefreshVersion.current) setCases(values);
     });
   }, [user]);
   const surveyVersion = selected ? sessionOf(selected).survey_version : '';
@@ -163,7 +167,8 @@ export function App() {
     if (!user) return;
     let active = true; let timer: ReturnType<typeof setTimeout>;
     async function poll() {
-      try { const items = await api<Case[]>('/cases'); if (active) { setCases(items); setUpdatedAt(new Date().toLocaleTimeString()); setConnectionError(''); } }
+      const version = caseRefreshVersion.current;
+      try { const items = await api<Case[]>('/cases'); if (active && version === caseRefreshVersion.current) { setCases(items); setUpdatedAt(new Date().toLocaleTimeString()); setConnectionError(''); } }
       catch { if (active) setConnectionError('목록 연결이 끊겼습니다. 마지막 조회 결과를 표시하며 자동 재연결합니다.'); }
       if (active) timer = setTimeout(poll, 3000);
     }
@@ -192,6 +197,7 @@ export function App() {
       const value = await api<Case>(`/cases/${item.case_id}?purpose=open`);
       if (current !== selectionSequence.current || context !== routeRef.current) return;
       if (next) forgetEdits();
+      caseRefreshVersion.current++;
       setCases(values => values.some(row => row.case_id === value.case_id) ? values.map(row => row.case_id === value.case_id ? value : row) : [...values, value]);
       if (!route.startsWith('recording/') && (!selected || (next && !participantTasks.includes(route)))) setListOrigin(route);
       setSelected({ ...value, selected_session_id: item.selected_session_id });
@@ -219,20 +225,21 @@ export function App() {
       {selected && fieldRoutes.includes(route) && <section className="panel participant-context" aria-label="선택 참가자">
         <div className="context-return"><button onClick={backToList}>전체 목록으로 돌아가기</button></div>
         <h2 ref={contextTitle} tabIndex={-1}>{selected.event_id} / {selected.participant_id} / {selected.dog_name} / {selected.manifest.sessions.findIndex(s => s.session_id === selected.selected_session_id) + 1}차 촬영</h2>
-        <label>{writable ? '저장 대상 회차 선택' : '조회 회차 선택'}<select aria-label="선택 세션" disabled={busy} value={selected.selected_session_id} onChange={e => {
-          const id = e.target.value; if (!mayLeave()) return;
-          if (!writable) { setViewSession(id); return; }
-          void run(async () => { const saved = await api<Case>(`/cases/${selected.case_id}/sessions`, 'POST', { expected_revision: selected.input_revision, session_id: id }); setSelected(saved); await reload(); });
-        }}>{selected.manifest.sessions.map((s, i) => <option key={s.session_id} value={s.session_id}>{i + 1}차 촬영 · 영상 {videoCounts(selected, i)}</option>)}</select></label>
-        {writable && current?.selected_session_id !== selected.selected_session_id && <p role="status">다른 요청이 저장 대상 회차를 변경했습니다. 현재 화면의 회차를 확인하고 선택 세션에서 저장 대상을 다시 선택하세요.</p>}
+        {writable && current?.selected_session_id !== selected.selected_session_id && <p role="status">다른 작업에서 촬영 회차가 변경되었습니다. 현재 화면의 자료는 유지됩니다. 회차를 다시 열려면 촬영 이력을 이용하세요.</p>}
+        {selected.manifest.sessions.length > 1 && <details className="session-history" key={`${selected.case_id}:${selected.selected_session_id}`}>
+          <summary>촬영 이력 ({selected.manifest.sessions.length}회)</summary>
+          <p className="fine">이전 촬영의 자료를 확인하거나 보완할 때 여세요. 이후 작업은 열어 둔 회차에서 이어집니다.</p>
+          <ul>{selected.manifest.sessions.map((s, i) => <li key={s.session_id}>
+            <div><strong>{i + 1}차 촬영</strong><small>영상 {videoCounts(selected, i)}</small></div>
+            {s.session_id === selected.selected_session_id && s.session_id === current?.selected_session_id ? <span className="tag">현재 작업 중</span>
+              : <button disabled={busy} onClick={() => {
+                if (!mayLeave()) return;
+                if (!writable) { forgetEdits(); setViewSession(s.session_id); return; }
+                void run(async () => { const saved = await api<Case>(`/cases/${selected.case_id}/sessions`, 'POST', { expected_revision: selected.input_revision, session_id: s.session_id }); forgetEdits(); setSelected(saved); await reload(); });
+              }}>{i + 1}차 촬영 열기</button>}
+          </li>)}</ul>
+        </details>}
         <ActivityLogV4 key={selected.case_id} path={`/cases/${selected.case_id}/activity`} />
-        <div className={`context-tools${contextExpanded ? ' expanded' : ''}`}>
-          <button className="context-toggle" aria-expanded={contextExpanded} aria-controls="context-extra" onClick={() => setContextExpanded(!contextExpanded)}>회차 안내·바로가기</button>
-          <div id="context-extra" className="context-extra">
-            <p className="fine">{writable ? '회차 선택은 저장 대상을 변경합니다. 이전 설문·영상·구간은 보존되며 새 회차에 복사하지 않습니다.' : '조회만 변경합니다. 운영자의 저장 대상과 입력 버전은 바뀌지 않습니다.'}</p>
-            <div className="toolbar"><button onClick={() => go('preprocess')}>전처리 상태 보기</button></div>
-          </div>
-        </div>
       </section>}
       {selected && (route === 'intake' || participantTasks.includes(route)) && <ParticipantTasks route={route} go={go} />}
       <fieldset disabled={busy} className="workspace">

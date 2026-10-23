@@ -130,9 +130,12 @@ test('같은 회차의 입력판이 바뀌면 이전 제어 요청중과 늦은 
   await expect(panel.getByText('AI 초안: 중지 요청 중', { exact: true })).toBeVisible();
   expect(stopped).toBe(true);
   current = { ...current, outdated: true };
-  // Explicit same-session selection reloads the current input revision in the parent.
+  // Simulate another operator updating the same session; polling reloads the input revision.
   const changed = page.waitForResponse(response => response.url().endsWith(`/cases/${item.case_id}/sessions`) && response.request().method() === 'POST');
-  await page.getByLabel('선택 세션', { exact: true }).selectOption(item.selected_session_id);
+  await page.evaluate(async item => {
+    const response = await fetch(`/api/cases/${item.case_id}/sessions`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-KDOG-Request': '1' }, body: JSON.stringify({ expected_revision: item.input_revision, session_id: item.selected_session_id }) });
+    if (!response.ok) throw new Error(`회차 변경 실패: ${response.status}`);
+  }, item);
   expect((await changed).status()).toBe(200);
   await expect(panel.getByText('AI 초안: 중지 요청 중', { exact: true })).toHaveCount(0);
   release(); await page.waitForTimeout(300);
