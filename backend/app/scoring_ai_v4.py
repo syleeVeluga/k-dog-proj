@@ -107,6 +107,15 @@ def response_schema(codes):
     return schema
 
 
+def provider_schema(schema):
+    # Gemini can reject a repeated complex row schema at a fixed array length.
+    # Keep the pinned contract intact; normalize still checks every exact item once.
+    result = json.loads(encode(schema))
+    for key in ("minItems", "maxItems"):
+        result["properties"]["observations"].pop(key, None)
+    return result
+
+
 def contract_errors(error):
     """Retain actionable locations without provider inputs, Pydantic context or URLs."""
     if isinstance(error, ValidationError):
@@ -195,16 +204,18 @@ def context(snapshot, group, row, audit_actor):
         "identity": {"case_id": snapshot.case_id, "session_id": snapshot.session_id, "batch_id": snapshot.batch.batch_id},
         "catalog_version": CATALOG.version, "items": [item.model_dump(mode="json") for item in CATALOG.rated_items() if item.code in group.item_codes],
         "windows": [window.model_dump(mode="json") for window in requested],
-        "response_constraints": {"evidence_time_unit": "clip_seconds", "evidence_intervals": bounds,
+        "response_constraints": {"observation_count": len(group.item_codes),
+            "evidence_time_unit": "clip_seconds", "evidence_intervals": bounds,
             "vocal_item_codes": [code for code in group.item_codes if code in VOCAL_CODES],
             "audio_unavailable_windows": [window.window.window_id for window in requested if window.audio_available_seconds == 0],
             "unavailable_audio_observation": {"value": None, "status": "unobserved", "vocalization": None},
-            "instruction": "근거는 지정한 clip_id/window_id의 evidence_intervals 안에만 기록한다. 음성 가용초가 0인 창의 발성 항목은 unavailable_audio_observation을 사용한다. 청취 0초인 vocalization 객체를 만들지 않는다."},
+            "instruction": "근거는 지정한 clip_id/window_id의 evidence_intervals 안에만 기록한다. 음성 가용초가 0인 창의 발성 항목은 unavailable_audio_observation을 사용한다. 청취 0초인 vocalization 객체를 만들지 않는다. 걷기 국면 시각은 walk_phases의 확정값만 사용하며 없는 시각을 추정하지 않는다."},
         "clips": [{"clip_id": clip.clip_id, "video_id": clip.video_id, "camera_id": clip.camera_id,
                    "reference_offset_seconds": clip.offset_seconds, "source_start_seconds": clip.source_start_seconds,
                    "source_end_seconds": clip.source_end_seconds, "window_ids": clip.window_ids,
                    "file": getattr(clip, group.input_variant).model_dump(mode="json", exclude={"ref"})} for clip in clips],
         "capture_events": [event.model_dump(mode="json") for event in snapshot.session.recording_s1.events],
+        "walk_phases": [phase.model_dump(mode="json") for phase in snapshot.session.recording_s1.walk_phases],
         "sampling": {"production": group.production_fps, "request_fps": group.request_fps, "mode": group.processing_mode,
                      "media_resolution": group.media_resolution}, "no_cross_view_count_sum": True,
         "pending_policies": {"개21": "D03 전체 30초 집계 미승인; null policy_pending", "보5": "서로 다른 사건간 종합 미승인; 한 사건만 확정 가능"}}
@@ -535,7 +546,7 @@ def handler(worker, snapshot, group, row):
         files = [(worker.store.path(getattr(clip, group.input_variant).ref),
                   SimpleNamespace(clip_id=clip.clip_id, size_bytes=getattr(clip, group.input_variant).size_bytes))
                  for clip in clips_for(snapshot, group)]
-        raw, usage = worker.gemini_request(row, step, files, config, info, group.response_schema, lambda: guarded(worker, row, snapshot))
+        raw, usage = worker.gemini_request(row, step, files, config, info, provider_schema(group.response_schema), lambda: guarded(worker, row, snapshot))
         try:
             payload = {**normalize(snapshot, group, raw), "response": raw, "usage": usage}
             if step["attempt"] > 1:
