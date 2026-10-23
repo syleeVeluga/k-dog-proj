@@ -97,7 +97,7 @@ export function App() {
     return true;
   }
   function goMenu(next: Route) {
-    if (go(next) && (next === 'intake' || next === 'survey')) setListOrigin(next);
+    if (go(next) && (next === 'intake' || next === 'survey' || next === 'preprocess')) setListOrigin(next);
   }
   const listRoute = participantTasks.includes(route) ? listOrigin : route.startsWith('recording/') ? 'intake' : route;
   function backToList() {

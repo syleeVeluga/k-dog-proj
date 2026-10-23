@@ -30,7 +30,8 @@ test('위치·작업 탭은 참가자와 회차를 유지하고 원래 목록의
   await expect(trail).toContainText('NAV-TABS · 위치 확인견');
   await expect(trail.locator('[aria-current="page"]')).toHaveText('영상 등록');
   await expect(page.getByRole('region', { name: '선택 참가자', exact: true }).getByRole('heading')).toContainText('1차 촬영');
-  for (const name of ['설문 확인', '촬영 기록', '영상 등록']) {
+  await expect(tabs.getByRole('button')).toHaveText(['설문 확인', '영상 등록', '촬영 기록', '전처리']);
+  for (const name of ['설문 확인', '촬영 기록', '전처리', '영상 등록']) {
     await tabs.getByRole('button', { name, exact: true }).click();
     await expect(tabs.getByRole('button', { name, exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(trail.locator('[aria-current="page"]')).toHaveText(name);
@@ -42,6 +43,14 @@ test('위치·작업 탭은 참가자와 회차를 유지하고 원래 목록의
   const unchanged = await (await page.request.get(`/api/cases/${item.case_id}`)).json();
   expect(unchanged.selected_session_id).toBe(item.selected_session_id);
   expect(unchanged.input_revision).toBe(item.input_revision);
+  await tabs.getByRole('button', { name: '촬영 기록', exact: true }).click();
+  await tabs.getByRole('button', { name: '전처리', exact: true }).click();
+  await page.goBack();
+  await expect(tabs.locator('[aria-current="page"]')).toHaveText('촬영 기록');
+  await page.goForward();
+  await expect(tabs.locator('[aria-current="page"]')).toHaveText('전처리');
+  await expect(trail.getByRole('button')).toHaveText('참가자 접수 목록');
+  await expect(page.getByRole('region', { name: '선택 참가자', exact: true })).toContainText('NAV-TABS');
   await page.screenshot({ path: testInfo.outputPath('participant-navigation-desktop.png'), animations: 'disabled' });
   await page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true }).click();
   await expect(page).toHaveURL(/#\/intake$/);
@@ -73,14 +82,14 @@ test('분석에서 대상을 바꾸어 자료를 보완한 뒤 닫아도 분석 
   await expect(trail.getByRole('listitem')).toHaveText(['리포트', '비교 조건']);
 });
 
-test('모바일 위치 링크·탭·목록 복귀는 미저장 파일을 보호하고 분석 영역은 분리한다', async ({ page }, testInfo) => {
+test('모바일 촬영·전처리 탭과 목록 복귀는 미저장 파일 및 참가자 맥락을 보호한다', async ({ page }, testInfo) => {
   await setup(page, 'NAV-GUARD');
   await page.getByRole('button', { name: 'NAV-GUARD 영상 등록', exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   const trail = page.getByRole('navigation', { name: '현재 위치' });
   const tabs = page.getByRole('navigation', { name: '참가자 작업' });
   await page.getByLabel('영상 파일', { exact: true }).setInputFiles({ name: 'unsent.mp4', mimeType: 'video/mp4', buffer: Buffer.from('synthetic unsent') });
-  for (const button of [tabs.getByRole('button', { name: '촬영 기록', exact: true }), trail.getByRole('button'), page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true })]) {
+  for (const button of [tabs.getByRole('button', { name: '촬영 기록', exact: true }), tabs.getByRole('button', { name: '전처리', exact: true }), trail.getByRole('button'), page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true })]) {
     page.once('dialog', dialog => dialog.dismiss());
     await button.click();
     await expect(page).toHaveURL(/#\/recording\/inbox$/);
@@ -91,14 +100,20 @@ test('모바일 위치 링크·탭·목록 복귀는 미저장 파일을 보호�
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: testInfo.outputPath('participant-navigation-mobile.png'), animations: 'disabled' });
   page.once('dialog', dialog => dialog.accept());
-  await tabs.getByRole('button', { name: '설문 확인', exact: true }).click();
-  await openMenu(page, '전처리');
-  await expect(trail).toContainText('분석·평가');
-  await expect(trail).toContainText('전처리 목록');
-  await expect(trail.locator('[aria-current="page"]')).toContainText('NAV-GUARD');
-  await expect(tabs).toHaveCount(0);
+  await tabs.getByRole('button', { name: '전처리', exact: true }).click();
+  await expect(trail).toContainText('현장 운영');
+  await expect(trail).toContainText('참가자 접수 목록');
+  await expect(trail.locator('[aria-current="page"]')).toHaveText('전처리');
+  await expect(tabs.getByRole('button', { name: '전처리', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('button', { name: '촬영 기록으로 이동', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: '선행 조건', exact: true })).toContainText('위의 촬영 기록 탭에서 확정합니다.');
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('preprocess-tab-mobile.png'), animations: 'disabled' });
+  await tabs.getByRole('button', { name: '촬영 기록', exact: true }).click();
+  await expect(page.getByRole('button', { name: '분석 준비 확인', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: '선택 참가자', exact: true })).toContainText('NAV-GUARD');
   await trail.getByRole('button').click();
-  await expect(page).toHaveURL(/#\/preprocess$/);
+  await expect(page).toHaveURL(/#\/intake$/);
   await expect(page.getByRole('region', { name: '선택 참가자', exact: true })).toHaveCount(0);
 });
 
