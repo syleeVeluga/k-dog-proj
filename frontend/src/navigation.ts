@@ -41,7 +41,7 @@ const items: MenuItem[] = [...menuTree.flatMap(group => group.items),
   { route: 'recording/shared', label: '공용 업로드 보관함', roles: everyone },
 ];
 
-export const participantTasks: Route[] = ['survey', 'recording/inbox', 'recording/record'];
+export const participantTasks: Route[] = ['survey', 'recording/inbox', 'recording/record', 'preprocess'];
 
 export function routeGroup(route: Route) {
   return menuTree.find(group => group.items.some(item => item.route === route))?.label ?? '현장 운영';

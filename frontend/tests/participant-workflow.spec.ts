@@ -36,7 +36,9 @@ test('설문은 빈칸 사유를 구분하고 같은 참가자의 영상과 촬�
   await page.screenshot({ path: testInfo.outputPath('survey-list-desktop.png'), fullPage: true, animations: 'disabled' });
   await row.getByRole('button', { name: 'FLOW-SURVEY 설문 확인 열기' }).click();
   await expect(page.locator('details#survey')).toHaveAttribute('open', '');
-  await expect(page.getByText('빈칸 사유: 관찰하지 못함', { exact: true })).toBeVisible();
+  const firstResponse = page.locator('details#survey').getByRole('row').filter({ has: page.getByRole('cell', { name: '1', exact: true }) });
+  await expect(firstResponse.getByRole('cell', { name: '미응답', exact: true })).toBeVisible();
+  await expect(firstResponse.getByRole('cell', { name: '관찰하지 못함', exact: true })).toBeVisible();
   const responses = await page.locator('details#survey').boundingBox();
   const calculations = await page.getByRole('heading', { name: '영역별 계산 결과', exact: true }).boundingBox();
   expect(responses!.y).toBeLessThan(calculations!.y);

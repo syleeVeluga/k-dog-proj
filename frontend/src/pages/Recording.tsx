@@ -37,7 +37,7 @@ export function Recording({ view, user, cases, selected, select, filters, writab
       <div className="panel registration-callout"><p>참가자 등록 전에 도착한 파일은 공용 보관함에 올린 뒤 연결할 수 있습니다.</p><button onClick={() => goTo('recording/shared')}>공용 업로드 보관함 열기</button></div>
     </section>}
     {(selected || sharedInbox) && <>
-      <div className="participant-actions"><button onClick={() => { if (mayLeave()) { forgetEdits(); select(null); goTo('recording/inbox'); } }}>참가자 다시 선택</button>{selected && <button onClick={() => goTo('preprocess')}>분석 준비 확인</button>}</div>
+      <div className="participant-actions"><button onClick={() => { if (mayLeave()) { forgetEdits(); select(null); goTo('recording/inbox'); } }}>참가자 다시 선택</button></div>
       {!selected && <p role="status">공용 보관함입니다. 업로드한 각 파일에 참가자와 촬영 회차를 지정하세요.</p>}
       {writable && <UploadInbox key={`${selected?.case_id ?? 'shared'}:${selected?.selected_session_id ?? ''}`} cases={cases} selected={selected} user={user} run={run} refresh={async message => { await reload(); if (message) notify(message); }} />}
     </>}
@@ -54,7 +54,6 @@ export function Recording({ view, user, cases, selected, select, filters, writab
           <td data-label="구간"><span className={state === 'confirmed' ? 'tag green' : 'tag'}>{({ none: '없음', draft: '초안', confirmed: '확정' })[state]}</span></td>
           <td data-label="작업"><button aria-label={`${c.participant_id} 촬영 열기`} onClick={() => { if (mayLeave()) select(c); }}>열기 ↗</button></td></tr>;
       })}</tbody></table>{!sorted.length && <div className="empty"><h2>표시할 참가자가 없습니다.</h2><p>검색·행사 필터 또는 접수 등록을 확인하세요.</p></div>}</div></>}
-    {selected && <div className="participant-actions"><button onClick={() => goTo('preprocess')}>분석 준비 확인</button></div>}
     {selected && <RecordingPanelV4 key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run}
       refresh={async message => { await reload(); if (message) notify(message); }} openSession={select} close={back} />}
     {selected && <PreservedMediaRegistration item={selected} writable={writable} run={run}

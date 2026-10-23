@@ -10,7 +10,9 @@ export function Prerequisites({ item, kind, goTo }: { item: Case; kind: Kind; us
   const progress = currentProgress(item);
   if (!progress) return null;
   const needs: Need[] = [
-    { label: '촬영 기록 확정', ok: progress.recording, hint: '촬영 기록 화면에서 확정합니다.', go: { route: 'recording/record', label: '촬영 기록으로 이동' } },
+    { label: '촬영 기록 확정', ok: progress.recording,
+      hint: kind === 'preprocess' ? '위의 촬영 기록 탭에서 확정합니다.' : '촬영 기록 화면에서 확정합니다.',
+      go: kind === 'preprocess' ? undefined : { route: 'recording/record', label: '촬영 기록으로 이동' } },
   ];
   if (kind === 'scoring' || kind === 'report') needs.push({ label: '전처리 완료', ok: progress.preprocess === 'done' || progress.preprocess === 'outdated',
     hint: progress.preprocess === 'running' ? '전처리가 실행 중입니다.' : '전처리 화면에서 실행합니다.', go: { route: 'preprocess', label: '전처리로 이동' } });

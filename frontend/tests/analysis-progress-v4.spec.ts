@@ -53,7 +53,7 @@ test('전처리·채점·리포트 목록은 같은 진행 단계와 다음 할 
   const check = page.getByRole('region', { name: '선행 조건', exact: true });
   await expect(check.getByRole('heading', { name: '전처리를 실행하려면', exact: true })).toBeVisible();
   await expect(check.getByText('촬영 기록 확정', { exact: true })).toBeVisible();
-  await expect(check.getByText('촬영 기록 화면에서 확정합니다.', { exact: false })).toBeVisible();
+  await expect(check.getByText('위의 촬영 기록 탭에서 확정합니다.', { exact: false })).toBeVisible();
   await openMenu(page, '독립 채점');
   const scoring = page.getByRole('region', { name: '선행 조건', exact: true });
   await expect(scoring.getByRole('heading', { name: '채점을 시작하려면', exact: true })).toBeVisible();
@@ -61,7 +61,8 @@ test('전처리·채점·리포트 목록은 같은 진행 단계와 다음 할 
   await expect(scoring.getByText('채점 시트', { exact: true })).toBeVisible();
   await scoring.getByRole('button', { name: '전처리로 이동', exact: true }).click();
   await expect(page).toHaveURL(/#\/preprocess$/);
-  await page.getByRole('region', { name: '선행 조건', exact: true }).getByRole('button', { name: '촬영 기록으로 이동', exact: true }).click();
+  await expect(page.getByRole('region', { name: '선행 조건', exact: true }).getByRole('button', { name: '촬영 기록으로 이동', exact: true })).toHaveCount(0);
+  await page.getByRole('navigation', { name: '참가자 작업' }).getByRole('button', { name: '촬영 기록', exact: true }).click();
   await expect(page).toHaveURL(/#\/recording\/record$/);
   await openMenu(page, '리포트 발급');
   await expect(page.getByRole('region', { name: '선행 조건', exact: true }).getByText('최종 결과 확정', { exact: true })).toBeVisible();
