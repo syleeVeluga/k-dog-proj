@@ -78,7 +78,8 @@ def as_mp4(path, workdir):
     return target
 
 
-def ask(key, mp4, seconds, model, fps, resolution):
+def upload(key, mp4):
+    """Upload once per video; returns (remote file name, uri, timing). The caller deletes the remote file."""
     size = mp4.stat().st_size
     if size > 2_000_000_000:
         raise SystemExit(f"{mp4.name}: 2GB를 넘는 파일은 보내지 않습니다.")
@@ -105,22 +106,31 @@ def ask(key, mp4, seconds, model, fps, resolution):
         timing["processing_seconds"] = time.monotonic() - started
         if remote.get("state") != "ACTIVE":
             raise SystemExit("원격 파일 처리 실패")
-        video = {"type": "video", "uri": remote["uri"], "mime_type": "video/mp4", "processing": {"type": "static", "fps": fps}}
-        if resolution:
-            video["resolution"] = resolution
-        inputs = [video, {"type": "text", "text": json.dumps({"duration_sec": round(seconds, 1), "sampling_fps": fps}, ensure_ascii=False)}]
-        usage = {"model": model}
-        started = time.monotonic()
-        result, _ = request("POST", BASE + "/v1beta/interactions", key, timeout=INTERACTION_TIMEOUT,
-                            data=interaction_request(model, PROMPT, inputs, SCHEMA, 8192))
-        timing["inference_seconds"] = time.monotonic() - started
-        text = interaction_text(result, "incomplete", usage)
-        return json.loads(text)["segments"], usage, timing
-    finally:
-        try:
-            request("DELETE", BASE + "/v1beta/" + name, key)
-        except ProviderError as exc:
-            print(f"원격 파일 삭제 실패: {name} ({exc.code}). 공급자 콘솔에서 확인하세요.", file=sys.stderr)
+    except BaseException:
+        delete(key, name)
+        raise
+    return name, remote["uri"], timing
+
+
+def delete(key, name):
+    try:
+        request("DELETE", BASE + "/v1beta/" + name, key)
+    except ProviderError as exc:
+        print(f"원격 파일 삭제 실패: {name} ({exc.code}). 공급자 콘솔에서 확인하세요.", file=sys.stderr)
+
+
+def ask(key, uri, seconds, model, fps, resolution):
+    video = {"type": "video", "uri": uri, "mime_type": "video/mp4", "processing": {"type": "static", "fps": fps}}
+    if resolution:
+        video["resolution"] = resolution
+    inputs = [video, {"type": "text", "text": json.dumps({"duration_sec": round(seconds, 1), "sampling_fps": fps}, ensure_ascii=False)}]
+    usage = {"model": model}
+    started = time.monotonic()
+    result, _ = request("POST", BASE + "/v1beta/interactions", key, timeout=INTERACTION_TIMEOUT,
+                        data=interaction_request(model, PROMPT, inputs, SCHEMA, 8192))
+    timing = {"inference_seconds": time.monotonic() - started}
+    text = interaction_text(result, "incomplete", usage)
+    return json.loads(text)["segments"], usage, timing
 
 
 def compare(found, expected):
@@ -162,14 +172,22 @@ def main():
             mp4 = as_mp4(path, Path(temporary))
             seconds = duration(mp4)
             entry = {"camera": camera, "video": path.name, "duration_sec": round(seconds, 1), "size_bytes": mp4.stat().st_size, "runs": []}
-            for index in range(args.repeat):
-                if args.dry_run:
-                    found, usage, timing = [], {}, {}
-                else:
-                    found, usage, timing = ask(key, mp4, seconds, args.model, args.fps, args.media_resolution)
-                rows, summary = compare(found, expected)
-                entry["runs"].append({"run": index + 1, "summary": summary, "segments": rows, "usage": usage, "timing": {k: round(v, 1) for k, v in timing.items()}})
-                print(f"{camera} #{index + 1}: {json.dumps(summary, ensure_ascii=False)}")
+            name = uri = None
+            if not args.dry_run:
+                name, uri, upload_timing = upload(key, mp4)
+                entry["upload_timing"] = {k: round(v, 1) for k, v in upload_timing.items()}
+            try:
+                for index in range(args.repeat):
+                    if args.dry_run:
+                        found, usage, timing = [], {}, {}
+                    else:
+                        found, usage, timing = ask(key, uri, seconds, args.model, args.fps, args.media_resolution)
+                    rows, summary = compare(found, expected)
+                    entry["runs"].append({"run": index + 1, "summary": summary, "segments": rows, "usage": usage, "timing": {k: round(v, 1) for k, v in timing.items()}})
+                    print(f"{camera} #{index + 1}: {json.dumps(summary, ensure_ascii=False)}", flush=True)
+            finally:
+                if name:
+                    delete(key, name)
             report["videos"].append(entry)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
