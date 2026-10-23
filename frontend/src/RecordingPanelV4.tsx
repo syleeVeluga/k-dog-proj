@@ -106,7 +106,6 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
   const videoOptions = videos.map(video => <option key={video.video_id} value={video.video_id}>{video.camera_id ? `${cameraName(video.camera_id)} · ` : ''}{video.original_name}</option>);
   function save(confirmed: boolean) {
     void run(async () => {
-      if (!record.procedure_note.trim()) throw new Error('실제 촬영 절차의 확인 근거를 기록하세요.');
       if (record.events.some(event => !event.note.trim() || event.status === 'observed' && event.seconds === null)) throw new Error('사건마다 실제 맥락·사유와 관찰 시각을 기록하세요.');
       if (record.coverage.some(value => !value.note.trim() || value.start_seconds === null || value.end_seconds === null || value.observed_seconds === null)) throw new Error('관찰 근거의 범위·실제 관찰 초·설명을 모두 기록하세요.');
       await api(path, 'PUT', { expected_revision: edit.view.input_revision, recording: { ...record, confirmed } });
@@ -135,7 +134,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
       {session.videos.length ? ` · 사용 가능 ${usable} · 영상 읽기 확인 대기 ${videos.length - usable}${stale ? ' · 입력이 바뀌어 전처리를 다시 해야 합니다' : ''}` : writable ? ' · 「영상 파일 업로드」 메뉴에서 영상을 올리고 파일별 촬영 정보를 저장하세요.' : ' · 연결된 영상이 없습니다.'}</p>
     <p>입력 버전 {item.input_revision} · 촬영 기록 {session.recording_s1?.confirmed ? '확정' : '초안 / 미기록'}</p>
     {writable && <div className="toolbar recording-actions">{editing ? <><button disabled={!record.video_id || csvBusy} onClick={() => save(false)}>촬영 기록 초안 저장</button><button disabled={!record.video_id || csvBusy} onClick={() => save(true)}>촬영 기록 확정</button>
-      {(!record.video_id || !record.procedure_note.trim()) && <span className="fine" aria-live="polite">{!record.video_id ? (videos.length ? '기준 영상을 고르세요.' : '읽을 수 있는 영상을 먼저 연결하세요.') : '실제 촬영 절차의 확인 근거를 기록해야 저장할 수 있습니다.'}</span>}</> : <button onClick={() => setEditing(true)}>확정본 수정 시작</button>}
+      {!record.video_id && <span className="fine" aria-live="polite">{videos.length ? '기준 영상을 고르세요.' : '읽을 수 있는 영상을 먼저 연결하세요.'}</span>}</> : <button onClick={() => setEditing(true)}>확정본 수정 시작</button>}
       {edit.dirty && <><span role="status">촬영 기록 · 저장 전</span><button onClick={() => { if (edit.discard()) { setRecord(initial(item)); setEditing(!session.recording_s1?.confirmed); } }}>촬영 입력 버리고 최신 값 보기</button></>}</div>}
     <p>입장 → 기준 → 혼자 → 재회 → 무시 → 걷기 → 낯선 사람 → 퇴장</p>
     <details><summary>진행 안내</summary>

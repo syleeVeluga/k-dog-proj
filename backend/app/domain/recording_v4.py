@@ -160,7 +160,7 @@ class SafeBaseSequenceV4(ContractV4):
 class RecordingV4(ContractV4):
     protocol_version: Literal["protocol-20261002-s1.1"] = PROTOCOL_VERSION
     procedure_edition: Literal["s1_confirmed", "legacy", "unconfirmed"] = "unconfirmed"
-    procedure_note: Text
+    procedure_note: str = ""  # optional: operators may save and confirm without a written confirmation basis
     video_id: MediaKey
     confirmed: bool = False
     segments: Annotated[tuple[CaptureSegmentV4, ...], Field(min_length=8, max_length=8)]

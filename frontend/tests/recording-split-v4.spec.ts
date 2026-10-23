@@ -124,9 +124,9 @@ test('촬영 기록 화면은 선택 참가자의 연결 영상 요약과 저장
   await page.getByRole('button', { name: 'U5E 촬영 열기', exact: true }).click();
   const panel = page.getByRole('region', { name: '촬영 기록', exact: true });
   await expect(panel.getByText('1차 촬영 · 연결된 영상 2개 · 사용 가능 0 · 영상 읽기 확인 대기 2', { exact: true })).toBeVisible();
-  await expect(panel.getByText('실제 촬영 절차의 확인 근거를 기록해야 저장할 수 있습니다.', { exact: true })).toBeVisible();
-  await panel.getByLabel('절차 확인 근거', { exact: true }).fill('합성 확인 근거');
+  // 절차 확인 근거는 선택 입력이므로 비어 있어도 저장 안내가 뜨지 않는다.
   await expect(panel.getByText('실제 촬영 절차의 확인 근거를 기록해야 저장할 수 있습니다.', { exact: true })).toHaveCount(0);
+  await expect(panel.getByRole('textbox', { name: '절차 확인 근거', exact: true })).toHaveValue('');
   // 연결·출처 구역보다 기록 패널이 위에 있고 첫 화면 안에서 시작한다.
   expect(await panel.evaluate(element => element.getBoundingClientRect().top + window.scrollY)).toBeLessThan(900);
 });
