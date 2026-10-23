@@ -178,7 +178,9 @@ class ProvisionTests(unittest.TestCase):
             for document in (b"not json", json.dumps({"username": "manager", "password": "short"}).encode(),
                              json.dumps({"username": "has space", "password": "First-user-pass-1"}).encode(),
                              json.dumps({"username": "manager", "password": "First-user-pass-1", "role": "admin"}).encode(),
-                             json.dumps({"username": "keyman", "password": "First-user-pass-1"}).encode()):
+                             json.dumps({"username": "keyman", "password": "First-user-pass-1"}).encode(),
+                             json.dumps({"username": "builtin-reference", "password": "First-user-pass-1"}).encode(),
+                             json.dumps({"username": "kdog-ai-service", "password": "First-user-pass-1"}).encode()):
                 with self.assertRaises(ValueError):
                     create_first_user(db, self.store, document)
             self.assertTrue(create_first_user(db, self.store, json.dumps({"username": "manager", "password": "First-user-pass-1"}).encode()))

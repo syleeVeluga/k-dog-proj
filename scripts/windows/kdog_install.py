@@ -106,7 +106,8 @@ def valid_date(value) -> bool:
 
 
 def expired(header: dict, today: date | None = None) -> bool:
-    """The install period includes its last day. The header is authenticated, so only the PC clock can move it."""
+    """The install period includes its last day. The header is authenticated, so the date cannot be edited for this
+    installer; a key holder can still roll back the PC clock or change the readable installer itself."""
     return "expires" in header and (today or date.today()) > date.fromisoformat(header["expires"])
 
 

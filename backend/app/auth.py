@@ -93,8 +93,12 @@ def create_first_user(db, store, document: bytes) -> bool:
         user = UserCreate(username=value["username"], password=value["password"], role="operator")
     except ValueError:
         raise ValueError("아이디(영문·숫자·_-)와 비밀번호 길이(12~256자)를 확인하세요.") from None
-    if db.execute("SELECT 1 FROM users WHERE username=?", (user.username,)).fetchone():
-        raise ValueError("이미 있는 아이디입니다. 다른 아이디를 입력하세요.")
+    from app.comparisons_v4 import BUILTIN_ACTOR
+    from app.domain.sheets_v4 import AI_ACCOUNT
+    # Reserved names are inserted later (first start / first AI publish); taking one would break those records.
+    if user.username in (BUILTIN_ACTOR, AI_ACCOUNT) or \
+            db.execute("SELECT 1 FROM users WHERE username=?", (user.username,)).fetchone():
+        raise ValueError("이미 있거나 예약된 아이디입니다. 다른 아이디를 입력하세요.")
     create_user(db, user)
     store.audit(db, user.username, user.username, "user.local_create", {"role": "operator", "source": "installer"})
     return True
