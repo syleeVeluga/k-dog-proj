@@ -91,6 +91,32 @@ def fractional_snapshot(sync, cut):
 
 
 class AiNormalizationV4Tests(unittest.TestCase):
+    def test_conditional_whole_value_is_separate_from_unavailable_item(self):
+        stage=group("보23")
+        data=snapshot().model_dump(mode="json")
+        window=next(w["window"] for w in data["batch"]["windows"] if w["window"]["window_id"]=="stranger_whole")
+        end=window["source_intervals"][0]["end_seconds"]
+        data["batch"]["clips"][0]["ai"]["duration_seconds"]=end-0.25
+        data["batch"]["clips"][0]["ai"]["audio_ranges"][0]["end_seconds"]=end-0.25
+        source=RunInputV4.model_validate_json(encode(data))
+        constraints=ai.context(source,stage,{"run_id":"run"},"operator")["response_constraints"]
+        self.assertEqual(constraints["whole_interval_unavailable_values"],{"보23":[-2]})
+        self.assertNotIn("보23",constraints["whole_interval_unavailable_item_codes"])
+        original=stage.model_copy(update={"input_variant":"original"})
+        self.assertEqual(ai.context(source,original,{"run_id":"run"},"operator")["response_constraints"]["whole_interval_unavailable_values"],{})
+
+    def test_conditional_whole_rule_preserves_other_observed_values(self):
+        stage=group("보23")
+        source=snapshot()
+        window=next(w.window for w in source.batch.windows if w.window.window_id=="stranger_whole")
+        start=window.source_intervals[0].start_seconds
+        evidence=[basis(window="stranger_whole",start=start+1,end=start+2)]
+        raw=response(stage,"보23",-1,evidence)
+        result=ai.normalize(source,stage,raw)
+        self.assertEqual(next(o for o in result["observations"] if o["code"]=="보23")["value"],-1)
+        with self.assertRaises(HTTPException):
+            ai.normalize(source,stage,response(stage,"보23",-2,evidence,whole_interval_observed=True))
+
     def test_whole_interval_unavailable_uses_selected_derivative_tail(self):
         stage=group("바23")
         data=snapshot().model_dump(mode="json")

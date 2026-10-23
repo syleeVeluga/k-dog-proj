@@ -204,8 +204,9 @@ def context(snapshot, group, row, audit_actor):
                     shift = derivative.source_time_offset_seconds-clip.offset_seconds
                     reference_ranges.setdefault(window.window.window_id, []).append((start+shift, end+shift))
     whole_unavailable = []
+    whole_unavailable_values = {}
     for item in CATALOG.rated_items():
-        if item.code not in group.item_codes or not (item.whole_interval_required or item.code in VOCAL_CODES):
+        if item.code not in group.item_codes or not (item.whole_interval_required or item.code in VOCAL_CODES or item.code == "보23"):
             continue
         for entry in requested:
             window = entry.window
@@ -213,7 +214,10 @@ def context(snapshot, group, row, audit_actor):
                 continue
             spans = [part for part in window.source_intervals if part.evidence_id is None]
             if window.status != "confirmed" or not spans or not all(sheets._covered(reference_ranges.get(window.window_id, []), part.start_seconds, part.end_seconds) for part in spans):
-                whole_unavailable.append(item.code)
+                if item.code == "보23":
+                    whole_unavailable_values[item.code] = [-2]
+                else:
+                    whole_unavailable.append(item.code)
                 break
     return {"run_id": row["run_id"], "audit_actor": audit_actor,
         "identity": {"case_id": snapshot.case_id, "session_id": snapshot.session_id, "batch_id": snapshot.batch.batch_id},
@@ -221,11 +225,12 @@ def context(snapshot, group, row, audit_actor):
         "windows": [window.model_dump(mode="json") for window in requested],
         "response_constraints": {"observation_count": len(group.item_codes),
             "whole_interval_unavailable_item_codes": whole_unavailable,
+            "whole_interval_unavailable_values": whole_unavailable_values,
             "evidence_time_unit": "clip_seconds", "evidence_intervals": bounds,
             "vocal_item_codes": [code for code in group.item_codes if code in VOCAL_CODES],
             "audio_unavailable_windows": [window.window.window_id for window in requested if window.audio_available_seconds == 0],
             "unavailable_audio_observation": {"value": None, "status": "unobserved", "vocalization": None},
-            "instruction": "근거는 지정한 clip_id/window_id의 evidence_intervals 안에만 기록한다. whole_interval_unavailable_item_codes의 항목은 전체 관찰 근거가 부족하므로 value=null, status=unobserved와 사유를 기록한다. 음성 가용초가 0인 창의 발성 항목은 unavailable_audio_observation을 사용한다. 청취 0초인 vocalization 객체를 만들지 않는다. 걷기 국면 시각은 walk_phases의 확정값만 사용하며 없는 시각을 추정하지 않는다."},
+            "instruction": "근거는 지정한 clip_id/window_id의 evidence_intervals 안에만 기록한다. whole_interval_unavailable_item_codes의 항목은 전체 관찰 근거가 부족하므로 value=null, status=unobserved와 사유를 기록한다. whole_interval_unavailable_values의 값도 전체 관찰이 필요해 확정할 수 없다. 실제 근거 없는 다른 값으로 대체하지 말고 관찰 부족이면 null과 사유를 기록한다. 음성 가용초가 0인 창의 발성 항목은 unavailable_audio_observation을 사용한다. 청취 0초인 vocalization 객체를 만들지 않는다. 걷기 국면 시각은 walk_phases의 확정값만 사용하며 없는 시각을 추정하지 않는다."},
         "clips": [{"clip_id": clip.clip_id, "video_id": clip.video_id, "camera_id": clip.camera_id,
                    "reference_offset_seconds": clip.offset_seconds, "source_start_seconds": clip.source_start_seconds,
                    "source_end_seconds": clip.source_end_seconds, "window_ids": clip.window_ids,
