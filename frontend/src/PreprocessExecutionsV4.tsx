@@ -6,8 +6,8 @@ import type { PreprocessExecutionPageV4, PreprocessExecutionV4 } from './preproc
 
 export const executionStatus: Record<string, string> = { running: '실행 중', complete: '완료', partial: '일부 완료', failed: '실패', interrupted: '중단됨' };
 
-export function PreprocessExecutionsV4({ cases, user, filters, open, create }: {
-  cases: Case[]; user: User; filters: CaseFilterProps; open: (item: PreprocessExecutionV4) => void; create: () => void;
+export function PreprocessExecutionsV4({ cases, user, filters, open, create, showFilters = true }: {
+  cases: Case[]; user: User; filters: CaseFilterProps; open: (item: PreprocessExecutionV4) => void; create: () => void; showFilters?: boolean;
 }) {
   const [page, setPage] = useState<PreprocessExecutionPageV4 | null>(null), [state, setState] = useState('all');
   const [error, setError] = useState(''), [checked, setChecked] = useState('');
@@ -63,7 +63,7 @@ export function PreprocessExecutionsV4({ cases, user, filters, open, create }: {
   }
   return <section aria-label="내가 실행한 전처리"><div className="section-head"><h2>내가 실행한 전처리</h2>
     <button onClick={() => window.dispatchEvent(new Event('kdog-preprocess-refresh'))}>내 실행 새로고침</button></div>
-    <CaseFilters cases={cases} {...filters} />
+    {showFilters && <CaseFilters cases={cases} {...filters} />}
     <label>전처리 상태<select value={state} onChange={event => setState(event.target.value)}><option value="all">전체</option><option value="running">실행 중</option><option value="complete">완료</option><option value="attention">확인 필요</option></select></label>
     {error && <p role="alert">상태 조회 연결 끊김 · {error} · 마지막 확인 {checked || '아직 없음'}</p>}
     {!page && !error && <p role="status">내 실행 목록 확인 중…</p>}

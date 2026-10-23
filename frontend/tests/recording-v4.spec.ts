@@ -302,7 +302,7 @@ test('구간 CSV만으로 확정하고 상세 수동 사실을 추가할 수 있
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true }).click();
   await releaseRead();
-  await page.getByRole('button', { name: 'csv-capture 촬영 열기', exact: true }).click();
+  await page.getByRole('button', { name: 'csv-capture 촬영 기록', exact: true }).click();
   await expect(panel.getByLabel('입장 시작', { exact: true })).toHaveValue('1');
   await expect(panel.getByRole('alert')).toHaveCount(0);
 });
@@ -478,7 +478,7 @@ test('S1 actual recording: windows, events, observations, offsets, immutable edi
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: '회차 안내·바로가기', exact: true }).click();
   await page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true }).click();
-  await page.getByRole('button', { name: 's1rec 촬영 열기', exact: true }).click();
+  await page.getByRole('button', { name: 's1rec 촬영 기록', exact: true }).click();
   await expect(panel.getByLabel('퇴장 끝', { exact: true })).toHaveValue('');
   const finalReturn = await page.request.post(`/api/cases/${item.case_id}/sessions`, { headers, data: { session_id: firstSession, expected_revision: persisted.input_revision } });
   expect(finalReturn.status(), await finalReturn.text()).toBe(200); persisted = await finalReturn.json();

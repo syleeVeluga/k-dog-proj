@@ -20,7 +20,7 @@ test('행사 스태프: 명단 양식 → 10명 일괄 등록 → 현장 1명 �
   await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
 
   // 1) 표준 양식(명단만 CSV)을 내려받아 10명을 채워 올린다. 열 연결은 하나도 고치지 않는다.
-  await openMenu(page, '일괄 등록 (CSV·Excel)');
+  await openMenu(page, '참가자 및 설문 일괄 등록');
   const form = page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true });
   const downloading = page.waitForEvent('download');
   await form.getByRole('link', { name: '명단만 CSV 내려받기', exact: true }).click();
@@ -56,7 +56,7 @@ test('행사 스태프: 명단 양식 → 10명 일괄 등록 → 현장 1명 �
   await expect(page.getByRole('status').filter({ hasText: 'F11 현장견11 등록됨' })).toBeVisible();
 
   // 3) 설문 응답 파일: 기존 참가자 갱신 확인 후 오류 1행은 제외하고 등록한다.
-  await openMenu(page, '일괄 등록 (CSV·Excel)');
+  await openMenu(page, '참가자 및 설문 일괄 등록');
   await form.getByLabel('폼 행사 ID', { exact: true }).fill(EVENT);
   await form.getByLabel('Forms 파일', { exact: true }).setInputFiles(csvFile('survey.csv', '참가자 ID,Q1,Q2\nF01,3,4\nF02,maybe,4\nF11,5,5\n'));
   await form.getByRole('button', { name: 'Forms 등록 미리보기', exact: true }).click();
@@ -67,6 +67,7 @@ test('행사 스태프: 명단 양식 → 10명 일괄 등록 → 현장 1명 �
 
   // 4) 영상 3개(원본1~3)를 받아 카메라를 고치지 않고 한 참가자에 연결한다.
   await openMenu(page, '영상 파일 업로드');
+  await page.getByRole('button', { name: '공용 업로드 보관함 열기', exact: true }).click();
   await page.getByLabel('영상 파일', { exact: true }).setInputFiles(['원본1.mp4', '원본2.mp4', '원본3.mp4'].map((name, index) => ({ name, mimeType: 'video/mp4', buffer: Buffer.from(`u07 rehearsal ${name} ${index}`) })));
   await page.getByRole('button', { name: '업로드 시작·재시도', exact: true }).click();
   for (const name of ['원본1.mp4', '원본2.mp4', '원본3.mp4']) {

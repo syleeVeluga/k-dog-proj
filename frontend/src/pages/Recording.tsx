@@ -1,4 +1,4 @@
-import { mayLeave } from '../Editing';
+import { forgetEdits, mayLeave } from '../Editing';
 import { RecordingPanelV4 } from '../RecordingPanelV4';
 import { PreservedMediaRegistration } from '../PreservedMediaRegistration';
 import { UploadInbox } from '../UploadInbox';
@@ -7,8 +7,9 @@ import type { CaseFilterProps } from '../CaseFilters';
 import { videoCounts } from '../progressText';
 import { segmentState, sessionOf } from '../types';
 import type { Case, Run, User } from '../types';
+import type { Route } from '../navigation';
 
-type Props = { view: 'inbox' | 'record'; user: User; cases: Case[]; selected: Case | null; select: (item: Case | null) => void; filters: CaseFilterProps; writable: boolean; run: Run; reload: (id?: string) => Promise<void>; notify: (message: string) => void };
+type Props = { view: 'inbox' | 'record' | 'shared'; user: User; cases: Case[]; selected: Case | null; select: (item: Case | null) => void; filters: CaseFilterProps; writable: boolean; run: Run; reload: (id?: string) => Promise<void>; notify: (message: string) => void; goTo: (route: Route) => void; back: () => void };
 
 export function toClock(seconds: number) {
   const rounded = Math.round(seconds * 10) / 10;  // round first so 59.96 becomes 1:00.0, never 0:60.0
@@ -21,13 +22,25 @@ export function fromClock(text: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-// 촬영 메뉴: 영상 파일 업로드(inbox)와 실제 8구간·사건·관찰창 기록(record)을 하위 메뉴로 나눈다.
-export function Recording({ view, user, cases, selected, select, filters, writable, run, reload, notify }: Props) {
+// 참가자별 영상·촬영 기록과 등록 전 공용 수신 경로.
+export function Recording({ view, user, cases, selected, select, filters, writable, run, reload, notify, goTo, back }: Props) {
+  const sharedInbox = view === 'shared';
   const sorted = cases.filter(c => matchesCase(c, filters.search, filters.eventFilter)).sort((a, b) => (a.sequence_no ?? 1e9) - (b.sequence_no ?? 1e9) || a.participant_id.localeCompare(b.participant_id));
   const confirmed = cases.filter(c => segmentState(sessionOf(c)) === 'confirmed').length;
-  if (view === 'inbox') return <>
-    <section className="page-heading"><div><p className="eyebrow">RECORDING</p><h1>영상 파일 업로드</h1><p className="muted">영상 파일을 업로드하고 참가자·촬영 회차를 지정합니다. 360 통합 MP4는 원본 사전 등록 없이 파일 하나로 등록할 수 있습니다.</p></div></section>
-    {writable && <UploadInbox cases={cases} selected={selected} user={user} run={run} refresh={async message => { await reload(); if (message) notify(message); }} />}
+  if (view !== 'record') return <>
+    <section className="page-heading"><div><p className="eyebrow">RECORDING</p><h1>{sharedInbox ? '공용 업로드 보관함' : '영상 파일 업로드'}</h1><p className="muted">{sharedInbox ? '참가자 등록 전에 도착한 파일을 보관합니다. 업로드 후 참가자와 촬영 회차를 지정해 연결하세요.' : '참가자를 선택한 뒤 영상을 등록하세요. 파일마다 촬영 카메라 번호를 확인하고 영상 정보를 저장합니다.'}</p></div></section>
+    {!selected && !sharedInbox && <section aria-label="영상 등록 대상"><h2>영상을 등록할 참가자 선택</h2><CaseFilters cases={cases} {...filters} />
+      <div className="table-wrap"><table><thead><tr><th>참가자 / 반려견</th><th>촬영 회차</th><th>등록 영상</th><th>작업</th></tr></thead><tbody>{sorted.map(item => <tr key={item.case_id}>
+        <td data-label="참가자 / 반려견">{item.participant_id} · {item.dog_name}<small>{item.event_id}</small></td><td data-label="촬영 회차">{item.manifest.sessions.findIndex(s => s.session_id === item.selected_session_id) + 1}차 촬영</td><td data-label="등록 영상">{videoCounts(item)}</td>
+        <td data-label="작업"><button aria-label={`${item.participant_id} 영상 등록 대상 선택`} onClick={() => select(item)}>영상 등록</button></td></tr>)}</tbody></table></div>
+      {!sorted.length && <p>조건에 맞는 참가자가 없습니다. 검색 조건을 바꾸거나 참가자를 등록하세요.</p>}
+      <div className="panel registration-callout"><p>참가자 등록 전에 도착한 파일은 공용 보관함에 올린 뒤 연결할 수 있습니다.</p><button onClick={() => goTo('recording/shared')}>공용 업로드 보관함 열기</button></div>
+    </section>}
+    {(selected || sharedInbox) && <>
+      <div className="participant-actions"><button onClick={() => { if (mayLeave()) { forgetEdits(); select(null); goTo('recording/inbox'); } }}>참가자 다시 선택</button>{selected && <button onClick={() => goTo('preprocess')}>분석 준비 확인</button>}</div>
+      {!selected && <p role="status">공용 보관함입니다. 업로드한 각 파일에 참가자와 촬영 회차를 지정하세요.</p>}
+      {writable && <UploadInbox key={`${selected?.case_id ?? 'shared'}:${selected?.selected_session_id ?? ''}`} cases={cases} selected={selected} user={user} run={run} refresh={async message => { await reload(); if (message) notify(message); }} />}
+    </>}
   </>;
   return <>
     <section className="page-heading"><div><p className="eyebrow">RECORDING</p><h1>촬영</h1><p className="muted">영상 파일을 등록하고 8구간의 시작·끝 시각을 기록합니다. 구간 경계는 마이크 음성과 진행자 신호로 잡습니다. 확정 전에는 채점을 시작하지 않습니다.</p></div>
@@ -41,8 +54,9 @@ export function Recording({ view, user, cases, selected, select, filters, writab
           <td data-label="구간"><span className={state === 'confirmed' ? 'tag green' : 'tag'}>{({ none: '없음', draft: '초안', confirmed: '확정' })[state]}</span></td>
           <td data-label="작업"><button aria-label={`${c.participant_id} 촬영 열기`} onClick={() => { if (mayLeave()) select(c); }}>열기 ↗</button></td></tr>;
       })}</tbody></table>{!sorted.length && <div className="empty"><h2>표시할 참가자가 없습니다.</h2><p>검색·행사 필터 또는 접수 등록을 확인하세요.</p></div>}</div></>}
+    {selected && <div className="participant-actions"><button onClick={() => goTo('preprocess')}>분석 준비 확인</button></div>}
     {selected && <RecordingPanelV4 key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run}
-      refresh={async message => { await reload(); if (message) notify(message); }} close={() => { if (mayLeave()) select(null); }} />}
+      refresh={async message => { await reload(); if (message) notify(message); }} close={back} />}
     {selected && <PreservedMediaRegistration item={selected} writable={writable} run={run}
       refresh={async message => { await reload(); if (message) notify(message); }} />}
 

@@ -15,13 +15,13 @@ import type { Case, Run, User } from '../types';
 type Props = {
   user: User; cases: Case[]; selected: Case | null; writable: boolean; busy: boolean; run: Run;
   reload: (id?: string) => Promise<void>; select: (item: Case | null) => void; status: string; notify: (message: string) => void;
-  filters: CaseFilterProps; goTo: (route: Route) => void;
+  filters: CaseFilterProps; goTo: (route: Route) => void; openParticipant: (item: Case, route: Route) => void;
+  filter: string; setFilter: (value: string) => void;
 };
 
 // 접수 메뉴: 참가자 단건 등록과 원입력 상세. 저장 후에도 폼에 머물러 다음 참가자를 이어서 받는다.
-// 파일 일괄 등록은 「일괄 등록」 메뉴에서 한다.
-export function Intake({ cases, selected, writable, busy, run, reload, select, status, notify, filters, goTo }: Props) {
-  const [filter, setFilter] = useState('all');
+// 파일 일괄 등록은 「참가자 및 설문 일괄 등록」 메뉴에서 한다.
+export function Intake({ cases, selected, writable, busy, run, reload, select, status, notify, filters, goTo, openParticipant, filter, setFilter }: Props) {
   const [dirty, setDirty] = useState(false);
   const [formOpen, setFormOpen] = useState<boolean | null>(null);
   const [eventId, setEventId] = useState('');
@@ -59,6 +59,10 @@ export function Intake({ cases, selected, writable, busy, run, reload, select, s
     if (next) goTo(next);
   }
 
+  function prepare(item: Case, next: Route) {
+    if (!busy) openParticipant(item, next);
+  }
+
   function register(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const target = event.currentTarget;
@@ -85,22 +89,22 @@ export function Intake({ cases, selected, writable, busy, run, reload, select, s
   }
 
   return <>
-    <section className="page-heading"><div><p className="eyebrow">INTAKE</p><h1>접수</h1><p className="muted">참가자·반려견 정보를 등록하고 순번을 확인하세요. 명단·설문 파일은 「일괄 등록」으로 올립니다.</p></div>
+    <section className="page-heading"><div><p className="eyebrow">INTAKE</p><h1>접수</h1><p className="muted">참가자·반려견 정보를 등록하고 순번을 확인하세요. 명단·설문 파일은 「참가자 및 설문 일괄 등록」으로 올립니다.</p></div>
       <div className="count"><strong>{cases.length.toString().padStart(2, '0')}</strong><span>등록된 참가자</span></div></section>
     <CaseFilters cases={cases} {...filters} /><div className="toolbar">
-      <label>자료 상태<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">전체</option><option value="ready">설문·영상 등록됨</option><option value="missing">설문·영상 보완 필요</option><option value="survey_missing">설문 미등록</option><option value="video_missing">영상 없음</option></select></label>
-      <button onClick={() => void run(() => reload())}>새로고침</button></div>
+      <label>자료 상태 별 조회<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">전체</option><option value="ready">설문·영상 등록됨</option><option value="missing">설문·영상 보완 필요</option><option value="survey_missing">설문 미등록</option><option value="video_missing">영상 없음</option></select></label>
+      <button onClick={() => void run(() => reload())}>새로고침</button><button onClick={() => goTo('recording/shared')}>공용 업로드 보관함</button></div>
     <p className="fine" role="status">{status} · 표시 {visible.length}명</p>
     <div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자 / 행사</th><th>반려견 / 보호자</th><th>설문</th><th>영상</th><th>구간</th><th>자료</th></tr></thead>
       <tbody>{visible.map(c => { const s = sessionOf(c); const count = surveyHandled(s); const progress = currentProgress(c);
         return <tr key={c.case_id} className="clickable" onClick={() => open(c)}><td data-label="순번"><strong className="mono">{c.sequence_no ?? '—'}</strong></td>
           <td data-label="참가자 / 행사"><strong className="mono">{c.participant_id}</strong><small>{c.event_id}</small></td>
           <td data-label="반려견 / 보호자">{c.dog_name}<small>{c.guardian_name ? `${c.guardian_name} 님` : '보호자명 없음'}{c.dog.breed ? ` · ${c.dog.breed}` : ''}</small></td>
-          <td data-label="설문"><span className={count === SURVEY_TOTAL ? 'tag green' : 'tag'}>{count}/{SURVEY_TOTAL}</span>{s.survey_version === 'survey-20260929-v3' && <small>빈칸 사유 {Object.keys(s.survey_blank_reasons ?? {}).length}개 · 완료 기준 미확정</small>}</td><td data-label="영상">{videoCounts(c)}</td>
-          <td data-label="구간">{({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(s)]}{progress && <small>{progress.scoring === 'done' ? '채점 제출 완료' : progress.scoring === 'partial' ? '채점 진행 중' : '채점 전'}</small>}</td>
+          <td data-label="설문"><span className={count === SURVEY_TOTAL ? 'tag green' : 'tag'}>{count}/{SURVEY_TOTAL}</span>{s.survey_version === 'survey-20260929-v3' && <small>빈칸 사유 {Object.keys(s.survey_blank_reasons ?? {}).length}개 · 완료 기준 미확정</small>}<button className="row-action" aria-label={`${c.participant_id} 설문 확인`} onClick={e => { e.stopPropagation(); prepare(c, 'survey'); }}>설문 확인</button></td><td data-label="영상">{videoCounts(c)}<button className="row-action" aria-label={`${c.participant_id} 영상 등록`} onClick={e => { e.stopPropagation(); prepare(c, 'recording/inbox'); }}>영상 등록</button></td>
+          <td data-label="구간">{({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(s)]}{progress && <small>{progress.scoring === 'done' ? '채점 제출 완료' : progress.scoring === 'partial' ? '채점 진행 중' : '채점 전'}</small>}<button className="row-action" aria-label={`${c.participant_id} 촬영 기록`} onClick={e => { e.stopPropagation(); prepare(c, 'recording/record'); }}>촬영 기록</button></td>
           <td data-label="자료"><button aria-label={`${c.participant_id} 상세 열기`} onClick={e => { e.stopPropagation(); open(c); }}>열기</button></td></tr>;
       })}</tbody></table>{!visible.length && <div className="empty"><h2>{cases.length ? '조건에 맞는 참가자가 없습니다.' : '첫 참가자를 등록하세요.'}</h2><p>행사와 참가자 ID를 먼저 확인한 뒤 자료를 연결합니다.</p></div>}</div>
-    {writable && <div className="panel toolbar"><p>CSV·Excel 파일로 참가자와 설문을 한꺼번에 등록할 수 있습니다.</p><button onClick={() => goTo('intake/upload')}>일괄 등록으로 이동</button></div>}
+    {writable && <div className="panel registration-callout"><p>CSV·Excel 파일로 참가자와 설문을 한꺼번에 등록할 수 있습니다.</p><button onClick={() => goTo('intake/upload')}>참가자 및 설문 일괄 등록으로 이동</button></div>}
     {writable && <details className="panel" open={formOpen ?? !cases.length}><summary onClick={e => { e.preventDefault(); setFormOpen(!(formOpen ?? !cases.length)); }}>참가자 등록</summary>
       {last && <p role="status" className="registered"><strong>{last.participant_id} {last.dog_name} 등록됨</strong> · <button className="plain" onClick={() => openRegistered(null)}>상세 보기</button> · <button className="plain" onClick={() => openRegistered('recording/record')}>촬영으로</button></p>}
       <form ref={form} noValidate onSubmit={register} onChange={() => setDirty(true)} {...fields.bind}>

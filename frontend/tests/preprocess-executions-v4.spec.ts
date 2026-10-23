@@ -53,7 +53,7 @@ test('지정 실행은 공유 최신 실패와 분리하고 계정 전환에서 
   await page.route(`**${path}`, route => route.fulfill({ json: shared(item, 'failed') }));
   await page.route(`**${path}/executions/*`, route => route.fulfill({ json: value }));
   await openMenu(page, '전처리');
-  const row = page.getByRole('row').filter({ hasText: 'ES02-MINE' });
+  const row = page.getByRole('region', { name: '내가 실행한 전처리', exact: true }).getByRole('row').filter({ hasText: 'ES02-MINE' });
   await expect(row).toContainText('완료'); await expect(row).toContainText('현재 입력과 다름');
   await row.getByRole('button', { name: '상세 보기' }).click();
   await expect(page.getByRole('status')).toContainText('완료 · 내 완료 결과');
@@ -258,7 +258,7 @@ test('늦은 running 조회가 POST 완료를 되돌리지 않고 메뉴 이동 
   const panel = page.getByRole('region', { name: '다중 카메라 전처리', exact: true });
   await expect(panel.getByRole('status')).toContainText('완료 · 확정 완료'); finishRead();
   await page.waitForTimeout(300); await expect(panel.getByRole('status')).toContainText('완료 · 확정 완료');
-  await openMenu(page, '설문 현황');
+  await openMenu(page, '설문 확인');
   await expect(page.getByRole('region', { name: '다중 카메라 전처리', exact: true })).toHaveCount(0);
 });
 
@@ -317,7 +317,7 @@ test('느린 목록 조회 중 수동 새로고침을 반복해도 메뉴 이동
   await page.route('**/api/preprocess-s1/executions?**', async route => { await wait; await route.fulfill({ json: { items: [], next_cursor: null } }); });
   await openMenu(page, '전처리');
   const refresh = page.getByRole('button', { name: '내 실행 새로고침', exact: true });
-  await refresh.click(); await refresh.click(); await openMenu(page, '설문 현황');
+  await refresh.click(); await refresh.click(); await openMenu(page, '설문 확인');
   await page.waitForTimeout(4500);
   expect(await page.evaluate(() => (window as any).es02TimerCallbacks)).toBe(0);
   release();

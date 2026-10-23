@@ -83,7 +83,7 @@ test('S1 scoring preserves explicit zero, null states, source evidence, shared e
   await count.getByLabel('바14 G 양식 검토메모', { exact: true }).fill('양식 검토 전용, 분석 문장에 사용하지 않음');
   const player = evidence.locator('video'); await player.evaluate(element => element.load());
   await expect.poll(() => player.evaluate(element => element.readyState)).toBeGreaterThan(0);
-  page.once('dialog', dialog => dialog.dismiss()); await openMenu(page, '설문 현황');
+  page.once('dialog', dialog => dialog.dismiss()); await openMenu(page, '설문 확인');
   await expect(count.getByLabel('바14 원값', { exact: true })).toHaveValue('0');
   const vocal = await selectRow('바6'); await vocal.getByLabel('바6 기록 상태', { exact: true }).selectOption('observed'); await vocal.getByLabel('바6 원값', { exact: true }).selectOption('1');
   await vocal.getByLabel('시행 유효 상태', { exact: true }).selectOption('valid'); await addEvidence(vocal, '바6', 'entry_whole', 0, 3, '합성 전체 3초 청취');

@@ -12,6 +12,7 @@ test('녹화 도구의 4개 MKV 파일명으로 카메라를 제안하고 원본
   const item = await created.json();
   await page.reload();
   await openMenu(page, '영상 파일 업로드');
+  await page.getByRole('button', { name: '공용 업로드 보관함 열기', exact: true }).click();
   const names = ['6_CAM1_복도-정면.mkv', '6_CAM2_테스트룸-입구.mkv', '6_CAM3_참여자-왼쪽.mkv', '6_CAM4_참여자-오른쪽.mkv'];
   await page.getByLabel('영상 파일', { exact: true }).setInputFiles(names.map(name => ({ name, mimeType: 'video/x-matroska', buffer: Buffer.from(`synthetic ${name}`) })));
   await page.getByRole('button', { name: '업로드 시작·재시도', exact: true }).click();
@@ -39,6 +40,7 @@ test('S1 파일 묶음의 부분 실패·응답 유실 재시도는 완료 업�
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await openMenu(page, '영상 파일 업로드');
+  await page.getByRole('button', { name: '공용 업로드 보관함 열기', exact: true }).click();
   const inbox = page.getByRole('region', { name: '업로드 파일 목록', exact: true });
   const names = ['partial-ok.mp4', 'partial-retry.mp4', 'partial-response-lost.mp4'];
   const transmissions: Record<string, number> = {};
@@ -68,6 +70,7 @@ test('S1 파일 묶음의 부분 실패·응답 유실 재시도는 완료 업�
   expect(retried.map((value: { upload_id: string }) => value.upload_id).sort()).toEqual(received.map((value: { upload_id: string }) => value.upload_id).sort());
   await page.reload();
   await openMenu(page, '영상 파일 업로드');
+  await page.getByRole('button', { name: '공용 업로드 보관함 열기', exact: true }).click();
   for (const name of names) await expect(inbox.getByRole('article', { name: `업로드 파일 ${name}`, exact: true }).getByText('업로드 완료', { exact: true })).toBeVisible();
 });
 
@@ -99,6 +102,7 @@ test('세 브라우저 업로드·연결 충돌·재접속은 파일 재전송 �
       await client.getByRole('button', { name: '로그인', exact: true }).click();
       await expect(client.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
       await openMenu(client, '영상 파일 업로드');
+  await client.getByRole('button', { name: '공용 업로드 보관함 열기', exact: true }).click();
       await client.getByLabel('영상 파일', { exact: true }).setInputFiles({ name: `three-browser-cam${i + 1}.mp4`, mimeType: 'video/mp4', buffer: Buffer.from(`synthetic video camera ${i + 1}`) });
       await client.getByRole('button', { name: '업로드 시작·재시도', exact: true }).click();
       const card = client.getByRole('article', { name: `업로드 파일 three-browser-cam${i + 1}.mp4`, exact: true });
@@ -137,6 +141,7 @@ test('세 브라우저 업로드·연결 충돌·재접속은 파일 재전송 �
     expect(Object.fromEntries(videos.map((video: { camera_id: string; source_original_number: string }) => [video.camera_id, video.source_original_number]))).toEqual({ CAM1: '1', CAM2: '3', CAM3: '2' });
     await pages[0].reload();
     await openMenu(pages[0], '영상 파일 업로드');
+  await pages[0].getByRole('button', { name: '공용 업로드 보관함 열기', exact: true }).click();
     await pages[0].getByText(/^정보 저장 완료한 파일/).click();
     for (let i = 0; i < 3; i++) await expect(pages[0].getByRole('article', { name: `업로드 파일 three-browser-cam${i + 1}.mp4`, exact: true }).getByText('등록됨 · 영상 읽기 확인 대기', { exact: true })).toBeVisible();
     expect(transmissions).toBe(3);

@@ -9,7 +9,7 @@ async function openImporter(page: Page) {
   await page.getByLabel('계정', { exact: true }).fill('operator');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await openMenu(page, '일괄 등록 (CSV·Excel)');
+  await openMenu(page, '참가자 및 설문 일괄 등록');
   return page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true });
 }
 const csvFile = (name: string, text: string) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(text) });
@@ -62,7 +62,7 @@ for (const method of ['manual', 'preset'] as const) test(`행사 문항 연결 �
     expect(response.ok()).toBeTruthy();
     presetId = (await response.json()).preset_id;
     await page.reload();
-    await openMenu(page, '일괄 등록 (CSV·Excel)');
+    await openMenu(page, '참가자 및 설문 일괄 등록');
   }
   await form.getByLabel('폼 행사 ID', { exact: true }).fill(`FESTIVAL-CONFLICT-${method}`);
   await form.getByLabel('Forms 파일', { exact: true }).setInputFiles(csvFile('synthetic-conflict.csv',
@@ -97,6 +97,7 @@ for (const method of ['manual', 'preset'] as const) test(`행사 문항 연결 �
     await form.getByLabel('열 연결 설정 이름', { exact: true }).fill('합성 빈 라벨 보존');
     await form.getByRole('button', { name: '현재 연결 저장', exact: true }).click();
     await expect(form.getByRole('status').filter({ hasText: '합성 빈 라벨 보존’ 설정을 저장했습니다.' })).toBeVisible();
+    await expect(form.getByLabel('저장된 열 연결 설정', { exact: true })).not.toHaveValue('');
     const saved = await form.getByLabel('저장된 열 연결 설정', { exact: true }).inputValue();
     const presets = await (await page.request.get('/api/forms/presets')).json();
     expect(presets.find((p: { preset_id: string }) => p.preset_id === saved).mapping.answer_labels.s10).toEqual({});

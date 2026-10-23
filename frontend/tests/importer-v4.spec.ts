@@ -9,7 +9,7 @@ test(`Forms ${format} 원라벨 검증·일괄 등록·재시도·명시적 연�
   await page.getByLabel('계정', { exact: true }).fill('operator');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await openMenu(page, '일괄 등록 (CSV·Excel)');
+  await openMenu(page, '참가자 및 설문 일괄 등록');
   const form = page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true });
   const eventId = `FORMS-BROWSER-${format}`;
   await form.getByLabel('폼 행사 ID', { exact: true }).fill(eventId);

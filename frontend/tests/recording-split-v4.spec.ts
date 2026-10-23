@@ -19,6 +19,7 @@ async function start(page: Page, people: [string, string, number | null][]) {
   }
   await page.reload();
   await openMenu(page, '영상 파일 업로드');
+  await page.getByRole('button', { name: '공용 업로드 보관함 열기', exact: true }).click();
   return ids;
 }
 async function receive(page: Page, names: string[]) {

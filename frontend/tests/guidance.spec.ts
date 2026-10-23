@@ -19,7 +19,7 @@ test('신규 접수 입력은 이동 취소와 저장 오류 뒤에도 유지된
   await page.getByLabel('참가자 ID', { exact: true }).fill('new');
   await page.getByLabel('반려견 이름', { exact: true }).fill('입력보호견');
   page.once('dialog', dialog => dialog.dismiss());
-  await openMenu(page, '설문 현황');
+  await openMenu(page, '설문 확인');
   await expect(page.getByLabel('반려견 이름', { exact: true })).toHaveValue('입력보호견');
   await page.route('**/api/cases', async route => {
     if (route.request().method() === 'POST') await route.fulfill({ status: 409, json: { detail: '이미 등록된 참가자 ID입니다.' } });
@@ -31,8 +31,8 @@ test('신규 접수 입력은 이동 취소와 저장 오류 뒤에도 유지된
   await page.unroute('**/api/cases');
   await page.getByRole('button', { name: '저장하고 상세 열기', exact: true }).click();
   await expect(page.getByRole('heading', { name: '입력보호견', exact: true })).toBeVisible();
-  await openMenu(page, '설문 현황');
-  await expect(page.getByRole('heading', { name: '설문', exact: true })).toBeVisible();
+  await openMenu(page, '설문 확인');
+  await expect(page.getByRole('heading', { name: '설문 확인', exact: true })).toBeVisible();
 });
 
 test('S1 정상 0 응답과 사유 있는 빈칸·사유 미상 빈칸을 구별한다', async ({ page }, testInfo) => {
@@ -50,20 +50,20 @@ test('S1 정상 0 응답과 사유 있는 빈칸·사유 미상 빈칸을 구별
     expect(response.status()).toBe(200);
   }
   await page.reload();
-  await openMenu(page, '설문 현황');
-  await page.getByRole('button', { name: 'zero 설문 현황 열기' }).click();
-  await expect(page.getByLabel('설문 현황', { exact: true })).toContainText('수치 응답 28/28 · 명시 빈칸 사유 0개');
-  await page.getByText('설문 원응답', { exact: false }).click();
+  await openMenu(page, '설문 확인');
+  await page.getByRole('button', { name: 'zero 설문 확인 열기' }).click();
+  await expect(page.getByLabel('설문 확인', { exact: true })).toContainText('수치 응답 28/28 · 명시 빈칸 사유 0개');
+  await expect(page.locator('details#survey')).toHaveAttribute('open', '');
   await expect(page.locator('.survey-values p').filter({ has: page.locator('b', { hasText: /^10$/ }) }).locator('strong')).toHaveText('0');
   await page.getByRole('button', { name: '전체 목록으로 돌아가기' }).click();
-  await page.getByRole('button', { name: 'reason 설문 현황 열기' }).click();
-  await expect(page.getByLabel('설문 현황', { exact: true })).toContainText('수치 응답 25/28 · 명시 빈칸 사유 3개');
-  await page.getByText('설문 원응답', { exact: false }).click();
+  await page.getByRole('button', { name: 'reason 설문 확인 열기' }).click();
+  await expect(page.getByLabel('설문 확인', { exact: true })).toContainText('수치 응답 25/28 · 명시 빈칸 사유 3개');
+  await expect(page.locator('details#survey')).toHaveAttribute('open', '');
   await expect(page.getByText('빈칸 사유: 본 적 없음', { exact: true })).toHaveCount(3);
   await page.screenshot({ path: testInfo.outputPath('survey-blank-reason-guidance.png'), fullPage: true });
   await page.getByRole('button', { name: '전체 목록으로 돌아가기' }).click();
-  await page.getByRole('button', { name: 'blank 설문 현황 열기' }).click();
-  await expect(page.getByLabel('설문 현황', { exact: true })).toContainText('수치 응답 25/28 · 명시 빈칸 사유 0개');
-  await page.getByText('설문 원응답', { exact: false }).click();
+  await page.getByRole('button', { name: 'blank 설문 확인 열기' }).click();
+  await expect(page.getByLabel('설문 확인', { exact: true })).toContainText('수치 응답 25/28 · 명시 빈칸 사유 0개');
+  await expect(page.locator('details#survey')).toHaveAttribute('open', '');
   await expect(page.getByText('빈칸 사유: 사유 미상', { exact: true })).toHaveCount(3);
 });

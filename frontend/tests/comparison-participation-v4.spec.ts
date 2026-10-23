@@ -24,7 +24,7 @@ test('CM02 설문 상세에서 참여쌍 연결·최초 제출·재방문·정�
   }
   await page.reload();
   await page.getByRole('button', { name: `${event}-001 상세 열기`, exact: true }).click();
-  await openMenu(page, '설문 현황');
+  await openMenu(page, '설문 확인');
   const panel = page.getByRole('region', { name: '누적 비교 참여' });
   await expect(panel).toContainText('아직 참여쌍에 연결되지 않았습니다');
   await expect(panel.getByRole('button', { name: '새 참여쌍 만들기' })).toBeDisabled();

@@ -21,7 +21,7 @@ test('S1 설문은 확정 결측·역채점·등록 상태와 외부 승인 대�
   expect(survey.ok()).toBeTruthy();
   await page.reload();
   await page.getByRole('button', { name: 'SURVEY-S1-001 상세 열기', exact: true }).click();
-  await openMenu(page, '설문 현황');
+  await openMenu(page, '설문 확인');
   await expect(page.getByText('수치 응답 26/28', { exact: false })).toContainText('등록 완료 기준 미확정');
   await expect(page.getByText(/집계: 완전응답 영역만 산출/)).toContainText('외부 비교: 준비 중');
   expect(await page.locator('main').innerText()).not.toMatch(/\bD06\b|기준 Q04|자격 Q10/);
@@ -30,7 +30,7 @@ test('S1 설문은 확정 결측·역채점·등록 상태와 외부 승인 대�
   await expect(page.getByText('보완 문항: Q01', { exact: true })).toBeVisible();
   await expect(page.getByText('응답 3/3 · 평균 1.00 (분모 3)', { exact: true })).toBeVisible();
   await expect(page.getByText(/s26 원응답 1 → 변환 5/)).toBeVisible();
-  await page.getByText('설문 원응답', { exact: false }).click();
+  await expect(page.locator('details#survey')).toHaveAttribute('open', '');
   await expect(page.locator('.survey-values p').filter({ has: page.locator('b', { hasText: /^10$/ }) }).locator('strong')).toHaveText('0');
   await expect(page.getByText('빈칸 사유: 본 적 없음', { exact: true })).toBeVisible();
   await expect(page.getByText('척도: 0 전혀없다', { exact: false }).first()).toBeVisible();
@@ -43,9 +43,9 @@ test('S1 설문은 확정 결측·역채점·등록 상태와 외부 승인 대�
   await page.getByLabel('계정', { exact: true }).fill('reviewer');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await openMenu(page, '설문 현황');
+  await openMenu(page, '설문 확인');
   await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'SURVEY-S1-001 설문 현황 열기', exact: true }).click();
+  await page.getByRole('button', { name: 'SURVEY-S1-001 설문 확인 열기', exact: true }).click();
   await expect(page.getByText('수치 응답 26/28', { exact: false })).toBeVisible();
   expect(errors).toEqual([]);
 });

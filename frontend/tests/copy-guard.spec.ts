@@ -73,13 +73,13 @@ test.describe('화면 문구 점검', () => {
 
   test('운영자 메뉴 전체에 개발 코드·UUID·해시가 기본 노출되지 않는다', async ({ page }) => {
     await login(page, 'operator');
-    const found = await walk(page, ['참가자 접수', '일괄 등록 (CSV·Excel)', '설문 현황', '영상 파일 업로드', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급', '비교 조건', '연구 내보내기', '검수 자료']);
+    const found = await walk(page, ['참가자 접수', '참가자 및 설문 일괄 등록', '설문 확인', '영상 파일 업로드', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급', '비교 조건', '연구 내보내기', '검수 자료']);
     expect(found).toEqual([]);
   });
 
   test('검토자의 공통 업무 메뉴 전체에 개발 코드·UUID·해시가 기본 노출되지 않는다', async ({ page }) => {
     await login(page, 'reviewer');
-    const found = await walk(page, ['참가자 접수', '설문 현황', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급']);
+    const found = await walk(page, ['참가자 접수', '설문 확인', '촬영 기록 (8구간)', '전처리', '독립 채점', '리포트 발급']);
     expect(found).toEqual([]);
   });
 
@@ -93,7 +93,7 @@ test.describe('화면 문구 점검', () => {
     await login(page, 'operator');
     await page.getByRole('button', { name: 'CG1 상세 열기', exact: true }).click();
     const found = await offenders(page, '접수 상세');
-    await openMenu(page, '설문 현황');
+    await openMenu(page, '설문 확인');
     await expect(page.getByText('결과 조회 중…')).toHaveCount(0);
     found.push(...await offenders(page, '설문(선택)'));
     await openMenu(page, '촬영 기록 (8구간)');

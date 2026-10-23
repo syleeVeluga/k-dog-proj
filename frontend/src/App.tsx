@@ -3,7 +3,7 @@ import { Notification } from './Notification';
 import { DeveloperSettings, Recovery } from './DeveloperSettings';
 import { api } from './api';
 import { ActivityLogV4 } from './ActivityLogV4';
-import { mayLeave } from './Editing';
+import { forgetEdits, mayLeave } from './Editing';
 import { FormsImporter } from './FormsImporter';
 import { Users } from './Users';
 import { Intake } from './pages/Intake';
@@ -14,7 +14,8 @@ import { Scoring } from './pages/Scoring';
 import { Report } from './pages/Report';
 import { ValidationData } from './ValidationData';
 import { Lnb, useMatch } from './Lnb';
-import { defaultRoute, hashOf, parseHash } from './navigation';
+import { LocationTrail, ParticipantTasks } from './LocationTrail';
+import { defaultRoute, hashOf, parseHash, participantTasks } from './navigation';
 import { videoCounts } from './progressText';
 import type { Route } from './navigation';
 import { formFields, roleNames, sessionOf } from './types';
@@ -38,6 +39,8 @@ export function App() {
   const [viewSession, setViewSession] = useState('');
   const [search, setSearch] = useState('');
   const [eventFilter, setEventFilter] = useState('');
+  const [intakeFilter, setIntakeFilter] = useState('all');
+  const [listOrigin, setListOrigin] = useState<Route>('intake');
   const contextTitle = useRef<HTMLHeadingElement>(null);
   const [contextExpanded, setContextExpanded] = useState(false);
   const observedSession = useRef('');
@@ -82,15 +85,26 @@ export function App() {
   }
   const stateIndex = () => { const value = (window.history.state as { idx?: number } | null)?.idx; return typeof value === 'number' ? value : null; };
   function go(next: Route) {
-    if (next !== routeRef.current && !mayLeave()) return;
+    if (next !== routeRef.current && !mayLeave()) return false;
     if (drawer && menuOpen) closeMenu();
-    if (next === routeRef.current) return;
+    if (next === routeRef.current) return true;
+    if (selected && participantTasks.includes(next) && !participantTasks.includes(routeRef.current) && fieldRoutes.includes(routeRef.current)) setListOrigin(routeRef.current);
     const idx = historyIndex.current + 1;
     window.history.pushState({ idx }, '', hashOf(next));
     historyIndex.current = idx; routeRef.current = next; setRoute(next);
+    return true;
+  }
+  function goMenu(next: Route) {
+    if (go(next) && (next === 'intake' || next === 'survey')) setListOrigin(next);
+  }
+  const listRoute = participantTasks.includes(route) ? listOrigin : route.startsWith('recording/') ? 'intake' : route;
+  function backToList() {
+    if (!mayLeave()) return;
+    forgetEdits(); setSelected(null); go(listRoute);
   }
   // 로그인·세션 확인 직후 hash를 역할에 맞게 확정한다. 권한 없는 경로는 첫 메뉴로 보낸다.
   function enter(next: User) {
+    setListOrigin('intake');
     const target = parseHash(window.location.hash, next.role) ?? defaultRoute(next.role);
     historyIndex.current = stateIndex() ?? 0;
     window.history.replaceState({ idx: historyIndex.current }, '', hashOf(target));
@@ -169,17 +183,24 @@ export function App() {
     <p className="fine">업무 계정으로 로그인하세요.</p>
   </main>;
 
-  const openCase = (item: Pick<Case, 'case_id' | 'selected_session_id'> & { pinSession?: boolean } | null) => {
-    if (!item) { setSelected(null); return; }
+  const openCase = async (item: Pick<Case, 'case_id' | 'selected_session_id'> & { pinSession?: boolean } | null, next?: Route) => {
+    if (next && !mayLeave()) return false;
+    if (!item) { setSelected(null); return true; }
     const current = ++selectionSequence.current, context = routeRef.current;
-    void run(async () => {
+    let opened = false;
+    await run(async () => {
       const value = await api<Case>(`/cases/${item.case_id}?purpose=open`);
       if (current !== selectionSequence.current || context !== routeRef.current) return;
+      if (next) forgetEdits();
       setCases(values => values.some(row => row.case_id === value.case_id) ? values.map(row => row.case_id === value.case_id ? value : row) : [...values, value]);
+      if (!route.startsWith('recording/') && (!selected || (next && !participantTasks.includes(route)))) setListOrigin(route);
       setSelected({ ...value, selected_session_id: item.selected_session_id });
       pinnedSession.current = !!item.pinSession;
       observedSession.current = value.selected_session_id;
+      if (next) go(next);
+      opened = true;
     });
+    return opened;
   };
   return <>
     <header inert={modal}><button ref={menuToggle} className="menu-toggle" aria-controls="lnb" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>메뉴</button>
@@ -188,13 +209,15 @@ export function App() {
         if (!mayLeave()) return; await api('/auth/logout', 'POST'); for (const key of Object.keys(sessionStorage)) if (key.startsWith('kdog-preprocess:') || key.startsWith('kdog-ai:')) sessionStorage.removeItem(key); setUser(null); setSelected(null); setCases([]);
       })}>로그아웃</button></div></header>
     <div className="shell">
-      <Lnb role={user.role} current={route} go={go} visible={wide || menuOpen} drawer={drawer} close={closeMenu} />
+      <Lnb role={user.role} current={selected && participantTasks.includes(route) ? listOrigin : route.startsWith('recording/') ? 'intake' : route} go={goMenu} visible={wide || menuOpen} drawer={drawer} close={closeMenu} />
     <main inert={modal}>
+      <LocationTrail route={route} selected={fieldRoutes.includes(route) ? selected : null} listRoute={listRoute} back={backToList} />
       <Notification message={error} kind="error" onClose={() => setError('')} />
       <Notification message={notice} onClose={() => setNotice('')} />
       {unavailableCases > 0 && <p role="alert">입력 자료 검증에 실패한 참가자 {unavailableCases}명은 목록에서 제외되었습니다. 원본 저장소를 확인하세요. 다른 참가자는 계속 사용할 수 있습니다.</p>}
       {busy && <Notification kind="working" message="처리 중입니다… 파일 업로드 중에는 이 화면을 유지하세요." />}
       {selected && fieldRoutes.includes(route) && <section className="panel participant-context" aria-label="선택 참가자">
+        <div className="context-return"><button onClick={backToList}>전체 목록으로 돌아가기</button></div>
         <h2 ref={contextTitle} tabIndex={-1}>{selected.event_id} / {selected.participant_id} / {selected.dog_name} / {selected.manifest.sessions.findIndex(s => s.session_id === selected.selected_session_id) + 1}차 촬영</h2>
         <label>{writable ? '저장 대상 회차 선택' : '조회 회차 선택'}<select aria-label="선택 세션" disabled={busy} value={selected.selected_session_id} onChange={e => {
           const id = e.target.value; if (!mayLeave()) return;
@@ -207,26 +230,26 @@ export function App() {
           <button className="context-toggle" aria-expanded={contextExpanded} aria-controls="context-extra" onClick={() => setContextExpanded(!contextExpanded)}>회차 안내·바로가기</button>
           <div id="context-extra" className="context-extra">
             <p className="fine">{writable ? '회차 선택은 저장 대상을 변경합니다. 이전 설문·영상·구간은 보존되며 새 회차에 복사하지 않습니다.' : '조회만 변경합니다. 운영자의 저장 대상과 입력 버전은 바뀌지 않습니다.'}</p>
-            <div className="toolbar"><button onClick={() => { if (mayLeave()) setSelected(null); }}>전체 목록으로 돌아가기</button><button onClick={() => go('survey')}>설문 보기</button><button onClick={() => go('recording/record')}>촬영 자료 보기</button><button onClick={() => go('preprocess')}>전처리 상태 보기</button></div>
+            <div className="toolbar"><button onClick={() => go('preprocess')}>전처리 상태 보기</button></div>
           </div>
         </div>
       </section>}
+      {selected && (route === 'intake' || participantTasks.includes(route)) && <ParticipantTasks route={route} go={go} />}
       <fieldset disabled={busy} className="workspace">
         {route === 'developer/settings' ? <section><p className="eyebrow">개발자 전용</p><h1>개발 설정</h1>
           <DeveloperSettings />
-          <button onClick={() => void run(async () => setNotice((await api<{ message: string }>('/developer/status')).message))}>인증 상태 확인</button>
         </section>
           : route === 'intake/upload' ? <FormsImporter cases={cases} run={run} done={async message => { setNotice(message); await reload(); }} />
           : route === 'validation' ? <ValidationData user={user} />
           : route === 'admin/users' ? <Users run={run} />
           : route === 'admin/backup' ? <section><h1>자료 관리</h1><Recovery /></section>
-          : route === 'preprocess' ? <Preprocessing cases={cases} selected={selected} select={openCase} filters={filters} user={user} writable={!!writable} run={run} goTo={go} refresh={async message => { await reload(); if (message) setNotice(message); }} />
+          : route === 'preprocess' ? <Preprocessing cases={cases} selected={selected} select={openCase} openParticipant={openCase} filters={filters} user={user} writable={!!writable} run={run} goTo={go} refresh={async message => { await reload(); if (message) setNotice(message); }} />
           : route === 'scoring' ? <Scoring cases={cases} selected={selected} select={openCase} filters={filters} user={user} run={run} goTo={go} refresh={async message => { await reload(); if (message) setNotice(message); }} />
           : route === 'report' || route === 'report/comparison' || route === 'report/export' ? <Report view={route === 'report' ? 'issue' : route === 'report/export' ? 'export' : 'comparison'} goTo={go} cases={cases} selected={selected} select={openCase} filters={filters} user={user} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
-          : route === 'survey' ? <Survey cases={cases} selected={selected} select={openCase} filters={filters} catalog={catalog} writable={!!writable} goTo={go} />
-          : route === 'recording/inbox' || route === 'recording/record' ? <Recording view={route === 'recording/inbox' ? 'inbox' : 'record'} user={user} cases={cases} selected={selected} select={openCase} filters={filters} writable={!!writable} run={run} reload={reload} notify={setNotice} />
+          : route === 'survey' ? <Survey cases={cases} selected={selected} select={openCase} openParticipant={openCase} filters={filters} catalog={catalog} writable={!!writable} goTo={go} />
+          : route.startsWith('recording/') ? <Recording key={route} view={route === 'recording/record' ? 'record' : route === 'recording/shared' ? 'shared' : 'inbox'} user={user} cases={cases} selected={route === 'recording/shared' ? null : selected} select={openCase} filters={filters} writable={!!writable} run={run} reload={reload} notify={setNotice} goTo={go} back={backToList} />
           : <Intake user={user} cases={cases} selected={selected} writable={!!writable} busy={busy} run={run} reload={reload}
-              select={setSelected} filters={filters} status={connectionError || `3초마다 자동 갱신 · 마지막 조회 ${updatedAt}`} notify={setNotice} goTo={go} />}
+              select={item => { if (item) setListOrigin('intake'); setSelected(item); }} openParticipant={openCase} filters={filters} filter={intakeFilter} setFilter={setIntakeFilter} status={connectionError || `3초마다 자동 갱신 · 마지막 조회 ${updatedAt}`} notify={setNotice} goTo={go} />}
       </fieldset>
       <footer>K-DOG · 현장 평가 자료 관리<span>접수 · 설문 · 촬영 · 채점 · 리포트</span></footer>
     </main>
