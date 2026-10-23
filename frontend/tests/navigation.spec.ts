@@ -40,9 +40,13 @@ test('위치가 hash에 남고 새로고침·뒤로가기·앞으로가기 후�
   await expect(page.getByRole('heading', { name: '리포트', exact: true })).toBeVisible();
 });
 
-test('LNB 업무 메뉴는 모든 계정에 같고 개발 설정만 개발자에게 보인다', async ({ page }) => {
+test('LNB 업무 메뉴는 모든 계정에 같고 개발 설정만 개발자에게 보인다', async ({ page }, testInfo) => {
   await login(page);
-  for (const group of ['현장 운영', '분석·평가', '자료 관리']) await expect(menu(page).getByRole('group', { name: group, exact: true })).toBeVisible();
+  for (const group of ['현장 운영', '분석·평가', '리포트', '자료 관리']) await expect(menu(page).getByRole('group', { name: group, exact: true })).toBeVisible();
+  await expect(menu(page).locator(':scope > [role="group"] > .lnb-title')).toHaveText(['현장 운영', '분석·평가', '리포트', '자료 관리']);
+  await expect(menu(page).getByRole('group', { name: '분석·평가', exact: true }).getByRole('button')).toHaveText(['전처리', '독립 채점']);
+  await expect(menu(page).getByRole('group', { name: '리포트', exact: true }).getByRole('button')).toHaveText(['리포트 발급', '비교 조건', '연구 내보내기']);
+  await menu(page).screenshot({ path: testInfo.outputPath('sidebar-groups-desktop.png') });
   await expect(menu(page).getByRole('group', { name: '촬영', exact: true })).toHaveCount(0);
   await expect(menu(page).getByRole('group', { name: '설문 등록', exact: true })).toHaveCount(0);
   const fieldItems = menu(page).getByRole('group', { name: '현장 운영', exact: true }).locator(':scope > ul');

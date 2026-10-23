@@ -1,4 +1,4 @@
-import { participantTasks, routeGroup, routeLabel, routeParent } from './navigation';
+import { participantTasks, routeGroup, routeLabel } from './navigation';
 import type { Route } from './navigation';
 import type { Case } from './types';
 
@@ -9,7 +9,6 @@ export function LocationTrail({ route, selected, listRoute, back }: {
   const parent = preparation && selected ? listRoute : route.startsWith('recording/') ? 'intake' : route;
   return <nav className="location-trail" aria-label="현재 위치"><ol>
     <li>{routeGroup(parent)}</li>
-    {routeParent(parent) && <li>{routeParent(parent)}</li>}
     {selected ? <>
       <li><button className="plain" onClick={back}>{routeLabel(parent)} 목록</button></li>
       <li aria-current={preparation ? undefined : 'page'}>{selected.participant_id} · {selected.dog_name}</li>
