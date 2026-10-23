@@ -204,7 +204,7 @@
 
 - 메뉴·현재/지정 실행 화면: [Preprocessing.tsx](../../frontend/src/pages/Preprocessing.tsx), [PreprocessExecutionsV4.tsx](../../frontend/src/PreprocessExecutionsV4.tsx), [PreprocessingPanelV4.tsx](../../frontend/src/PreprocessingPanelV4.tsx).
 - 제작·재사용·입력 보호: [preprocess_v4.py](../../backend/app/preprocess_v4.py), [S05 다중 카메라 전처리](../archive/개발반영_20261003/K-DOG_PR-S05_다중카메라전처리_v1.0_20261003.md).
-- 내 실행·진행·자동 조회·응답 유실: [ES01 실행 조회 계약](../plans/내실행과분석진행_20261012/K-DOG_PR-ES01_전처리내실행조회와진행계약_v1.0_20261012.md), [ES02 화면·자동 갱신](../plans/내실행과분석진행_20261012/K-DOG_PR-ES02_전처리내작업화면과자동갱신_v1.0_20261012.md). ES03의 후속 AI 진행은 [AI 분석 사용설명서](K-DOG_AI분석_사용설명서_v1.0_20261013.md)에서 다룹니다.
-- 360 지원 경계와 실제 검증: [MP01 계약](../plans/360통합MP4업로드_20261012/K-DOG_PR-MP01_외부처리MP4계약과보관_v1.0_20261012.md), [360 통합 MP4 구현 실행 기록](../plans/360통합MP4업로드_20261012/K-DOG_360통합MP4구현실행기록_v1.0_20261012.md).
+- 내 실행·진행·자동 조회·응답 유실: ES01 실행 조회 계약, ES02 화면·자동 갱신. ES03의 후속 AI 진행은 [AI 분석 사용설명서](K-DOG_AI분석_사용설명서_v1.0_20261013.md)에서 다룹니다.
+- 360 지원 경계와 실제 검증: MP01 계약, 360 통합 MP4 구현 실행 기록.
 - 공통 업무 권한: [업무권한 단순화 계획](../plans/K-DOG_업무권한단순화계획_v1.1_20261011.md). 과거 계획의 소유·배정·동의·공개·재개방 승인 조건은 현행 작업에 적용하지 않습니다.
 - 현장 품질·장비 검증 대기: [실측 및 확인 후속 대장](../archive/개발반영_20261003/K-DOG_실측및확인후속대장_v1.0_20261003.md).

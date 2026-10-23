@@ -1,6 +1,6 @@
 # K-DOG 배포용 FFmpeg 빌드
 
-배포 패키지(D01)에 넣는 `ffmpeg.exe`·`ffprobe.exe`를 직접 빌드하고, 같은 폴더에 대응 소스·라이선스·`build.json`을 만든다. 구성은 FFmpeg 기본 기능 + libx264 + zlib이고 결과 라이선스는 GPL 2 이상이다. 근거와 결정은 [PR-D00 계획](../../docs/archive/설치배포개선_20261005/K-DOG_PR-D00_FFmpeg최소빌드_v1.0_20261005.md)을 따른다.
+배포 패키지(D01)에 넣는 `ffmpeg.exe`·`ffprobe.exe`를 직접 빌드하고, 같은 폴더에 대응 소스·라이선스·`build.json`을 만든다. 구성은 FFmpeg 기본 기능 + libx264 + zlib이고 결과 라이선스는 GPL 2 이상이다. 근거와 결정은 PR-D00 계획을 따른다.
 
 FFmpeg를 올릴 때만 다시 빌드한다. 평소 릴리즈는 `releases/.cache/ffmpeg-<버전>-kdog/`의 결과를 `build.json` 해시로 확인한 뒤 사용한다. 결과는 바이너리이므로 커밋하지 않는다 (`releases/`는 git 무시 대상).
 

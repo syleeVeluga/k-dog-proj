@@ -6,7 +6,7 @@
 
 ## 환경과 실행
 
-macOS 사용자 설치형은 `uv run --project backend --locked python scripts/build_release.py releases/kdog-s1-macos-online.zip --variant macos-online`으로 빌드한다. 깨끗한 커밋 트리와 기존 frontend 의존성이 필요하다. [macOS 설치 안내](../scripts/macos/online/macOS_설치안내.md), [구현·검증 기록](plans/K-DOG_macOS사용자설치형_v1.0_20261021.md)을 따른다. Windows 배포 두 종류와 별도이며 macOS 포터블은 만들지 않는다.
+macOS 사용자 설치형은 `uv run --project backend --locked python scripts/build_release.py releases/kdog-s1-macos-online.zip --variant macos-online`으로 빌드한다. 깨끗한 커밋 트리와 기존 frontend 의존성이 필요하다. [macOS 설치 안내](../scripts/macos/online/macOS_설치안내.md), 구현·검증 기록을 따른다. Windows 배포 두 종류와 별도이며 macOS 포터블은 만들지 않는다.
 
 React 빌드를 FastAPI가 제공하고 SQLite·불변 파일·별도 worker를 사용한다. Python 3.14, Node.js 24, uv, npm, FFmpeg/ffprobe가 필요하다. 패키지 버전은 lockfile에 고정하며 공식 최신/선택 버전·호환성·확인일은 실행 기록에 남긴다. 새 의존성 사용 전 공식 문서와 registry를 확인한다.
 
@@ -32,7 +32,7 @@ uv run --locked python -X utf8 -m app.launcher
 
 슬롯 제거는 해당 키만 제거한다. 「Gemini 전체 키 사용 중지」는 다음 시도에서 두 슬롯을 막으며 이미 요청한 원격 작업의 취소나 공급자 콘솔 키 폐기와는 별도다. 백업에는 두 ciphertext와 세션이 없고 복원 뒤에는 두 슬롯을 명시 재등록한다. 원격 임시 파일 정리는 당시 활성 reference와 같은 키만 사용한다. 교체/제거된 키의 정리 대기는 새 키로 추정 정리하지 않는다. 비용/응답 미확인은 0원이나 성공으로 바꾸지 않는다.
 
-실제 Worker+fake REST의 채점·애착·최종본·문장·HTML/PDF·재사용·복원 검증은 [GK01~04 실행 기록](plans/Gemini주키예비키_20261013/K-DOG_Gemini주키예비키구현실행기록_v1.0_20261013.md)에 있다. 실공급자 프로젝트별 전환·계량·모델 품질/교수·현장 실측은 별도 인수다.
+실제 Worker+fake REST의 채점·애착·최종본·문장·HTML/PDF·재사용·복원 검증은 GK01~04 실행 기록에 있다. 실공급자 프로젝트별 전환·계량·모델 품질/교수·현장 실측은 별도 인수다.
 
 ## 자동 검증
 
@@ -62,11 +62,11 @@ S1 고객 원본은 로컬 전용 `docs/요구사항_20261003/`이다. [원본 �
 
 ## 행사 신청 설문 가져오기(2026-10-22)
 
-「일괄 등록 (CSV·Excel)」에서 2026 K-DOG FESTIVAL 체험 신청 응답 XLSX/CSV를 그대로 올릴 수 있다. 영역마다 다시 시작하는 문항 번호는 원문으로 Q01~Q28에 연결하고 한글 응답 라벨을 자동 제안한다. 접수 정보 8열도 연결하며 나이의 개월 원문은 출처에 보존하고 화면에는 정수 연수를 사용한다. 연락처·동의·중성화 여부·희망 일시는 원자료에 보존하고 희망 시간을 확정 예약으로 쓰지 않는다. 설문 응답 시트를 선택하고 미리보기를 확인한 뒤 확정한다. 원본에 참가자 ID가 없어 재업로드 시 새 ID로 중복될 수 있으므로 기존 참가자는 명시적으로 연결한다. [연결 규칙·검증 기록](plans/K-DOG_행사신청설문반영_v1.0_20261022.md)을 따른다.
+「일괄 등록 (CSV·Excel)」에서 2026 K-DOG FESTIVAL 체험 신청 응답 XLSX/CSV를 그대로 올릴 수 있다. 영역마다 다시 시작하는 문항 번호는 원문으로 Q01~Q28에 연결하고 한글 응답 라벨을 자동 제안한다. 접수 정보 8열도 연결하며 나이의 개월 원문은 출처에 보존하고 화면에는 정수 연수를 사용한다. 연락처·동의·중성화 여부·희망 일시는 원자료에 보존하고 희망 시간을 확정 예약으로 쓰지 않는다. 설문 응답 시트를 선택하고 미리보기를 확인한 뒤 확정한다. 원본에 참가자 ID가 없어 재업로드 시 새 ID로 중복될 수 있으므로 기존 참가자는 명시적으로 연결한다. 연결 규칙·검증 기록을 따른다.
 
 ## 문항 매핑과 누적 비교(2026-10-21)
 
-[문항 매핑과 누적 비교 계획](plans/누적비교반영_20261021/K-DOG_문항매핑과누적비교적용계획_v1.0_20261021.md)의 CM01~CM05 구현이다. `resources/report/survey-comparison-20261008.json`(EXT1.1)은 28문항을 S01~S09 9지표로 묶고 SF=S03(s10·s11), NF=S04(s12~s14)만 미국 연구 참고값(SF 0.66/SD0.91/n42,926, NF 1.03/SD0.78/n42,764, 전체 43,517)에 연결한다. launcher 필수 자산이며 원본 hash·셀 위치·판본 차이를 함께 고정한다. 전달 XLSX는 무시 목록 `/docs/참고자료/`에 로컬 보존하고 커밋하지 않는다.
+문항 매핑과 누적 비교 계획의 CM01~CM05 구현이다. `resources/report/survey-comparison-20261008.json`(EXT1.1)은 28문항을 S01~S09 9지표로 묶고 SF=S03(s10·s11), NF=S04(s12~s14)만 미국 연구 참고값(SF 0.66/SD0.91/n42,926, NF 1.03/SD0.78/n42,764, 전체 43,517)에 연결한다. launcher 필수 자산이며 원본 hash·셀 위치·판본 차이를 함께 고정한다. 전달 XLSX는 무시 목록 `/docs/참고자료/`에 로컬 보존하고 커밋하지 않는다.
 
 리포트 발급 화면의 새 발급은 `cumulative: true`로 누적 비교(`report-run-20261021-cm`, `report-presentation-20261021-cm`, `resources/report/presentation-20261021.json`·`templates/report-20261021.*`)를 사용한다. API 요청에서 `cumulative`를 생략하면 기존 rp04 계약으로 발급한다. 접수 시 참여쌍 대표 설문 집합·9지표 정수 분자/분모·지표별 n·SF/NF 외부 기준 정의를 snapshot으로 고정하며 재시도·다운로드는 재집계하지 않는다. 옛 rp04 발급과 옛 자산은 그대로 둔다. 참여쌍 API는 `GET/POST /api/comparisons-s1/pairs`, `POST /api/comparisons-s1/pairs/{pair_id}/submissions`, `POST /api/comparisons-s1/pairs/{pair_id}/state`다.
 
@@ -79,7 +79,7 @@ $env:KDOG_COMPARISON_DELIVERY = "D:/로컬/외부연구값_문항대조와출력
 npx playwright test tests/comparison-participation-v4.spec.ts tests/cumulative-comparisons-v4.spec.ts
 ```
 
-셀 대조 skip은 원본 대조 통과가 아니다. 합성 시험은 운영 DB의 실제 SF/NF 기준 등록·참여쌍 확인을 대신하지 않는다. 운영 절차는 [운영 안내](PILOT_OPERATIONS.md), 실제 결과는 [구현 실행 기록](plans/누적비교반영_20261021/K-DOG_문항매핑과누적비교구현실행기록_v1.0_20261021.md)을 따른다.
+셀 대조 skip은 원본 대조 통과가 아니다. 합성 시험은 운영 DB의 실제 SF/NF 기준 등록·참여쌍 확인을 대신하지 않는다. 운영 절차는 [운영 안내](PILOT_OPERATIONS.md), 실제 결과는 구현 실행 기록을 따른다.
 
 ## 전처리와 실행
 
@@ -92,7 +92,7 @@ uv run --locked python -X utf8 -m app.manage --data-dir "D:/K-DOG/data" check-re
 
 실제 8구간·사건·카메라 offset을 확정하고 명시 요청으로 실행한다. S1은 공통시각과 각 영상 시각, 원본/변환본/AI용 클립을 구분하며 AI용 1fps 실제 프레임 PTS와 hash를 고정한다. 규칙은 `resources/rules/preprocess-v4.json`이다.
 
-기본 카메라 우선순위는 CAM1~CAM4다. MKV는 FFmpeg로 디코드하며 전처리 클립은 MP4로 만든다. `N_CAMk_설명`/`CAMk_설명` 파일명은 촬영 카메라를 제안하고 CAM4의 사양 원본 번호는 null을 유지한다. 프론트엔드 `src/segmentsCsv.ts`는 UTF-8/BOM 구간 CSV를 열 이름으로 읽어 촬영 기록 초안을 채운다. 기준 카메라의 8구간 시작·다음 번호 시작으로 유도한 끝, 연결 카메라 평균 offset과 파일 SHA-256을 기록한다. CSV 입력은 접힌 영역 밖에 표시하며 퇴장 끝과 걷기 국면 시각이 없어도 8구간 기록을 확정할 수 있다. 상세 사건·관찰 근거·꼬리 선택은 선택 입력이며 미확인 정보를 채점 근거로 만들지 않는다. 순수 파서 회귀는 `tests/segments-csv.spec.ts`, 저장·확정은 `tests/recording-v4.spec.ts`를 사용한다. 현행 최종 CSV와 확정 조건은 [최종 CSV 적용 기록](plans/K-DOG_최종CSV촬영입력개선_v1.0_20261023.md), 이전 기술 인수 이력은 [4카메라 실행 기록](plans/4카메라구간CSV전환_20261014/K-DOG_4카메라구간CSV구현실행기록_v1.0_20261014.md)을 따른다.
+기본 카메라 우선순위는 CAM1~CAM4다. MKV는 FFmpeg로 디코드하며 전처리 클립은 MP4로 만든다. `N_CAMk_설명`/`CAMk_설명` 파일명은 촬영 카메라를 제안하고 CAM4의 사양 원본 번호는 null을 유지한다. 프론트엔드 `src/segmentsCsv.ts`는 UTF-8/BOM 구간 CSV를 열 이름으로 읽어 촬영 기록 초안을 채운다. 기준 카메라의 8구간 시작·다음 번호 시작으로 유도한 끝, 연결 카메라 평균 offset과 파일 SHA-256을 기록한다. CSV 입력은 접힌 영역 밖에 표시하며 퇴장 끝과 걷기 국면 시각이 없어도 8구간 기록을 확정할 수 있다. 상세 사건·관찰 근거·꼬리 선택은 선택 입력이며 미확인 정보를 채점 근거로 만들지 않는다. 순수 파서 회귀는 `tests/segments-csv.spec.ts`, 저장·확정은 `tests/recording-v4.spec.ts`를 사용한다. 현행 최종 CSV와 확정 조건은 최종 CSV 적용 기록, 이전 기술 인수 이력은 4카메라 실행 기록을 따른다.
 
 ```powershell
 # backend/; 화면에서 확인한 현재 입력 revision과 새 요청 ID를 지정
@@ -101,7 +101,7 @@ uv run --locked python -X utf8 -m app.manage --data-dir "D:/K-DOG/data" preproce
 
 같은 요청 재시도에는 동일 request ID를 쓴다. 다른 입력·새 처리에는 새 ID와 현재 revision을 쓴다. 성공/실패·원본 부모 hash·실제 fps·출력 hash가 batch에 고정된다. 메뉴 방문이나 입력 저장으로 자동 실행하지 않는다. AI 실행은 현재 모델/설정/예산을 고정하며 실제 공급자 호출과 재시도에는 비용이 발생할 수 있다.
 
-구조 개선 후 촬영 CSV의 순수 초안 병합은 `src/segmentsCsv.ts`의 `applySegmentsCsvDraft`, AI·전처리의 pending/응답 순서·타이머는 `src/useExecutionTracking.ts`에서 찾는다. 각 화면 adapter가 DTO·저장 payload와 부분 조회 결과를 해석한다. backend의 `app.analysis.owned_write`는 현재 실행 점유·실제 계정 확인과 같은 SQLite 쓰기 transaction의 수명을 소유하며, Worker 네 쓰기와 채택·게시 다섯 쓰기가 사용한다. claim·heartbeat·오류 종료·업로드/전처리의 별도 토큰은 기존 module에 남는다. 실제 시험과 한계는 [아키텍처 개선 실행 기록](plans/아키텍처개선_20261020/K-DOG_아키텍처개선실행기록_v1.0_20261020.md)을 따른다.
+구조 개선 후 촬영 CSV의 순수 초안 병합은 `src/segmentsCsv.ts`의 `applySegmentsCsvDraft`, AI·전처리의 pending/응답 순서·타이머는 `src/useExecutionTracking.ts`에서 찾는다. 각 화면 adapter가 DTO·저장 payload와 부분 조회 결과를 해석한다. backend의 `app.analysis.owned_write`는 현재 실행 점유·실제 계정 확인과 같은 SQLite 쓰기 transaction의 수명을 소유하며, Worker 네 쓰기와 채택·게시 다섯 쓰기가 사용한다. claim·heartbeat·오류 종료·업로드/전처리의 별도 토큰은 기존 module에 남는다. 실제 시험과 한계는 아키텍처 개선 실행 기록을 따른다.
 
 ## 패키지와 종단 리허설
 
