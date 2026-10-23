@@ -10,7 +10,7 @@ import sys
 import uvicorn
 
 from app.api import DEFAULT_DATA, create_app
-from app.auth import create_user, password_hash, provision_accounts
+from app.auth import create_first_user, create_user, first_user_needed, password_hash, provision_accounts
 from app.input_models import UserCreate
 from app.storage import Store
 
@@ -42,6 +42,8 @@ def main():
     sub.add_parser("recovery-status")
     sub.add_parser("check-removed-media", help="배포 전 제거 대상 영상의 참조를 읽기 전용으로 점검")
     sub.add_parser("provision-accounts", help="발행 패키지의 업무·개발자 계정을 표준입력 JSON으로 생성 (설치 프로그램용)")
+    first = sub.add_parser("create-first-user", help="활성 업무 계정이 없을 때만 표준입력 JSON으로 첫 operator 생성 (설치 프로그램용)")
+    first.add_argument("--check", action="store_true", help="생성하지 않고 needed 또는 exists만 출력")
     reset_s1 = sub.add_parser("reset-s1", help="원입력을 보존하고 구판 평가 결과를 S1으로 초기화 (API·worker 종료 필요)")
     reset_s1.add_argument("--actor", required=True, help="활성 업무 계정")
     reset_s1.add_argument("--apply", action="store_true", help="생략하면 제거 범위만 점검")
@@ -168,6 +170,18 @@ def main():
         except (ValueError, sqlite3.Error) as exc:
             parser.exit(1, f"계정 생성 실패: {exc}\n")
         print("\n".join(messages))
+        return
+    if args.command == "create-first-user":
+        try:
+            store = Store(args.data_dir)
+            with store.connect(write=True) as db:
+                if args.check:
+                    print("needed" if first_user_needed(db) else "exists")
+                    return
+                created = create_first_user(db, store, sys.stdin.buffer.read())
+        except (ValueError, sqlite3.Error) as exc:
+            parser.exit(1, f"계정 생성 실패: {exc}\n")
+        print("업무 계정을 만들었습니다." if created else "이미 업무 계정이 있어 새로 만들지 않았습니다.")
         return
     if args.command == "serve":
         if args.host not in ("127.0.0.1", "localhost", "::1") and not args.public_origin:

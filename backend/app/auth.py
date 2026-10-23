@@ -52,7 +52,8 @@ def provision_accounts(db, store, document: bytes) -> list[str]:
                     and isinstance(account["password_hash"], str)
                     and re.fullmatch(r"scrypt\$[0-9a-f]{32}\$[0-9a-f]{128}", account["password_hash"])
                     for account in accounts)
-            and sum(account["role"] != "developer" for account in accounts) == 1
+            and sum(account["role"] != "developer" for account in accounts) <= 1
+            and sum(account["role"] == "developer" for account in accounts) <= 1
             and len({account["username"] for account in accounts}) == len(accounts)):
         raise ValueError("발행 계정 정보가 올바르지 않습니다.")
     messages, new = [], []
@@ -71,6 +72,32 @@ def provision_accounts(db, store, document: bytes) -> list[str]:
         store.audit(db, account["username"], account["username"], "user.provisioned",
                     {"role": account["role"], "customer": provision["customer"]})
     return messages
+
+
+def first_user_needed(db) -> bool:
+    return db.execute("SELECT 1 FROM users WHERE active=1 AND role!='developer' LIMIT 1").fetchone() is None
+
+
+def create_first_user(db, store, document: bytes) -> bool:
+    """Create this PC's first operator from the installer; returns False when a business account already exists."""
+    if not first_user_needed(db):
+        return False
+    try:
+        value = json.loads(document)
+    except ValueError:
+        value = None
+    try:
+        if not (isinstance(value, dict) and set(value) == {"username", "password"} and isinstance(value["password"], str)
+                and 12 <= len(value["password"]) <= 256):
+            raise ValueError
+        user = UserCreate(username=value["username"], password=value["password"], role="operator")
+    except ValueError:
+        raise ValueError("아이디(영문·숫자·_-)와 비밀번호 길이(12~256자)를 확인하세요.") from None
+    if db.execute("SELECT 1 FROM users WHERE username=?", (user.username,)).fetchone():
+        raise ValueError("이미 있는 아이디입니다. 다른 아이디를 입력하세요.")
+    create_user(db, user)
+    store.audit(db, user.username, user.username, "user.local_create", {"role": "operator", "source": "installer"})
+    return True
 
 
 def user_view(row) -> UserView:

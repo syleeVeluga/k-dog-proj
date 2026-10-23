@@ -1,14 +1,16 @@
 """Verify a portable release and an issued package built from it, without uv/Python/FFmpeg on PATH.
 
 Plain ZIP: new Korean/space path, damaged-file rejection, bundled runtime, HTTP login/intake/restart, locks.
-Issued ZIP (synthetic customer VERIFY): no readable product files, wrong key and tampering change nothing,
-key install with accounts and shortcut, business/developer login, and reinstall keeping data and accounts.
+Issued ZIP (synthetic customer VERIFY, developer only, install period ending today): no readable product files,
+wrong key, tampering and an expired period change nothing, key install with the first business account typed at
+install and a shortcut, business/developer login, and reinstall keeping data and accounts without asking again.
 User-install ZIP (--variant online, uv/FFmpeg on PATH, internet): Start.cmd asks for Install.cmd first, damage
 is rejected before a venv exists, Install.cmd builds backend/.venv, then the same HTTP, restart and lock checks.
 """
 
 import argparse
 from contextlib import contextmanager
+from datetime import date
 from http.cookiejar import CookieJar
 import importlib.util
 import json
@@ -279,8 +281,9 @@ def verify_issued(package, root):
     issuer = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(issuer)
     passwords = {"verify-user": secrets.token_urlsafe(18), "verify-dev": secrets.token_urlsafe(18)}
-    issued = issuer.issue(package, "VERIFY", [("verify-user", "operator", passwords["verify-user"]),
-                                              ("verify-dev", "developer", passwords["verify-dev"])], root / "issued")
+    # The business account is not issued; the installer asks for it as this PC's first account.
+    issued = issuer.issue(package, "VERIFY", [("verify-dev", "developer", passwords["verify-dev"])], root / "issued",
+                          date.today().isoformat())
     unpacked = root / "새 발행 패키지"
     with ZipFile(issued["path"]) as archive:
         names = archive.namelist()
@@ -307,16 +310,22 @@ def verify_issued(package, root):
     payload = unpacked / "payload.kdog"
     original = payload.read_bytes()
     try:
-        for altered in (original.replace(b'"VERIFY"', b'"VERIFZ"', 1), original[:-1] + bytes([original[-1] ^ 1])):
+        for altered in (original.replace(b'"VERIFY"', b'"VERIFZ"', 1), original[:-1] + bytes([original[-1] ^ 1]),
+                        original.replace(f'"{date.today().isoformat()}"'.encode(), b'"2999-12-31"', 1)):
             payload.write_bytes(altered)
             code, output = install(issued["key"], "")
             if code == 0 or not untouched():
                 raise RuntimeError("a tampered payload was installed: " + output)
+        payload.write_bytes(issuer.installer.seal(b"expired", issuer.installer.new_key(), customer="VERIFY",
+                                                  version=issued["version"], commit=issued["commit"], expires="2000-01-01"))
+        code, output = install(issued["key"])
+        if code == 0 or "유효 기간(2000-01-01)이 지났습니다" not in output or not untouched():
+            raise RuntimeError("an expired package was installed: " + output)
     finally:
         payload.write_bytes(original)
-    code, output = install(issued["key"])
-    if code or "바탕화면의 K-DOG 아이콘" not in output:
-        raise RuntimeError("issued install failed or made no shortcut: " + output)
+    code, output = install(issued["key"], "verify-user", passwords["verify-user"], passwords["verify-user"])
+    if code or "바탕화면의 K-DOG 아이콘" not in output or "업무 계정을 만들었습니다" not in output:
+        raise RuntimeError("issued install failed, made no first account or no shortcut: " + output)
     target = install_root / f"{issued['version']}-{issued['commit'][:7]}"
     if not (target / "Start.cmd").is_file() or list(target.rglob("provision.json")) or list(install_root.glob(".tmp-*")):
         raise RuntimeError("installed folder is incomplete or kept provisioning data")
@@ -348,14 +357,15 @@ def verify_issued(package, root):
             raise RuntimeError("developer account cannot read shared work")
         developer("/api/cases", {"event_id": "S1-ISSUED", "participant_id": "0003", "dog_name": "개발자 업무 시험견"})
     code, output = install(issued["key"])
-    if code or "기존 비밀번호가 유지" not in output:
-        raise RuntimeError("reinstalling the same package did not keep accounts: " + output)
+    if code or "기존 비밀번호가 유지" not in output or "처음 쓸 업무 계정" in output:
+        raise RuntimeError("reinstalling the same package did not keep accounts or asked for a first account: " + output)
     with served([str(target / "Start.cmd")], target, env, kill_tree=True) as client:
         business = client()
         business("/api/auth/login", {"username": "verify-user", "password": passwords["verify-user"]})
         if business("/api/cases/" + case_id)["participant_id"] != "0002":
             raise RuntimeError("reinstall lost data")
     return {"issued_package_sealed": True, "wrong_key_and_tampering_change_nothing": True,
+            "expired_or_extended_period_changes_nothing": True, "first_business_account_at_install": "passed",
             "key_install_accounts_shortcut": "passed", "developer_settings_access": "passed",
             "ordinary_business_account": "passed", "business_settings_forbidden": "passed",
             "developer_shared_work": "passed",

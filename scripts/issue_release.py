@@ -5,7 +5,7 @@ and the account list (password hashes only) are sealed with the key. The key is 
 """
 
 import argparse
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from getpass import getpass
 import hashlib
 import importlib.util
@@ -32,14 +32,20 @@ def crlf(path):
     return path.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
 
 
-def issue(plain_zip: Path, customer: str, accounts: list[tuple[str, str, str]], out_dir: Path) -> dict:
-    """accounts: (username, role, password) with one business user and an optional developer."""
+def issue(plain_zip: Path, customer: str, accounts: list[tuple[str, str, str]], out_dir: Path,
+          expires: str | None = None) -> dict:
+    """accounts: (username, role, password), at most one business user and one developer.
+
+    Without a business user the installer asks for the PC's first one. expires (YYYY-MM-DD) is the last install day.
+    """
     if not re.fullmatch(r"[A-Za-z0-9-]{1,32}", customer):
         raise ValueError("고객 ID는 영문·숫자·하이픈 1~32자입니다.")
     if (not 1 <= len(accounts) <= 2 or any(role not in ("operator", "reviewer", "admin", "developer") for _,role,_ in accounts)
-            or sum(role != "developer" for _,role,_ in accounts) != 1) or \
+            or sum(role != "developer" for _,role,_ in accounts) > 1 or sum(role == "developer" for _,role,_ in accounts) > 1) or \
             len({username for username, _, _ in accounts}) != len(accounts):
-        raise ValueError("업무 계정 1개와 선택 개발자 계정 1개를 서로 다른 아이디로 지정하세요.")
+        raise ValueError("업무 계정과 개발자 계정을 각각 최대 1개, 서로 다른 아이디로 지정하세요.")
+    if expires is not None and not (installer.valid_date(expires) and date.fromisoformat(expires) >= date.today()):
+        raise ValueError("유효 기간은 오늘 이후의 YYYY-MM-DD 날짜로 지정하세요.")
     for username, _role, password in accounts:
         if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", username) or not 12 <= len(password) <= 256:
             raise ValueError(f"{username}: 아이디(영문·숫자·_-)와 비밀번호 길이(12~256자)를 확인하세요.")
@@ -53,9 +59,11 @@ def issue(plain_zip: Path, customer: str, accounts: list[tuple[str, str, str]], 
             raise ValueError("평문 패키지가 release.json과 다릅니다. build_release.py로 다시 만드세요.")
         # The installer comes from this checkout; the product must already carry what it needs.
         crypto = r"runtime/python/Lib/site-packages/cryptography-[^/]+\.dist-info/METADATA"
+        manage = plain.read("backend/app/manage.py")
         if not any(re.fullmatch(crypto, name) for name in names) or \
-                b"provision-accounts" not in plain.read("backend/app/manage.py"):
-            raise ValueError("평문 패키지가 발행 설치를 지원하지 않습니다 (cryptography·provision-accounts 없음). 현재 코드로 다시 만드세요.")
+                b"provision-accounts" not in manage or b"create-first-user" not in manage:
+            raise ValueError("평문 패키지가 발행 설치를 지원하지 않습니다 (cryptography·provision-accounts·create-first-user 없음). "
+                             "현재 코드로 다시 만드세요.")
         version, commit = manifest["version"], manifest["commit"]
         provision = {"format": "kdog-provision-1", "customer": customer,
                      "issued_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -68,7 +76,7 @@ def issue(plain_zip: Path, customer: str, accounts: list[tuple[str, str, str]], 
                     sealed.writestr(name, plain.read(name))
             sealed.writestr("provision.json", json.dumps(provision, ensure_ascii=False))
         key = installer.new_key()
-        payload = installer.seal(product.getvalue(), key, customer=customer, version=version, commit=commit)
+        payload = installer.seal(product.getvalue(), key, customer=customer, version=version, commit=commit, expires=expires)
         stem = f"K-DOG-{customer}-v{version}-{commit[:7]}"
         target = out_dir / f"{stem}.zip"
         if target.exists():
@@ -86,7 +94,7 @@ def issue(plain_zip: Path, customer: str, accounts: list[tuple[str, str, str]], 
         partial.replace(target)
     digest = hashlib.sha256(target.read_bytes()).hexdigest()
     target.with_name(target.name + ".sha256").write_text(f"{digest}  {target.name}\n", encoding="utf-8")
-    record = {"customer": customer, "version": version, "commit": commit, "issued_at": provision["issued_at"],
+    record = {"customer": customer, "version": version, "commit": commit, "issued_at": provision["issued_at"], "expires": expires,
               "package": target.name, "sha256": digest,
               "plain_package_sha256": hashlib.sha256(plain_zip.read_bytes()).hexdigest(),
               "installer_sha256": hashlib.sha256((ROOT / "scripts/windows/kdog_install.py").read_bytes()).hexdigest(),
@@ -106,23 +114,30 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("plain_zip", type=Path, help="build_release.py로 만든 평문 포터블 ZIP")
     parser.add_argument("--customer", required=True, help="고객 ID (영문·숫자·하이픈 1~32자)")
-    account = parser.add_mutually_exclusive_group(required=True)
-    account.add_argument("--user", help="일반 업무 계정 아이디")
+    account = parser.add_mutually_exclusive_group()
+    account.add_argument("--user", help="미리 넣을 일반 업무 계정 아이디 (선택. 생략하면 설치할 때 첫 계정을 입력)")
     account.add_argument("--admin", help="기존 admin 발행 계정 아이디 (호환 옵션, 업무 권한은 동일)")
-    parser.add_argument("--developer", help="AI 키 등록용 개발자 계정 아이디 (선택)")
+    parser.add_argument("--developer", help="AI 키 등록용 개발자 계정 아이디")
+    parser.add_argument("--expires", help="설치 가능한 마지막 날 YYYY-MM-DD (선택. 생략하면 기간 없음)")
     parser.add_argument("--out", type=Path, help="결과 폴더 (기본: releases/issued/<고객 ID>)")
     args = parser.parse_args()
+    if not (args.user or args.admin or args.developer):
+        parser.error("--developer 또는 --user 중 하나 이상이 필요합니다.")
     try:
-        username, role = (args.user, "operator") if args.user else (args.admin, "admin")
-        accounts = [(username, role, ask_password(username, role))]
+        accounts = []
+        if args.user or args.admin:
+            username, role = (args.user, "operator") if args.user else (args.admin, "admin")
+            accounts.append((username, role, ask_password(username, role)))
         if args.developer:
             accounts.append((args.developer, "developer", ask_password(args.developer, "developer")))
-        result = issue(args.plain_zip, args.customer, accounts, args.out or ROOT / "releases/issued" / args.customer)
+        result = issue(args.plain_zip, args.customer, accounts, args.out or ROOT / "releases/issued" / args.customer,
+                       args.expires)
     except (OSError, ValueError, KeyError) as exc:
         parser.exit(1, f"발행 실패: {exc}\n")
     print(f"발행 패키지: {result['path']}")
     print(f"SHA-256: {result['sha256']}")
     print(f"발행 키: {result['key']}")
+    print(f"설치 유효 기간: {result['expires'] + '까지' if result['expires'] else '없음'}")
     print("※ 발행 키는 여기서 한 번만 표시되며 어디에도 저장되지 않습니다.")
     print("※ 키와 SHA-256은 ZIP과 다른 경로(문자·전화 등)로 전달하세요. 같은 메일로 보내면 암호화 의미가 없습니다.")
     print("※ 이미 설치된 PC에 같은 아이디가 있으면 그 계정의 기존 비밀번호가 유지됩니다.")
