@@ -6,6 +6,78 @@ import { openMenu } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 
+test('촬영 저장은 잘못된 시간과 항목을 한글로 안내하고 수정한 입력만 저장한다', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await page.getByLabel('계정', { exact: true }).fill('operator');
+  await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
+  const item = await (await page.request.post('/api/cases', { headers, data: { event_id: 'RECORD-VALIDATION', participant_id: 'record-validation', dog_name: '합성 입력검증견' } })).json();
+  const bytes = execFileSync('ffmpeg', ['-v', 'error', '-nostdin', '-f', 'lavfi', '-i', 'color=c=blue:size=64x64:rate=2:duration=10', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov', 'pipe:1']);
+  const receipt = await (await page.request.post('/api/uploads', { headers, data: { request_id: 'validation-video', filename: 'synthetic.mp4', expected_size: bytes.length } })).json();
+  expect((await page.request.put(`/api/uploads/${receipt.upload_id}/content`, { headers, params: { request_id: receipt.request_id }, data: bytes })).status()).toBe(200);
+  expect((await page.request.post(`/api/uploads/${receipt.upload_id}/link`, { headers, data: { case_id: item.case_id, session_id: item.selected_session_id, camera_id: 'CAM1', expected_revision: item.input_revision } })).status()).toBe(200);
+  await openMenu(page, '촬영 기록 (8구간)');
+  await page.getByRole('button', { name: 'record-validation 촬영 열기', exact: true }).click();
+  const panel = page.getByLabel('촬영 기록', { exact: true });
+  await panel.getByText('걷기 실제 6국면', { exact: true }).click();
+  for (const name of ['이동1', '정지1', '정지3']) {
+    await panel.getByLabel(`${name} 시작`, { exact: true }).fill('5');
+    await panel.getByLabel(`${name} 끝`, { exact: true }).fill(name === '정지1' ? '4' : '5');
+  }
+  await panel.getByText('실제 사건·전환·기회', { exact: true }).click();
+  await panel.getByRole('combobox', { name: '추가할 사건', exact: true }).selectOption('stranger_contact_start');
+  await panel.getByLabel('실제 맥락·사유', { exact: true }).fill('합성 미관찰 기록');
+  await panel.getByLabel('영향 항목 (쉼표로 구분)', { exact: true }).fill('개999');
+  await panel.getByText('창별 실제 관찰 근거', { exact: true }).click();
+  await panel.getByRole('button', { name: '관찰 근거 추가', exact: true }).click();
+  await panel.getByLabel('관찰 근거 시작', { exact: true }).fill('0');
+  await panel.getByLabel('관찰 근거 끝', { exact: true }).fill('2');
+  await panel.getByLabel('실제 관찰 초', { exact: true }).fill('3');
+  await panel.getByLabel('관찰 근거 설명', { exact: true }).fill('합성 부분 관찰');
+  await panel.getByText('개59 연결 메모', { exact: true }).click();
+  await panel.getByRole('button', { name: '연결 메모 추가', exact: true }).click();
+  await panel.getByLabel('개59 메모', { exact: true }).fill('합성 메모');
+  await panel.getByLabel('메모 연결 항목', { exact: true }).fill('개59');
+  let saves = 0;
+  page.on('request', request => { if (request.method() === 'PUT' && request.url().endsWith('/recording-s1')) saves++; });
+  await panel.getByRole('button', { name: '촬영 기록 초안 저장', exact: true }).click();
+  const errors = panel.getByRole('alert', { name: '촬영 기록 입력 확인' });
+  await expect(errors.getByRole('listitem')).toHaveCount(6);
+  for (const name of ['이동1', '정지1', '정지3']) await expect(errors).toContainText(`걷기 ${name}: 끝 시각은 시작 시각보다 커야 합니다`);
+  await expect(errors).toContainText('관찰 근거 1: 실제 관찰 초는 0~2초');
+  await expect(errors).toContainText('사건 1 영향 항목: 개999');
+  await expect(errors).toContainText('연결 메모 1 항목: 개59');
+  expect(saves).toBe(0);
+  await expect(panel.getByRole('textbox', { name: '개59 메모', exact: true })).toHaveValue('합성 메모');
+  await page.setViewportSize({ width: 390, height: 1000 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await errors.screenshot({ path: testInfo.outputPath('recording-validation.png') });
+  for (const name of ['이동1', '정지1', '정지3']) {
+    await panel.getByLabel(`${name} 시작`, { exact: true }).fill('');
+    await panel.getByLabel(`${name} 끝`, { exact: true }).fill('');
+  }
+  await panel.getByLabel('영향 항목 (쉼표로 구분)', { exact: true }).fill('개5, 바6');
+  await panel.getByLabel('메모 연결 항목', { exact: true }).fill('개5');
+  await panel.getByLabel('관찰 근거 끝', { exact: true }).fill('0');
+  await panel.getByRole('button', { name: '촬영 기록 초안 저장', exact: true }).click();
+  await expect(errors).toContainText('관찰 근거 1: 끝 시각은 시작 시각보다 커야 합니다');
+  expect(saves).toBe(0);
+  await panel.getByLabel('관찰 근거 끝', { exact: true }).fill('2');
+  await panel.getByLabel('실제 관찰 초', { exact: true }).fill('1');
+  const saved = page.waitForResponse(response => response.request().method() === 'PUT' && response.url().endsWith('/recording-s1'));
+  await panel.getByRole('button', { name: '촬영 기록 초안 저장', exact: true }).click();
+  const response = await saved;
+  expect(response.status(), await response.text()).toBe(200);
+  const record = (await response.json()).manifest.sessions[0].recording_s1;
+  expect(record.events[0].affected_codes).toEqual(['개5', '바6']);
+  expect(record.linked_memos[0].item_codes).toEqual(['개5']);
+  expect(record.coverage[0].observed_seconds).toBe(1);
+  expect(record.walk_phases.every((phase: { start_sec: number | null }) => phase.start_sec === null)).toBe(true);
+  await expect(errors).toHaveCount(0);
+  expect(saves).toBe(1);
+});
+
 test('최종 segments.csv는 상세 입력 없이 확정되고 누락 관찰창은 미관찰로 남는다', async ({ page }, testInfo) => {
   await page.goto('/');
   await page.getByLabel('계정', { exact: true }).fill('operator');
@@ -24,6 +96,18 @@ test('최종 segments.csv는 상세 입력 없이 확정되고 누락 관찰창�
   const csv = panel.getByLabel('구간 CSV 가져오기', { exact: true });
   await expect(csv).toBeVisible();
   const csvBytes = readFileSync(new URL('../../docs/plans/확정 영상 및 구분_20261014/segments.csv', import.meta.url));
+  const partialRows = csvBytes.toString('utf-8').trim().split(/\r?\n/).map(line => line.split(','));
+  for (const camera of ['CAM1', 'CAM2', 'CAM3', 'CAM4']) partialRows[1][partialRows[0].indexOf(`${camera}_영상초`)] = '';
+  await csv.setInputFiles({ name: 'synthetic-missing-entry.csv', mimeType: 'text/csv', buffer: Buffer.from(partialRows.map(row => row.join(',')).join('\n')) });
+  await expect(panel.getByLabel('구간 CSV 가져오기 결과')).toContainText('입장 구간의 CAM1_영상초가 비어');
+  const partialSaved = page.waitForResponse(response => response.request().method() === 'PUT' && response.url().endsWith('/recording-s1'));
+  await panel.getByRole('button', { name: '촬영 기록 초안 저장', exact: true }).click();
+  const partialResponse = await partialSaved;
+  expect(partialResponse.status(), await partialResponse.text()).toBe(200);
+  const partialRecord = (await partialResponse.json()).manifest.sessions[0].recording_s1;
+  expect(partialRecord.segments[0].start_sec).toBeNull();
+  expect(partialRecord.segments[1].start_sec).toBe(49.392);
+  await expect(page.getByText('촬영 기록을 초안 저장했습니다.', { exact: true })).toBeVisible();
   await csv.setInputFiles({ name: 'segments.csv', mimeType: 'text/csv', buffer: csvBytes });
   await expect(panel.getByLabel('구간 CSV 가져오기 결과')).toBeVisible();
   await panel.getByRole('combobox', { name: '실제 촬영 절차', exact: true }).selectOption('s1_confirmed');
