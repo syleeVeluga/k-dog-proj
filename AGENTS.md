@@ -6,7 +6,7 @@ K-DOG is an operator-facing dog/guardian assessment application. The final devel
 
 - `K-DOG_개발기준변경검토_v1.0_20261003.md`: final requirements versus baseline implementation.
 - `archive/개발반영_20261003/`: archived S00–S17 plans, R01–R25/T01–T32 traceability, D01–D06/G01–G05, source access and review record. The 2026-10-12 folder move does not retire S1 requirements or close pending acceptance.
-- `archive/리포트개편_20261007/`, `archive/설치배포개선_20261005/`: report and installation/distribution plans, implementation records and verification evidence; see `docs/archive/README.md`.
+- The report (`리포트개편_20261007`), installation/distribution (`설치배포개선_20261005`), UIUX and per-feature PR plans were removed from the working tree on 2026-10-24; read them in git history at commit `be00be4`.
 - The prior 2026-09-29 C00–C15 plans and Q01–Q12 ledger (`개발반영_20260929/`) were removed from the working tree on 2026-10-03; read them at commit `056ed7a` for completed infrastructure evidence, not superseded scoring/report assumptions.
 
 - `큐브전달_20260929/`: historical originals removed from the committed tree on 2026-10-04 and ignored for local-only recovery. Commit `8b9c960` retains the historical source evidence. To re-verify, obtain the hash-verified bundle from the owner and use `app.import_catalogs --spec 20260929 --customer-dir <local-source-directory> --check`. Source-dependent historical tests explicitly skip when the bundle is absent; committed catalog/contract tests still run. It does not override the final S1 specification.

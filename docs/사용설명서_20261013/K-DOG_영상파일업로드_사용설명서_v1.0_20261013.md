@@ -167,7 +167,7 @@
 ## 8. 현재 동작의 근거
 
 - 메뉴·공통 업무: [navigation.ts](../../frontend/src/navigation.ts), [업무권한 단순화 계획](../plans/K-DOG_업무권한단순화계획_v1.1_20261011.md).
-- 업로드·정보 저장·재시도: [UploadInbox.tsx](../../frontend/src/UploadInbox.tsx), [uploads.py](../../backend/app/uploads.py), [영상 업로드 표현 정리](../plans/K-DOG_영상업로드표현정리_v1.0_20261012.md).
-- 처리 정보 입력·정정: [ExternalProcessing.tsx](../../frontend/src/ExternalProcessing.tsx), [MP01 계약](../plans/360통합MP4업로드_20261012/K-DOG_PR-MP01_외부처리MP4계약과보관_v1.0_20261012.md), [MP02 화면](../plans/360통합MP4업로드_20261012/K-DOG_PR-MP02_단일파일업로드화면_v1.0_20261012.md).
+- 업로드·정보 저장·재시도: [UploadInbox.tsx](../../frontend/src/UploadInbox.tsx), [uploads.py](../../backend/app/uploads.py), 영상 업로드 표현 정리.
+- 처리 정보 입력·정정: [ExternalProcessing.tsx](../../frontend/src/ExternalProcessing.tsx), MP01 계약, MP02 화면.
 - 보존 영상 등록: [PreservedMediaRegistration.tsx](../../frontend/src/PreservedMediaRegistration.tsx).
-- MP01~MP03의 실제 검증과 남은 경계: [360 통합 MP4 구현 실행 기록](../plans/360통합MP4업로드_20261012/K-DOG_360통합MP4구현실행기록_v1.0_20261012.md), [실측 및 확인 후속 대장](../archive/개발반영_20261003/K-DOG_실측및확인후속대장_v1.0_20261003.md). 과거 대장의 동의·배정·삭제 차단 설명은 2026-10-11 업무권한 결정으로 대체되었으며 현행 사용 조건으로 적용하지 않습니다.
+- MP01~MP03의 실제 검증과 남은 경계: 360 통합 MP4 구현 실행 기록, [실측 및 확인 후속 대장](../archive/개발반영_20261003/K-DOG_실측및확인후속대장_v1.0_20261003.md). 과거 대장의 동의·배정·삭제 차단 설명은 2026-10-11 업무권한 결정으로 대체되었으며 현행 사용 조건으로 적용하지 않습니다.

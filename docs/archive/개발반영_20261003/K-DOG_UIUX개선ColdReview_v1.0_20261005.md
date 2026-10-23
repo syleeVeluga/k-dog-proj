@@ -22,11 +22,11 @@
 - 전체 브라우저 `npm run test:e2e -- --trace retain-on-failure`: **45개/4.0분/exit0** 통과. Windows asyncio 연결 종료 로그 WinError10054가 1회 있었으며 모든 시험은 통과했다.
 - 독립 합성 서버에서 9개 화면 × 4개 너비를 확인했다. 가로 넘침0·pageerror0. 신규 빈 촬영 화면 360px 높이는 **10,112 → 3,372px(66.7% 감소)**이며, 구역을 펼치면 필요한 전체 입력이 다시 노출된다.
 
-![모바일 알림과 축소된 참가자 맥락](images/uiux-survey-mobile-20261005.png)
+!모바일 알림과 축소된 참가자 맥락
 
-![구역별 촬영 입력과 저장 도구](images/uiux-recording-mobile-20261005.png)
+!구역별 촬영 입력과 저장 도구
 
-[데스크톱 촬영 화면](images/uiux-recording-desktop-20261005.png)
+데스크톱 촬영 화면
 - `git diff --check` 및 `graft build` → `graft check` 통과. 새 문서 상대 링크·스크린샷 참조 누락0. 리뷰 이후 `git diff main...HEAD --check`를 확인한다.
 
 이번 변경은 frontend에 한정되어 backend 전체 시험과 원본 재추출을 반복하지 않는다. 실측·실제 외부 AI 정확도·물리3PC·D/G 승인 상태는 기존 [후속 대장](K-DOG_실측및확인후속대장_v1.0_20261003.md)의 경계를 유지한다.

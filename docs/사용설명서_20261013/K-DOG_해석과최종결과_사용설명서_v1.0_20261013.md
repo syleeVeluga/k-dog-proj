@@ -188,5 +188,5 @@
 - 화면: [고정 입력·의견·최종본](../../frontend/src/FinalResultsV4.tsx#L21), [의견 편집](../../frontend/src/FinalResultsV4.tsx#L123), [보존 최종본](../../frontend/src/FinalResultsV4.tsx#L171).
 - 완료·유형 조건: [의견 완료 조건](../../backend/app/opinions_v4.py#L174), [유형 유효성](../../backend/app/opinions_v4.py#L154), [실제 원근거 연결](../../backend/app/opinions_v4.py#L185).
 - 최종 적용과 보존: [영역별 출처 적용](../../backend/app/final_results_v4.py#L65), [최종 조립과 충돌 검증](../../backend/app/final_results_v4.py#L158).
-- 애착 후속 해석: [대상 조건](../../backend/app/attachment_runs_v4.py#L72), [고정 의견·설정 검증](../../backend/app/attachment_runs_v4.py#L133), [RP02 적용 계획](../archive/리포트개편_20261007/K-DOG_PR-RP02_AI애착판단_v1.0_20261007.md).
+- 애착 후속 해석: [대상 조건](../../backend/app/attachment_runs_v4.py#L72), [고정 의견·설정 검증](../../backend/app/attachment_runs_v4.py#L133), RP02 적용 계획.
 - 현재 권한과 경계: [업무권한 단순화 결정](../plans/K-DOG_업무권한단순화계획_v1.1_20261011.md), [실측 및 확인 후속 대장](../archive/개발반영_20261003/K-DOG_실측및확인후속대장_v1.0_20261003.md). 실제 AI 해석의 적절성과 교수 검토, 미수령 원양식의 완료 대안은 별도 확인 사항입니다. 구현·자동 시험·설명서 작성이 실제 평가 품질의 완료를 뜻하지 않습니다.
