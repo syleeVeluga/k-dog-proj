@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { APIRequestContext, Page } from '@playwright/test';
-import { openMenu } from './menu';
+import { openMenu, openPreprocessing } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 const password = 'Browser-test-only-42';
@@ -45,11 +45,9 @@ test('전처리·채점·리포트 목록은 같은 진행 단계와 다음 할 
   await page.getByLabel('미완료만', { exact: true }).check();
   await expect(page.getByRole('row').filter({ hasText: 'U06-STAFF' })).toHaveCount(2);
   // 선행 조건 체크리스트: 빠진 것과 이동 버튼
-  await openMenu(page, '전처리');
+  await openPreprocessing(page, 'L1');
   await expect(page.getByLabel('전처리 상태')).toBeVisible();
   await expect(page.getByLabel('진행 단계 필터', { exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: '전처리 실행', exact: true }).first().click();
-  await page.getByRole('button', { name: 'L1 전처리 열기', exact: true }).click();
   const check = page.getByRole('region', { name: '선행 조건', exact: true });
   await expect(check.getByRole('heading', { name: '전처리를 실행하려면', exact: true })).toBeVisible();
   await expect(check.getByText('촬영 기록 확정', { exact: true })).toBeVisible();
@@ -89,9 +87,7 @@ test('검토자도 공통 진행과 작업을 사용하고 기술 상세는 접�
   expect(text).toContain('Excel 가져오기는 준비 중');
   expect(text).not.toContain('연구 내보내기');
   await page.getByRole('button', { name: '닫기', exact: true }).click();
-  await openMenu(page, '전처리');
-  await page.getByRole('button', { name: '전처리 실행', exact: true }).first().click();
-  await page.getByRole('button', { name: 'V1 전처리 열기', exact: true }).click();
+  await openPreprocessing(page, 'V1');
   expect(await page.locator('main').innerText()).not.toMatch(DEV_CODES);
   // U08: 리포트 발급 화면은 교수에게도 열리고, 비교 조건·연구 내보내기는 운영자 전용으로 남는다.
   await page.evaluate(() => { window.location.hash = '#/report'; });

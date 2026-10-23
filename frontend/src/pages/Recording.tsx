@@ -1,3 +1,4 @@
+import { api } from '../api';
 import { forgetEdits, mayLeave } from '../Editing';
 import { RecordingPanelV4 } from '../RecordingPanelV4';
 import { PreservedMediaRegistration } from '../PreservedMediaRegistration';
@@ -40,10 +41,14 @@ export function Recording({ view, user, cases, selected, select, filters, writab
       <div className="participant-actions"><button onClick={() => { if (mayLeave()) { forgetEdits(); select(null); goTo('recording/inbox'); } }}>참가자 다시 선택</button></div>
       {!selected && <p role="status">공용 보관함입니다. 업로드한 각 파일에 참가자와 촬영 회차를 지정하세요.</p>}
       {writable && <UploadInbox key={`${selected?.case_id ?? 'shared'}:${selected?.selected_session_id ?? ''}`} cases={cases} selected={selected} user={user} run={run} refresh={async message => { await reload(); if (message) notify(message); }} />}
+    {selected && <PreservedMediaRegistration item={selected} writable={writable} run={run}
+      refresh={async message => { await reload(); if (message) notify(message); }} />}
+      {selected && writable && <details className="panel"><summary>새로 촬영한 영상을 등록할 때</summary><p>다른 날 다시 촬영한 영상은 새 회차로 등록합니다. 예: 1차 평가 후 2차 재촬영. 기존 영상·기록은 남고 새 회차는 비어 있습니다. 같은 촬영의 파일을 추가하거나 다시 분석할 때는 만들지 않습니다.</p>
+        <button onClick={() => { if (!mayLeave()) return; void run(async () => { const saved = await api<Case>(`/cases/${selected.case_id}/sessions`, 'POST', { expected_revision: selected.input_revision }); forgetEdits(); await select(saved); await reload(); notify('새 촬영 회차를 시작했습니다.'); }); }}>새 촬영 회차 만들기</button></details>}
     </>}
   </>;
   return <>
-    <section className="page-heading"><div><p className="eyebrow">RECORDING</p><h1>촬영</h1><p className="muted">영상 파일을 등록하고 8구간의 시작·끝 시각을 기록합니다. 구간 경계는 마이크 음성과 진행자 신호로 잡습니다. 확정 전에는 채점을 시작하지 않습니다.</p></div>
+    <section className="page-heading"><div><p className="eyebrow">RECORDING</p><h1>촬영</h1><p className="muted">구간 CSV를 먼저 등록하고 촬영 영상의 카메라 번호를 연결하세요. 실제 시각을 확인한 뒤 기록을 확정합니다. 음성 청취나 대표 영상 선정은 CSV 등록의 필수 조건이 아닙니다.</p></div>
       <div className="count"><strong>{confirmed.toString().padStart(2, '0')}</strong><span>구간 확정 / {cases.length}명</span></div></section>
     {!selected && <><CaseFilters cases={cases} {...filters} /><div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자</th><th>반려견 / 보호자</th><th>영상</th><th>구간</th><th>작업</th></tr></thead>
       <tbody>{sorted.map(c => { const s = sessionOf(c); const state = segmentState(s);
@@ -54,10 +59,8 @@ export function Recording({ view, user, cases, selected, select, filters, writab
           <td data-label="구간"><span className={state === 'confirmed' ? 'tag green' : 'tag'}>{({ none: '없음', draft: '초안', confirmed: '확정' })[state]}</span></td>
           <td data-label="작업"><button aria-label={`${c.participant_id} 촬영 열기`} onClick={() => { if (mayLeave()) select(c); }}>열기 ↗</button></td></tr>;
       })}</tbody></table>{!sorted.length && <div className="empty"><h2>표시할 참가자가 없습니다.</h2><p>검색·행사 필터 또는 접수 등록을 확인하세요.</p></div>}</div></>}
-    {selected && <RecordingPanelV4 key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run}
-      refresh={async message => { await reload(); if (message) notify(message); }} openSession={select} close={back} />}
-    {selected && <PreservedMediaRegistration item={selected} writable={writable} run={run}
-      refresh={async message => { await reload(); if (message) notify(message); }} />}
+    {selected && <RecordingPanelV4 key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} username={user.username} writable={writable} run={run}
+      refresh={async message => { await reload(); if (message) notify(message); }} onConfirmed={() => goTo('preprocess')} close={back} />}
 
   </>;
 }

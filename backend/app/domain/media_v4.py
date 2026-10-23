@@ -9,7 +9,6 @@ from .catalog_v4 import ContractV4, Hash, Text
 
 MediaKey = Annotated[str, Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")]
 Filename = Annotated[str, Field(min_length=1, max_length=200)]
-EXTENSIONS = (".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm")
 CAMERA_ORIGINALS = {"CAM1": "1", "CAM2": "3", "CAM3": "2"}
 
 
@@ -32,7 +31,7 @@ class UploadCreateV4(ContractV4):
     expected_sha256: Hash | None = None
     case_id: MediaKey | None = None
     session_id: MediaKey | None = None
-    source_kind: Literal["original", "received_conversion"] = "original"
+    source_kind: Literal["received_file", "original", "received_conversion"] = "original"
     parents: list[MediaParentV4] = Field(default_factory=list)
     conversion: ConversionV4 | None = None
 
@@ -41,13 +40,11 @@ class UploadCreateV4(ContractV4):
         if any(c in self.filename for c in ("/", "\\", ":")) or any(ord(c) < 32 for c in self.filename):
             raise ValueError("filename is a display name, not a path")
         extension = PurePath(self.filename).suffix.lower()
-        if extension not in EXTENSIONS:
-            raise ValueError("unsupported received media extension")
         if (self.case_id is None) != (self.session_id is None):
             raise ValueError("receipt scope requires both case and session")
         if len({parent.upload_id for parent in self.parents}) != len(self.parents):
             raise ValueError("duplicate conversion parent")
-        if self.source_kind == "original" and (self.parents or self.conversion):
+        if self.source_kind in ("received_file", "original") and (self.parents or self.conversion):
             raise ValueError("original receipt cannot claim a conversion")
         if self.source_kind == "received_conversion" and (extension != ".mp4" or not self.parents or not self.conversion):
             raise ValueError("received conversion needs MP4, parent hashes, tool and settings")
@@ -67,7 +64,7 @@ class PreservedMediaRegistrationV4(ContractV4):
     expected_revision: Annotated[int, Field(ge=1)]
     camera_id: MediaKey
     source_original_number: Text | None = None
-    source_kind: Literal["original", "received_conversion"]
+    source_kind: Literal["received_file", "original", "received_conversion"]
     parents: list[MediaParentV4] = Field(default_factory=list)
     conversion: ConversionV4 | None = None
 
@@ -75,7 +72,7 @@ class PreservedMediaRegistrationV4(ContractV4):
     def explicit_origin(self) -> Self:
         if len({parent.upload_id for parent in self.parents}) != len(self.parents):
             raise ValueError("duplicate preserved-media parent")
-        if self.source_kind == "original" and (self.parents or self.conversion):
+        if self.source_kind in ("received_file", "original") and (self.parents or self.conversion):
             raise ValueError("original media cannot claim a conversion")
         if self.source_kind == "received_conversion" and (not self.parents or self.conversion is None):
             raise ValueError("received conversion requires actual parent and conversion metadata")
@@ -91,7 +88,7 @@ class StoredMediaV4(ContractV4):
     size_bytes: Annotated[int, Field(gt=0)]
     camera_id: MediaKey
     source_original_number: Text | None = None
-    source_kind: Literal["original", "received_conversion", "app_derived"]
+    source_kind: Literal["received_file", "original", "received_conversion", "app_derived"]
     parents: tuple[MediaParentV4, ...] = ()
     conversion: ConversionV4 | None = None
     offset_seconds: float | None = None
@@ -99,7 +96,7 @@ class StoredMediaV4(ContractV4):
 
     @model_validator(mode="after")
     def provenance(self) -> Self:
-        if self.source_kind == "original" and (self.parents or self.conversion):
+        if self.source_kind in ("received_file", "original") and (self.parents or self.conversion):
             raise ValueError("original media cannot claim conversion provenance")
         if self.source_kind in ("received_conversion", "app_derived") and (not self.parents or not self.conversion):
             raise ValueError("converted media requires parent and tool provenance")
@@ -116,7 +113,7 @@ class UploadReceiptV4(ContractV4):
     size_bytes: int | None
     sha256: Hash | None
     media_status: Literal["pending_probe"]
-    source_kind: Literal["original", "received_conversion"]
+    source_kind: Literal["received_file", "original", "received_conversion"]
     case_id: MediaKey | None
     session_id: MediaKey | None
     video_id: MediaKey | None

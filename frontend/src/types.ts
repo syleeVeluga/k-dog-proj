@@ -5,7 +5,7 @@ export type User = { username: string; role: Role; active: boolean };
 export type Run = (work: () => Promise<void>) => Promise<void>;
 export const roleNames: Record<Role, string> = { operator: '업무 계정', reviewer: '업무 계정', admin: '업무 계정', developer: '개발자' };
 export const formFields = (form: HTMLFormElement) => Object.fromEntries(new FormData(form));
-export type MediaSourceKind = 'original' | 'received_conversion';
+export type MediaSourceKind = 'received_file' | 'original' | 'received_conversion';
 export type Video = {
   video_id: string; original_name: string;
   size_bytes: number; sha256: string; media_status: 'pending_probe';
@@ -37,7 +37,7 @@ export const protocolName = (session: Session) => session.protocol_version === '
 export type ConsentState = 'unknown' | 'declined' | 'confirmed';
 export type Consents = { analysis_feedback: ConsentState; stranger_contact: ConsentState };
 export const consentNames: Record<ConsentState, string> = { unknown: '미확인', declined: '거절', confirmed: '확인' };
-export const segmentState = (session: Session): 'none' | 'draft' | 'confirmed' => session.scoring_catalog_version === 'catalog-20261002-s1.1' ? !session.recording_s1 ? 'none' : session.recording_s1.confirmed ? 'confirmed' : 'draft' : session.recording ? session.recording.confirmed ? 'confirmed' : 'draft' : !session.segments ? 'none' : session.segments.confirmed ? 'confirmed' : 'draft';
+export const segmentState = (session: Session): 'none' | 'draft' | 'confirmed' => session.scoring_catalog_version === 'catalog-20261002-s1.1' ? !session.recording_s1 ? 'none' : session.recording_s1.confirmed && session.recording_s1.procedure_edition === 's1_confirmed' ? 'confirmed' : 'draft' : session.recording ? session.recording.confirmed ? 'confirmed' : 'draft' : !session.segments ? 'none' : session.segments.confirmed ? 'confirmed' : 'draft';
 export type DogProfile = {
   breed: string; sex: '암' | '수' | '중성화' | '미기재'; age_years: number | null;
   size: '소형' | '중형' | '대형' | '미기재'; years_together: string; adoption_route: '분양' | '입양' | '기타' | '미기재';

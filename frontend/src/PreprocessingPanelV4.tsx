@@ -118,8 +118,8 @@ export function PreprocessingPanelV4({ item, username, executionId, writable, ru
     <fieldset disabled={!writable || busy || status?.status === 'running'}><legend>제작 설정</legend>
       <p>원본용 클립은 실제 원본 프레임을 보존합니다. AI용 클립은 매 1초의 실제 프레임 1장을 선택하고 연속 오디오를 보존합니다. 공급자 요청 FPS·리사이즈는 별도 단계입니다.</p>
       <div className="table-wrap"><table><caption>카메라 우선순위</caption><thead><tr><th>순서</th><th>카메라</th><th>변경</th></tr></thead><tbody>{priority.map((camera, index) => <tr key={camera}><td>{index + 1}</td><td>{cameraName(camera)}</td><td><button type="button" aria-label={`${cameraName(camera)} 우선순위 올리기`} disabled={index === 0} onClick={() => move(camera, -1)}>위로</button> <button type="button" aria-label={`${cameraName(camera)} 우선순위 내리기`} disabled={index === priority.length - 1} onClick={() => move(camera, 1)}>아래로</button></td></tr>)}</tbody></table></div>
-      <label>대표 오디오 선택<select value={audio} onChange={event => setAudio(event.target.value)}><option value="">창별 가용 시간이 긴 영상, 같으면 카메라 우선순위</option>{session.videos.map(video => <option key={video.video_id} value={video.video_id}>{cameraName(video.camera_id)} · {video.original_name}</option>)}</select></label>
-      <p className="fine">여러 카메라의 같은 소리를 중복 합산하지 않습니다. 오디오 가용 초는 실제 청취 초나 발성 초를 뜻하지 않습니다.</p>
+      <label>대표 음성<select value={audio} onChange={event => setAudio(event.target.value)}><option value="">자동</option>{session.videos.map(video => <option key={video.video_id} value={video.video_id}>{cameraName(video.camera_id)} · {video.original_name}</option>)}</select></label>
+      <p className="fine">직접 선택하거나 미리 청취할 필요 없이 자동으로 선택합니다. 음성이 없는 영상도 전처리할 수 있습니다. 여러 카메라의 같은 소리를 중복 합산하지 않습니다. 오디오 가용 초는 실제 청취 초나 발성 초를 뜻하지 않습니다.</p>
     </fieldset>
     {writable && <div className="actions"><button type="button" disabled={blocked} onClick={() => start(false)}>새 클립으로 전처리</button>
       <button type="button" disabled={blocked || stale || !status?.result_pointer || !sameSettings} onClick={() => start(true)}>검증된 결과 재사용</button>
@@ -130,7 +130,7 @@ export function PreprocessingPanelV4({ item, username, executionId, writable, ru
       {!sameSettings && <p className="fine">현재 제작 설정이 저장된 결과와 다릅니다. 재사용하려면 이 결과의 설정을 불러오세요.</p>}
       <details><summary>입력·원본·제작 출처 확인</summary><p>결과 ID: {batch.batch_id}</p><p>입력: {batch.input.ref}<br />SHA-256: {batch.input.hash}</p>
         <p>제작기: {batch.encoder_version}</p><p>제작 호환성 SHA-256: {batch.compatibility_hash}</p>
-        {batch.source_metadata.map(video => <p key={video.video_id}>{videoName(video.video_id)} · {video.source_kind === 'original' ? '촬영 원본' : video.source_kind === 'received_conversion' ? '전달받은 변환본' : '보존 영상'}<br />{video.storage_ref}<br />SHA-256: {video.sha256}</p>)}
+        {batch.source_metadata.map(video => <p key={video.video_id}>{videoName(video.video_id)} · {video.source_kind === 'received_file' ? '등록한 영상 파일' : video.source_kind === 'original' ? '촬영 원본' : video.source_kind === 'received_conversion' ? '전달받은 변환본' : '보존 영상'}<br />{video.storage_ref}<br />SHA-256: {video.sha256}</p>)}
         {batch.source_files.filter(file => !batch.source_metadata.some(video => video.storage_ref === file.ref)).map(file => <p key={file.ref}>변환 부모 원본: {file.ref}<br />SHA-256: {file.hash}</p>)}
         {Object.entries(batch.asset_hashes).map(([key, hash]) => <p key={key}>{key} SHA-256: {hash}</p>)}
         {batch.reuse_manifest && <p>재사용 출처: {batch.reuse_manifest.ref}<br />SHA-256: {batch.reuse_manifest.hash}</p>}

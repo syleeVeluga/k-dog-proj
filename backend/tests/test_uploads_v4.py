@@ -64,6 +64,19 @@ class UploadsV4Tests(unittest.TestCase):
         with self.store.connect() as db:
             return dict(self.store.case(db, case["case_id"]))
 
+    def test_received_file_keeps_any_extension_without_conversion_metadata(self):
+        case = self.case()
+        for index, filename in enumerate(("camera.MTS", "camera.insv", "camera")):
+            with self.subTest(filename=filename):
+                data = b"synthetic media bytes" + bytes([index])
+                receipt = self.received(data, request_id=f"format-{index}", filename=filename, source_kind="received_file")
+                linked = self.link(receipt, self.current(case), camera=f"CAM{index + 1}")
+                with self.store.connect() as db:
+                    video = next(v for v in self.store.manifest(self.store.case(db, case["case_id"])).sessions[0].videos if v.video_id == linked.video_id)
+                self.assertEqual(video.source_kind, "received_file")
+                self.assertIsNone(video.conversion)
+                self.assertEqual(uploads.download_path(self.store, receipt.upload_id, "op").read_bytes(), data)
+
     def test_cam4_links_without_an_original_number(self):
         receipt = self.received(filename="6_CAM4_오른쪽.mkv")
         case = self.case()
@@ -243,7 +256,7 @@ class UploadsV4Tests(unittest.TestCase):
         self.assertEqual(uploads.download_path(restored, receipt.upload_id, "op").read_bytes(), b"synthetic-media")
 
     def test_tampered_complete_file_and_unsafe_name_are_rejected(self):
-        for filename in ("../source.mp4", "C:\\video.mp4", "source.mp4.exe"):
+        for filename in ("../source.mp4", "C:\\video.mp4"):
             with self.subTest(filename=filename), self.assertRaises(ValidationError):
                 UploadCreateV4(request_id="unsafe", filename=filename, expected_size=1)
         receipt = self.received()

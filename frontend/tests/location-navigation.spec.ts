@@ -65,21 +65,22 @@ test('위치·작업 탭은 참가자와 회차를 유지하고 원래 목록의
   await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '설문 확인', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 
-test('분석에서 대상을 바꾸어 자료를 보완한 뒤 닫아도 분석 목록으로 복귀한다', async ({ page }) => {
+test('독립 전처리 메뉴와 전체 대상 화면 없이 참가자 탭에서 처리한다', async ({ page }) => {
   await setup(page, 'NAV-ANALYSIS');
+  await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '전처리', exact: true })).toHaveCount(0);
+  await page.evaluate(() => { window.location.hash = '#/preprocess'; });
+  await expect(page.getByRole('button', { name: '참가자 접수로 이동', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: '분석 대상 목록' })).toHaveCount(0);
+  await page.getByRole('button', { name: '참가자 접수로 이동', exact: true }).click();
   await page.getByRole('button', { name: 'NAV-ANALYSIS 영상 등록', exact: true }).click();
+  await expect(page.getByRole('navigation', { name: '참가자 작업' })).toBeVisible();
   await openMenu(page, '전처리');
-  await page.getByRole('button', { name: '전처리 실행', exact: true }).first().click();
-  await page.getByRole('button', { name: 'NAV-ANALYSIS 촬영 기록 보완', exact: true }).click();
+  await expect(page.getByRole('button', { name: '전처리 실행', exact: true })).toHaveCount(0);
+  await page.getByRole('navigation', { name: '참가자 작업' }).getByRole('button', { name: '촬영 기록', exact: true }).click();
   const trail = page.getByRole('navigation', { name: '현재 위치' });
-  await expect(trail).toContainText('분석·평가');
-  await expect(trail.getByRole('button')).toHaveText('전처리 목록');
-  await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '전처리', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(trail.getByRole('button')).toHaveText('참가자 접수 목록');
   await page.getByRole('region', { name: '촬영 기록', exact: true }).getByRole('button', { name: '닫기', exact: true }).click();
-  await expect(page).toHaveURL(/#\/preprocess$/);
-  await expect(page.getByRole('region', { name: '분석 대상 목록' })).toBeVisible();
-  await openMenu(page, '비교 조건');
-  await expect(trail.getByRole('listitem')).toHaveText(['리포트', '비교 조건']);
+  await expect(page).toHaveURL(/#\/intake$/);
 });
 
 test('모바일 촬영·전처리 탭과 목록 복귀는 미저장 파일 및 참가자 맥락을 보호한다', async ({ page }, testInfo) => {

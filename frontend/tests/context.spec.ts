@@ -44,7 +44,7 @@ test('72명 목록에서 업무 맥락 유지 및 공통 업무 계정의 회차
   await expect(context).toContainText('1차 촬영');
   await page.getByRole('navigation', { name: '참가자 작업' }).getByRole('button', { name: '촬영 기록', exact: true }).click();
   await expect(page.getByRole('region', { name: '촬영 기록', exact: true })).toBeVisible();
-  await expect(page.getByRole('combobox', { name: '실제 촬영 절차', exact: true })).toBeEnabled();
+  await expect(page.getByRole('combobox', { name: '실제 촬영 절차', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '업로드 시작·재시도', exact: true })).toHaveCount(0);
   await page.setViewportSize({ width: 768, height: 1024 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

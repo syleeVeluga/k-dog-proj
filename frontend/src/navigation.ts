@@ -19,7 +19,6 @@ export const menuTree: MenuGroup[] = [
     { route: 'survey', label: '설문 확인', roles: everyone },
   ] },
   { id: 'analysis', label: '분석·평가', items: [
-    { route: 'preprocess', label: '전처리', roles: everyone },
     { route: 'scoring', label: '독립 채점', roles: everyone },
   ] },
   { id: 'report', label: '리포트', items: [
@@ -36,6 +35,7 @@ export const menuTree: MenuGroup[] = [
 ];
 
 const items: MenuItem[] = [...menuTree.flatMap(group => group.items),
+  { route: 'preprocess', label: '전처리', roles: everyone },
   { route: 'recording/inbox', label: '영상 등록', roles: everyone },
   { route: 'recording/record', label: '촬영 기록', roles: everyone },
   { route: 'recording/shared', label: '공용 업로드 보관함', roles: everyone },

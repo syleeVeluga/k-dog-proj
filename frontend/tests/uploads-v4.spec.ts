@@ -1,6 +1,28 @@
 import { test, expect } from '@playwright/test';
 import { openMenu } from './menu';
 
+test('형식 제한 없이 받은 파일도 영상이 아닌 MIME은 다운로드로 제공한다', async ({ page }) => {
+  const headers = { 'X-KDOG-Request': '1' };
+  const login = await page.request.post('/api/auth/login', { headers, data: { username: 'operator', password: 'Browser-test-only-42' } });
+  expect(login.status()).toBe(200);
+  const item = await (await page.request.post('/api/cases', { headers, data: { event_id: 'UPLOAD-TYPE', participant_id: 'safe-download', dog_name: '합성견' } })).json();
+  for (const [index, filename] of ['source.html', 'camera.mp4'].entries()) {
+    const data = Buffer.from(`synthetic file ${filename}`);
+    const receipt = await (await page.request.post('/api/uploads', { headers, data: { request_id: `type-${index}`, filename, expected_size: data.length, source_kind: 'received_file' } })).json();
+    expect((await page.request.put(`/api/uploads/${receipt.upload_id}/content`, { headers, params: { request_id: `type-${index}` }, data })).status()).toBe(200);
+    const latest = await (await page.request.get(`/api/cases/${item.case_id}`)).json();
+    const link = await page.request.post(`/api/uploads/${receipt.upload_id}/link`, { headers, data: { case_id: item.case_id, session_id: item.selected_session_id, expected_revision: latest.input_revision, camera_id: `CAM${index + 1}` } });
+    expect(link.status(), await link.text()).toBe(200);
+    const linked = await link.json();
+    const response = await page.request.get(`/api/cases/${item.case_id}/videos/${linked.video_id}`);
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toBe(index ? 'video/mp4' : 'application/octet-stream');
+    expect(response.headers()['content-disposition']).toContain(index ? 'inline' : 'attachment');
+    expect(response.headers()['x-content-type-options']).toBe('nosniff');
+    expect(await response.body()).toEqual(data);
+  }
+});
+
 test('녹화 도구의 4개 MKV 파일명으로 카메라를 제안하고 원본 번호 1/3/2/null로 연결한다', async ({ page }, testInfo) => {
   await page.goto('/');
   await page.getByLabel('계정', { exact: true }).fill('operator');
@@ -20,8 +42,6 @@ test('녹화 도구의 4개 MKV 파일명으로 카메라를 제안하고 원본
     const card = page.getByRole('article', { name: `업로드 파일 ${name}`, exact: true });
     await expect(card.getByText('업로드 완료', { exact: true })).toBeVisible();
     await expect(card.getByLabel('촬영 카메라 번호', { exact: true })).toHaveValue(String(index + 1));
-    await expect(card.getByLabel('원본 번호', { exact: true })).toHaveValue('');
-    if (index === 3) await expect(card.getByLabel('원본 번호', { exact: true })).toHaveAttribute('placeholder', '없음');
     await card.getByLabel('참가자', { exact: true }).selectOption(item.case_id);
     const saved = page.waitForResponse(response => response.request().method() === 'POST' && /\/uploads\/[^/]+\/link$/.test(response.url()));
     await card.getByRole('button', { name: '영상 정보 저장', exact: true }).click();

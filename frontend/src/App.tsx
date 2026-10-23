@@ -97,7 +97,7 @@ export function App() {
     return true;
   }
   function goMenu(next: Route) {
-    if (go(next) && (next === 'intake' || next === 'survey' || next === 'preprocess')) setListOrigin(next);
+    if (go(next) && (next === 'intake' || next === 'survey')) setListOrigin(next);
   }
   const listRoute = participantTasks.includes(route) ? listOrigin : route.startsWith('recording/') ? 'intake' : route;
   function backToList() {
@@ -140,7 +140,7 @@ export function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, [user?.role]);
   useEffect(() => {
-    const clear = () => { for (const key of Object.keys(sessionStorage)) if (key.startsWith('kdog-preprocess:') || key.startsWith('kdog-ai:')) sessionStorage.removeItem(key); setUser(null); setCases([]); setSelected(null); setCatalog(null); setUnavailableCases(0); };
+    const clear = () => { for (const key of Object.keys(sessionStorage)) if (key.startsWith('kdog-preprocess:') || key.startsWith('kdog-ai:') || key.startsWith('kdog-recording-csv:')) sessionStorage.removeItem(key); setUser(null); setCases([]); setSelected(null); setCatalog(null); setUnavailableCases(0); };
     const unavailable = (event: Event) => setUnavailableCases((event as CustomEvent<number>).detail);
     window.addEventListener('kdog-unavailable-cases', unavailable);
     window.addEventListener('kdog-session-expired', clear);
@@ -199,7 +199,7 @@ export function App() {
       if (next) forgetEdits();
       caseRefreshVersion.current++;
       setCases(values => values.some(row => row.case_id === value.case_id) ? values.map(row => row.case_id === value.case_id ? value : row) : [...values, value]);
-      if (!route.startsWith('recording/') && (!selected || (next && !participantTasks.includes(route)))) setListOrigin(route);
+      if (!route.startsWith('recording/') && (!selected || (next && !participantTasks.includes(route)))) setListOrigin(route === 'preprocess' ? 'intake' : route);
       setSelected({ ...value, selected_session_id: item.selected_session_id });
       pinnedSession.current = !!item.pinSession;
       observedSession.current = value.selected_session_id;
@@ -212,7 +212,7 @@ export function App() {
     <header inert={modal}><button ref={menuToggle} className="menu-toggle" aria-controls="lnb" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>메뉴</button>
       <button className="wordmark plain" onClick={() => go('intake')}>K-DOG<span>FIELD NOTES</span></button>
       <div className="account"><span>{user.username} · {roleNames[user.role]}</span><button disabled={busy} onClick={() => void run(async () => {
-        if (!mayLeave()) return; await api('/auth/logout', 'POST'); for (const key of Object.keys(sessionStorage)) if (key.startsWith('kdog-preprocess:') || key.startsWith('kdog-ai:')) sessionStorage.removeItem(key); setUser(null); setSelected(null); setCases([]);
+        if (!mayLeave()) return; await api('/auth/logout', 'POST'); for (const key of Object.keys(sessionStorage)) if (key.startsWith('kdog-preprocess:') || key.startsWith('kdog-ai:') || key.startsWith('kdog-recording-csv:')) sessionStorage.removeItem(key); setUser(null); setSelected(null); setCases([]);
       })}>로그아웃</button></div></header>
     <div className="shell">
       <Lnb role={user.role} current={selected && participantTasks.includes(route) ? listOrigin : route.startsWith('recording/') ? 'intake' : route} go={goMenu} visible={wide || menuOpen} drawer={drawer} close={closeMenu} />
@@ -250,7 +250,7 @@ export function App() {
           : route === 'validation' ? <ValidationData user={user} />
           : route === 'admin/users' ? <Users run={run} />
           : route === 'admin/backup' ? <section><h1>자료 관리</h1><Recovery /></section>
-          : route === 'preprocess' ? <Preprocessing cases={cases} selected={selected} select={openCase} openParticipant={openCase} filters={filters} user={user} writable={!!writable} run={run} goTo={go} refresh={async message => { await reload(); if (message) setNotice(message); }} />
+          : route === 'preprocess' ? <Preprocessing cases={cases} selected={selected} select={openCase} user={user} writable={!!writable} run={run} goTo={go} refresh={async message => { await reload(); if (message) setNotice(message); }} />
           : route === 'scoring' ? <Scoring cases={cases} selected={selected} select={openCase} filters={filters} user={user} run={run} goTo={go} refresh={async message => { await reload(); if (message) setNotice(message); }} />
           : route === 'report' || route === 'report/comparison' || route === 'report/export' ? <Report view={route === 'report' ? 'issue' : route === 'report/export' ? 'export' : 'comparison'} goTo={go} cases={cases} selected={selected} select={openCase} filters={filters} user={user} run={run} refresh={async message => { await reload(); if (message) setNotice(message); }} />
           : route === 'survey' ? <Survey cases={cases} selected={selected} select={openCase} openParticipant={openCase} filters={filters} catalog={catalog} writable={!!writable} goTo={go} />

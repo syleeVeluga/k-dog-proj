@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { openMenu } from './menu';
+import { openMenu, openPreprocessing } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 async function login(page: Page, account = 'operator') {
@@ -12,6 +12,9 @@ async function login(page: Page, account = 'operator') {
 async function setup(page: Page, id: string) {
   await login(page);
   const item = await (await page.request.post('/api/cases', { headers, data: { event_id: 'ES02', participant_id: id, dog_name: '실행 합성견' } })).json();
+  await page.reload();
+  await page.getByRole('button', { name: `${id} 영상 등록`, exact: true }).click();
+  await expect(page.getByRole('navigation', { name: '참가자 작업' })).toBeVisible();
   return { item, path: `/api/cases/${item.case_id}/sessions/${item.selected_session_id}/preprocess-s1` };
 }
 function execution(item: any, id = 'synthetic-execution') {
@@ -26,22 +29,19 @@ function shared(item: any, state = 'ready') {
     ready: true, status: state, message: '합성 준비 상태', outdated: false, result_pointer: null, result: null };
 }
 async function choose(page: Page, id: string) {
-  await openMenu(page, '전처리');
-  await page.getByRole('button', { name: '전처리 실행', exact: true }).first().click();
-  await page.getByRole('button', { name: `${id} 전처리 열기`, exact: true }).click();
+  await openPreprocessing(page, id);
 }
 
-test('내 실행 목록은 전처리 상태만 필터하고 빈 이력에서도 공유 대상을 선택한다', async ({ page }) => {
+test('참가자별 내 실행 목록은 전처리 상태를 필터하고 빈 이력도 표시한다', async ({ page }) => {
   await setup(page, 'ES02-EMPTY');
   await openMenu(page, '전처리');
   await expect(page.getByRole('heading', { name: '아직 실행한 전처리가 없습니다.' })).toBeVisible();
   await expect(page.getByLabel('진행 단계 필터', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('combobox', { name: '전처리 상태', exact: true }).locator('option')).toHaveText(['전체', '실행 중', '완료', '확인 필요']);
-  await page.getByLabel('검색', { exact: true }).fill('없음');
+  await page.getByRole('combobox', { name: '전처리 상태', exact: true }).selectOption('attention');
   await expect(page.getByRole('heading', { name: '조건에 맞는 전처리 작업이 없습니다.' })).toBeVisible();
-  await page.getByLabel('검색', { exact: true }).fill('');
-  await page.getByRole('button', { name: '전처리 실행', exact: true }).first().click();
-  await page.getByRole('button', { name: 'ES02-EMPTY 전처리 열기', exact: true }).click();
+  await page.getByRole('combobox', { name: '전처리 상태', exact: true }).selectOption('all');
+
   await expect(page.getByRole('region', { name: '다중 카메라 전처리', exact: true }).getByRole('status')).toContainText('촬영 기록 확인 필요');
 });
 
@@ -56,7 +56,7 @@ test('지정 실행은 공유 최신 실패와 분리하고 계정 전환에서 
   const row = page.getByRole('region', { name: '내가 실행한 전처리', exact: true }).getByRole('row').filter({ hasText: 'ES02-MINE' });
   await expect(row).toContainText('완료'); await expect(row).toContainText('현재 입력과 다름');
   await row.getByRole('button', { name: '상세 보기' }).click();
-  await expect(page.getByRole('status')).toContainText('완료 · 내 완료 결과');
+  await expect(page.getByRole('region', { name: '다중 카메라 전처리', exact: true }).getByRole('status')).toContainText('완료 · 내 완료 결과');
   const changed = await page.request.post(`/api/cases/${item.case_id}/sessions`, { headers, data: { expected_revision: item.input_revision, note: '다른 직원의 합성 새 회차' } });
   expect(changed.status()).toBe(200);
   await page.getByRole('button', { name: '전처리 상태 새로고침', exact: true }).click();
@@ -64,11 +64,10 @@ test('지정 실행은 공유 최신 실패와 분리하고 계정 전환에서 
   await expect(page.getByText('ES02-MINE · 보존된 1회차 실행 · operator', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   own = false;
-  await login(page, 'reviewer'); await openMenu(page, '전처리');
+  await login(page, 'reviewer'); await openPreprocessing(page, 'ES02-MINE');
   await expect(page.getByRole('heading', { name: '아직 실행한 전처리가 없습니다.' })).toBeVisible();
   expect(await page.evaluate(() => Object.keys(sessionStorage).filter(key => key.startsWith('kdog-preprocess:')))).toEqual([]);
-  await page.getByRole('button', { name: '전처리 실행', exact: true }).first().click();
-  await expect(page.getByRole('button', { name: 'ES02-MINE 전처리 열기', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: '다중 카메라 전처리', exact: true })).toBeVisible();
 });
 
 test('느린 POST 동안 단계와 재연결을 표시하고 종료 후 조회를 멈춘다', async ({ page }, testInfo) => {
@@ -121,11 +120,11 @@ test('응답 유실은 접수 조회로 복구하고 새로고침에서 재POST�
   await choose(page, 'ES02-LOST');
   await page.getByRole('button', { name: '새 클립으로 전처리', exact: true }).click();
   await expect(page.getByText('현재 단계: 클립 제작', { exact: true })).toBeVisible();
-  await page.reload(); await openMenu(page, '전처리');
+  await openPreprocessing(page, item.participant_id);
   await page.getByRole('row').filter({ hasText: 'ES02-LOST' }).getByRole('button', { name: '상태 확인' }).click();
   await expect(page.getByText('현재 단계: 클립 제작', { exact: true })).toBeVisible();
   value = { ...value, status: 'interrupted', message: '합성 중단' };
-  await expect(page.getByRole('status')).toContainText('중단됨 · 합성 중단');
+  await expect(page.getByRole('region', { name: '다중 카메라 전처리', exact: true }).getByRole('status')).toContainText('중단됨 · 합성 중단');
   expect(posts).toBe(1);
 });
 
