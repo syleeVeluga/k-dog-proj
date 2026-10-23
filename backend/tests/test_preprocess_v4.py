@@ -190,7 +190,7 @@ class PreprocessV4Tests(unittest.TestCase):
         one = self.upload()
         two = self.upload("two", "CAM2")
         three = self.upload("silent", "CAM3")
-        four = self.upload("mkv", "CAM4", filename="6_CAM4_오른쪽.mkv")
+        four = self.upload("mkv", "CAM4", filename="6_CAM4_오른쪽.camera", source_kind="received_file")
         self.assertIsNone(self.store.view(self.current()).manifest.sessions[0].videos[-1].source_original_number)
         self.recording(one.video_id, ((two.video_id, 0), (three.video_id, 0), (four.video_id, 0)))
         batch = self.run_batch()

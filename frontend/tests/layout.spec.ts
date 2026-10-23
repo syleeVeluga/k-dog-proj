@@ -53,7 +53,7 @@ for (const width of [360, 390, 768, 1440]) {
     await expect(panel.getByLabel('입장 사유', { exact: true })).toHaveValue('접었다 펼쳐도 보존하는 합성 입력');
     await panel.getByText('안전기지 실제 순서', { exact: true }).click();
     await panel.getByText('안전기지 실제 순서', { exact: true }).scrollIntoViewIfNeeded();
-    await expect(panel.getByRole('button', { name: '촬영 기록 초안 저장', exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(panel.getByRole('button', { name: '촬영 기록 확정', exact: true })).toBeInViewport({ ratio: 1 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`recording-layout-${width}.png`), fullPage: true });
     // Secondary navigation remains accessible when resizing the current context.

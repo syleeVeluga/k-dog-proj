@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
-import { openMenu } from './menu';
+import { openMenu, openPreprocessing } from './menu';
 
 const headers = { 'X-KDOG-Request': '1' };
 async function login(page: Page, account = 'operator') {
@@ -45,9 +45,7 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   const save = await page.request.put(recordEndpoint, { headers, data: { expected_revision: item.input_revision, recording } });
   expect(save.status(), await save.text()).toBe(200);
   item = await save.json();
-  await openMenu(page, '전처리');
-  await page.getByRole('button', { name: '전처리 실행', exact: true }).first().click();
-  await page.getByRole('button', { name: 's1preprocess 전처리 열기' }).click();
+  await openPreprocessing(page, 's1preprocess');
   const panel = page.getByRole('region', { name: '다중 카메라 전처리', exact: true });
   const fresh = panel.getByRole('button', { name: '새 클립으로 전처리', exact: true });
   const reuse = panel.getByRole('button', { name: '검증된 결과 재사용', exact: true });
@@ -136,12 +134,10 @@ test('S1 synthetic media: multi-camera output, actual frames, reuse, revision co
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await login(page, 'reviewer');
-  await openMenu(page, '전처리');
-  await page.getByRole('button', { name: '전처리 실행', exact: true }).first().click();
-  await page.getByRole('button', { name: 's1preprocess 전처리 열기' }).click();
+  await openPreprocessing(page, 's1preprocess');
   await expect(panel.getByRole('heading', { name: '저장된 결과 · 완성', exact: true })).toBeVisible();
   await expect(fresh).toBeEnabled();
-  await expect(panel.getByRole('combobox', { name: '대표 오디오 선택', exact: true })).toBeEnabled();
+  await expect(panel.getByRole('combobox', { name: '대표 음성', exact: true })).toBeEnabled();
   const latestPointer = (await (await page.request.get(endpoint)).json()).result_pointer;
   const shared = await page.request.post(endpoint, { headers, data: { ...completed.request, request_id: 'reviewer-shared', expected_revision: completed.input_revision, reuse: latestPointer } });
   expect(shared.status(), await shared.text()).toBe(200);
@@ -167,9 +163,7 @@ test('S1 state refresh shows running, interrupted, failed and unavailable with a
     return route.fulfill({ json: { case_id: item.case_id, session_id: item.selected_session_id, input_revision: item.input_revision,
       ready: current !== 'not_ready', status: current, message: '합성 상태 검증', outdated: false, result_pointer: null, result: null } });
   });
-  await openMenu(page, '전처리');
-  await page.getByRole('button', { name: '전처리 실행', exact: true }).first().click();
-  await page.getByRole('button', { name: 's1state 전처리 열기' }).click();
+  await openPreprocessing(page, 's1state');
   const panel = page.getByRole('region', { name: '다중 카메라 전처리', exact: true });
   const start = panel.getByRole('button', { name: '새 클립으로 전처리', exact: true });
   await expect(panel.getByRole('status')).toContainText('진행 중');

@@ -16,7 +16,7 @@ def check(root: Path) -> dict:
     findings = {"cases": [], "receipts": [], "batches": []}
 
     def removed(value):
-        return value.get("source_kind") == "external_360_mp4" or Path(
+        return value.get("source_kind") == "external_360_mp4" or value.get("source_kind") != "received_file" and Path(
             value.get("original_name", value.get("filename", ""))).suffix.lower() == ".insv"
 
     def read(ref):

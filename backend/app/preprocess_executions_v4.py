@@ -72,7 +72,7 @@ def _project(store, db, start, actor, active):
         stage_updated_at=stage[0]["happened_at"] if stage else None, result_pointer=pointer, result=batch)
 
 
-def executions(store, actor, *, cursor=None, search="", event_id="", status="all", request_id=None):
+def executions(store, actor, *, cursor=None, search="", event_id="", status="all", request_id=None, case_id=None):
     with store.connect() as db:
         account = db.execute("SELECT active FROM users WHERE username=?", (actor,)).fetchone()
         if not account or not account["active"]:
@@ -82,6 +82,8 @@ def executions(store, actor, *, cursor=None, search="", event_id="", status="all
         active = _active_claim(store, db)
         found = []
         for start in starts:
+            if case_id is not None and start["target"] != case_id:
+                continue
             detail = json.loads(start["detail_json"])
             if request_id is not None and detail.get("request_id") != request_id:
                 continue

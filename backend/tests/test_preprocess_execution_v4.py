@@ -221,6 +221,8 @@ class PreprocessExecutionApiV4Tests(AppCase):
         row = response.json()["items"][0]
         self.assertNotIn("claim_token", row)
         self.assertNotIn("result", row)
+        self.assertEqual(self.client.get(path, params={"case_id": item["case_id"]}).json()["items"], [row])
+        self.assertEqual(self.client.get(path, params={"case_id": "unrelated-case"}).json()["items"], [])
         self.assertEqual(self.client_for("reviewer").get(path + "?username=operator").json()["items"], [])
         detail = f"/api/cases/{item['case_id']}/sessions/{item['selected_session_id']}/preprocess-s1/executions/synthetic"
         self.assertEqual(self.client_for("reviewer").get(detail).json()["requested_by"], "operator")

@@ -26,6 +26,7 @@ class RemovedMediaCheckTests(unittest.TestCase):
                 db.execute("INSERT INTO cases VALUES ('c1','input.json')")
                 db.execute("CREATE TABLE upload_receipts(upload_id TEXT,request_json TEXT)")
                 db.execute("INSERT INTO upload_receipts VALUES (?,?)", ("u1", '{"filename":"source.insv"}'))
+                db.execute("INSERT INTO upload_receipts VALUES (?,?)", ("u2", '{"filename":"new.insv","source_kind":"received_file"}'))
             before = {p.relative_to(root): hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob("*") if p.is_file()}
             result = check(root)
             self.assertEqual(result["counts"], {"cases": 1, "receipts": 1, "batches": 1})

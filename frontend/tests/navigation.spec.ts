@@ -25,8 +25,8 @@ test('위치가 hash에 남고 새로고침·뒤로가기·앞으로가기 후�
   await page.reload();
   await expect(page).toHaveURL(/#\/survey$/);
   await expect(menu(page).getByRole('button', { name: '설문 확인', exact: true })).toHaveAttribute('aria-current', 'page');
-  await menu(page).getByRole('button', { name: '전처리', exact: true }).click();
-  await expect(page).toHaveURL(/#\/preprocess$/);
+  await menu(page).getByRole('button', { name: '독립 채점', exact: true }).click();
+  await expect(page).toHaveURL(/#\/scoring$/);
   await page.goBack();
   await expect(page.getByRole('heading', { name: '설문 확인', exact: true })).toBeVisible();
   await page.goBack();
@@ -44,7 +44,7 @@ test('LNB 업무 메뉴는 모든 계정에 같고 개발 설정만 개발자에
   await login(page);
   for (const group of ['현장 운영', '분석·평가', '리포트', '자료 관리']) await expect(menu(page).getByRole('group', { name: group, exact: true })).toBeVisible();
   await expect(menu(page).locator(':scope > [role="group"] > .lnb-title')).toHaveText(['현장 운영', '분석·평가', '리포트', '자료 관리']);
-  await expect(menu(page).getByRole('group', { name: '분석·평가', exact: true }).getByRole('button')).toHaveText(['전처리', '독립 채점']);
+  await expect(menu(page).getByRole('group', { name: '분석·평가', exact: true }).getByRole('button')).toHaveText(['독립 채점']);
   await expect(menu(page).getByRole('group', { name: '리포트', exact: true }).getByRole('button')).toHaveText(['리포트 발급', '비교 조건', '연구 내보내기']);
   await menu(page).screenshot({ path: testInfo.outputPath('sidebar-groups-desktop.png') });
   await expect(menu(page).getByRole('group', { name: '촬영', exact: true })).toHaveCount(0);
@@ -53,7 +53,7 @@ test('LNB 업무 메뉴는 모든 계정에 같고 개발 설정만 개발자에
   await expect(fieldItems.getByRole('button', { name: '참가자/설문 일괄 등록', exact: true })).toBeVisible();
   await expect(fieldItems.getByRole('button', { name: '설문 확인', exact: true })).toBeVisible();
   await expect(menu(page).getByRole('group', { name: '리포트', exact: true })).toBeVisible();
-  const common = ['참가자 접수', '참가자/설문 일괄 등록', '설문 확인', '전처리', '독립 채점', '리포트 발급', '비교 조건', '연구 내보내기', '검수 자료', '직원 계정', '백업·복구'];
+  const common = ['참가자 접수', '참가자/설문 일괄 등록', '설문 확인', '독립 채점', '리포트 발급', '비교 조건', '연구 내보내기', '검수 자료', '직원 계정', '백업·복구'];
   expect(await labels(page)).toEqual(common);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await login(page, 'reviewer');

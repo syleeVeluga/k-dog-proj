@@ -9,6 +9,14 @@ export type SegmentsCsvResult = {
 
 export type SegmentsCsvSummary = { ends: number; offsets: string[]; warnings: string[] };
 
+export function inspectSegmentsCsv(text: string): string[] {
+  const [headers] = csvRows(text.replace(/^\uFEFF/, ''));
+  const cameras = (headers ?? []).filter(name => /^[A-Za-z0-9_-]+_영상초$/.test(name)).map(name => name.slice(0, -4));
+  if (!cameras.length) throw new Error('CSV에 CAM1_영상초와 같은 카메라 영상초 열이 필요합니다.');
+  for (const camera of cameras) parseSegmentsCsv(text, camera, []);
+  return cameras;
+}
+
 export function applySegmentsCsvDraft(record: RecordingV4, videos: Pick<Video, 'video_id' | 'camera_id'>[], text: string, filename: string, hash: string): { record: RecordingV4; summary: SegmentsCsvSummary } | null {
   const reference = videos.find(video => video.video_id === record.video_id);
   if (!reference?.camera_id) return null;

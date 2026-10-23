@@ -37,7 +37,6 @@ test('원본1~3 파일명은 카메라와 원본 번호를 안내 표대로 미�
     const target = card(page, name);
     await target.getByLabel('참가자', { exact: true }).selectOption(caseId);
     await expect(target.getByLabel('촬영 카메라 번호', { exact: true })).toHaveValue(camera.replace(/^CAM/, ''));
-    await expect(target.getByLabel('원본 번호', { exact: true })).toHaveValue(original);
     await expect(target.getByRole('button', { name: '영상 정보 저장', exact: true })).toBeEnabled();
     await target.getByRole('button', { name: '영상 정보 저장', exact: true }).click();
     // 같은 사례의 입력 버전이 바뀌므로 다음 파일은 이 연결이 끝난 뒤에 연결한다(동시에 누르면 충돌 후 「다시 저장」).
@@ -125,9 +124,10 @@ test('촬영 기록 화면은 선택 참가자의 연결 영상 요약과 저장
   await page.getByRole('button', { name: 'U5E 촬영 열기', exact: true }).click();
   const panel = page.getByRole('region', { name: '촬영 기록', exact: true });
   await expect(panel.getByText('1차 촬영 · 연결된 영상 2개 · 사용 가능 0 · 영상 읽기 확인 대기 2', { exact: true })).toBeVisible();
-  // 절차 확인 근거는 선택 입력이므로 비어 있어도 저장 안내가 뜨지 않는다.
+  // 촬영 메모는 선택 입력이므로 비어 있어도 저장 안내가 뜨지 않는다.
   await expect(panel.getByText('실제 촬영 절차의 확인 근거를 기록해야 저장할 수 있습니다.', { exact: true })).toHaveCount(0);
-  await expect(panel.getByRole('textbox', { name: '절차 확인 근거', exact: true })).toHaveValue('');
+  await panel.getByText('촬영 메모 (선택)', { exact: true }).click();
+  await expect(panel.getByRole('textbox', { name: '촬영 메모', exact: true })).toHaveValue('');
   // 연결·출처 구역보다 기록 패널이 위에 있고 첫 화면 안에서 시작한다.
   expect(await panel.evaluate(element => element.getBoundingClientRect().top + window.scrollY)).toBeLessThan(900);
 });
@@ -137,10 +137,7 @@ test('파일명으로 채운 카메라를 고치면 원본 번호는 새 카메�
   await receive(page, ['원본1.mp4']);
   const target = card(page, '원본1.mp4');
   await target.getByLabel('참가자', { exact: true }).selectOption(caseId);
-  await expect(target.getByLabel('원본 번호', { exact: true })).toHaveValue('1');
   await target.getByLabel('촬영 카메라 번호', { exact: true }).fill('2');
-  await expect(target.getByLabel('원본 번호', { exact: true })).toHaveValue('');
-  await expect(target.getByLabel('원본 번호', { exact: true })).toHaveAttribute('placeholder', '3');
   const saved = page.waitForResponse(response => response.request().method() === 'POST' && /\/uploads\/[^/]+\/link$/.test(response.url()));
   await target.getByRole('button', { name: '영상 정보 저장', exact: true }).click();
   expect((await saved).ok()).toBeTruthy();
@@ -150,7 +147,7 @@ test('파일명으로 채운 카메라를 고치면 원본 번호는 새 카메�
   expect(videos.map((video: { camera_id: string; source_original_number: string }) => [video.camera_id, video.source_original_number])).toEqual([['CAM2', '3']]);
 });
 
-test('촬영 카메라 번호 앞뒤 공백·잘못된 문자는 연결 전에 막고, 변환 MP4에는 중복 경고를 띄우지 않는다', async ({ page }) => {
+test('촬영 카메라 번호는 빈 값·잘못된 문자를 막고 앞뒤 공백을 정리한다', async ({ page }) => {
   await start(page, [['U5G', '공백견', 1]]);
   await receive(page, ['misc-space.mp4']);
   const target = card(page, 'misc-space.mp4');

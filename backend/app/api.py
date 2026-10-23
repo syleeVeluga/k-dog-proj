@@ -5,6 +5,7 @@ import asyncio
 import binascii
 import hashlib
 import json
+import mimetypes
 import os
 from pathlib import Path
 import secrets
@@ -494,8 +495,11 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                 raise HTTPException(404, "이 참가자의 영상이 아닙니다.")
             if isinstance(video, StoredMediaV4):
                 path = uploads.linked_video_path(store, case_id, video_id, user.username)
+                media_type = mimetypes.guess_type(video.original_name)[0] or "application/octet-stream"
+                inline = media_type.startswith("video/")
                 return FileResponse(path, filename=video.original_name,
-                    content_disposition_type="inline")
+                    media_type=media_type if inline else "application/octet-stream",
+                    content_disposition_type="inline" if inline else "attachment")
             path = store.path(video.storage_ref)
             if not path.is_file() or path.stat().st_size != video.size_bytes:
                 raise HTTPException(409, "영상 파일이 없거나 크기가 변경되었습니다.")
@@ -596,9 +600,9 @@ def create_app(data_dir: Path | None = None, *, public_origin: str = "http://127
                                  search: Annotated[str, Query(max_length=200)] = "",
                                  event_id: Annotated[str, Query(max_length=200)] = "",
                                  status: Literal["all", "running", "complete", "attention"] = "all",
-                                 request_id: Key | None = None, user=Depends(reader)):
+                                 request_id: Key | None = None, case_id: Key | None = None, user=Depends(reader)):
         return preprocess_executions_v4.executions(store, user.username, cursor=cursor, search=search,
-                                                   event_id=event_id, status=status, request_id=request_id)
+                                                   event_id=event_id, status=status, request_id=request_id, case_id=case_id)
 
     @app.get("/api/cases/{case_id}/sessions/{session_id}/preprocess-s1/executions/{execution_id}",
              response_model=PreprocessExecutionDetailV4)
