@@ -22,13 +22,11 @@ main { max-width: 1228px; margin: auto; padding: 0 24px; }
 .shell > main { flex: 1; min-width: 0; }
 .lnb { position: sticky; top: 0; flex: 0 0 220px; width: 220px; max-height: 100dvh; overflow-y: auto; padding: 24px 12px 24px 24px; border-right: 1px solid #eaeaea; background: #f7f6f3; }
 .lnb-group { margin-bottom: 24px; }
-.lnb-title { margin: 0 0 6px 12px; color: #64705e; font-size: 11px; font-weight: 700; letter-spacing: .12em; }
+.lnb-title { margin: 0 12px 10px; padding-bottom: 10px; border-bottom: 1px solid #d8dcd3; color: #292c29; font-size: 14px; font-weight: 800; letter-spacing: .02em; }
 .lnb ul { margin: 0; padding: 0; list-style: none; }
 .lnb-item { display: block; width: 100%; padding: 8px 12px; border: 0; background: transparent; color: #4d514a; text-align: left; white-space: normal; }
 .lnb-item[aria-current] { background: #292c29; color: #fff; font-weight: 700; }
 .lnb-item[aria-current]:hover { background: #292c29; }
-.lnb-sub { margin: 2px 0 2px 12px; padding-left: 8px; border-left: 1px solid #deded7; }
-.lnb-parent { margin: 8px 0 0 4px; color: #686d64; font-size: 12px; }
 .lnb-close, .menu-toggle, .lnb-backdrop { display: none; }
 fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .workspace > section:first-child { margin-top: 42px; }

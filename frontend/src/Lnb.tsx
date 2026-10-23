@@ -14,15 +14,6 @@ export function useMatch(query: string) {
   return matches;
 }
 
-function chunks(items: MenuItem[]) {
-  const result: { parent?: string; items: MenuItem[] }[] = [];
-  for (const item of items) {
-    const last = result[result.length - 1];
-    if (last && last.parent === item.parent) last.items.push(item); else result.push({ parent: item.parent, items: [item] });
-  }
-  return result;
-}
-
 type Props = { role: Role; current: Route; go: (route: Route) => void; visible: boolean; drawer: boolean; close: () => void };
 
 // 좌측 메뉴. 767px 이하에서는 서랍으로 열리며 포커스 이동·Esc·바깥 클릭·스크롤 잠금을 처리한다.
@@ -52,11 +43,7 @@ export function Lnb({ role, current, go, visible, drawer, close }: Props) {
       {drawer && <button className="lnb-close" onClick={close}>메뉴 닫기</button>}
       {visibleMenu(role).map(group => <div key={group.id} role="group" aria-labelledby={`lnb-${group.id}`} className="lnb-group">
         <p id={`lnb-${group.id}`} className="lnb-title">{group.label}</p>
-        {chunks(group.items).map((part, index) => part.parent
-          ? <div key={index} role="group" aria-labelledby={`lnb-${group.id}-${index}`} className="lnb-sub">
-            <p id={`lnb-${group.id}-${index}`} className="lnb-parent">{part.parent}</p>
-            <ul>{part.items.map(item => <Entry key={item.route} item={item} current={current} go={go} />)}</ul></div>
-          : <ul key={index}>{part.items.map(item => <Entry key={item.route} item={item} current={current} go={go} />)}</ul>)}
+        <ul>{group.items.map(item => <Entry key={item.route} item={item} current={current} go={go} />)}</ul>
       </div>)}
     </nav>
   </>;

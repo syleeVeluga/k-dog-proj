@@ -70,7 +70,7 @@ test('분석에서 대상을 바꾸어 자료를 보완한 뒤 닫아도 분석 
   await expect(page).toHaveURL(/#\/preprocess$/);
   await expect(page.getByRole('region', { name: '분석 대상 목록' })).toBeVisible();
   await openMenu(page, '비교 조건');
-  await expect(trail.getByRole('listitem')).toHaveText(['분석·평가', '리포트', '비교 조건']);
+  await expect(trail.getByRole('listitem')).toHaveText(['리포트', '비교 조건']);
 });
 
 test('모바일 위치 링크·탭·목록 복귀는 미저장 파일을 보호하고 분석 영역은 분리한다', async ({ page }, testInfo) => {
