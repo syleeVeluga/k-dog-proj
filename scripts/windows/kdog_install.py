@@ -5,6 +5,8 @@ Nothing is written to disk until the key has decrypted and authenticated the pay
 """
 
 import argparse
+from datetime import date
+from getpass import getpass
 from io import BytesIO
 import json
 import os
@@ -65,10 +67,11 @@ def _cipher(key: str, salt: bytes) -> AESGCM:
     return AESGCM(HKDF(algorithm=hashes.SHA256(), length=32, salt=salt, info=HKDF_INFO).derive(key.encode("ascii")))
 
 
-def seal(product: bytes, key: str, *, customer: str, version: str, commit: str) -> bytes:
+def seal(product: bytes, key: str, *, customer: str, version: str, commit: str, expires: str | None = None) -> bytes:
     salt, nonce = os.urandom(16), os.urandom(12)
     header = json.dumps({"format": FORMAT, "customer": customer, "version": version, "commit": commit,
-                         "salt": salt.hex(), "nonce": nonce.hex()}, sort_keys=True).encode("utf-8")
+                         "salt": salt.hex(), "nonce": nonce.hex(), **({"expires": expires} if expires else {})},
+                        sort_keys=True).encode("utf-8")
     # The stored header bytes themselves are the associated data, so any header change fails authentication.
     return MAGIC + len(header).to_bytes(4, "big") + header + _cipher(key, salt).encrypt(nonce, product, header)
 
@@ -86,9 +89,26 @@ def read_header(data: bytes) -> tuple[dict, bytes, bytes]:
     if not (isinstance(header, dict) and header.get("format") == FORMAT
             and all(isinstance(header.get(name), str) for name in ("customer", "version", "commit"))
             and re.fullmatch(r"[0-9A-Za-z.+-]{1,32}", header["version"]) and re.fullmatch(r"[0-9a-f]{40}", header["commit"])
-            and re.fullmatch(r"[0-9a-f]{32}", str(header.get("salt"))) and re.fullmatch(r"[0-9a-f]{24}", str(header.get("nonce")))):
+            and re.fullmatch(r"[0-9a-f]{32}", str(header.get("salt"))) and re.fullmatch(r"[0-9a-f]{24}", str(header.get("nonce")))
+            and ("expires" not in header or valid_date(header["expires"]))):
         raise PackageError
     return header, raw, data[12 + size:]
+
+
+def valid_date(value) -> bool:
+    if not (isinstance(value, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value)):
+        return False
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
+
+
+def expired(header: dict, today: date | None = None) -> bool:
+    """The install period includes its last day. The header is authenticated, so the date cannot be edited for this
+    installer; a key holder can still roll back the PC clock or change the readable installer itself."""
+    return "expires" in header and (today or date.today()) > date.fromisoformat(header["expires"])
 
 
 def unseal(data: bytes, key: str) -> tuple[dict, bytes]:
@@ -132,6 +152,46 @@ def ask_key(data: bytes) -> bytes | None:
             return unseal(data, key)[1]
         except WrongKey:
             print("키가 맞지 않습니다. 다시 입력하세요. (키가 맞는데도 계속 실패하면 받은 ZIP의 SHA-256을 다시 확인하세요.)")
+
+
+def secret(prompt: str) -> str:
+    # getpass reads the console, not a pipe; piped answers (automated checks) carry no echo to hide.
+    return getpass(prompt) if sys.stdin.isatty() else input(prompt)
+
+
+def first_user(target: Path) -> bool:
+    """Ask for this PC's first business account when none exists. Returns False only when the check itself fails."""
+    state = run_python(target, "-m", "app.manage", "create-first-user", "--check")
+    if state.returncode:
+        print((state.stdout + state.stderr).decode("utf-8", errors="replace").strip())
+        return False
+    if state.stdout.decode("utf-8", errors="replace").strip() != "needed":
+        return True
+    print()
+    print("이 PC에서 처음 쓸 업무 계정을 만듭니다. 다른 운영자·교수 계정은 로그인한 뒤 「직원 계정」에서 추가합니다.")
+    while True:
+        try:
+            username = input("아이디 (영문·숫자·_-, 건너뛰려면 Enter만 누르세요): ").strip()
+        except EOFError:
+            username = ""
+        if not username:
+            print("업무 계정을 만들지 않았습니다. 로그인하기 전에 Install.cmd를 다시 실행하면 다시 묻습니다.")
+            return True
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", username):
+            print("아이디는 영문·숫자·_·- 1~100자로 입력하세요.")
+            continue
+        try:
+            password, confirm = secret("비밀번호 (12~256자, 입력해도 화면에 표시되지 않습니다): "), secret("비밀번호 확인: ")
+        except EOFError:
+            password, confirm = "", None
+        if password != confirm or not 12 <= len(password) <= 256:
+            print("비밀번호 확인과 길이(12~256자)를 확인하세요.")
+            continue
+        result = run_python(target, "-m", "app.manage", "create-first-user",
+                            stdin=json.dumps({"username": username, "password": password}).encode("utf-8"))
+        print((result.stdout + result.stderr).decode("utf-8", errors="replace").strip())
+        if result.returncode == 0:
+            return True
 
 
 def install_files(archive: ZipFile, package: Path, root: Path, target: Path) -> bool:
@@ -211,6 +271,10 @@ def main(argv=None) -> int:
         print("설치 패키지가 손상되었거나 완전하지 않습니다. ZIP 전체를 다시 풀거나 다시 받아 SHA-256을 확인하세요.")
         return 1
     print(f"K-DOG {header['version']} ({header['commit'][:7]}) 설치를 시작합니다.")
+    if expired(header):
+        print(f"이 설치 패키지의 유효 기간({header['expires']})이 지났습니다. 아무것도 바꾸지 않았습니다.")
+        print("새 설치 패키지를 요청하세요. 문의처: 벨루가 veluga.app@veluga.io")
+        return 1
     product = ask_key(data)
     if product is None:
         print("설치를 취소했습니다. 아무것도 바뀌지 않았습니다.")
@@ -234,13 +298,20 @@ def main(argv=None) -> int:
     if accounts.returncode:
         print("계정을 만들지 못했습니다. 프로그램 파일은 설치되었습니다. 문의처: 벨루가 veluga.app@veluga.io")
         return 1
+    try:
+        ready = first_user(target)
+    except (OSError, subprocess.SubprocessError):
+        ready = False
+    if not ready:
+        print("업무 계정을 확인하지 못했습니다. 프로그램 파일은 설치되었습니다. 문의처: 벨루가 veluga.app@veluga.io")
+        return 1
     link = shortcut(target, args.shortcut_dir)
     print()
     if link:
         print(f"설치를 마쳤습니다. 바탕화면의 K-DOG 아이콘으로 실행하세요. ({link})")
     else:
         print(f"설치를 마쳤습니다. 바로가기를 만들지 못했으니 다음 파일을 실행하세요:\n{target / 'Start.cmd'}")
-    print("새 계정의 비밀번호는 별도로 전달받은 것을 사용하세요.")
+    print("설치 때 만든 계정(또는 별도로 전달받은 계정)으로 로그인하세요. 다른 계정은 「직원 계정」에서 추가합니다.")
     print("K-DOG가 이미 실행 중이면 그 창을 닫고 다시 실행하세요.")
     return 0
 

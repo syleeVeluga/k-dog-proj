@@ -111,7 +111,7 @@ ZIP은 커밋된 깨끗한 작업 트리에서 만든다. S1 카탈로그·계�
 # 저장소 루트; 프로젝트 Python 사용
 backend/.venv/Scripts/python.exe -X utf8 scripts/build_release.py "releases/kdog-s1-windows-x64.zip"
 backend/.venv/Scripts/python.exe -X utf8 scripts/verify_release.py "releases/kdog-s1-windows-x64.zip"
-backend/.venv/Scripts/python.exe -X utf8 scripts/issue_release.py "releases/kdog-s1-windows-x64.zip" --customer SCHOOL-1 --user manager --developer keyman
+backend/.venv/Scripts/python.exe -X utf8 scripts/issue_release.py "releases/kdog-s1-windows-x64.zip" --customer SCHOOL-1 --developer keyman --expires 2026-12-31
 # 사용자 설치형(uv·FFmpeg 직접 설치): 런타임 없이 만들고, PATH에 uv·FFmpeg가 있고 인터넷이 되는 PC에서 검증
 backend/.venv/Scripts/python.exe -X utf8 scripts/build_release.py --variant online "releases/kdog-s1-windows-x64-online.zip"
 backend/.venv/Scripts/python.exe -X utf8 scripts/verify_release.py "releases/kdog-s1-windows-x64-online.zip"
@@ -119,7 +119,7 @@ backend/.venv/Scripts/python.exe -X utf8 scripts/verify_release.py "releases/kdo
 uv run --locked python -X utf8 ../scripts/rehearsal.py --pairs 2 --seconds 10 --report "D:/tmp/s1-rehearsal.json"
 ```
 
-`verify_release`는 PATH를 Windows 기본 경로로 제한해 uv·Python·FFmpeg가 없는 상태로 현재 Windows의 새 한글/공백 경로에 ZIP을 풀고, `Start.cmd --check`의 손상 거절, 내장 Python·FFmpeg 사용, S1 health·접수·재시작 조회·감독 종료를 검사한다. 이어서 같은 ZIP으로 합성 고객 `VERIFY` 발행 패키지(무작위 비밀번호, 일반 업무·developer)를 만들어 제품 파일 평문 노출이 없는지, 틀린 키와 헤더·본문 변조가 아무것도 만들지 않는지, 키 설치·계정·바로가기, 발행 업무 계정 로그인·접수, 개발자 키 설정 API 접근, 재설치 후 자료·계정 유지를 검사한다 (설치 위치·바로가기·자료는 임시 폴더). `issue_release`는 고객별 발행 패키지와 발행 키를 만든다. 사용법과 전달 규칙은 [운영 안내](PILOT_OPERATIONS.md)의 발행 절을 따른다. 패키지 안의 FFmpeg로 전처리 시험을 다시 돌리려면 풀린 `runtime/ffmpeg/bin`을 PATH 맨 앞에 두고 backend 시험을 실행한다. 깨끗한 OS와 물리 PC3대는 별도 실측이다.
+`verify_release`는 PATH를 Windows 기본 경로로 제한해 uv·Python·FFmpeg가 없는 상태로 현재 Windows의 새 한글/공백 경로에 ZIP을 풀고, `Start.cmd --check`의 손상 거절, 내장 Python·FFmpeg 사용, S1 health·접수·재시작 조회·감독 종료를 검사한다. 이어서 같은 ZIP으로 합성 고객 `VERIFY` 발행 패키지(무작위 비밀번호, developer만, 오늘까지 설치 가능)를 만들어 제품 파일 평문 노출이 없는지, 틀린 키와 헤더·본문 변조·유효 기간 연장·만료 패키지가 아무것도 만들지 않는지, 키 설치·설치 중 첫 업무 계정 입력·바로가기, 그 업무 계정 로그인·접수, 개발자 키 설정 API 접근, 재설치 후 자료·계정 유지와 첫 계정 재질문 없음을 검사한다 (설치 위치·바로가기·자료는 임시 폴더). `issue_release`는 고객별 발행 패키지와 발행 키를 만든다. 사용법과 전달 규칙은 [운영 안내](PILOT_OPERATIONS.md)의 발행 절을 따른다. 패키지 안의 FFmpeg로 전처리 시험을 다시 돌리려면 풀린 `runtime/ffmpeg/bin`을 PATH 맨 앞에 두고 backend 시험을 실행한다. 깨끗한 OS와 물리 PC3대는 별도 실측이다.
 
 `--variant online`은 S15 방식의 사용자 설치형 ZIP이다. `runtime/` 없이 `backend/pyproject.toml`·`backend/uv.lock`과 `scripts/windows/online/`의 `Install.cmd`·`install.ps1`·`Start.cmd`, 사용자 설치형 `오픈소스고지.txt`(글꼴·npm 목록)를 넣고 (npm 라이선스 전문은 `licenses/npm`. 앱은 `runtime/` 폴더가 있으면 내장 FFmpeg만 쓰므로 이 ZIP에는 `runtime/`이 없어야 한다) `release.json`에 `"variant": "online"`을 기록한다. FFmpeg 빌드 결과와 embeddable Python이 필요 없다. `issue_release`는 이 ZIP을 거절한다 (발행은 포터블 ZIP만). `verify_release`는 `variant`를 보고 이 ZIP을 따로 검증한다: 설치 전 `Start.cmd`가 `Install.cmd`를 안내하는지, 손상 시 `.venv`를 만들기 전에 거절하는지, 틀린 `UV_PROJECT_ENVIRONMENT`·`PYTHONHOME`·`PYTHONPATH`를 무시하고 `backend/.venv`(Python 3.14)와 PATH FFmpeg를 쓰는지, 로그인·접수·`Start.cmd` 재시작 조회·감독 종료를 검사한다. 이 검증은 uv·FFmpeg가 PATH에 있고 인터넷(또는 uv 캐시)이 되는 PC에서만 돈다.
 

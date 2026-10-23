@@ -1,7 +1,9 @@
 """D03 issued packages: key format, sealing, account provisioning and the issue pipeline."""
 
+from datetime import date, timedelta
 import hashlib
 import importlib.util
+import os
 from io import BytesIO
 import json
 from pathlib import Path
@@ -13,7 +15,7 @@ import unittest
 from unittest.mock import patch
 from zipfile import ZipFile
 
-from app.auth import check_password, password_hash, provision_accounts
+from app.auth import check_password, create_first_user, first_user_needed, password_hash, provision_accounts
 from app.storage import REPO_ROOT, Store
 
 
@@ -73,6 +75,27 @@ class KeyAndSealTests(unittest.TestCase):
         for damaged in (b"", b"PK\x03\x04" + data[4:], data[:12 + size], data[:8] + (5000).to_bytes(4, "big") + data[12:], *unsafe):
             with self.assertRaises(installer.PackageError):
                 installer.unseal(damaged, key)
+
+    def test_install_period_is_authenticated_and_includes_its_last_day(self):
+        key, product = installer.new_key(), b"product"
+        data = installer.seal(product, key, customer="SCHOOL-1", version="0.3.0", commit="a" * 40, expires="2026-12-31")
+        header, raw, ciphertext = installer.read_header(data)
+        self.assertEqual((header["expires"], installer.unseal(data, key)[1]), ("2026-12-31", product))
+        self.assertFalse(installer.expired(header, date(2026, 12, 31)))
+        self.assertTrue(installer.expired(header, date(2027, 1, 1)))
+        self.assertFalse(installer.expired(installer.read_header(
+            installer.seal(product, key, customer="SCHOOL-1", version="0.3.0", commit="a" * 40))[0], date(2999, 1, 1)))
+        # Extending or removing the period fails authentication even with the right key.
+        dropped = json.dumps({name: value for name, value in header.items() if name != "expires"}, sort_keys=True).encode()
+        for altered in (data.replace(b'"2026-12-31"', b'"2099-12-31"'),
+                        installer.MAGIC + len(dropped).to_bytes(4, "big") + dropped + ciphertext):
+            with self.assertRaises(installer.WrongKey):
+                installer.unseal(altered, key)
+        for bad in ("2026-13-01", "2026-1-1", "20261231", 20261231):
+            wrong = json.dumps({**header, "expires": bad}, sort_keys=True).encode()
+            with self.assertRaises(installer.PackageError):
+                installer.read_header(installer.MAGIC + len(wrong).to_bytes(4, "big") + wrong + ciphertext)
+        self.assertEqual(raw, data[12:12 + len(raw)])
 
 
 class ProvisionTests(unittest.TestCase):
@@ -137,16 +160,61 @@ class ProvisionTests(unittest.TestCase):
         for document in (b"not json", b"[]", variant(lambda d: d.update(format="other")),
                          variant(lambda d: d.update(customer="bad customer")),
                          variant(lambda d: d.update(accounts=[])),
-                         variant(lambda d: d["accounts"].pop(0)),  # developer only, no admin
+                         variant(lambda d: d["accounts"][0].update(role="developer")),  # two developers
                          variant(lambda d: d["accounts"][1].update(role="admin")),
                          variant(lambda d: d["accounts"][1].update(role="operator")),
                          variant(lambda d: d["accounts"][1].update(username="manager")),
                          variant(lambda d: d["accounts"][0].update(username="has space")),
+                         variant(lambda d: d["accounts"][0].update(username="builtin-reference")),
+                         variant(lambda d: d["accounts"][1].update(username="kdog-ai-service")),
                          variant(lambda d: d["accounts"][0].update(password_hash="plain-password")),
                          variant(lambda d: d["accounts"][0].update(password="Issued-admin-pass-1"))):
             with self.assertRaisesRegex(ValueError, "올바르지 않습니다"):
                 self.provision(document)
         self.assertEqual(self.users(), {})
+
+    def test_developer_only_package_leaves_the_first_business_account_to_the_installer(self):
+        self.provision(provision(("keyman", "developer", "Issued-dev-pass-1")))
+        with self.store.connect(write=True) as db:
+            self.assertTrue(first_user_needed(db))
+            for document in (b"not json", json.dumps({"username": "manager", "password": "short"}).encode(),
+                             json.dumps({"username": "has space", "password": "First-user-pass-1"}).encode(),
+                             json.dumps({"username": "manager", "password": "First-user-pass-1", "role": "admin"}).encode(),
+                             json.dumps({"username": "keyman", "password": "First-user-pass-1"}).encode(),
+                             json.dumps({"username": "builtin-reference", "password": "First-user-pass-1"}).encode(),
+                             json.dumps({"username": "kdog-ai-service", "password": "First-user-pass-1"}).encode()):
+                with self.assertRaises(ValueError):
+                    create_first_user(db, self.store, document)
+            self.assertTrue(create_first_user(db, self.store, json.dumps({"username": "manager", "password": "First-user-pass-1"}).encode()))
+            self.assertFalse(first_user_needed(db))
+            self.assertFalse(create_first_user(db, self.store, json.dumps({"username": "second", "password": "First-user-pass-2"}).encode()))
+            audit = db.execute("SELECT actor,detail_json FROM changes WHERE action='user.local_create'").fetchall()
+        users = self.users()
+        self.assertEqual({name: row["role"] for name, row in users.items()}, {"keyman": "developer", "manager": "operator"})
+        self.assertTrue(check_password("First-user-pass-1", users["manager"]["password_hash"]))
+        self.assertEqual([row["actor"] for row in audit], ["manager"])
+        self.assertIn("installer", audit[0]["detail_json"])
+        # An inactive business account does not count; the PC still needs an active one to log in.
+        with self.store.connect(write=True) as db:
+            db.execute("UPDATE users SET active=0 WHERE username='manager'")
+            self.assertTrue(first_user_needed(db))
+            with self.assertRaisesRegex(ValueError, "이미 있거나 예약된"):
+                create_first_user(db, self.store, json.dumps({"username": "manager", "password": "First-user-pass-3"}).encode())
+
+    def test_manage_create_first_user_checks_then_creates_once(self):
+        def run(*arguments, document=b""):
+            return subprocess.run([sys.executable, "-X", "utf8", "-m", "app.manage", "--data-dir", self.temporary.name,
+                                   "create-first-user", *arguments], input=document, capture_output=True,
+                                  cwd=REPO_ROOT / "backend", timeout=60)
+        self.assertEqual(run("--check").stdout.decode().strip(), "needed")
+        failed = run(document=b'{"username": "manager", "password": "short"}')
+        self.assertEqual(failed.returncode, 1)
+        self.assertIn("계정 생성 실패", failed.stderr.decode("utf-8"))
+        created = run(document=b'{"username": "manager", "password": "First-user-pass-1"}')
+        self.assertEqual(created.returncode, 0, created.stderr.decode("utf-8", "replace"))
+        self.assertEqual(run("--check").stdout.decode().strip(), "exists")
+        self.assertEqual(run(document=b'{"username": "other", "password": "First-user-pass-2"}').returncode, 0)
+        self.assertEqual(set(self.users()), {"manager"})
 
     def test_manage_command_reads_stdin_and_reports_failures(self):
         def run(document):
@@ -172,7 +240,8 @@ class IssueTests(unittest.TestCase):
 
     def plain(self, tamper=False, supported=True, variant=None):
         files = {"Start.cmd": b"@echo off\r\n", "backend/app/secret.py": b"PRODUCT_SOURCE_MARKER = 1\n",
-                 "backend/app/manage.py": b'sub.add_parser("provision-accounts")\n' if supported else b"",
+                 "backend/app/manage.py": b'sub.add_parser("provision-accounts")\nsub.add_parser("create-first-user")\n'
+                                          if supported else b'sub.add_parser("provision-accounts")\n',
                  "runtime/python/python.exe": b"MZ runtime", CRYPTO: b"Name: cryptography\n", "오픈소스고지.txt": "고지".encode()}
         manifest = {"format": "kdog-release-1", "version": "0.3.0", "commit": "b" * 40,
                     "files": {name: hashlib.sha256(data).hexdigest() for name, data in files.items()},
@@ -196,6 +265,26 @@ class IssueTests(unittest.TestCase):
             row=db.execute("SELECT * FROM users WHERE username='worker'").fetchone()
             self.assertEqual(row["role"],"operator")
             self.assertTrue(check_password("Issued-business-pass-1",row["password_hash"]))
+
+    def test_issue_developer_only_with_install_period(self):
+        last = (date.today() + timedelta(days=30)).isoformat()
+        result = self.issuer.issue(self.plain(), "SCHOOL-1", [("keyman", "developer", "Issued-dev-pass-1")], self.root / "dev", last)
+        self.assertEqual(result["expires"], last)
+        with ZipFile(result["path"]) as issued:
+            header, product = installer.unseal(issued.read("payload.kdog"), installer.normalize_key(result["key"]))
+        self.assertEqual(header["expires"], last)
+        with ZipFile(BytesIO(product)) as sealed:
+            accounts = json.loads(sealed.read("provision.json"))["accounts"]
+        self.assertEqual([(row["username"], row["role"]) for row in accounts], [("keyman", "developer")])
+        record = json.loads((self.root / "dev/K-DOG-SCHOOL-1-v0.3.0-bbbbbbb.json").read_text(encoding="utf-8"))
+        self.assertEqual(record["expires"], last)
+        today = self.issuer.issue(self.plain(), "SCHOOL-1", [("keyman", "developer", "Issued-dev-pass-1")], self.root / "today",
+                                  date.today().isoformat())
+        self.assertEqual(today["expires"], date.today().isoformat())
+        unlimited = self.issuer.issue(self.plain(), "SCHOOL-1", [("keyman", "developer", "Issued-dev-pass-1")], self.root / "open")
+        self.assertIsNone(unlimited["expires"])
+        with ZipFile(unlimited["path"]) as issued:
+            self.assertNotIn("expires", installer.read_header(issued.read("payload.kdog"))[0])
 
     def test_issue_seals_product_and_accounts_and_records_no_secret(self):
         accounts = [("manager", "admin", "Issued-admin-pass-1"), ("keyman", "developer", "Issued-dev-pass-1")]
@@ -239,10 +328,16 @@ class IssueTests(unittest.TestCase):
                 (self.plain(variant="online"), "SCHOOL-1", good, "사용자 설치형"),
                 (self.plain(), "bad customer", good, "고객 ID"),
                 (self.plain(), "SCHOOL-1", [("manager", "admin", "short")], "비밀번호"),
-                (self.plain(), "SCHOOL-1", [("keyman", "developer", "Issued-dev-pass-1")], "업무 계정"),
+                (self.plain(), "SCHOOL-1", [("kdog-ai-service", "developer", "Issued-dev-pass-1")], "아이디"),
+                (self.plain(), "SCHOOL-1", [], "업무 계정"),
+                (self.plain(), "SCHOOL-1", [("keyman", "developer", "Issued-dev-pass-1"), ("keyman2", "developer", "Issued-dev-pass-1")], "업무 계정"),
+                (self.plain(), "SCHOOL-1", good + [("worker", "operator", "Issued-business-pass-1")], "업무 계정"),
                 (self.plain(), "SCHOOL-1", good + [("manager", "developer", "Issued-dev-pass-1")], "업무 계정")):
             with self.assertRaisesRegex(ValueError, message):
                 self.issuer.issue(plain, customer, accounts, self.root / "rejected")
+        for expires in ((date.today() - timedelta(days=1)).isoformat(), "2026-13-01", "2026/12/31", ""):
+            with self.assertRaisesRegex(ValueError, "유효 기간"):
+                self.issuer.issue(self.plain(), "SCHOOL-1", good, self.root / "rejected", expires)
         self.assertFalse((self.root / "rejected").exists())
 
 
@@ -264,6 +359,68 @@ class InstallerTests(unittest.TestCase):
             self.assertIn("키 형식이 맞지 않습니다", printed)
             self.assertFalse(root.exists())
             self.assertFalse((Path(temporary) / "desk").exists())
+
+    def test_expired_package_stops_before_the_key_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory(prefix="kdog-installer-expired-") as temporary:
+            package = Path(temporary) / "package"
+            (package / "installer").mkdir(parents=True)
+            key = installer.new_key()
+            (package / "payload.kdog").write_bytes(installer.seal(b"zip", key, customer="SCHOOL-1", version="0.3.0",
+                                                                  commit="c" * 40, expires="2026-01-01"))
+            root = Path(temporary) / "Programs"
+            with patch.object(installer, "__file__", str(package / "installer/kdog_install.py")), \
+                    patch("builtins.input", side_effect=[installer.display_key(key)]) as prompt, \
+                    patch("builtins.print") as output:
+                self.assertEqual(installer.main(["--install-root", str(root), "--shortcut-dir", str(Path(temporary) / "desk")]), 1)
+            prompt.assert_not_called()
+            printed = " ".join(str(call.args[0]) for call in output.call_args_list if call.args)
+            self.assertIn("유효 기간(2026-01-01)이 지났습니다", printed)
+            self.assertFalse(root.exists())
+            self.assertFalse((Path(temporary) / "desk").exists())
+            # The last day itself still reaches the key prompt.
+            (package / "payload.kdog").write_bytes(installer.seal(b"zip", key, customer="SCHOOL-1", version="0.3.0",
+                                                                  commit="c" * 40, expires=date.today().isoformat()))
+            with patch.object(installer, "__file__", str(package / "installer/kdog_install.py")), \
+                    patch("builtins.input", side_effect=[""]) as prompt, patch("builtins.print"):
+                self.assertEqual(installer.main(["--install-root", str(root), "--shortcut-dir", str(Path(temporary) / "desk")]), 1)
+            prompt.assert_called_once()
+            self.assertFalse(root.exists())
+
+    def test_first_user_prompt_creates_once_skips_and_retries(self):
+        with tempfile.TemporaryDirectory(prefix="kdog-installer-first-") as temporary:
+            data = Path(temporary) / "data"
+            env = {**os.environ, "KDOG_DATA_DIR": str(data), "PYTHONUTF8": "1"}
+
+            def run_python(folder, *arguments, stdin=None):
+                # The real manage command on a temporary data folder stands in for the installed runtime.
+                return subprocess.run([sys.executable, "-X", "utf8", *arguments], cwd=REPO_ROOT / "backend", env=env,
+                                      input=stdin, capture_output=True, timeout=60)
+
+            def ask(*answers):
+                with patch.object(installer, "run_python", side_effect=run_python), \
+                        patch.object(installer.sys.stdin, "isatty", return_value=False), \
+                        patch("builtins.input", side_effect=list(answers)) as prompt, \
+                        patch("builtins.print") as output:
+                    self.assertTrue(installer.first_user(Path(temporary) / "app"))
+                return prompt.call_count, " ".join(str(call.args[0]) for call in output.call_args_list if call.args)
+
+            calls, printed = ask("")
+            self.assertEqual(calls, 1)
+            self.assertIn("Install.cmd를 다시 실행하면 다시 묻습니다", printed)
+            calls, printed = ask("has space", "manager", "short", "short",
+                                 "manager", "First-user-pass-1", "Different-pass-2",
+                                 "manager", "First-user-pass-1", "First-user-pass-1")
+            self.assertEqual(calls, 10)
+            self.assertIn("영문·숫자", printed)
+            self.assertIn("비밀번호 확인과 길이", printed)
+            self.assertIn("업무 계정을 만들었습니다", printed)
+            store = Store(data)
+            with store.connect() as db:
+                row = db.execute("SELECT role,password_hash FROM users WHERE username='manager'").fetchone()
+            self.assertEqual(row["role"], "operator")
+            self.assertTrue(check_password("First-user-pass-1", row["password_hash"]))
+            calls, _ = ask()  # reinstall: an active business account exists, so nothing is asked
+            self.assertEqual(calls, 0)
 
     def product(self, extra=None):
         listed = {"Start.cmd": b"@echo off\r\n", "runtime/python/python.exe": b"MZ", "오픈소스고지.txt": b"notice"}
