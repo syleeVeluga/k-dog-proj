@@ -48,6 +48,7 @@ def provision_accounts(db, store, document: bytes) -> list[str]:
             and isinstance(accounts, list) and 1 <= len(accounts) <= 2
             and all(isinstance(account, dict) and set(account) == {"username", "role", "password_hash"}
                     and isinstance(account["username"], str) and re.fullmatch(r"[A-Za-z0-9_-]{1,100}", account["username"])
+                    and not reserved_username(account["username"])
                     and account["role"] in ("operator", "reviewer", "admin", "developer")
                     and isinstance(account["password_hash"], str)
                     and re.fullmatch(r"scrypt\$[0-9a-f]{32}\$[0-9a-f]{128}", account["password_hash"])
@@ -74,6 +75,13 @@ def provision_accounts(db, store, document: bytes) -> list[str]:
     return messages
 
 
+def reserved_username(username: str) -> bool:
+    """Names the app inserts later (first start / first AI publish); an account holding one would break those records."""
+    from app.comparisons_v4 import BUILTIN_ACTOR
+    from app.domain.sheets_v4 import AI_ACCOUNT
+    return username in (BUILTIN_ACTOR, AI_ACCOUNT)
+
+
 def first_user_needed(db) -> bool:
     return db.execute("SELECT 1 FROM users WHERE active=1 AND role!='developer' LIMIT 1").fetchone() is None
 
@@ -93,10 +101,7 @@ def create_first_user(db, store, document: bytes) -> bool:
         user = UserCreate(username=value["username"], password=value["password"], role="operator")
     except ValueError:
         raise ValueError("아이디(영문·숫자·_-)와 비밀번호 길이(12~256자)를 확인하세요.") from None
-    from app.comparisons_v4 import BUILTIN_ACTOR
-    from app.domain.sheets_v4 import AI_ACCOUNT
-    # Reserved names are inserted later (first start / first AI publish); taking one would break those records.
-    if user.username in (BUILTIN_ACTOR, AI_ACCOUNT) or \
+    if reserved_username(user.username) or \
             db.execute("SELECT 1 FROM users WHERE username=?", (user.username,)).fetchone():
         raise ValueError("이미 있거나 예약된 아이디입니다. 다른 아이디를 입력하세요.")
     create_user(db, user)

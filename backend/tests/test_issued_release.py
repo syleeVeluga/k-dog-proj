@@ -165,6 +165,8 @@ class ProvisionTests(unittest.TestCase):
                          variant(lambda d: d["accounts"][1].update(role="operator")),
                          variant(lambda d: d["accounts"][1].update(username="manager")),
                          variant(lambda d: d["accounts"][0].update(username="has space")),
+                         variant(lambda d: d["accounts"][0].update(username="builtin-reference")),
+                         variant(lambda d: d["accounts"][1].update(username="kdog-ai-service")),
                          variant(lambda d: d["accounts"][0].update(password_hash="plain-password")),
                          variant(lambda d: d["accounts"][0].update(password="Issued-admin-pass-1"))):
             with self.assertRaisesRegex(ValueError, "올바르지 않습니다"):
@@ -196,6 +198,8 @@ class ProvisionTests(unittest.TestCase):
         with self.store.connect(write=True) as db:
             db.execute("UPDATE users SET active=0 WHERE username='manager'")
             self.assertTrue(first_user_needed(db))
+            with self.assertRaisesRegex(ValueError, "이미 있거나 예약된"):
+                create_first_user(db, self.store, json.dumps({"username": "manager", "password": "First-user-pass-3"}).encode())
 
     def test_manage_create_first_user_checks_then_creates_once(self):
         def run(*arguments, document=b""):
@@ -324,6 +328,7 @@ class IssueTests(unittest.TestCase):
                 (self.plain(variant="online"), "SCHOOL-1", good, "사용자 설치형"),
                 (self.plain(), "bad customer", good, "고객 ID"),
                 (self.plain(), "SCHOOL-1", [("manager", "admin", "short")], "비밀번호"),
+                (self.plain(), "SCHOOL-1", [("kdog-ai-service", "developer", "Issued-dev-pass-1")], "아이디"),
                 (self.plain(), "SCHOOL-1", [], "업무 계정"),
                 (self.plain(), "SCHOOL-1", [("keyman", "developer", "Issued-dev-pass-1"), ("keyman2", "developer", "Issued-dev-pass-1")], "업무 계정"),
                 (self.plain(), "SCHOOL-1", good + [("worker", "operator", "Issued-business-pass-1")], "업무 계정"),
@@ -372,6 +377,14 @@ class InstallerTests(unittest.TestCase):
             self.assertIn("유효 기간(2026-01-01)이 지났습니다", printed)
             self.assertFalse(root.exists())
             self.assertFalse((Path(temporary) / "desk").exists())
+            # The last day itself still reaches the key prompt.
+            (package / "payload.kdog").write_bytes(installer.seal(b"zip", key, customer="SCHOOL-1", version="0.3.0",
+                                                                  commit="c" * 40, expires=date.today().isoformat()))
+            with patch.object(installer, "__file__", str(package / "installer/kdog_install.py")), \
+                    patch("builtins.input", side_effect=[""]) as prompt, patch("builtins.print"):
+                self.assertEqual(installer.main(["--install-root", str(root), "--shortcut-dir", str(Path(temporary) / "desk")]), 1)
+            prompt.assert_called_once()
+            self.assertFalse(root.exists())
 
     def test_first_user_prompt_creates_once_skips_and_retries(self):
         with tempfile.TemporaryDirectory(prefix="kdog-installer-first-") as temporary:
@@ -393,7 +406,7 @@ class InstallerTests(unittest.TestCase):
 
             calls, printed = ask("")
             self.assertEqual(calls, 1)
-            self.assertIn("create-user <아이디> --role operator", printed)
+            self.assertIn("Install.cmd를 다시 실행하면 다시 묻습니다", printed)
             calls, printed = ask("has space", "manager", "short", "short",
                                  "manager", "First-user-pass-1", "Different-pass-2",
                                  "manager", "First-user-pass-1", "First-user-pass-1")

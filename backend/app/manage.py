@@ -174,10 +174,11 @@ def main():
     if args.command == "create-first-user":
         try:
             store = Store(args.data_dir)
-            with store.connect(write=True) as db:
-                if args.check:
+            if args.check:
+                with store.connect() as db:
                     print("needed" if first_user_needed(db) else "exists")
-                    return
+                return
+            with store.connect(write=True) as db:
                 created = create_first_user(db, store, sys.stdin.buffer.read())
         except (ValueError, sqlite3.Error) as exc:
             parser.exit(1, f"계정 생성 실패: {exc}\n")

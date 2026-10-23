@@ -19,7 +19,7 @@ from zipfile import ZipFile, ZIP_DEFLATED, ZIP_STORED
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
-from app.auth import password_hash  # noqa: E402  the app's own scrypt format
+from app.auth import password_hash, reserved_username  # noqa: E402  the app's own scrypt format and reserved names
 
 _spec = importlib.util.spec_from_file_location("kdog_install", ROOT / "scripts/windows/kdog_install.py")
 installer = importlib.util.module_from_spec(_spec)
@@ -47,7 +47,7 @@ def issue(plain_zip: Path, customer: str, accounts: list[tuple[str, str, str]], 
     if expires is not None and not (installer.valid_date(expires) and date.fromisoformat(expires) >= date.today()):
         raise ValueError("유효 기간은 오늘 이후의 YYYY-MM-DD 날짜로 지정하세요.")
     for username, _role, password in accounts:
-        if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", username) or not 12 <= len(password) <= 256:
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", username) or reserved_username(username) or not 12 <= len(password) <= 256:
             raise ValueError(f"{username}: 아이디(영문·숫자·_-)와 비밀번호 길이(12~256자)를 확인하세요.")
     with ZipFile(plain_zip) as plain:
         manifest = json.loads(plain.read("release.json"))

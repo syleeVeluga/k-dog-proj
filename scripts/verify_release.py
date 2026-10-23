@@ -1,7 +1,7 @@
 """Verify a portable release and an issued package built from it, without uv/Python/FFmpeg on PATH.
 
 Plain ZIP: new Korean/space path, damaged-file rejection, bundled runtime, HTTP login/intake/restart, locks.
-Issued ZIP (synthetic customer VERIFY, developer only, install period ending today): no readable product files,
+Issued ZIP (synthetic customer VERIFY, developer only, install period ending tomorrow): no readable product files,
 wrong key, tampering and an expired period change nothing, key install with the first business account typed at
 install and a shortcut, business/developer login, and reinstall keeping data and accounts without asking again.
 User-install ZIP (--variant online, uv/FFmpeg on PATH, internet): Start.cmd asks for Install.cmd first, damage
@@ -10,7 +10,7 @@ is rejected before a venv exists, Install.cmd builds backend/.venv, then the sam
 
 import argparse
 from contextlib import contextmanager
-from datetime import date
+from datetime import date, timedelta
 from http.cookiejar import CookieJar
 import importlib.util
 import json
@@ -282,8 +282,9 @@ def verify_issued(package, root):
     spec.loader.exec_module(issuer)
     passwords = {"verify-user": secrets.token_urlsafe(18), "verify-dev": secrets.token_urlsafe(18)}
     # The business account is not issued; the installer asks for it as this PC's first account.
+    # Tomorrow, so a run crossing midnight neither expires nor loses the date the tamper check replaces.
     issued = issuer.issue(package, "VERIFY", [("verify-dev", "developer", passwords["verify-dev"])], root / "issued",
-                          date.today().isoformat())
+                          (date.today() + timedelta(days=1)).isoformat())
     unpacked = root / "새 발행 패키지"
     with ZipFile(issued["path"]) as archive:
         names = archive.namelist()
@@ -311,7 +312,7 @@ def verify_issued(package, root):
     original = payload.read_bytes()
     try:
         for altered in (original.replace(b'"VERIFY"', b'"VERIFZ"', 1), original[:-1] + bytes([original[-1] ^ 1]),
-                        original.replace(f'"{date.today().isoformat()}"'.encode(), b'"2999-12-31"', 1)):
+                        original.replace(f'"{issued["expires"]}"'.encode(), b'"2999-12-31"', 1)):
             payload.write_bytes(altered)
             code, output = install(issued["key"], "")
             if code == 0 or not untouched():

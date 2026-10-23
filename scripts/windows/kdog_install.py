@@ -175,8 +175,7 @@ def first_user(target: Path) -> bool:
         except EOFError:
             username = ""
         if not username:
-            print("업무 계정을 만들지 않았습니다. 로그인하기 전에 프로그램 폴더에서 다음 명령으로 만드세요:")
-            print(f'cd /d "{target}" && runtime\\python\\python.exe -X utf8 -m app.manage create-user <아이디> --role operator')
+            print("업무 계정을 만들지 않았습니다. 로그인하기 전에 Install.cmd를 다시 실행하면 다시 묻습니다.")
             return True
         if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", username):
             print("아이디는 영문·숫자·_·- 1~100자로 입력하세요.")
@@ -301,7 +300,7 @@ def main(argv=None) -> int:
         return 1
     try:
         ready = first_user(target)
-    except subprocess.SubprocessError:
+    except (OSError, subprocess.SubprocessError):
         ready = False
     if not ready:
         print("업무 계정을 확인하지 못했습니다. 프로그램 파일은 설치되었습니다. 문의처: 벨루가 veluga.app@veluga.io")
