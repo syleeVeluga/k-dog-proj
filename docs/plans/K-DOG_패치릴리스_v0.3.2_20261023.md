@@ -21,7 +21,21 @@ Windows 포터블·Windows 사용자 설치형·macOS 사용자 설치형을 같
 
 ## 검증과 독립 검토
 
-(빌드·검증 뒤 기록)
+릴리스 PR #129 병합 커밋 `63fe571`에서 세 ZIP을 만들었다. 결과·SHA-256·게시 기록은 GitHub [v0.3.2 릴리스](https://github.com/syleeVeluga/k-dog-proj/releases/tag/v0.3.2)와 로컬 무시 경로 `releases/build-20261023-2/`, `releases/kdog-v0.3.2-63fe571.receipt.json`에 있다.
+
+| 항목 | 결과 |
+| --- | --- |
+| backend `test_issued_release test_packaging test_macos_distribution test_recording_v4 test_recording_api_v4 test_preprocess_v4` (버전 변경 후) | 93개 중 92개 통과, 네이티브 macOS 키체인 1개 명시 skip, 72.7초 |
+| frontend `npm run build` | 통과, 기존 500 kB 번들 경고 유지 |
+| `uv lock --check`, `git diff --check` | 통과 (`uv lock`으로 루트 패키지 버전 한 줄만 갱신) |
+| 세 ZIP 산출물 검증 | CRC·`release.json`·전 파일 SHA-256·소스 일치(포터블 1473, online 264, macOS 266 파일), macOS `.command` 0755/LF·SHA256SUMS |
+| `verify_release` 포터블 (58초) | 평문 실행·손상 거절·내장 런타임·로그인·접수·재시작·감독 종료, 발행 봉인·틀린 키·변조·만료/기간 연장 거절·설치 중 첫 업무 계정·바로가기·개발자 설정 접근·Gemini 두 슬롯 미등록·재설치 자료/계정 유지 통과 |
+| `verify_release` 사용자 설치형 (19초) | 새 venv·설치 전 `Start.cmd` 거절·손상 거절·환경 변수 격리·PATH FFmpeg·로그인·접수·재시작·감독 종료 통과 (uv·FFmpeg·인터넷 있는 현재 PC) |
+| 같은 날 main 선행 검증 | 전체 backend 859개 통과(#126, `a454c63`), 실제 MKV 4개·`segments.csv`로 CSV 가져오기→화면값 일치→확정 200→FFmpeg 전처리 완료(4클립, 805초), 독립 cold review 3회(#126)·2회(#128) |
+
+알려진 미해결: `recording-v4.spec.ts`의 390px 가로 넘침 검사 1건이 현재 main에서 실패한다(선택 참가자 상자 17px·「최신 촬영 메모 불러오기」 버튼 58px 넘침, 둘 다 #128 이전 요소). CSV 값·확정에는 영향이 없으며 별도 수정 대상이다.
+
+S1 원본 대조 명령은 로컬 전용 SRC02가 없어 실패했다. 원본 대조 통과로 표시하지 않는다. macOS 네이티브 키체인·실기기 설치, 깨끗한 OS·물리 PC 3대, 실제 공급자·영상·교수·현장 인수는 별도다. 운영 자료 등록이나 외부 AI 호출은 수행하지 않았다. 이번 릴리스의 ZIP에는 계정과 키가 없고, 발행 패키지와 키 등록은 별도 절차다.
 
 ## 라이브러리 확인
 
