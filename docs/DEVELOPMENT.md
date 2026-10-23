@@ -117,6 +117,10 @@ backend/.venv/Scripts/python.exe -X utf8 scripts/build_release.py --variant onli
 backend/.venv/Scripts/python.exe -X utf8 scripts/verify_release.py "releases/kdog-s1-windows-x64-online.zip"
 # backend/
 uv run --locked python -X utf8 ../scripts/rehearsal.py --pairs 2 --seconds 10 --report "D:/tmp/s1-rehearsal.json"
+# 자동 구간 실측 (docs/plans/K-DOG_영상자동구간과자동분석계획_v1.0_20261023.md). 정답 MKV는 저장소 제외 대상
+# overlay_*: 녹화 자막 전환 읽기(로컬, 비용 없음) / segment_*: Gemini 추정(실제 호출·비용 발생)
+uv run --locked python -X utf8 ../scripts/overlay_boundary_spike.py --csv "../docs/plans/확정 영상 및 구분_20261014/segments.csv" --video CAM1 "../docs/plans/확정 영상 및 구분_20261014/5_2_CAM1_복도정면.mkv" --report "D:/tmp/overlay-spike.json"
+uv run --locked python -X utf8 ../scripts/segment_boundary_spike.py --csv "../docs/plans/확정 영상 및 구분_20261014/segments.csv" --video CAM2 "../docs/plans/확정 영상 및 구분_20261014/5_2_CAM2_테스트룸_입구.mkv" --report "D:/tmp/segment-spike.json"
 ```
 
 `verify_release`는 PATH를 Windows 기본 경로로 제한해 uv·Python·FFmpeg가 없는 상태로 현재 Windows의 새 한글/공백 경로에 ZIP을 풀고, `Start.cmd --check`의 손상 거절, 내장 Python·FFmpeg 사용, S1 health·접수·재시작 조회·감독 종료를 검사한다. 이어서 같은 ZIP으로 합성 고객 `VERIFY` 발행 패키지(무작위 비밀번호, developer만, 오늘까지 설치 가능)를 만들어 제품 파일 평문 노출이 없는지, 틀린 키와 헤더·본문 변조·유효 기간 연장·만료 패키지가 아무것도 만들지 않는지, 키 설치·설치 중 첫 업무 계정 입력·바로가기, 그 업무 계정 로그인·접수, 개발자 키 설정 API 접근, 재설치 후 자료·계정 유지와 첫 계정 재질문 없음을 검사한다 (설치 위치·바로가기·자료는 임시 폴더). `issue_release`는 고객별 발행 패키지와 발행 키를 만든다. 사용법과 전달 규칙은 [운영 안내](PILOT_OPERATIONS.md)의 발행 절을 따른다. 패키지 안의 FFmpeg로 전처리 시험을 다시 돌리려면 풀린 `runtime/ffmpeg/bin`을 PATH 맨 앞에 두고 backend 시험을 실행한다. 깨끗한 OS와 물리 PC3대는 별도 실측이다.
