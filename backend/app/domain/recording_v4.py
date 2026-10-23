@@ -183,13 +183,17 @@ class RecordingV4(ContractV4):
             raise ValueError("confirmed S1 procedure uses the specified segment order")
         if any(window.video_id != self.video_id for window in (*self.segments, *self.walk_phases)):
             raise ValueError("segment and phase boundaries use reference-video times")
-        for windows in (self.segments, self.walk_phases):
-            actual = [window for window in windows if window.start_sec is not None and window.end_sec is not None]
+        phase_times_recorded = any(phase.start_sec is not None or phase.end_sec is not None for phase in self.walk_phases)
+        for windows, optional in ((self.segments, False), (self.walk_phases, True)):
+            actual = [window for window in windows if window.start_sec is not None]
             ordered = actual if standard else sorted(actual, key=lambda window: window.start_sec)
-            if any(a.end_sec > b.start_sec for a, b in zip(ordered, ordered[1:])):
+            if any(a.end_sec is not None and a.end_sec > b.start_sec for a, b in zip(ordered, ordered[1:])):
                 raise ValueError("actual capture intervals overlap or contradict confirmed procedure order")
-            if self.confirmed and any(window.state != "not_performed" and
-                                      (window.start_sec is None or window.end_sec is None) for window in windows):
+            # The recorder CSV supplies eight starts, but no exit end or walking phases.
+            # Optional facts stay unknown; once phase times are entered, validate all six.
+            if self.confirmed and (not optional or phase_times_recorded) and any(window.state != "not_performed" and
+                    (window.start_sec is None or (window.end_sec is None and (optional or window.segment != "exit")))
+                    for window in windows):
                 raise ValueError("confirmed capture facts require actual performed boundaries")
         by_id = {window.segment: window for window in self.segments}
         alone, reunion, walk = (by_id[key] for key in ("alone", "reunion", "walk"))
@@ -201,8 +205,6 @@ class RecordingV4(ContractV4):
         unique(tuple(phase.phase for phase in self.walk_phases), "walk phase")
         if self.walk_phases and tuple(phase.phase for phase in self.walk_phases) != WALK_PHASES:
             raise ValueError("walking has three ordered movement and stop pairs")
-        if standard and self.confirmed and walk.state != "not_performed" and not self.walk_phases:
-            raise ValueError("confirmed S1 walking needs six phase records")
         actual_phases = [phase for phase in self.walk_phases if phase.state != "not_performed"]
         if walk.state == "not_performed" and actual_phases:
             raise ValueError("omitted walking has no performed phases")
@@ -212,7 +214,7 @@ class RecordingV4(ContractV4):
             if ((phase.start_sec is not None and walk.start_sec is not None and phase.start_sec < walk.start_sec) or
                     (phase.end_sec is not None and walk.end_sec is not None and phase.end_sec > walk.end_sec)):
                 raise ValueError("walking phase lies outside actual walking")
-        if standard and self.confirmed and actual_phases:
+        if standard and self.confirmed and actual_phases and phase_times_recorded:
             if actual_phases[0].start_sec != walk.start_sec or actual_phases[-1].end_sec != walk.end_sec:
                 raise ValueError("walking starts at first movement and ends at last performed stop")
             if any(a.end_sec != b.start_sec for a, b in zip(actual_phases, actual_phases[1:])):

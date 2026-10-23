@@ -8,6 +8,16 @@ const sample = readFileSync(new URL('./fixtures/segments-sample.csv', import.met
 const cameras = ['CAM1', 'CAM2', 'CAM3', 'CAM4'];
 const lines = sample.replace(/^\uFEFF/, '').trim().split(/\r?\n/);
 
+test('최종 5_2 CSV의 8구간과 카메라 시간차를 원본 파일에서 검증한다', () => {
+  const finalCsv = readFileSync(new URL('../../docs/plans/확정 영상 및 구분_20261014/segments.csv', import.meta.url), 'utf-8');
+  const result = parseSegmentsCsv(finalCsv, 'CAM1', cameras);
+  expect(result.segments.map(value => value.start_sec)).toEqual([5.602, 49.392, 83.825, 129.484, 156.711, 187.812, 240.341, 329.336]);
+  expect(result.segments.map(value => value.end_sec)).toEqual([49.392, 83.825, 129.484, 156.711, 187.812, 240.341, 329.336, null]);
+  expect(result.offsets.map(value => [value.camera_id, value.offset_seconds])).toEqual([['CAM2', 0.067], ['CAM3', -0.048], ['CAM4', 0.1]]);
+  expect(result.warnings).toEqual([]);
+  expect(parseSegmentsCsv(finalCsv, 'CAM3', cameras).segments[0].start_sec).toBe(5.554);
+});
+
 test('샘플 CSV에서 8구간과 7개 끝, 평균 오프셋을 읽는다', () => {
   const result = parseSegmentsCsv(sample, 'CAM1', cameras);
   expect(result.segments).toHaveLength(8);

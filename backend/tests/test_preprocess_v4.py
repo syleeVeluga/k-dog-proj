@@ -108,6 +108,28 @@ class PreprocessV4Tests(unittest.TestCase):
         return {"event_id": key, "kind": kind, "video_id": video, "segment": "entry", "seconds": start,
                 "end_seconds": end, "note": "합성 사건", "affected_codes": list(codes)}
 
+    def test_eight_segment_csv_record_without_exit_end_or_phases_can_preprocess(self):
+        video = self.upload()
+        self.recording(video.video_id)
+        with self.store.connect(write=True) as db:
+            row = self.store.case(db, self.case_id)
+            manifest = self.store.manifest(row)
+            value = manifest.sessions[0].recording_s1.model_dump(mode="json")
+            value["segments"] = [{"segment": segment, "video_id": video.video_id,
+                                  "start_sec": index * 0.5 + 0.2,
+                                  "end_sec": (index + 1) * 0.5 + 0.2 if index < 7 else None}
+                                 for index, (segment, _, _) in enumerate(SEGMENTS)]
+            manifest.sessions[0].recording_s1 = RecordingV4.model_validate_json(json.dumps(value))
+            self.store.save(db, row, manifest, "op", "recording.s1.save")
+        batch = self.run_batch()
+        self.assertEqual(batch.status, "complete")
+        self.assertTrue(batch.clips)
+        windows = {value.window.window_id: value for value in batch.windows}
+        for key in ("exit_whole", "walk_phase_1", "reunion_contact"):
+            self.assertEqual(windows[key].window.status, "unobserved")
+            self.assertIsNone(windows[key].window.start_seconds)
+        self.assertEqual(windows["walk_whole"].window.status, "confirmed")
+
     def test_overlapping_logical_windows_merge_physical_clips_and_keep_actual_pts_audio(self):
         video = self.upload()
         self.recording(video.video_id, events=(self.event("free-a", "free_movement", video.video_id, 1, 2),
