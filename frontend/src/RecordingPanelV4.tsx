@@ -7,6 +7,7 @@ import type { ActualEvent, CaptureState, Case, Run, SegmentId } from './types';
 import { EVENT_CHOICES, WINDOW_NAMES } from './recordingTypesV4';
 import type { PreprocessStatusV4 } from './preprocessTypesV4';
 import type { CoverageV4, RecordingV4, RecordingViewV4, TailV4 } from './recordingTypesV4';
+import type { BehaviorCatalogV4 } from './ScoringTypesV4';
 import { cameraName } from './types';
 import { applySegmentsCsvDraft, type SegmentsCsvSummary } from './segmentsCsv';
 
@@ -41,7 +42,7 @@ function BooleanFact({ label, value, change }: { label: string; value: boolean |
 function CodeList({ label, value, change }: { label: string; value: string[]; change: (value: string[]) => void }) {
   const [text, setText] = useState(value.join(','));
   useEffect(() => { if (codes(text).join(',') !== value.join(',')) setText(value.join(',')); }, [value.join(',')]);
-  return <label>{label}<input value={text} onChange={event => { setText(event.target.value); change(codes(event.target.value)); }} /></label>;
+  return <label>{label}<input aria-label={label} placeholder="예: 개5, 바6" value={text} onChange={event => { setText(event.target.value); change(codes(event.target.value)); }} /><span className="fine">항목 코드만 쉼표로 구분하세요. 개59는 메모 자체의 코드이며 연결 항목에는 넣지 않습니다.</span></label>;
 }
 
 export function RecordingPanelV4({ item, writable, run, refresh, close }: {
@@ -49,6 +50,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
 }) {
   const session = sessionOf(item), edit = useEditBase(item);
   const [record, setRecord] = useState<RecordingV4>(() => initial(item));
+  const [inputErrors, setInputErrors] = useState<string[]>([]);
   const [csvBusy, setCsvBusy] = useState(false), [csvError, setCsvError] = useState('');
   const [csvSummary, setCsvSummary] = useState<SegmentsCsvSummary | null>(null);
   const csvRequest = useRef(0), csvCurrent = useRef({ record, caseId: item.case_id, sessionId: session.session_id });
@@ -77,7 +79,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
   }, [item.case_id, session.session_id, item.input_revision]);
   const usable = videos.filter(video => verified.has(video.video_id)).length;
   useEffect(() => {
-    if (!edit.dirty) { setRecord(initial(item)); setEditing(!session.recording_s1?.confirmed); }
+    if (!edit.dirty) { setRecord(initial(item)); setInputErrors([]); setEditing(!session.recording_s1?.confirmed); }
   }, [item.case_id, session.session_id, item.input_revision]);
   useEffect(() => {
     let active = true;
@@ -85,7 +87,7 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
       .catch(error => { if (active) { setView(null); setViewError(error.message); } });
     return () => { active = false; };
   }, [path, item.input_revision]);
-  const change = (next: RecordingV4) => { edit.change(); setRecord({ ...next, confirmed: false }); };
+  const change = (next: RecordingV4) => { edit.change(); setInputErrors([]); setRecord({ ...next, confirmed: false }); };
   async function importCsv(file: File) {
     const request = ++csvRequest.current, current = csvCurrent.current;
     const reference = videos.find(video => video.video_id === current.record.video_id);
@@ -106,8 +108,37 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
   const videoOptions = videos.map(video => <option key={video.video_id} value={video.video_id}>{video.camera_id ? `${cameraName(video.camera_id)} · ` : ''}{video.original_name}</option>);
   function save(confirmed: boolean) {
     void run(async () => {
-      if (record.events.some(event => !event.note.trim() || event.status === 'observed' && event.seconds === null)) throw new Error('사건마다 실제 맥락·사유와 관찰 시각을 기록하세요.');
-      if (record.coverage.some(value => !value.note.trim() || value.start_seconds === null || value.end_seconds === null || value.observed_seconds === null)) throw new Error('관찰 근거의 범위·실제 관찰 초·설명을 모두 기록하세요.');
+      const errors: string[] = [];
+      const checkRange = (label: string, start: number | null, end: number | null) => {
+        if ([start, end].some(value => value !== null && (!Number.isFinite(value) || value < 0))) errors.push(`${label}: 시각은 0 이상의 초로 입력하세요.`);
+        if (start !== null && end !== null && end <= start) errors.push(`${label}: 끝 시각은 시작 시각보다 커야 합니다 (현재 ${start}~${end}초). 실제 시각을 모르면 시작·끝을 모두 비워 두세요.`);
+      };
+      record.segments.forEach(value => checkRange(SEGMENTS_V3.find(([id]) => id === value.segment)![1], value.start_sec, value.end_sec));
+      record.walk_phases.forEach((value, index) => checkRange(`걷기 ${phaseNames[index]}`, value.start_sec, value.end_sec));
+      record.events.forEach((event, index) => {
+        if (!event.note.trim() || event.status === 'observed' && event.seconds === null) errors.push(`사건 ${index + 1}: 실제 맥락·사유와 관찰 시각을 기록하세요.`);
+      });
+      record.coverage.forEach((value, index) => {
+        const label = `관찰 근거 ${index + 1}`, { start_seconds: start, end_seconds: end, observed_seconds: observed } = value;
+        if (!value.note.trim() || start === null || end === null || observed === null) errors.push(`${label}: 시작·끝·실제 관찰 초·설명을 모두 기록하세요. 기록하지 않을 근거는 삭제하세요.`);
+        if (start === null || end === null || observed === null) return;
+        if (end <= start) errors.push(`${label}: 끝 시각은 시작 시각보다 커야 합니다 (현재 ${start}~${end}초). 실제 범위를 입력하거나 이 근거를 삭제하세요.`);
+        else if (!Number.isFinite(observed) || observed < 0 || observed > end - start) errors.push(`${label}: 실제 관찰 초는 0~${end - start}초 범위여야 합니다 (현재 ${observed}초).`);
+      });
+      const linkedCodes = [
+        ...record.events.map((event, index) => ({ label: `사건 ${index + 1} 영향 항목`, values: event.affected_codes })),
+        ...record.linked_memos.map((memo, index) => ({ label: `연결 메모 ${index + 1} 항목`, values: memo.item_codes })),
+      ];
+      if (linkedCodes.some(value => value.values.length)) {
+        const catalog = await api<BehaviorCatalogV4>('/catalog/behavior-s1');
+        const allowed = new Set(catalog.items.map(item => item.code));
+        linkedCodes.forEach(({ label, values }) => {
+          const invalid = values.filter(code => !allowed.has(code));
+          if (invalid.length) errors.push(`${label}: ${invalid.join(', ')} — 현재 S1 항목 코드가 아닙니다. 개5, 바6처럼 코드만 쉼표로 구분하세요. 개59는 메모 자체의 코드이며 연결 항목에서 제외하세요.`);
+        });
+      }
+      setInputErrors(errors);
+      if (errors.length) return;
       await api(path, 'PUT', { expected_revision: edit.view.input_revision, recording: { ...record, confirmed } });
       edit.reset(); setEditing(!confirmed); await refresh(confirmed ? '촬영 기록을 확정했습니다.' : '촬영 기록을 초안 저장했습니다.');
     });
@@ -135,7 +166,8 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
     <p>입력 버전 {item.input_revision} · 촬영 기록 {session.recording_s1?.confirmed ? '확정' : '초안 / 미기록'}</p>
     {writable && <div className="toolbar recording-actions">{editing ? <><button disabled={!record.video_id || csvBusy} onClick={() => save(false)}>촬영 기록 초안 저장</button><button disabled={!record.video_id || csvBusy} onClick={() => save(true)}>촬영 기록 확정</button>
       {!record.video_id && <span className="fine" aria-live="polite">{videos.length ? '기준 영상을 고르세요.' : '읽을 수 있는 영상을 먼저 연결하세요.'}</span>}</> : <button onClick={() => setEditing(true)}>확정본 수정 시작</button>}
-      {edit.dirty && <><span role="status">촬영 기록 · 저장 전</span><button onClick={() => { if (edit.discard()) { setRecord(initial(item)); setEditing(!session.recording_s1?.confirmed); } }}>촬영 입력 버리고 최신 값 보기</button></>}</div>}
+      {edit.dirty && <><span role="status">촬영 기록 · 저장 전</span><button onClick={() => { if (edit.discard()) { setRecord(initial(item)); setInputErrors([]); setEditing(!session.recording_s1?.confirmed); } }}>촬영 입력 버리고 최신 값 보기</button></>}</div>}
+    {!!inputErrors.length && <div role="alert" aria-label="촬영 기록 입력 확인" className="error"><p>저장하지 못했습니다. 입력 내용은 유지됩니다. 아래 항목을 수정한 뒤 다시 저장하세요.</p><ul>{inputErrors.map((message, index) => <li key={index}>{message}</li>)}</ul></div>}
     <p>입장 → 기준 → 혼자 → 재회 → 무시 → 걷기 → 낯선 사람 → 퇴장</p>
     <details><summary>진행 안내</summary>
       <p>segments.csv의 8구간 시작 시각을 기준으로 입력합니다. 1~7구간 끝은 다음 구간 시작으로 채우고, CSV에 없는 퇴장 끝은 미확인으로 남겨도 확정할 수 있습니다. 직접 입력할 때도 같은 조건을 적용합니다.</p>

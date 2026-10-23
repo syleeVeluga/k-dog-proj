@@ -44,6 +44,40 @@ test('누락 구간은 경고하고 다음 번호가 없으면 끝을 추정하�
   expect(result.warnings.join(' ')).toContain('혼자 구간 누락');
 });
 
+test('입장 카메라 시각이 모두 비어 있어도 나머지 구간과 공통 행의 오프셋을 가져온다', () => {
+  const csv = '종류,구간번호,구간이름,경과초(녹화시작기준),CAM1_영상초,CAM2_영상초,CAM3_영상초,CAM4_영상초\n'
+    + '구간,1,입장,0.8,,,,\n구간,2,기준,50,48.2,48.3,48.4,48.3\n구간,3,혼자,90,88.2,88.3,88.4,88.3';
+  const result = parseSegmentsCsv(csv, 'CAM3', cameras);
+  expect(result.segments).toEqual([{ segment: 'baseline', start_sec: 48.4, end_sec: 88.4 }, { segment: 'alone', start_sec: 88.4, end_sec: null }]);
+  expect(result.offsets.map(value => [value.camera_id, value.offset_seconds])).toEqual([['CAM1', -0.2], ['CAM2', -0.1], ['CAM4', -0.1]]);
+  expect(result.warnings.join(' ')).toContain('입장 구간의 CAM3_영상초가 비어');
+  const input = recording();
+  const applied = applySegmentsCsvDraft(input, videos, csv, 'synthetic.csv', 'synthetic-hash')!;
+  expect(applied.record.segments[0]).toEqual(input.segments[0]);
+  expect(applied.record.segments[1].start_sec).toBe(48.2);
+});
+
+test('중간 빈 시각은 건너뛰어 끝을 추정하지 않고 중복 번호는 빈 행이어도 거절한다', () => {
+  const csv = sample.replace('51.146', '');
+  const result = parseSegmentsCsv(csv, 'CAM1', cameras);
+  expect(result.segments).toHaveLength(7);
+  expect(result.segments[0].end_sec).toBeNull();
+  expect(result.warnings.join(' ')).toContain('기준 구간의 CAM1_영상초가 비어');
+  expect(() => parseSegmentsCsv(csv + '\n' + lines[2], 'CAM1', cameras)).toThrow('중복');
+});
+
+test('다른 카메라의 빈값은 오프셋 계산에서 제외하고 공통 행이 없으면 기존 값을 보존한다', () => {
+  const partial = parseSegmentsCsv(sample.replace('10.425', ''), 'CAM1', cameras);
+  expect(partial.offsets[0].offset_seconds).toBe(0.069);
+  expect(partial.warnings.join(' ')).toContain('CAM2 오프셋은 시각이 있는 공통 7개 행');
+  const csv = lines.map((line, index) => { const cells = line.split(','); if (index) cells[10] = ''; return cells.join(','); }).join('\n');
+  expect(parseSegmentsCsv(csv, 'CAM1', cameras).offsets.some(value => value.camera_id === 'CAM2')).toBe(false);
+  const input = recording();
+  expect(applySegmentsCsvDraft(input, videos, csv, 'synthetic.csv', 'hash')!.record.video_offsets).toEqual(input.video_offsets);
+  const zero = parseSegmentsCsv(sample.replace('10.356', '0'), 'CAM1', ['CAM1']);
+  expect(zero.segments[0].start_sec).toBe(0);
+});
+
 test('중단 행은 무시하고 이름·카메라 열 없음·편차는 경고한다', () => {
   const changed = [...lines, lines[1].replace('구간,1,입장', '중단,1,입장')].join('\n').replace(',기준,', ',다른 이름,').replace('CAM4_영상초', '별도열');
   const result = parseSegmentsCsv(changed, 'CAM1', cameras);
@@ -64,7 +98,7 @@ test('따옴표·쉼표·개행·escaped quote가 든 셀을 처리한다', () =
 test('중복 번호·기준 열 없음·숫자 오류·역순·잘못된 CSV는 거절한다', () => {
   for (const [input, message] of [
     [[...lines, lines[1]].join('\n'), '중복'], [sample.replace('CAM1_영상초', '없는열'), '기준 영상 카메라'],
-    [sample.replace('10.356', ''), '영상 초'], [sample.replace('10.356', 'NaN'), '영상 초'],
+    [sample.replace('10.356', '-1'), '영상 초'], [sample.replace('10.356', 'NaN'), '영상 초'],
     [sample.replace('51.146', '9.146'), '증가'], [sample + '\n1,구간', '열 개수'],
     [sample.replace('입장', '"입장'), '따옴표'], ['종류,종류\n구간,구간', '머리글'], ['', '머리글'],
   ]) expect(() => parseSegmentsCsv(input, 'CAM1', cameras)).toThrow(message);
