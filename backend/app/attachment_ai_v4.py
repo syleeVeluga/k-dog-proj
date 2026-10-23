@@ -27,7 +27,7 @@ def configuration(common):
     schema["properties"]["instruction_hash"]["const"] = file_hash
     return {**common, "stage": "attachment_v4", "key": "attachment", "provider": "gemini", "provider_call": True,
         "model": "gemini-3.8-flash", "prompt": encode(document), "response_schema": schema,
-        "request_fps": 1, "max_output_tokens": 8192}
+        "request_fps": 1, "max_output_tokens": 32768}
 
 
 def verify_stage(group):
