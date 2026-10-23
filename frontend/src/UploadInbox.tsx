@@ -41,7 +41,8 @@ export function UploadInbox({ cases, selected, user, run, refresh }: { cases: Ca
   const [settings, setSettings] = useState('{}');
   const controllers = useRef(new Map<string, AbortController>());
   useUnsaved(busy || queue.some(entry => !entry.receipt || !['complete', 'linked'].includes(entry.receipt.state)));
-  const waiting = receipts.filter(receipt => receipt.state !== 'linked'), linked = receipts.filter(receipt => receipt.state === 'linked');
+  const visibleReceipts = selected ? receipts.filter(receipt => receipt.case_id === selected.case_id && receipt.session_id === selected.selected_session_id) : receipts;
+  const waiting = visibleReceipts.filter(receipt => receipt.state !== 'linked'), linked = visibleReceipts.filter(receipt => receipt.state === 'linked');
   async function load() { setReceipts(await api<Receipt[]>('/uploads')); }
   useEffect(() => { let active = true; api<Receipt[]>('/uploads').then(r => { if (active) setReceipts(r); }).catch(e => { if (active) setError(e.message); }); return () => { active = false; }; }, [selected?.case_id, selected?.selected_session_id]);
 
@@ -69,10 +70,10 @@ export function UploadInbox({ cases, selected, user, run, refresh }: { cases: Ca
   }
 
   return <section className="panel" aria-label="업로드 파일 목록"><div className="section-title"><h2>업로드 파일 목록</h2><button onClick={() => void run(load)}>목록 새로고침</button></div>
-    <p className="fine">PC에 저장된 영상 파일을 선택해 업로드하세요. 업로드 후 각 파일의 참가자·촬영 회차·촬영 카메라 번호를 확인하고 영상 정보를 저장합니다. 모든 업무 계정이 같은 파일 목록을 사용합니다.</p>
+    <p className="fine">{selected ? `${selected.participant_id}의 선택 회차 파일만 표시합니다.` : '모든 업무 계정의 공용 파일 목록입니다.'} PC에 저장된 영상 파일을 업로드한 뒤 촬영 카메라 번호를 확인하고 영상 정보를 저장하세요.</p>
     <fieldset disabled={busy}><legend>{selected ? `${selected.participant_id} · 현재 회차 영상 업로드` : '영상 파일 선택'}</legend>
       <label>영상 파일 구분<select aria-label="영상 파일 구분" value={kind} onChange={e => setKind(e.target.value as MediaSourceKind)}><option value="original">촬영 원본</option><option value="received_conversion">변환 MP4</option></select></label>
-      {kind === 'received_conversion' && <div className="form-grid"><label>변환 부모 원본<select aria-label="변환 부모 원본" multiple value={parents} onChange={e => setParents(Array.from(e.target.selectedOptions).map(o => o.value))}>{receipts.filter(r => ['complete', 'linked'].includes(r.state)).map(r => <option key={r.upload_id} value={r.upload_id}>{r.filename}{r.camera_id ? ` · ${cameraName(r.camera_id)}` : ''}</option>)}</select></label>
+      {kind === 'received_conversion' && <div className="form-grid"><label>변환 부모 원본<select aria-label="변환 부모 원본" multiple value={parents} onChange={e => setParents(Array.from(e.target.selectedOptions).map(o => o.value))}>{visibleReceipts.filter(r => ['complete', 'linked'].includes(r.state)).map(r => <option key={r.upload_id} value={r.upload_id}>{r.filename}{r.camera_id ? ` · ${cameraName(r.camera_id)}` : ''}</option>)}</select></label>
         <label>변환 도구<input aria-label="변환 도구" value={tool} onChange={e => setTool(e.target.value)} /></label><label>변환 도구 버전<input value={toolVersion} onChange={e => setToolVersion(e.target.value)} /></label><label>변환 설정<textarea value={settings} onChange={e => setSettings(e.target.value)} /></label></div>}
       <label>영상 파일<input aria-label="영상 파일" type="file" multiple accept=".mp4,.mov,.m4v,.avi,.mkv,.webm" onChange={e => {
         const files = Array.from(e.target.files ?? []); e.target.value = ''; setError('');
@@ -98,8 +99,8 @@ export function UploadInbox({ cases, selected, user, run, refresh }: { cases: Ca
     <p className="fine">촬영 카메라 번호는 각 영상 파일을 촬영한 카메라를 구분하는 번호입니다. 파일명 「6_CAM1_…」은 촬영 카메라 1번으로 제안합니다. 「원본1·원본2·원본3」이면 원본1 → 1번 · 원본3 → 2번 · 원본2 → 3번으로 미리 채웁니다. 실제 촬영 번호가 다르면 파일별로 고치세요.</p>
     {!!waiting.length && <h3>영상 정보 입력 대기 {waiting.length}건</h3>}
     {waiting.map(receipt => <ReceiptCard key={receipt.upload_id} receipt={receipt} cases={cases} selected={selected} user={user} run={run} changed={async message => { await load(); await refresh(message); }} />)}
-    {!receipts.length && <p>업로드한 영상 파일이 없습니다.</p>}
-    {!!receipts.length && !waiting.length && <p>영상 정보 입력을 기다리는 파일이 없습니다.</p>}
+    {!visibleReceipts.length && <p>업로드한 영상 파일이 없습니다.</p>}
+    {!!visibleReceipts.length && !waiting.length && <p>영상 정보 입력을 기다리는 파일이 없습니다.</p>}
     {!!linked.length && <details onToggle={event => { if (event.currentTarget.open) setLinkedOpen(true); }}><summary>정보 저장 완료한 파일 ({linked.length})</summary>
       {linkedOpen && linked.map(receipt => <ReceiptCard key={receipt.upload_id} receipt={receipt} cases={cases} selected={selected} user={user} run={run} changed={async message => { await load(); await refresh(message); }} />)}</details>}
   </section>;

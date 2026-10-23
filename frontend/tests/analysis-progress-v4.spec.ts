@@ -121,5 +121,5 @@ test('목록·맥락 바의 영상 수는 사용 가능과 확인 대기로 나�
   await seed(request, 'U06-VIDEO', [['M1', '영상견', 1]]);
   await login(page);
   const row = page.getByRole('row').filter({ hasText: 'M1' });
-  await expect(row.getByRole('cell', { name: '0개 · 사용 가능 0 · 확인 대기 0', exact: true })).toBeVisible();
+  await expect(row.locator('td[data-label="영상"]')).toContainText('0개 · 사용 가능 0 · 확인 대기 0');
 });

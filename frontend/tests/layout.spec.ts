@@ -28,18 +28,18 @@ for (const width of [360, 390, 768, 1440]) {
       await menuButton.click();
     } else if (width >= 1024) await expect(menuButton).toBeHidden();
     await expect(navigation).toBeVisible();
-    await navigation.getByRole('button', { name: '설문 현황', exact: true }).click();
+    await navigation.getByRole('button', { name: '설문 확인', exact: true }).click();
     if (width <= 767) await expect(navigation).toBeHidden();
-    await expect(page.getByRole('heading', { name: '설문', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '설문 확인', exact: true })).toBeVisible();
     const context = page.getByRole('region', { name: '선택 참가자', exact: true });
     if (width <= 680) {
       expect((await context.boundingBox())!.height).toBeLessThan(300);
-      await expect(context.getByRole('button', { name: '촬영 자료 보기', exact: true })).toBeHidden();
+      await expect(context.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true })).toBeVisible();
       const toggle = context.getByRole('button', { name: '회차 안내·바로가기', exact: true });
       await toggle.focus(); await page.keyboard.press('Enter');
       await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     }
-    await context.getByRole('button', { name: '촬영 자료 보기', exact: true }).click();
+    await page.getByRole('navigation', { name: '참가자 작업' }).getByRole('button', { name: '촬영 기록', exact: true }).click();
     const panel = page.getByRole('region', { name: '촬영 기록', exact: true });
     await expect(panel).toBeVisible();
     await notice.getByRole('button', { name: '알림 닫기' }).click();
@@ -73,7 +73,7 @@ for (const width of [690, 800, 1000, 1023]) {
     await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
     await page.getByRole('button', { name: '로그인', exact: true }).click();
     await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
-    for (const label of ['참가자 접수', '설문 현황', '촬영 기록 (8구간)']) {
+    for (const label of ['참가자 접수', '설문 확인', '촬영 기록 (8구간)']) {
       await openMenu(page, label);
       const span = page.locator('main .count span');
       await expect(span).toBeVisible();

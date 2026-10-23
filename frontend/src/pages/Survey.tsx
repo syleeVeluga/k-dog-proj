@@ -2,16 +2,17 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { SurveyView } from '../SurveyView';
 import { ComparisonParticipationV4 } from '../ComparisonParticipationV4';
+import { surveyStatus } from '../surveyStatus';
 import { CaseFilters, matchesCase } from '../CaseFilters';
 import type { CaseFilterProps } from '../CaseFilters';
 import { SURVEY_TOTAL, sessionOf, surveyDomains, surveyHandled } from '../types';
 import type { Route } from '../navigation';
 import type { Case, Catalog, SurveyResult, SurveyResultV3, SurveyResultV4 } from '../types';
 
-type Props = { cases: Case[]; selected: Case | null; select: (item: Case | null) => void; filters: CaseFilterProps; catalog: Catalog | null; writable: boolean; goTo: (route: Route) => void };
+type Props = { cases: Case[]; selected: Case | null; select: (item: Case | null) => void; openParticipant: (item: Case, route: Route) => void; filters: CaseFilterProps; catalog: Catalog | null; writable: boolean; goTo: (route: Route) => void };
 
 // 원응답과 S1의 확정 집계 정책을 분리해 보여 준다.
-export function Survey({ cases, selected, select, filters, catalog, writable, goTo }: Props) {
+export function Survey({ cases, selected, select, openParticipant, filters, catalog, writable, goTo }: Props) {
   const [result, setResult] = useState<SurveyResult | SurveyResultV3 | SurveyResultV4 | null>(null);
   const [resultError, setResultError] = useState('');
   const session = selected ? sessionOf(selected) : null;
@@ -24,23 +25,24 @@ export function Survey({ cases, selected, select, filters, catalog, writable, go
     return () => { active = false; };
   }, [selected?.case_id, selected?.input_revision, selected?.selected_session_id]);
   const sorted = cases.filter(c => matchesCase(c, filters.search, filters.eventFilter)).sort((a, b) => (a.sequence_no ?? 1e9) - (b.sequence_no ?? 1e9) || a.participant_id.localeCompare(b.participant_id));
-  const registered = cases.filter(c => surveyHandled(sessionOf(c)) === SURVEY_TOTAL).length;
+  const registered = sorted.filter(c => surveyStatus(sessionOf(c)).answered === SURVEY_TOTAL).length;
   return <>
-    <section className="page-heading"><div><p className="eyebrow">SURVEY</p><h1>설문</h1><p className="muted">설문 응답 파일은 「일괄 등록」에서 올리고, 이 화면에서는 참가자별 등록 현황을 확인합니다.</p>
-      <details><summary>자세히</summary><p className="fine">보호자 설문 28문항은 CSV·Excel 파일로만 등록합니다. 여기서는 등록 현황, 판본별 집계와 빈칸 사유를 확인하며, 등록 완료와 비교 자격의 미확정 기준은 별도로 표시합니다.</p></details></div>
-      <div className="count"><strong>{registered.toString().padStart(2, '0')}</strong><span>모두 응답 / {cases.length}명</span></div></section>
-    {!selected && writable && <div className="panel toolbar"><p>설문 응답 파일은 「일괄 등록」에서 올립니다.</p><button onClick={() => goTo('intake/upload')}>일괄 등록으로 이동</button></div>}
-    {!selected && <><CaseFilters cases={cases} {...filters} /><div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자</th><th>반려견 / 보호자</th><th>설문</th><th>미응답</th><th>해당 없음</th><th>현황</th></tr></thead>
-      <tbody>{sorted.map(c => { const s = sessionOf(c); const count = surveyHandled(s); const missing = SURVEY_TOTAL - count;
+    <section className="page-heading"><div><p className="eyebrow">SURVEY</p><h1>설문 확인</h1><p className="muted">참가자별 응답과 빈칸 사유를 확인하세요. 같은 참가자의 영상 등록과 촬영 기록으로 이어갈 수 있습니다.</p></div>
+      <div className="count"><strong>{registered.toString().padStart(2, '0')}</strong><span>28문항 응답 / {sorted.length}명</span></div></section>
+    {!selected && writable && <div className="panel registration-callout"><p>설문을 처음 등록하거나 보완할 때는 CSV·Excel 파일을 올려 주세요.</p><button onClick={() => goTo('intake/upload')}>참가자 및 설문 일괄 등록으로 이동</button></div>}
+    {!selected && <><CaseFilters cases={cases} {...filters} /><div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자</th><th>반려견 / 보호자</th><th>응답 문항</th><th>빈칸 확인</th><th>작업</th></tr></thead>
+      <tbody>{sorted.map(c => { const s = sessionOf(c); const counts = surveyStatus(s);
         return <tr key={c.case_id}><td data-label="순번"><strong className="mono">{c.sequence_no ?? '—'}</strong></td>
           <td data-label="참가자"><strong className="mono">{c.participant_id}</strong><small>{c.event_id}</small></td>
           <td data-label="반려견 / 보호자">{c.dog_name}<small>{c.guardian_name ? `${c.guardian_name} 님` : '보호자명 없음'}</small></td>
-          <td data-label="설문"><span className={count === SURVEY_TOTAL ? 'tag green' : 'tag'}>{count}/{SURVEY_TOTAL}</span></td>
-          <td data-label="미응답">{missing}</td><td data-label="해당 없음">{s.survey_not_applicable.length}</td>
-          <td data-label="현황"><button aria-label={`${c.participant_id} 설문 현황 열기`} onClick={() => select(c)}>열기 ↗</button></td></tr>;
+          <td data-label="응답 문항"><span className={counts.answered === SURVEY_TOTAL ? 'tag green' : 'tag'}>{counts.answered}/{SURVEY_TOTAL}</span>{counts.notApplicable > 0 && <small>해당 없음 {counts.notApplicable}개</small>}</td>
+          <td data-label="빈칸 확인">사유 기록 {counts.withReason}개<small>사유 미기록 {counts.unexplained}개</small></td>
+          <td data-label="작업"><div className="participant-actions"><button aria-label={`${c.participant_id} 설문 확인 열기`} onClick={() => select(c)}>응답 보기</button><button aria-label={`${c.participant_id} 영상 등록`} onClick={() => openParticipant(c, 'recording/inbox')}>영상 등록</button><button aria-label={`${c.participant_id} 촬영 기록`} onClick={() => openParticipant(c, 'recording/record')}>촬영 기록</button></div></td></tr>;
       })}</tbody></table>{!sorted.length && <div className="empty"><h2>표시할 참가자가 없습니다.</h2><p>검색·행사 필터 또는 접수 등록을 확인하세요.</p></div>}</div></>}
-    {selected && session && catalog && <section className="panel" aria-label="설문 현황">
-      <div className="section-title"><h2>{selected.dog_name} · {selected.participant_id}</h2><button onClick={() => select(null)}>닫기</button></div>
+    {selected && session && catalog && <section className="panel" aria-label="설문 확인">
+      <div className="section-title"><h2>{selected.dog_name} · {selected.participant_id}</h2></div>
+      <SurveyView key={`${selected.case_id}-${selected.input_revision}`} session={session} catalog={catalog} expanded />
+      <h3>영역별 계산 결과</h3>
       {result ? 'survey_version' in result ? <>
         <p className="fine">수치 응답 {result.answered_count}/28 · 명시 빈칸 사유 {result.blank_reason_count}개 · 등록 완료 기준 미확정</p>
         {'policy_version' in result ? <p className="fine">집계: {result.calculation_status === 'complete' ? '8영역·25번 산출' : result.calculation_status === 'partial' ? '완전응답 영역만 산출' : '산출값 없음'} · 외부 비교: 준비 중(원문 확인 전)</p>
@@ -59,7 +61,6 @@ export function Survey({ cases, selected, select, filters, catalog, writable, go
           <div className="score-card"><strong>D. {surveyDomains.D}</strong><p>분리 유형: {result.separation.label ?? `없음 (${result.separation.reason ?? '미응답'})`}</p></div></div>
       </> : resultError ? <p className="error" role="alert">{resultError}</p> : <p role="status">결과 조회 중…</p>}
       {result && 'policy_version' in result && <ComparisonParticipationV4 selected={selected} writable={writable} />}
-      <SurveyView key={`${selected.case_id}-${selected.input_revision}`} session={session} catalog={catalog} />
     </section>}
   </>;
 }
