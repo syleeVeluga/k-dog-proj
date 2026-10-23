@@ -9,7 +9,7 @@ async function openImporter(page: Page) {
   await page.getByLabel('계정', { exact: true }).fill('operator');
   await page.getByLabel('비밀번호', { exact: true }).fill('Browser-test-only-42');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await openMenu(page, '참가자 및 설문 일괄 등록');
+  await openMenu(page, '참가자/설문 일괄 등록');
   return page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true });
 }
 const csvFile = (name: string, text: string) => ({ name, mimeType: 'text/csv', buffer: Buffer.from(text) });
@@ -29,7 +29,7 @@ test('접수 후 설문 파일: 기존 참가자 갱신 확인, 오류 행 제�
   await page.getByRole('button', { name: '로그인', exact: true }).click();
   await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
   await register(page, 'U03-FIELD', ['F301', 'F302', 'F303']);
-  await openMenu(page, '참가자 및 설문 일괄 등록');
+  await openMenu(page, '참가자/설문 일괄 등록');
   const form = page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true });
   await form.getByLabel('폼 행사 ID', { exact: true }).fill('U03-FIELD');
   await form.getByLabel('Forms 파일', { exact: true }).setInputFiles(csvFile('survey.csv', '참가자 ID,Q1,Q2\nF301,3,4\nF302,maybe,4\nF303,5,5\n'));

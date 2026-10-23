@@ -15,7 +15,7 @@ const staff = everyone;
 export const menuTree: MenuGroup[] = [
   { id: 'field', label: '현장 운영', items: [
     { route: 'intake', label: '참가자 접수', roles: everyone },
-    { route: 'intake/upload', label: '참가자 및 설문 일괄 등록', roles: staff },
+    { route: 'intake/upload', label: '참가자/설문 일괄 등록', roles: staff },
     { route: 'survey', label: '설문 확인', roles: everyone },
   ] },
   { id: 'analysis', label: '분석·평가', items: [

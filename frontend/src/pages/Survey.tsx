@@ -29,7 +29,7 @@ export function Survey({ cases, selected, select, openParticipant, filters, cata
   return <>
     <section className="page-heading"><div><p className="eyebrow">SURVEY</p><h1>설문 확인</h1><p className="muted">참가자별 응답과 빈칸 사유를 확인하세요. 같은 참가자의 영상 등록과 촬영 기록으로 이어갈 수 있습니다.</p></div>
       <div className="count"><strong>{registered.toString().padStart(2, '0')}</strong><span>28문항 응답 / {sorted.length}명</span></div></section>
-    {!selected && writable && <div className="panel registration-callout"><p>설문을 처음 등록하거나 보완할 때는 CSV·Excel 파일을 올려 주세요.</p><button onClick={() => goTo('intake/upload')}>참가자 및 설문 일괄 등록으로 이동</button></div>}
+    {!selected && writable && <div className="panel registration-callout"><p>설문을 처음 등록하거나 보완할 때는 CSV·Excel 파일을 올려 주세요.</p><button onClick={() => goTo('intake/upload')}>참가자/설문 일괄 등록으로 이동</button></div>}
     {!selected && <><CaseFilters cases={cases} {...filters} /><div className="table-wrap"><table><thead><tr><th>순번</th><th>참가자</th><th>반려견 / 보호자</th><th>응답 문항</th><th>빈칸 확인</th><th>작업</th></tr></thead>
       <tbody>{sorted.map(c => { const s = sessionOf(c); const counts = surveyStatus(s);
         return <tr key={c.case_id}><td data-label="순번"><strong className="mono">{c.sequence_no ?? '—'}</strong></td>

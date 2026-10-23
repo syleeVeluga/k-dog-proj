@@ -47,7 +47,7 @@ test('일반 계정 생성 후 공통 메뉴·진행·접수·촬영·리포트�
 
     // 모든 업무 메뉴는 동일하고 개발 설정은 보호한다.
     const nav = prof.getByRole('navigation').first();
-    for (const hidden of ['참가자 및 설문 일괄 등록', '직원 계정', '백업·복구', '연구 내보내기', '비교 조건'])
+    for (const hidden of ['참가자/설문 일괄 등록', '직원 계정', '백업·복구', '연구 내보내기', '비교 조건'])
       await expect(nav.getByText(hidden, { exact: true })).toHaveCount(1);
     // U08: 리포트 발급 메뉴는 교수에게도 열려 있다.
     await expect(nav.getByText('리포트 발급', { exact: true })).toHaveCount(1);
