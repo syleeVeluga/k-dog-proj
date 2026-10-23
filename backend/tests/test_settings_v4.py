@@ -12,6 +12,23 @@ from app.storage import Store
 
 
 class SettingsV4Tests(unittest.TestCase):
+    def test_generation_headroom_preserves_saved_settings_and_frozen_limits(self):
+        from app.domain.runs_v4 import RunConfigV4
+        pipeline=settings.defaults()
+        fresh=scoring_ai_v4.configuration(None,pipeline)
+        self.assertTrue(all(stage.max_output_tokens==32768 for stage in fresh.stages if stage.provider_call))
+        old=pipeline.model_dump(mode="json")
+        for stage in old["groups"].values():
+            stage["max_output_tokens"]=16384
+        saved=settings.save(self.store,settings.AiDraftV4.model_validate_json(json.dumps({"expected_active":"inactive","config":old})),"developer")
+        with self.store.connect() as db:
+            loaded=settings.load(self.store,db,saved["version"])
+        self.assertTrue(all(stage.max_output_tokens==16384 for stage in loaded.groups.values()))
+        frozen=scoring_ai_v4.configuration(saved["version"],loaded).model_dump(mode="json")
+        next(stage for stage in frozen["stages"] if stage["stage"]=="attachment_v4")["max_output_tokens"]=8192
+        retained=RunConfigV4.model_validate_json(json.dumps(frozen))
+        self.assertEqual(next(stage for stage in retained.stages if stage.stage=="attachment_v4").max_output_tokens,8192)
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="kdog-settings-s1-")
         self.addCleanup(temporary.cleanup)

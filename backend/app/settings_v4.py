@@ -43,7 +43,7 @@ class AiStageConfigV4(Model):
     fps: Annotated[float, Field(gt=0, le=10)] | None = 1.0
     media_resolution: Literal["low", "medium", "high"] = "medium"
     thinking_level: Literal["low", "medium", "high"] = "medium"
-    max_output_tokens: Annotated[int, Field(ge=256, le=65536)] = 16384
+    max_output_tokens: Annotated[int, Field(ge=256, le=65536)] = 32768
 
     @model_validator(mode="after")
     def sampling(self):
