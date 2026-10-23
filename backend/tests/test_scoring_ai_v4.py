@@ -91,6 +91,34 @@ def fractional_snapshot(sync, cut):
 
 
 class AiNormalizationV4Tests(unittest.TestCase):
+    def test_whole_interval_unavailable_uses_selected_derivative_tail(self):
+        stage=group("바23")
+        data=snapshot().model_dump(mode="json")
+        window=next(w["window"] for w in data["batch"]["windows"] if w["window"]["window_id"]=="stranger_whole")
+        end=window["source_intervals"][0]["end_seconds"]
+        data["batch"]["clips"][0]["ai"]["duration_seconds"]=end-0.25
+        data["batch"]["clips"][0]["ai"]["audio_ranges"][0]["end_seconds"]=end-0.25
+        source=RunInputV4.model_validate_json(encode(data))
+        context=ai.context(source,stage,{"run_id":"run"},"operator")
+        self.assertEqual(set(context["response_constraints"]["whole_interval_unavailable_item_codes"]),set(stage.item_codes))
+        original=stage.model_copy(update={"input_variant":"original"})
+        self.assertEqual(ai.context(source,original,{"run_id":"run"},"operator")["response_constraints"]["whole_interval_unavailable_item_codes"],[])
+
+    def test_whole_interval_constraint_combines_cameras_without_treating_roundoff_as_a_gap(self):
+        stage=group("바23")
+        data=snapshot(2).model_dump(mode="json")
+        window=next(w["window"] for w in data["batch"]["windows"] if w["window"]["window_id"]=="stranger_whole")
+        end=window["source_intervals"][0]["end_seconds"]
+        for gap,missing in ((1e-10,False),(0.001,True)):
+            with self.subTest(gap=gap):
+                for index,clip in enumerate(data["batch"]["clips"]):
+                    limit=end+clip["offset_seconds"]-(0.25 if index==0 else gap)
+                    clip["ai"]["duration_seconds"]=limit
+                    clip["ai"]["audio_ranges"][0]["end_seconds"]=limit
+                source=RunInputV4.model_validate_json(encode(data))
+                unavailable=ai.context(source,stage,{"run_id":"run"},"operator")["response_constraints"]["whole_interval_unavailable_item_codes"]
+                self.assertEqual(bool(unavailable),missing)
+
     def test_provider_schema_omits_only_wire_observation_array_bounds(self):
         import json
         stage=group("개37")
