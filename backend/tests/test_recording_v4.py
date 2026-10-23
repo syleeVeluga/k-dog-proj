@@ -51,6 +51,12 @@ def gates(value):
 
 
 class RecordingV4Tests(unittest.TestCase):
+    def test_procedure_note_is_optional_for_draft_and_confirmed_records(self):
+        for confirmed in (False, True):
+            value = {**fixture(), "confirmed": confirmed, "procedure_note": ""}
+            self.assertEqual(recording(value).procedure_note, "")
+        self.assertEqual(recording({k: v for k, v in fixture().items() if k != "procedure_note"}).procedure_note, "")
+
     def test_final_csv_confirms_without_inventing_exit_end_or_phase_observations(self):
         source = Path(__file__).resolve().parents[2] / "docs/plans/확정 영상 및 구분_20261014/segments.csv"
         with source.open(encoding="utf-8-sig", newline="") as handle:
