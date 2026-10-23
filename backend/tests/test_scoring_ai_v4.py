@@ -91,6 +91,28 @@ def fractional_snapshot(sync, cut):
 
 
 class AiNormalizationV4Tests(unittest.TestCase):
+    def test_provider_schema_omits_only_wire_observation_array_bounds(self):
+        import json
+        stage=group("개37")
+        original=encode(stage.response_schema)
+        expected=json.loads(original)
+        expected["properties"]["observations"].pop("minItems")
+        expected["properties"]["observations"].pop("maxItems")
+        self.assertEqual(ai.provider_schema(stage.response_schema),expected)
+        self.assertEqual(encode(stage.response_schema),original)
+        self.assertEqual(stage.response_schema["properties"]["observations"]["minItems"],len(stage.item_codes))
+        source=snapshot()
+        context=ai.context(source,stage,{"run_id":"run"},"operator")
+        self.assertEqual(context["response_constraints"]["observation_count"],len(stage.item_codes))
+        self.assertEqual(context["walk_phases"],[phase.model_dump(mode="json") for phase in source.session.recording_s1.walk_phases])
+
+    def test_provider_array_simplification_keeps_exact_item_count_validation(self):
+        stage=group("개37")
+        raw=response(stage)
+        for rows in (raw["observations"][:-1],raw["observations"]+[raw["observations"][0]]):
+            with self.subTest(count=len(rows)), self.assertRaisesRegex(ValueError,"each exact direct item once"):
+                ai.normalize(snapshot(),stage,{**raw,"observations":rows})
+
     def test_local_fractional_span_normalizes_roundoff_before_source_mapping(self):
         stage=group("개8")
         item=basis("c2","baseline_whole",29.916,49.916)
