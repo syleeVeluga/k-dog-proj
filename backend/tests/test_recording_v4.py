@@ -1,4 +1,5 @@
 import copy
+import csv
 import hashlib
 import json
 from pathlib import Path
@@ -50,6 +51,44 @@ def gates(value):
 
 
 class RecordingV4Tests(unittest.TestCase):
+    def test_final_csv_confirms_without_inventing_exit_end_or_phase_observations(self):
+        source = Path(__file__).resolve().parents[2] / "docs/plans/확정 영상 및 구분_20261014/segments.csv"
+        with source.open(encoding="utf-8-sig", newline="") as handle:
+            starts = [float(row["CAM1_영상초"]) for row in csv.DictReader(handle)]
+        self.assertEqual(starts, [5.602, 49.392, 83.825, 129.484, 156.711, 187.812, 240.341, 329.336])
+        value = fixture()
+        for index, segment in enumerate(value["segments"]):
+            segment.update(start_sec=starts[index], end_sec=starts[index + 1] if index < 7 else None)
+        for blank_phases in ([], [{**phase, "start_sec": None, "end_sec": None} for phase in value["walk_phases"]]):
+            with self.subTest(blank_phases=bool(blank_phases)):
+                value["walk_phases"] = blank_phases
+                result = recording(value)
+                self.assertTrue(result.confirmed)
+                actual = windows(value)
+                self.assertEqual(actual["walk_whole"].status, "confirmed")
+                for key in ("exit_whole", "reunion_contact", "stranger_call", *(f"walk_phase_{i}" for i in range(1, 7))):
+                    self.assertEqual(actual[key].status, "unobserved")
+                    self.assertIsNone(actual[key].start_seconds)
+                self.assertTrue(all(not window.whole_visual_observed and not window.whole_audio_observed for window in actual.values()))
+
+    def test_csv_confirmation_still_rejects_missing_starts_ends_and_exit_overlap(self):
+        for index, field in ((0, "start_sec"), (0, "end_sec"), (7, "start_sec")):
+            value = fixture()
+            value["segments"][index][field] = None
+            with self.subTest(index=index, field=field), self.assertRaises(ValidationError):
+                recording(value)
+        value = fixture()
+        value["segments"][-1].update(start_sec=240, end_sec=None)
+        with self.assertRaises(ValidationError):
+            recording(value)
+
+    def test_optional_phase_times_must_be_complete_and_contiguous_once_entered(self):
+        for change in ({"start_sec": None}, {"end_sec": 170}, {"start_sec": 166}):
+            value = fixture()
+            value["walk_phases"][0].update(change)
+            with self.subTest(change=change), self.assertRaises(ValidationError):
+                recording(value)
+
     def test_explicit_loss_overrides_whole_evidence_for_affected_item_and_can_use_other_camera(self):
         value = fixture()
         value["coverage"] = [coverage("entry_whole", 0, 30)]

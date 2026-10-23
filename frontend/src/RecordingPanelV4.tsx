@@ -139,8 +139,8 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
       {edit.dirty && <><span role="status">촬영 기록 · 저장 전</span><button onClick={() => { if (edit.discard()) { setRecord(initial(item)); setEditing(!session.recording_s1?.confirmed); } }}>촬영 입력 버리고 최신 값 보기</button></>}</div>}
     <p>입장 → 기준 → 혼자 → 재회 → 무시 → 걷기 → 낯선 사람 → 퇴장</p>
     <details><summary>진행 안내</summary>
-      <p>예정 길이는 30·20·60·30·20·30·30·30초이며 전환은 별도입니다. 실제 시작과 끝을 기록합니다. 분리 중 복지 중단 시 보호자가 즉시 돌아오고, 혼자 구간 끝과 재회 시작을 같은 실제 시각으로 기록합니다.</p>
-      <p>분리 미실시는 재회도 미실시입니다. 걷기는 실제 이동과 정지 세 쌍을 기록하며 이동 시간을 균등 분할하지 않습니다. 중단·안전상 거리 예외는 사유와 함께 남깁니다.</p>
+      <p>segments.csv의 8구간 시작 시각을 기준으로 입력합니다. 1~7구간 끝은 다음 구간 시작으로 채우고, CSV에 없는 퇴장 끝은 미확인으로 남겨도 확정할 수 있습니다. 직접 입력할 때도 같은 조건을 적용합니다.</p>
+      <p>분리 미실시는 재회도 미실시입니다. 걷기 이동·정지 세 쌍은 선택 상세 관찰입니다. 입력할 경우 실제 여섯 국면의 경계를 모두 기록하며 균등 분할하지 않습니다. 중단·안전상 거리 예외는 사유와 함께 남깁니다.</p>
       <p>직원 신호, 실제 부름, 접촉 시작·끝, 미접촉을 구분합니다. 예정 시각으로 실제 사건을 대신하지 않습니다. 영상 가림·신체 미관찰·오디오 손상은 각각 기록하고 관찰되지 않은 반응을 0으로 채우지 않습니다.</p>
     </details>
     {session.recording && <details><summary>보존된 이전 촬영 원기록</summary><p>이전 기록은 원자료로 보존됩니다. 아래 현재 절차 확인은 실제 영상을 다시 확인하여 입력하세요.</p>
@@ -160,15 +160,18 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
           segments: record.segments.map(value => ({ ...value, video_id: id, start_sec: null, end_sec: null })), walk_phases: record.walk_phases.map(value => ({ ...value, video_id: id, start_sec: null, end_sec: null })),
           video_offsets: record.video_offsets.filter(value => value.video_id !== id).map(value => ({ ...value, confirmed: false })) }); }}><option value="">영상 선택</option>{videoOptions}</select></label></div>
       <p className="fine">시각은 선택 영상의 실제 초입니다. 기준 영상 변경 시 구간·국면 시각을 다시 기록하고 다른 영상의 동기화를 확인합니다. 원영상에 연결된 사건과 관찰 근거는 보존됩니다. 기준 영상을 바꾸면 CSV를 다시 가져오세요.</p>
-      <details className="recording-section"><summary>실제 8구간</summary>
+      <div className="recording-section" aria-label="구간 CSV 업로드">
         <label>구간 CSV 가져오기<input type="file" accept=".csv" aria-label="구간 CSV 가져오기" disabled={!videos.find(video => video.video_id === record.video_id)?.camera_id || csvBusy} onChange={event => {
           const file = event.target.files?.[0]; event.target.value = ''; if (file) void importCsv(file);
         }} /></label>
         {csvBusy && <p role="status">구간 CSV를 읽는 중…</p>}
         {csvError && <p role="alert" className="error">{csvError}</p>}
         {csvSummary && <div aria-label="구간 CSV 가져오기 결과"><p>채움: 구간 {csvSummary.ends}개 끝 유도, 퇴장 끝 미입력 / 오프셋 {csvSummary.offsets.join('·') || '없음'}</p>
-          <p>채우지 못함: 걷기 6국면, 사건, 관찰 근거, 꼬리 선택. 퇴장 끝과 실제 관찰 기록을 직접 입력하세요.</p>
+          <p>퇴장 끝과 걷기 6국면·사건·관찰 근거·꼬리 선택은 CSV에 없어 미확인으로 남길 수 있습니다. 기존 상세 입력은 보존하며, 미확인 정보가 필요한 채점 항목은 미관찰로 남습니다.</p>
           {!!csvSummary.warnings.length && <ul>{csvSummary.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}</div>}
+        <p className="fine">기준 영상의 CAM 번호에 맞는 영상초를 가져옵니다. 8구간 시각과 카메라 오프셋을 확인한 뒤 촬영 기록을 확정하세요.</p>
+      </div>
+      <details className="recording-section"><summary>실제 8구간</summary>
         <div className="table-wrap"><table><thead><tr><th>구간·상태</th><th>실제 시작·끝</th><th>사유</th></tr></thead><tbody>{SEGMENTS_V3.map(([id, label]) => {
         const segment = record.segments.find(value => value.segment === id)!;
         const update = (patch: Partial<typeof segment>) => change({ ...record, segments: record.segments.map(value => value.segment === id ? { ...value, ...patch } : value),
@@ -178,7 +181,8 @@ export function RecordingPanelV4({ item, writable, run, refresh, close }: {
           <td><input aria-label={`${label} 사유`} value={segment.reason ?? ''} onChange={event => update({ reason: event.target.value || null })} /></td></tr>;
       })}</tbody></table></div>
       </details>
-      <details className="recording-section"><summary>걷기 실제 6국면</summary><p>출발 첫걸음부터 마지막 정지 끝까지 실제 경계를 입력합니다. 보호자 접근·안전상 예외를 거리값과 구분하여 기록합니다.</p>
+      <p className="fine">아래는 선택 상세 관찰입니다. CSV에 없는 사실을 추정해서 채우지 않습니다.</p>
+      <details className="recording-section"><summary>걷기 실제 6국면</summary><p>모든 시각을 비워 두어도 8구간 기록을 확정할 수 있습니다. 입력할 경우 출발 첫걸음부터 마지막 정지 끝까지 여섯 국면의 실제 경계를 모두 기록합니다. 보호자 접근·안전상 예외를 거리값과 구분하여 기록합니다.</p>
       {record.walk_phases.map((phase, index) => { const update = (patch: Partial<typeof phase>) => change({ ...record, walk_phases: record.walk_phases.map(value => value.phase === phase.phase ? { ...value, ...patch } : value) });
         return <div className="form-grid" key={phase.phase}><label>{phaseNames[index]} 상태<select value={phase.state} onChange={event => { const state = event.target.value as CaptureState; update({ state, ...(state === 'not_performed' ? { start_sec: null, end_sec: null } : {}) }); }}>{Object.entries(states).map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
           <Seconds label={`${phaseNames[index]} 시작`} value={phase.start_sec} disabled={phase.state === 'not_performed'} change={start_sec => update({ start_sec })} /><Seconds label={`${phaseNames[index]} 끝`} value={phase.end_sec} disabled={phase.state === 'not_performed'} change={end_sec => update({ end_sec })} />
