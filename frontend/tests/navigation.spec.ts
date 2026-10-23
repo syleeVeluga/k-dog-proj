@@ -15,10 +15,10 @@ test('위치가 hash에 남고 새로고침·뒤로가기·앞으로가기 후�
   await login(page);
   await expect(page).toHaveURL(/#\/intake$/);
   await expect(menu(page).getByRole('button', { name: '참가자 접수', exact: true })).toHaveAttribute('aria-current', 'page');
-  await menu(page).getByRole('button', { name: '참가자 및 설문 일괄 등록', exact: true }).click();
+  await menu(page).getByRole('button', { name: '참가자/설문 일괄 등록', exact: true }).click();
   await expect(page).toHaveURL(/#\/intake\/upload$/);
   await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '참가자 및 설문 일괄 등록', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '참가자/설문 일괄 등록', exact: true })).toBeVisible();
   await menu(page).getByRole('button', { name: '설문 확인', exact: true }).click();
   await expect(page).toHaveURL(/#\/survey$/);
   await expect(page.getByRole('heading', { name: '설문 확인', exact: true })).toBeVisible();
@@ -46,10 +46,10 @@ test('LNB 업무 메뉴는 모든 계정에 같고 개발 설정만 개발자에
   await expect(menu(page).getByRole('group', { name: '촬영', exact: true })).toHaveCount(0);
   await expect(menu(page).getByRole('group', { name: '설문 등록', exact: true })).toHaveCount(0);
   const fieldItems = menu(page).getByRole('group', { name: '현장 운영', exact: true }).locator(':scope > ul');
-  await expect(fieldItems.getByRole('button', { name: '참가자 및 설문 일괄 등록', exact: true })).toBeVisible();
+  await expect(fieldItems.getByRole('button', { name: '참가자/설문 일괄 등록', exact: true })).toBeVisible();
   await expect(fieldItems.getByRole('button', { name: '설문 확인', exact: true })).toBeVisible();
   await expect(menu(page).getByRole('group', { name: '리포트', exact: true })).toBeVisible();
-  const common = ['참가자 접수', '참가자 및 설문 일괄 등록', '설문 확인', '전처리', '독립 채점', '리포트 발급', '비교 조건', '연구 내보내기', '검수 자료', '직원 계정', '백업·복구'];
+  const common = ['참가자 접수', '참가자/설문 일괄 등록', '설문 확인', '전처리', '독립 채점', '리포트 발급', '비교 조건', '연구 내보내기', '검수 자료', '직원 계정', '백업·복구'];
   expect(await labels(page)).toEqual(common);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await login(page, 'reviewer');
@@ -93,7 +93,7 @@ test('공통 업무 hash는 직접 열고 개발 설정과 알 수 없는 hash�
 
 test('미저장 입력이 있으면 메뉴 이동과 뒤로가기를 확인하고 취소하면 hash를 되돌린다', async ({ page }) => {
   await login(page);
-  await menu(page).getByRole('button', { name: '참가자 및 설문 일괄 등록', exact: true }).click();
+  await menu(page).getByRole('button', { name: '참가자/설문 일괄 등록', exact: true }).click();
   await menu(page).getByRole('button', { name: '참가자 접수', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: /마지막 조회 [^·\s]/ })).toBeVisible();
   const registration = page.locator('details').filter({ has: page.getByText('참가자 등록', { exact: true }) });

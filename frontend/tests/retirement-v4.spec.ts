@@ -12,12 +12,12 @@ test('S1 imports use the pinned Forms workflow and old endpoints cannot save', a
   expect(existing.status()).toBe(201);
   await page.reload();
   await expect(page.getByRole('button', { name: 'retirement-existing 상세 열기', exact: true })).toBeVisible();
-  await openMenu(page, '참가자 및 설문 일괄 등록');
+  await openMenu(page, '참가자/설문 일괄 등록');
   await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toBeVisible();
   await expect(page.getByLabel('Forms 파일', { exact: true })).toBeVisible();
   await openMenu(page, '설문 확인');
   await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: '참가자 및 설문 일괄 등록으로 이동', exact: true }).click();
+  await page.getByRole('button', { name: '참가자/설문 일괄 등록으로 이동', exact: true }).click();
   await expect(page).toHaveURL(/#\/intake\/upload$/);
   await expect(page.getByRole('region', { name: 'Forms 참가자와 설문 등록', exact: true })).toBeVisible();
   await expect(page.getByText('설문 파일 가져오기 (CSV·Excel)', { exact: true })).toHaveCount(0);

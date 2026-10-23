@@ -20,7 +20,7 @@ type Props = {
 };
 
 // 접수 메뉴: 참가자 단건 등록과 원입력 상세. 저장 후에도 폼에 머물러 다음 참가자를 이어서 받는다.
-// 파일 일괄 등록은 「참가자 및 설문 일괄 등록」 메뉴에서 한다.
+// 파일 일괄 등록은 「참가자/설문 일괄 등록」 메뉴에서 한다.
 export function Intake({ cases, selected, writable, busy, run, reload, select, status, notify, filters, goTo, openParticipant, filter, setFilter }: Props) {
   const [dirty, setDirty] = useState(false);
   const [formOpen, setFormOpen] = useState<boolean | null>(null);
@@ -89,7 +89,7 @@ export function Intake({ cases, selected, writable, busy, run, reload, select, s
   }
 
   return <>
-    <section className="page-heading"><div><p className="eyebrow">INTAKE</p><h1>접수</h1><p className="muted">참가자·반려견 정보를 등록하고 순번을 확인하세요. 명단·설문 파일은 「참가자 및 설문 일괄 등록」으로 올립니다.</p></div>
+    <section className="page-heading"><div><p className="eyebrow">INTAKE</p><h1>접수</h1><p className="muted">참가자·반려견 정보를 등록하고 순번을 확인하세요. 명단·설문 파일은 「참가자/설문 일괄 등록」으로 올립니다.</p></div>
       <div className="count"><strong>{cases.length.toString().padStart(2, '0')}</strong><span>등록된 참가자</span></div></section>
     <CaseFilters cases={cases} {...filters} /><div className="toolbar">
       <label>자료 상태 별 조회<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">전체</option><option value="ready">설문·영상 등록됨</option><option value="missing">설문·영상 보완 필요</option><option value="survey_missing">설문 미등록</option><option value="video_missing">영상 없음</option></select></label>
@@ -104,7 +104,7 @@ export function Intake({ cases, selected, writable, busy, run, reload, select, s
           <td data-label="구간">{({ none: '없음', draft: '초안', confirmed: '확정' })[segmentState(s)]}{progress && <small>{progress.scoring === 'done' ? '채점 제출 완료' : progress.scoring === 'partial' ? '채점 진행 중' : '채점 전'}</small>}<button className="row-action" aria-label={`${c.participant_id} 촬영 기록`} onClick={e => { e.stopPropagation(); prepare(c, 'recording/record'); }}>촬영 기록</button></td>
           <td data-label="자료"><button aria-label={`${c.participant_id} 상세 열기`} onClick={e => { e.stopPropagation(); open(c); }}>열기</button></td></tr>;
       })}</tbody></table>{!visible.length && <div className="empty"><h2>{cases.length ? '조건에 맞는 참가자가 없습니다.' : '첫 참가자를 등록하세요.'}</h2><p>행사와 참가자 ID를 먼저 확인한 뒤 자료를 연결합니다.</p></div>}</div>
-    {writable && <div className="panel registration-callout"><p>CSV·Excel 파일로 참가자와 설문을 한꺼번에 등록할 수 있습니다.</p><button onClick={() => goTo('intake/upload')}>참가자 및 설문 일괄 등록으로 이동</button></div>}
+    {writable && <div className="panel registration-callout"><p>CSV·Excel 파일로 참가자와 설문을 한꺼번에 등록할 수 있습니다.</p><button onClick={() => goTo('intake/upload')}>참가자/설문 일괄 등록으로 이동</button></div>}
     {writable && <details className="panel" open={formOpen ?? !cases.length}><summary onClick={e => { e.preventDefault(); setFormOpen(!(formOpen ?? !cases.length)); }}>참가자 등록</summary>
       {last && <p role="status" className="registered"><strong>{last.participant_id} {last.dog_name} 등록됨</strong> · <button className="plain" onClick={() => openRegistered(null)}>상세 보기</button> · <button className="plain" onClick={() => openRegistered('recording/record')}>촬영으로</button></p>}
       <form ref={form} noValidate onSubmit={register} onChange={() => setDirty(true)} {...fields.bind}>

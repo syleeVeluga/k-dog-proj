@@ -185,7 +185,7 @@ export function FormsImporter({ cases, run, done }: { cases: Case[]; run: Run; d
   const answerCount = questions.filter(q => mapping[q]).length, reasonCount = questions.filter(q => mapping[`${q}_reason`]).length;
 
   return <section aria-label="Forms 참가자와 설문 등록">
-    <div className="page-heading"><div><p className="eyebrow">UPLOAD</p><h1>참가자 및 설문 일괄 등록</h1></div></div>
+    <div className="page-heading"><div><p className="eyebrow">UPLOAD</p><h1>참가자/설문 일괄 등록</h1></div></div>
     <p className="fine">명단이나 설문 응답 파일(CSV·Excel)을 올리면 참가자와 설문을 등록합니다. 이름으로 기존 참가자를 추정하지 않습니다. 참가자 ID 열이 없으면 미리보기에서 ID를 발급하고, 동의 열이 없으면 미확인으로 남깁니다.</p>
     {columns.length > 0 && profile === festival.source_profile && <p className="fine" role="status">{festival.name} 양식의 문항과 한글 응답 라벨을 연결했습니다. 영역별 번호는 전체 Q01~Q28에 대응합니다. 두려움 Q10~Q14는 전혀 아니다=0 · 약간=1 · 보통=2 · 꽤 그렇다=3 · 매우 그렇다=4입니다. 나이는 정수 연수로 표시하며 개월을 포함한 원문은 보존합니다. 동의·연락처·거주지·중성화 여부·희망 일시·최종 확인은 원자료에 보존합니다. 희망 일시는 확정 예약으로 등록하지 않습니다.</p>}
     <fieldset disabled={busy}><legend>① 양식 받기 (선택)</legend>
