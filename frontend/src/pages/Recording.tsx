@@ -56,7 +56,7 @@ export function Recording({ view, user, cases, selected, select, filters, writab
       })}</tbody></table>{!sorted.length && <div className="empty"><h2>표시할 참가자가 없습니다.</h2><p>검색·행사 필터 또는 접수 등록을 확인하세요.</p></div>}</div></>}
     {selected && <div className="participant-actions"><button onClick={() => goTo('preprocess')}>분석 준비 확인</button></div>}
     {selected && <RecordingPanelV4 key={`${selected.case_id}:${selected.selected_session_id}`} item={selected} writable={writable} run={run}
-      refresh={async message => { await reload(); if (message) notify(message); }} close={back} />}
+      refresh={async message => { await reload(); if (message) notify(message); }} openSession={select} close={back} />}
     {selected && <PreservedMediaRegistration item={selected} writable={writable} run={run}
       refresh={async message => { await reload(); if (message) notify(message); }} />}
 

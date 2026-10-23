@@ -17,6 +17,8 @@ async function setup(page: Page, id: string) {
 
 test('위치·작업 탭은 참가자와 회차를 유지하고 원래 목록의 모든 필터로 돌아간다', async ({ page }, testInfo) => {
   const item = await setup(page, 'NAV-TABS');
+  const sessionWrites: string[] = [];
+  page.on('request', request => { if (request.method() === 'POST' && request.url().endsWith(`/cases/${item.case_id}/sessions`)) sessionWrites.push(request.url()); });
   await page.getByLabel('검색', { exact: true }).fill('NAV-TABS');
   await page.getByLabel('행사 필터').selectOption('NAV-1024');
   await page.getByLabel('자료 상태 별 조회').selectOption('video_missing');
@@ -27,15 +29,19 @@ test('위치·작업 탭은 참가자와 회차를 유지하고 원래 목록의
   await expect(trail).toContainText('참가자 접수 목록');
   await expect(trail).toContainText('NAV-TABS · 위치 확인견');
   await expect(trail.locator('[aria-current="page"]')).toHaveText('영상 등록');
-  await expect(page.getByLabel('선택 세션')).toHaveValue(item.selected_session_id);
+  await expect(page.getByRole('region', { name: '선택 참가자', exact: true }).getByRole('heading')).toContainText('1차 촬영');
   for (const name of ['설문 확인', '촬영 기록', '영상 등록']) {
     await tabs.getByRole('button', { name, exact: true }).click();
     await expect(tabs.getByRole('button', { name, exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(trail.locator('[aria-current="page"]')).toHaveText(name);
     await expect(page.getByRole('navigation', { name: '주 메뉴' }).getByRole('button', { name: '참가자 접수', exact: true })).toHaveAttribute('aria-current', 'page');
-    await expect(page.getByLabel('선택 세션')).toHaveValue(item.selected_session_id);
+    await expect(page.getByRole('region', { name: '선택 참가자', exact: true }).getByRole('heading')).toContainText('1차 촬영');
     await expect(page.getByRole('region', { name: '선택 참가자', exact: true })).toContainText('NAV-TABS');
   }
+  expect(sessionWrites).toEqual([]);
+  const unchanged = await (await page.request.get(`/api/cases/${item.case_id}`)).json();
+  expect(unchanged.selected_session_id).toBe(item.selected_session_id);
+  expect(unchanged.input_revision).toBe(item.input_revision);
   await page.screenshot({ path: testInfo.outputPath('participant-navigation-desktop.png'), animations: 'disabled' });
   await page.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true }).click();
   await expect(page).toHaveURL(/#\/intake$/);

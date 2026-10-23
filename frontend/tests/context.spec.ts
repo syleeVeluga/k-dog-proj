@@ -36,7 +36,9 @@ test('72명 목록에서 업무 맥락 유지 및 공통 업무 계정의 회차
   await page.getByRole('button', { name: 'C071 상세 열기' }).click();
   await expect(context).toContainText('CTX-A / C071 / 맥락견71 / 2차 촬영');
   await expect(context.getByRole('heading')).toBeInViewport();
-  await page.getByLabel('선택 세션', { exact: true }).selectOption(firstSession);
+  await page.getByText(/^촬영 이력 \(/).click();
+  await page.getByRole('button', { name: '1차 촬영 열기', exact: true }).click();
+  await expect(page.getByRole('region', { name: '선택 참가자', exact: true }).getByRole('heading')).toContainText('1차 촬영');
   await page.getByRole('navigation', { name: '참가자 작업' }).getByRole('button', { name: '설문 확인', exact: true }).click();
   await expect(page.getByLabel('설문 확인')).toContainText('수치 응답 28/28 · 명시 빈칸 사유 0개 · 등록 완료 기준 미확정');
   await expect(context).toContainText('1차 촬영');

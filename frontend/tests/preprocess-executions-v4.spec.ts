@@ -189,7 +189,10 @@ test('같은 회차 입력판 변경은 늦은 POST를 버리고 원래 접수 �
     original = await page.evaluate(key => sessionStorage.getItem(key), key);
     expect(JSON.parse(original!).request.expected_revision).toBe(item.input_revision);
     const changed = page.waitForResponse(response => response.url().endsWith(`/cases/${item.case_id}/sessions`) && response.request().method() === 'POST');
-    await page.getByLabel('선택 세션', { exact: true }).selectOption(item.selected_session_id);
+    await page.evaluate(async item => {
+      const response = await fetch(`/api/cases/${item.case_id}/sessions`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-KDOG-Request': '1' }, body: JSON.stringify({ expected_revision: item.input_revision, session_id: item.selected_session_id }) });
+      if (!response.ok) throw new Error(`회차 변경 실패: ${response.status}`);
+    }, item);
     expect((await changed).status()).toBe(200);
     expect(revision).toBeGreaterThan(item.input_revision);
     await expect(panel.getByRole('status')).toHaveText('요청 접수 여부 확인 중');

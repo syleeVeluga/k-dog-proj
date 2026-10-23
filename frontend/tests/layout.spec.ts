@@ -35,9 +35,8 @@ for (const width of [360, 390, 768, 1440]) {
     if (width <= 680) {
       expect((await context.boundingBox())!.height).toBeLessThan(300);
       await expect(context.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true })).toBeVisible();
-      const toggle = context.getByRole('button', { name: '회차 안내·바로가기', exact: true });
-      await toggle.focus(); await page.keyboard.press('Enter');
-      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      await expect(context.getByRole('combobox')).toHaveCount(0);
+      await expect(context.getByText(/^촬영 이력/)).toHaveCount(0);
     }
     await page.getByRole('navigation', { name: '참가자 작업' }).getByRole('button', { name: '촬영 기록', exact: true }).click();
     const panel = page.getByRole('region', { name: '촬영 기록', exact: true });
@@ -59,7 +58,6 @@ for (const width of [360, 390, 768, 1440]) {
     await page.screenshot({ path: testInfo.outputPath(`recording-layout-${width}.png`), fullPage: true });
     // Secondary navigation remains accessible when resizing the current context.
     await page.setViewportSize({ width: width <= 680 ? 1440 : 360, height: 800 });
-    if (width > 680) await context.getByRole('button', { name: '회차 안내·바로가기', exact: true }).click();
     await expect(context.getByRole('button', { name: '전체 목록으로 돌아가기', exact: true })).toBeVisible();
   });
 }
