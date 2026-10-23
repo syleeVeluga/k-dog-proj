@@ -176,10 +176,30 @@ def clips_for(snapshot, group):
 
 def context(snapshot, group, row, audit_actor):
     clips = clips_for(snapshot, group)
+    requested = [window for window in snapshot.batch.windows if window.window.window_id in group.window_ids]
+    bounds = []
+    for clip in clips:
+        derivative = getattr(clip, group.input_variant)
+        for window in requested:
+            if not any(clip.clip_id in view.clip_ids and view.availability in ("available", "partial") for view in window.views):
+                continue
+            for part in window.window.source_intervals:
+                if part.evidence_id is not None:
+                    continue
+                start = max(0, max(part.start_seconds + clip.offset_seconds, clip.source_start_seconds) - derivative.source_time_offset_seconds)
+                end = min(derivative.duration_seconds, min(part.end_seconds + clip.offset_seconds, clip.source_end_seconds) - derivative.source_time_offset_seconds)
+                if start < end:
+                    bounds.append({"clip_id": clip.clip_id, "window_id": window.window.window_id,
+                                   "start_seconds": start, "end_seconds": end})
     return {"run_id": row["run_id"], "audit_actor": audit_actor,
         "identity": {"case_id": snapshot.case_id, "session_id": snapshot.session_id, "batch_id": snapshot.batch.batch_id},
         "catalog_version": CATALOG.version, "items": [item.model_dump(mode="json") for item in CATALOG.rated_items() if item.code in group.item_codes],
-        "windows": [window.model_dump(mode="json") for window in snapshot.batch.windows if window.window.window_id in group.window_ids],
+        "windows": [window.model_dump(mode="json") for window in requested],
+        "response_constraints": {"evidence_time_unit": "clip_seconds", "evidence_intervals": bounds,
+            "vocal_item_codes": [code for code in group.item_codes if code in VOCAL_CODES],
+            "audio_unavailable_windows": [window.window.window_id for window in requested if window.audio_available_seconds == 0],
+            "unavailable_audio_observation": {"value": None, "status": "unobserved", "vocalization": None},
+            "instruction": "근거는 지정한 clip_id/window_id의 evidence_intervals 안에만 기록한다. 음성 가용초가 0인 창의 발성 항목은 unavailable_audio_observation을 사용한다. 청취 0초인 vocalization 객체를 만들지 않는다."},
         "clips": [{"clip_id": clip.clip_id, "video_id": clip.video_id, "camera_id": clip.camera_id,
                    "reference_offset_seconds": clip.offset_seconds, "source_start_seconds": clip.source_start_seconds,
                    "source_end_seconds": clip.source_end_seconds, "window_ids": clip.window_ids,
@@ -208,10 +228,18 @@ def normalize(snapshot, group, raw):
             raise ValueError("evidence lies outside actual derivative duration")
         start = local.start_seconds + derivative.source_time_offset_seconds
         end = local.end_seconds + derivative.source_time_offset_seconds
+        if abs(start - clip.source_start_seconds) <= 1e-9:
+            start = clip.source_start_seconds
+        if abs(end - clip.source_end_seconds) <= 1e-9:
+            end = clip.source_end_seconds
         if not clip.source_start_seconds <= start < end <= clip.source_end_seconds:
             raise ValueError("mapped evidence lies outside original cut range")
+        observed = local.observed_seconds
+        # Adding a fractional cut offset can shorten a float difference by a few ULPs.
+        if 0 <= observed - (end - start) <= 1e-9:
+            observed = end - start
         basis = EvidenceV4(video_id=clip.video_id, video_sha256=videos[clip.video_id].sha256, camera_id=clip.camera_id,
-                           window_id=local.window_id, start_seconds=start, end_seconds=end, observed_seconds=local.observed_seconds, note=local.note)
+                           window_id=local.window_id, start_seconds=start, end_seconds=end, observed_seconds=observed, note=local.note)
         return basis, (start-clip.offset_seconds, end-clip.offset_seconds)
     events, ranges = {}, {}
     for event in response.events:

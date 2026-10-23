@@ -72,7 +72,94 @@ def basis(clip="c1",window="entry_whole",start=0,end=30):
     return {"clip_id":clip,"window_id":window,"start_seconds":float(start),"end_seconds":float(end),"observed_seconds":float(end-start),"note":"synthetic actual observation"}
 
 
+def fractional_snapshot(sync, cut):
+    data=snapshot(2).model_dump(mode="json")
+    for capture in (data["session"]["recording_s1"],data["batch"]["recording"]):
+        capture["video_offsets"][0]["offset_seconds"]=sync
+    clip=data["batch"]["clips"][1]
+    clip.update(offset_seconds=sync,source_start_seconds=cut,source_end_seconds=cut+300)
+    for variant in ("original","ai"):
+        clip[variant]["source_time_offset_seconds"]=cut
+        clip[variant]["source_frame_times_seconds"]=[cut+time for time in clip[variant]["frame_times_seconds"]]
+    for window in data["batch"]["windows"]:
+        view=window["views"][1]
+        view["offset_seconds"]=sync
+        for key in ("source_start_seconds","source_end_seconds"):
+            if view[key] is not None:
+                view[key]+=sync-1
+    return RunInputV4.model_validate_json(encode(data))
+
+
 class AiNormalizationV4Tests(unittest.TestCase):
+    def test_fractional_cut_and_camera_offset_preserve_whole_window_evidence(self):
+        stage=group("개8")
+        for sync,cut in ((0.2,0.3),(0.1,0.2)):
+            with self.subTest(sync=sync,cut=cut):
+                item=basis("c2","baseline_whole",29.9,49.9)
+                item["observed_seconds"]=20.0
+                result=ai.normalize(fractional_snapshot(sync,cut),stage,
+                    response(stage,"개8",0,[item],whole_interval_observed=True))
+                observed=next(value for value in result["observations"] if value["code"]=="개8")
+                self.assertEqual(observed["value"],0)
+                evidence=observed["evidence"][0]
+                self.assertLessEqual(evidence["observed_seconds"],evidence["end_seconds"]-evidence["start_seconds"])
+                self.assertAlmostEqual(evidence["observed_seconds"],20.0,places=9)
+
+    def test_fractional_mapping_still_rejects_a_real_millisecond_outside_window(self):
+        stage=group("개8")
+        for key,delta in (("start_seconds",-0.001),("end_seconds",0.001)):
+            with self.subTest(key=key):
+                item=basis("c2","baseline_whole",29.9,49.9)
+                item[key]+=delta
+                item["observed_seconds"]=20.0
+                with self.assertRaises(HTTPException):
+                    ai.normalize(fractional_snapshot(0.1,0.2),stage,
+                        response(stage,"개8",0,[item],whole_interval_observed=True))
+
+    def test_camera_clock_rounding_preserves_actual_walking_phase_bounds(self):
+        source=fractional_snapshot(0.1,0.3)
+        phase=source.session.recording_s1.walk_phases[0]
+        stage=group("개38")
+        item=basis("c2","walk_whole",round(phase.start_sec-0.2,1),round(phase.end_sec-0.2,1))
+        result=ai.normalize(source,stage,response(stage,"개38",1,[item]))
+        self.assertEqual(next(value for value in result["observations"] if value["code"]=="개38")["value"],1)
+
+    def test_fractional_mapping_keeps_evidence_at_the_physical_cut_end(self):
+        data=snapshot().model_dump(mode="json")
+        clip=data["batch"]["clips"][0]
+        clip.update(source_start_seconds=0.1,source_end_seconds=0.3)
+        for variant in ("original","ai"):
+            clip[variant].update(source_time_offset_seconds=0.1,duration_seconds=0.2,
+                frame_times_seconds=[0.0],source_frame_times_seconds=[0.1],audio_ranges=[])
+        stage=group("개5")
+        raw=response(stage)
+        raw["observations"][0]["evidence"]=[basis("c1","entry_whole",0,0.2)]
+        result=ai.normalize(RunInputV4.model_validate_json(encode(data)),stage,raw)
+        self.assertEqual(result["observations"][0]["evidence"][0]["end_seconds"],0.3)
+
+    def test_whole_coverage_joins_float_roundoff_but_not_a_real_gap(self):
+        self.assertTrue(ai.sheets._covered([(0,0.3),(0.1+0.2,1)],0,1))
+        self.assertTrue(ai.sheets._covered([(0,0.3)],0,0.1+0.2))
+        self.assertFalse(ai.sheets._covered([(0,0.3),(0.301,1)],0,1))
+        self.assertFalse(ai.sheets._covered([],0,1))
+
+    def test_provider_gets_local_window_bounds_and_explicit_silent_audio_contract(self):
+        data=fractional_snapshot(0.2,0.3).model_dump(mode="json")
+        for clip in data["batch"]["clips"]:
+            for variant in ("original","ai"):
+                clip[variant]["audio_ranges"]=[]
+        for window in data["batch"]["windows"]:
+            window.update(audio_available_seconds=0,representative_audio_video_id=None,audio_selection_reason="synthetic silent media")
+        info=ai.context(RunInputV4.model_validate_json(encode(data)),group("바6"),{"run_id":"synthetic"},"operator")
+        rules=info["response_constraints"]
+        self.assertEqual(rules["audio_unavailable_windows"],["entry_whole"])
+        self.assertEqual(rules["vocal_item_codes"],["바6"])
+        self.assertEqual(rules["unavailable_audio_observation"],{"value":None,"status":"unobserved","vocalization":None})
+        self.assertEqual({item["window_id"] for item in rules["evidence_intervals"]},{"entry_whole"})
+        second=next(item for item in rules["evidence_intervals"] if item["clip_id"]=="c2")
+        self.assertEqual(second["start_seconds"],0)
+        self.assertAlmostEqual(second["end_seconds"],29.9,places=9)
+
     def test_provider_schema_requires_evidence_state_and_literal_contract_version(self):
         schema = ai.response_schema(["개5"])
         row = schema["$defs"]["AiRowV4"]
