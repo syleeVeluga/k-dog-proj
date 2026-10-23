@@ -464,12 +464,13 @@ def assign(store, case_id, session_id, value: SheetAssignmentV4, user):
 
 
 def _covered(ranges, start, end):
+    # Clock conversion noise must not split an otherwise continuous interval.
     cursor = start
     for low, high in sorted(ranges):
-        if low > cursor:
+        if low > cursor + 1e-9:
             break
         cursor = max(cursor, high)
-        if cursor >= end:
+        if cursor >= end - 1e-9:
             return True
     return False
 
@@ -485,10 +486,21 @@ def _source_evidence(doc, evidence, *, code=None):
         raise HTTPException(422, "미실시·미관찰·판본 미확인 창은 확정값 근거가 아닙니다.")
     start, end = evidence.start_seconds - offset, evidence.end_seconds - offset
     spans = [part for part in window.source_intervals if part.evidence_id is None]
-    if not any(part.start_seconds <= start <= end <= part.end_seconds for part in spans):
+    # Canonicalize only float arithmetic noise; real gaps and out-of-window times still fail.
+    for part in spans:
+        low = part.start_seconds if abs(start - part.start_seconds) <= 1e-9 else start
+        high = part.end_seconds if abs(end - part.end_seconds) <= 1e-9 else end
+        if part.start_seconds <= low <= high <= part.end_seconds:
+            start, end = low, high
+            break
+    else:
         raise HTTPException(422, "근거 시각이 실제 관찰창의 분리된 구간 밖입니다.")
     if code in tuple(f"개{n}" for n in range(38, 44)):
         phase = next(value for value in doc.source.windows if value.window_id == f"walk_phase_{int(code[1:]) - 37}")
+        if phase.start_seconds is not None and abs(start - phase.start_seconds) <= 1e-9:
+            start = phase.start_seconds
+        if phase.end_seconds is not None and abs(end - phase.end_seconds) <= 1e-9:
+            end = phase.end_seconds
         if phase.start_seconds is None or not phase.start_seconds <= start <= end <= phase.end_seconds:
             raise HTTPException(422, "거리 근거가 해당 실제 걷기 국면 밖입니다.")
     return start, end
