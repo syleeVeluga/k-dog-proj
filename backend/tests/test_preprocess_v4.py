@@ -1,6 +1,7 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 import json
+import os
 from pathlib import Path
 import shutil
 import tempfile
@@ -425,11 +426,10 @@ class PreprocessV4Tests(unittest.TestCase):
         self.assertIsNone(failed.ai)
         self.assertEqual(batch.status, "partial")
 
-    def test_shared_decode_checks_frames_once_and_hashes_each_file_once(self):
+    def test_shared_decode_checks_frames_once_per_encoded_variant(self):
         video = self.upload()
         self.recording(video.video_id)
-        with patch.object(media, "command", wraps=media.command) as commands, \
-                patch.object(preprocess, "file_hash", wraps=preprocess.file_hash) as hashes:
+        with patch.object(media, "command", wraps=media.command) as commands:
             batch = self.run_batch()
         self.assertEqual(batch.clips[0].status, "complete")
         arguments = [call.args[0] for call in commands.call_args_list]
@@ -438,9 +438,6 @@ class PreprocessV4Tests(unittest.TestCase):
         self.assertEqual(encodes[0].count("libx264"), 2)
         self.assertEqual(sum("-show_frames" in args for args in arguments), 3)
         self.assertEqual(sum("-show_packets" in args for args in arguments), 2)
-        paths = [Path(call.args[0]) for call in hashes.call_args_list]
-        for ref in (batch.source_files[0].ref, batch.clips[0].original.ref, batch.clips[0].ai.ref):
-            self.assertEqual(paths.count(self.store.path(ref)), 1)
 
     def test_shared_encoding_error_rechecks_original_and_completes_ai_separately(self):
         video = self.upload()
@@ -590,6 +587,49 @@ class PreprocessV4Tests(unittest.TestCase):
             release.set()
         self.assertEqual(len(submitted), 2)
         self.assertEqual(len(started), 2)
+
+    @unittest.skipUnless(os.name == "nt", "Windows timestamp restoration")
+    def test_windows_content_fingerprint_rejects_all_restored_timestamps(self):
+        import ctypes
+        import msvcrt
+        class FileBasicInfo(ctypes.Structure):
+            _fields_ = [(name, ctypes.c_int64) for name in ("CreationTime", "LastAccessTime", "LastWriteTime", "ChangeTime")] + [
+                ("FileAttributes", ctypes.c_uint32)]
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        query, update = kernel.GetFileInformationByHandleEx, kernel.SetFileInformationByHandle
+        for function in (query, update):
+            function.argtypes = (ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32)
+            function.restype = ctypes.c_int
+        path = self.store.root/"synthetic-identity.bin"
+        path.write_bytes(b"first-value")
+        before, info = preprocess._file_identity(path), FileBasicInfo()
+        with path.open("rb") as handle:
+            self.assertTrue(query(ctypes.c_void_p(msvcrt.get_osfhandle(handle.fileno())), 0,
+                                  ctypes.byref(info), ctypes.sizeof(info)))
+        path.write_bytes(b"other-value")
+        with path.open("r+b") as handle:
+            self.assertTrue(update(ctypes.c_void_p(msvcrt.get_osfhandle(handle.fileno())), 0,
+                                   ctypes.byref(info), ctypes.sizeof(info)))
+        after = preprocess._file_identity(path)
+        self.assertEqual(after[:-1], before[:-1])
+        self.assertNotEqual(path.read_bytes(), b"first-value")
+        self.assertNotEqual(after, before)
+        with self.assertRaises(HTTPException): preprocess._check_identity(path, before)
+
+    def test_restored_mtime_between_clock_and_hash_cannot_publish(self):
+        video = self.upload("silent")
+        self.recording(video.video_id, start=0, end=3)
+        real = preprocess._clip_file
+        def changed(store, path, *args):
+            stat, raw = path.stat(), path.read_bytes()
+            path.write_bytes(raw[:-1]+bytes([raw[-1]^1]))
+            os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+            return real(store, path, *args)
+        with patch.object(preprocess, "_clip_file", side_effect=changed):
+            with self.assertRaises(HTTPException) as error: self.run_batch()
+        self.assertEqual(error.exception.status_code, 409)
+        with self.store.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='preprocess_v4.completed'").fetchone()[0], 0)
 
     def test_artifact_tamper_and_post_hash_source_race_cannot_be_adopted(self):
         video = self.upload()

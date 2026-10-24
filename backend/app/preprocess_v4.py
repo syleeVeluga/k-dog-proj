@@ -139,7 +139,8 @@ def _verify_files(store, files):
         for pointer in files:
             path = managed_path(store, pointer.ref)
             identities[pointer.ref] = _file_identity(path)
-            if file_hash(path) != pointer.hash or identities[pointer.ref] != _file_identity(path):
+            digest = identities[pointer.ref][-1] if os.name == "nt" else file_hash(path)
+            if digest != pointer.hash or identities[pointer.ref] != _file_identity(path):
                 raise HTTPException(409, "원본 또는 전처리 파일의 해시가 변경되었습니다.")
     except OSError:
         raise HTTPException(409, "원본 또는 전처리 파일을 확인할 수 없습니다.") from None
@@ -148,7 +149,10 @@ def _verify_files(store, files):
 
 def _file_identity(path):
     value = path.stat()
-    return value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns
+    identity = value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns
+    # Windows creation/change timestamps can both be restored by a writer.
+    # Cached frame evidence therefore remains bound to actual file content.
+    return (*identity, file_hash(path)) if os.name == "nt" else identity
 
 
 def _assert_files(store, identities):
@@ -280,7 +284,8 @@ def _clip_file(store, path, start, policy, source_times, clock=None, identities=
     offset = start if all(abs(local + start - source) <= 0.002 for local, source in zip(times, source_times)) else source_times[0] - times[0]
     if offset < 0 or any(abs(local + offset - source) > 0.002 for local, source in zip(times, source_times)):
         raise media.MediaError("파생 영상과 원본의 실제 프레임 시각이 일치하지 않습니다.")
-    result = ClipFileV4(ref=path.relative_to(store.root).as_posix(), hash=file_hash(path), size_bytes=path.stat().st_size,
+    digest = identity[-1] if os.name == "nt" else file_hash(path)
+    result = ClipFileV4(ref=path.relative_to(store.root).as_posix(), hash=digest, size_bytes=path.stat().st_size,
         duration_seconds=info["duration_sec"], source_time_offset_seconds=offset, frame_times_seconds=times,
         source_frame_times_seconds=source_times,
         audio_ranges=_ranges((value["start_sec"], value["end_sec"]) for value in info["audio_ranges"]), fps_policy=policy)
