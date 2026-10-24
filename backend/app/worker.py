@@ -242,6 +242,11 @@ class Worker:
             return self._once()
 
     def _once(self):
+        if isinstance(self.observer, GeminiScorerV4) and not getattr(self, "_uploads_recovered", False):
+            self.observer.uploads.recover_terminal()
+            self._uploads_recovered = True
+        if isinstance(self.observer, GeminiScorerV4):
+            self.observer.uploads.drain_terminal()
         row = claim(self.store)
         if row is None:
             return False
@@ -251,6 +256,8 @@ class Worker:
                 "report.s1.retry" if row["kind"] == "report_v4" else "run_v4.retry")
             self.store.audit(db, row["worker_actor"], row["run_id"], "worker.cycle_started", {"claim_token": row["claim_token"]})
         try:
+            if isinstance(self.observer, GeminiScorerV4):
+                self.observer.begin_run(row)
             with heartbeat(self.store, row):
                 self.process(row)
         except (HTTPException, OSError, ValueError, KeyError):
@@ -266,11 +273,21 @@ class Worker:
                                  "billing_uncertain": bool(step["call_reserved"])}
                         db.execute("UPDATE steps SET usage_json=?,updated_at=? WHERE step_id=?", (encode(usage), now(), step["step_id"]))
         finally:
+            if isinstance(self.observer, GeminiScorerV4):
+                self.observer.finish_run(row)
             with self.store.connect(write=True) as db:
                 self.store.audit(db, row["worker_actor"], row["run_id"], "worker.cycle_drained", {"claim_token": row["claim_token"]})
         return True
 
     def run(self):
-        while True:
-            if not self.once():
-                time.sleep(2)
+        try:
+            while True:
+                if not self.once():
+                    time.sleep(2)
+        finally:
+            self.close()
+
+    def close(self):
+        if isinstance(self.observer, GeminiScorerV4):
+            with runtime_lock(self.store, "worker-execution"):
+                self.observer.close()

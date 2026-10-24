@@ -566,7 +566,8 @@ def handler(worker, snapshot, group, row):
             errors = next((value["contract_errors"] for value in history if value.get("contract_errors")), [])
             info["repair"] = repair_instruction(errors)
         files = [(worker.store.path(getattr(clip, group.input_variant).ref),
-                  SimpleNamespace(clip_id=clip.clip_id, size_bytes=getattr(clip, group.input_variant).size_bytes))
+                  SimpleNamespace(clip_id=clip.clip_id, size_bytes=getattr(clip, group.input_variant).size_bytes,
+                                  sha256=getattr(clip, group.input_variant).hash))
                  for clip in clips_for(snapshot, group)]
         raw, usage = worker.gemini_request(row, step, files, config, info, provider_schema(group.response_schema), lambda: guarded(worker, row, snapshot))
         try:

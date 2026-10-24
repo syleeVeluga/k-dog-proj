@@ -152,6 +152,8 @@ def enqueue(store, case_id, session_id, value, user, config, *, reuse=(), enable
         store.case(db, case_id, expected=value.expected_revision)
     pointer = FileV4(ref=value.preprocess_ref, hash=value.preprocess_hash)
     batch = preprocess_v4.verified_batch(store, case_id, session_id, pointer, user.username)
+    if batch.cut_settings != preprocess_v4.CUT_SETTINGS:
+        raise HTTPException(409, "관찰창별 전처리 정책이 변경되었습니다. 새 전처리 후 분석하세요.")
     snapshot = RunInputV4(case_id=case_id, session_id=session_id, input_revision=case["input_revision"],
         input=InputPointerV4(manifest_ref=case["manifest_ref"], manifest_hash=case["manifest_hash"]), session=session,
         preprocess=BatchPointerV4(ref=pointer.ref, hash=pointer.hash, batch_id=batch.batch_id), batch=batch,

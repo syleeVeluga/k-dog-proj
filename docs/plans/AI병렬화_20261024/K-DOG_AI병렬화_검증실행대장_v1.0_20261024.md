@@ -1,6 +1,6 @@
 # K-DOG AI 병렬화 검증·실행 대장
 
-버전: v1.0 · 2026-10-24 · 상태: PA01~PA05 구현·검증·cold review 완료, 후속 PR 진행
+버전: v1.0 · 2026-10-24 · 상태: PA01~PA07 구현·검증 완료, 사용자 지정 실제 분석/리포트 완료, 기본값 1
 
 상위: [병렬화 계획](K-DOG_AI병렬화계획_v1.0_20261024.md)
 
@@ -14,8 +14,21 @@
 | [PA04](K-DOG_PR-PA04_운영설정과진행표시_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 수정·재검토 완료 | PA06 | 개발자 명시 설정 | [PR #153](https://github.com/syleeVeluga/k-dog-proj/pull/153) 병합 `0abdaa0` |
 | [PA05](K-DOG_PR-PA05_장애복구와통합인수_v1.0_20261024.md) | 완료 | backend 904개/skip 3, browser 181개 통과 | 2명 독립 검토, P2 인수 보강·UI 경쟁 수정 재검토 완료 | PA06 | 실측 후보 검증 완료 | [PR #155](https://github.com/syleeVeluga/k-dog-proj/pull/155) 병합 `c48d52d`, 제품 `e9a1529`·검증 `36512c7` |
 | [PA06](K-DOG_PR-PA06_실측과운영적용_v1.0_20261024.md) | 완료 | 관련 33개 통과·실제 발급/검수 완료 | 2명 독립 검토·수용 수정·재검토 완료 | CAM3 보류 후 N4 전체 분석/리포트 1회 완료, 비교 채택 0 | 기본 1 유지·실측 DB도 N1 복귀 | [PR #156](https://github.com/syleeVeluga/k-dog-proj/pull/156), 실행 `3a68f04` |
+| [PA07](K-DOG_PR-PA07_관찰구간과업로드재사용_v1.0_20261024.md) | 완료 | backend 928개/skip 3, browser 23개·배포·발급 검수 통과 | 2명 독립 검토, P1 3건·P2 5건 수정·재검토 완료 | 같은 자료 N4 분석/리포트 1회 완료, 누적 추정 $4.79184225 | 기본 1 유지·실측 DB도 N1 복귀 | [PR #157](https://github.com/syleeVeluga/k-dog-proj/pull/157), 제품 `fb50a10` |
 
 ## 2. PR별 실행 기록 양식
+
+### PA07 실행 — 2026-10-24
+
+- 기준 PA06 병합 `33be9a3`, 브랜치 `veluga/group-video-reuse`, 제품 후보 `fb50a10`, [PR #157](https://github.com/syleeVeluga/k-dog-proj/pull/157). Graft로 전처리/관찰 context·provider·Worker 호출 관계를 확인하고 창별 절단과 run/내용 hash/credential 단위 업로드 재사용만 추가했다. CUT4의 실제 프레임/시계/표시 끝·음성 범위와 기존 whole-observation·강제 결측 규칙을 유지한다.
+- `backend/`의 `uv run --locked python -X utf8 -m unittest discover -s tests -v`: 최종 928개 실행, 925개 통과·3개 명시 skip, 1935.787초. 역사 원본 2개·macOS Keychain 1개 skip이며 실패 0. 관련 CUT4 79개는 90.020초, 독립 합성/Chromium 4개는 9.592초에 통과했다. 이전 후보의 1-byte reset fixture는 실제 파일 크기와 공급자 오류 assertion으로 고쳤고 관련 1개도 통과했다. S1 자산 8개 대조·frontend build·관련 browser 23개/2.9분 통과.
+- 고정 배포 ZIP 75,299,693 bytes, SHA-256 `fd4e6d85f50d8480ba378c9096bf263d77b3f17240121701431f0e92288fa3a1`. 내장 Python 3.14.8/FFmpeg 9.0.2만 쓰는 `verify_release.py`의 현재 Windows 설치·시작·업무·종료·복원/봉인·무결성·재설치 보존·계정/개발자 경계가 통과했다. 배포 검증 자체 외부 AI 0회. 새 OS/다른 PC는 미검증이며 새 의존성/lockfile/DB schema 변경은 없다. 최신/선택 버전과 공식 출처는 PA07을 따른다.
+- 실제 전처리 1089.577초, 논리창 31개·완료 물리 파일 33개. 외부 `validate-pa07-preparation.py`의 43개 실제 항목군 context gate에서 카메라별 근거 축소·새 전체 관찰 강제 결측이 없었다. 원본 11개·raw 영상 4개·이전 전달본 3종 hash 전후 보존. 앞선 두 후보의 준비는 보존하며 유료 실행은 최종 후보에서 `run-pa07-opt.py 4 1` 한 번만 수행했다.
+- 실제 AI 1569.349초, 요청→PDF 1676.371초, 후속 발급 107.022초. 전처리와 합하면 2765.949초이며 최초 등록/복사를 포함한 전체 이용시간은 아니다. 이전 동일 3카메라 N4 한 번은 AI 2495.552초, 요청→PDF 2590.774초, 전처리 722.440초였다. 한 번씩의 기능 벽시계로만 기록하며 일반 SLA·반복 가속 승인·P50/P95·사람 정확도를 주장하지 않는다.
+- 43개 점수 항목군·최신 51분기 성공, score schema 2건·content 1건 거절 후 각각 두 번째 응답으로 통과. 실제 request/inference 최대 동시성은 각각 4. 새 생성 31회·입력 541,693/전체 704,263 tokens·요율 추정 $1.01590725. 주키 31회, 예비키 실전 전환 미관측. 이전 중지까지 누적 생성 74회·추정 $4.79184225, 청구서는 미확인이다. 최대 비용 선예약과 $50 도달 전 차단을 유지했다.
+- 파일 사용 84회 중 cache 재사용 51회, 고유 업로드/삭제 각 33개, 전체 원격 정리 대기 0. `restore-pa06-default.py`로 활성 run 소진 후 공식 N1 복귀, `collect-pa07-execution.py`로 읽기 전용 집계와 새 final/report 연결·전달 HTML/PDF/manifest 3종 hash를 검증했다. 운영 DB 예약 69·활성 0은 전후 같다.
+- PDF 6페이지 모두 렌더링·직접 검수, HTML 1440/390px 오프라인 넘침/대체 문자/외부 요청 0. 문구 일부 중복과 모바일 두 자리 번호 줄바꿈은 비차단 표현상 한계다. 개인정보/실측 파일은 외부에 보존하며 [비식별 실행 요약](evidence/PA07-functional-summary-20261024.json)을 연결한다. CAM3 동기화·G01/G04·독립 전문가/현장 인수 대기는 닫지 않는다.
+- 두 독립 subagent의 최종 문서/비식별 증거 검토에서 문서 P2 1건(초기 캐시 제외 문구의 현재 계약 혼동)을 수용·재검토로 해소했다. 제품 3P1/5P2와 별도로 기록한다. 최종 미해결 P1/P2·병합 blocker 없음. Git index 상대 링크 41개, 개인정보/키/비공개 경로·JSON·대체 문자·공백 및 staged diff 검사를 통과했다.
 
 ### PA06 측정 도구 실행 — 2026-10-24
 

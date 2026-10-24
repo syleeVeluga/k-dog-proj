@@ -321,7 +321,7 @@ class ResetS1Tests(unittest.TestCase):
     def test_provider_upload_name_is_durable_before_inference_and_delete_failure(self):
         config = {"model": "synthetic", "prompt": "synthetic", "processing_mode": "static", "fps": 1,
                   "media_resolution": "low", "max_output_tokens": 256}
-        clip = SimpleNamespace(size_bytes=1, clip_id="synthetic")
+        clip = SimpleNamespace(size_bytes=self.store.path(self.video[0]).stat().st_size, clip_id="synthetic")
         def transport(method, url, key, **kwargs):
             if url.endswith("/upload/v1beta/files"):
                 self.assertEqual(reset_s1.pending_remote_cleanup(self.store)[0]["status"], "upload_response_unconfirmed")
@@ -331,9 +331,10 @@ class ResetS1Tests(unittest.TestCase):
             self.assertEqual(reset_s1.pending_remote_cleanup(self.store)[0]["remote_file_name"], "files/synthetic")
             raise ProviderError("synthetic_failure", uncertain=True)
         with patch("app.gemini_v4.credential", return_value=("synthetic-key", "credential")):
-            with self.assertRaises(ProviderError):
+            with self.assertRaises(ProviderError) as error:
                 GeminiScorerV4(self.store, transport=transport).request_v4([(self.store.path(self.video[0]), clip)], config,
                     {"run_id": "old-run", "audit_actor": "admin"}, {}, lambda: None)
+        self.assertEqual(error.exception.code,"synthetic_failure")
         self.assertEqual(len(reset_s1.pending_remote_cleanup(self.store)), 1)
         reset_s1.execute(self.store, "admin")
         self.assertEqual(reset_s1.pending_remote_cleanup(self.store)[0]["remote_file_name"], "files/synthetic")
