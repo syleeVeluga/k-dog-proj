@@ -9,13 +9,21 @@
 | PR | 구현 | 자동 검증 | cold review·조치 | 실제 공급자 | 운영 적용 | commit/실제 PR |
 | --- | --- | --- | --- | --- | --- | --- |
 | [PA01](K-DOG_PR-PA01_실행계약과측정_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 2건 수정·재검토 완료 | 대상 아님 | 기본 1 유지 | [PR #150](https://github.com/syleeVeluga/k-dog-proj/pull/150) 병합 `2b4ffdb` |
-| [PA02](K-DOG_PR-PA02_호출예약과공유제한_v1.0_20261024.md) | 완료 | 通過 | 2명 독립 검토, P1 2건 수정·재검토 완료 | PA06 | 직렬 유지 | `ec17a07` / [PR #151](https://github.com/syleeVeluga/k-dog-proj/pull/151) |
-| [PA03](K-DOG_PR-PA03_항목군병렬실행_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | PA06 | 미적용 | — |
+| [PA02](K-DOG_PR-PA02_호출예약과공유제한_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P1 2건 수정·재검토 완료 | PA06 | 직렬 유지 | [PR #151](https://github.com/syleeVeluga/k-dog-proj/pull/151) 병합 `173bd83` |
+| [PA03](K-DOG_PR-PA03_항목군병렬실행_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, 추가 결함 없음 | PA06 | 기본 1, 명시 2~4 허용 | 병합 준비 |
 | [PA04](K-DOG_PR-PA04_운영설정과진행표시_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | PA06 | 미적용 | — |
 | [PA05](K-DOG_PR-PA05_장애복구와통합인수_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | PA06 | 미적용 | — |
 | [PA06](K-DOG_PR-PA06_실측과운영적용_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | 미실행 | 미적용 | — |
 
 ## 2. PR별 실행 기록 양식
+
+### PA03 실행 — 2026-10-24
+
+- 기준 `173bd83`, 브랜치 `veluga/pa03-bounded-score-execution`. 변경: `run_v4.py` 제한 실행기·장벽, `settings_v4.py` 미지원 해제, `worker.py` 늦은 usage 보존, `gemini_v4.py` 요청 계량, benchmark 증거 검증 및 관련 시험. AP02·AP04·AP05 구현. 기본 1과 전체 설정 hash/reuse 조건 유지.
+- `backend/`에서 `uv run --locked python -X utf8 -m unittest tests.test_parallel_execution_v4 tests.test_parallel_reservation_v4 tests.test_benchmark_s1 tests.test_run_v4.RunV4Tests.test_restart_after_reservation_preserves_uncertain_attempt_and_call_budget tests.test_run_v4.RunV4Tests.test_restart_recovers_complete_artifact_without_a_second_call -q`: 41개 통과, 32.127초. `uv run --locked python -X utf8 -m unittest tests.test_gemini_v4 tests.test_settings_v4 -q`: 12개 통과, 3.522초.
+- 실제 handler의 N=1/N=4 의미 비교 보강 후 `uv run --locked python -X utf8 -m unittest tests.test_parallel_execution_v4 -q`: 5개 통과, 86.329초. 최종 계량 보강 후 `uv run --locked python -X utf8 -m unittest tests.test_benchmark_s1 tests.test_gemini_v4 -q`: 32개 통과, 11.749초. 초기 회귀에서 강제 crash RuntimeError 전파 2건과 미지원 오류문구 기대 1건을 발견해 기존 crash 계약 유지·새 증거 오류문구로 수정했다.
+- 독립 subagent 2명 cold review에서 실질 결함 없음. 한 리뷰는 실제 full S1 handler를 N=4로 강제하여 42개 합성 요청·86개 관찰·계산·게시·결과 연결 통과, 다른 리뷰는 관련 회귀 37개 93.167초와 최종 보강 2개 통과를 확인했다.
+- 버전 확인은 PA01과 같은 2026-10-24 기록을 따른다. Python `concurrent.futures` 표준 API를 프로젝트 제약 3.14 환경에서 사용하며 신규 패키지/lockfile/DB 열 변경은 없다. 실제 공급자·성능·현장 인수는 PA06 대기다.
 
 ### PA02 실행 — 2026-10-24
 

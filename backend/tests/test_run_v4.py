@@ -118,11 +118,10 @@ class RunV4Tests(unittest.TestCase):
         self.assertTrue(interval["started_at_utc"])
         self.assertFalse(interval["reused"])
 
-    def test_parallel_admission_is_explicitly_unsupported_before_executor(self):
+    def test_parallel_admission_pins_requested_concurrency(self):
         config = self.config.model_copy(update={"version": "ai-scoring-20261024-pa01", "max_parallel_score_groups": 2})
-        with self.assertRaises(HTTPException) as caught:
-            self.enqueue(config=config)
-        self.assertEqual(caught.exception.status_code, 422)
+        result = self.enqueue(config=config)
+        self.assertEqual(json.loads(self.row(result["run_id"])["config_snapshot_json"])["max_parallel_score_groups"], 2)
 
     def test_failed_non_provider_exception_preserves_execution_interval(self):
         from app.media import MediaError

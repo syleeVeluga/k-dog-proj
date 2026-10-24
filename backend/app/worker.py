@@ -91,9 +91,21 @@ class Worker:
                 break
             except ProviderWaiting:
                 continue
-        if isinstance(observer, GeminiScorerV4):
-            return observer.request_v4(files, config, context, schema, guard, selected=selected)
-        return observer.request_v4(files, config, context, schema, guard)
+        usage = None
+        try:
+            result = observer.request_v4(files, config, context, schema, guard, selected=selected) if isinstance(observer, GeminiScorerV4) else observer.request_v4(files, config, context, schema, guard)
+            usage = result[1]
+            return result
+        except Exception as exc:
+            usage = getattr(exc, "usage", None)
+            raise
+        finally:
+            if isinstance(usage, dict):
+                with self.store.connect(write=True) as db:
+                    saved = db.execute("SELECT usage_json FROM steps WHERE step_id=? AND run_id=? AND claim_token=?",
+                        (step["step_id"], row["run_id"], step["claim_token"])).fetchone()
+                    if saved:
+                        db.execute("UPDATE steps SET usage_json=? WHERE step_id=?", (encode({**json.loads(saved[0]), **usage}), step["step_id"]))
 
     def wait_for_provider(self, row, step, check):
         while True:
