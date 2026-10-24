@@ -18,8 +18,8 @@ from .maintenance import file_hash, managed_path, runtime_lock
 from .recording_v4 import build_windows_v4, item_capture_gates_v4
 from .storage import encode, now, uid
 
-CUT_SETTINGS = {"version": "s1-cut-3-window-clock", "source_fps": "passthrough", "ai_fps": "first_actual_frame_per_second",
-                "ai_timeline": "preserve_cut_clock_and_last_frame_display_end", "ai_b_frames": 0,
+CUT_SETTINGS = {"version": "s1-cut-4-window-end", "source_fps": "passthrough", "ai_fps": "first_actual_frame_per_second",
+                "timeline": "preserve_cut_clock_and_last_frame_display_end", "b_frames": 0,
                 "video_codec": "libx264", "crf": 20, "audio": "continuous_aac", "pixel_format": "yuv420p"}
 
 
@@ -268,6 +268,33 @@ def _clip_file(store, path, start, policy, source_times):
         audio_ranges=_ranges((value["start_sec"], value["end_sec"]) for value in info["audio_ranges"]), fps_policy=policy)
 
 
+def _packet_times(last_index, tail):
+    if tail <= 0:
+        raise media.MediaError("마지막 실제 프레임의 표시 종료를 확인할 수 없습니다.")
+    return f"setts=pts=PTS:dts=DTS:duration=if(eq(N\\,{last_index})\\,ceil({tail:.15f}/TB)\\,DURATION)"
+
+
+def _source_clip(source, output, start, end, source_times):
+    if not source_times:
+        raise media.NoVideoError("실제 관찰창 안에 영상 프레임이 없습니다.")
+    encoded = output.with_name(output.stem+"-frames"+output.suffix)
+    media.command(["ffmpeg", "-v", "error", "-xerror", "-nostdin", "-n", *media.LOCAL_INPUT,
+        "-ss", f"{start:.15f}", "-i", str(source), "-t", f"{end-start:.15f}",
+        "-map", "0:v:0", "-map", "0:a?", "-fps_mode", "passthrough", "-enc_time_base:v", "demux",
+        "-c:v", "libx264", "-crf", "20", "-bf", "0",
+        "-pix_fmt", "yuv420p", "-c:a", "aac", str(encoded)], timeout=1800)
+    origin, times, _ = _frame_clock(encoded)
+    if not times:
+        raise media.NoVideoError("실제 관찰창 안에 영상 프레임이 없습니다.")
+    # Audio may anchor zero while silent MP4 starts at its first video frame.
+    # Measure that actual mux clock before setting the final packet duration.
+    packet_times = _packet_times(len(times)-1, end-start-(times[-1]-origin))
+    media.command(["ffmpeg", "-v", "error", "-xerror", "-nostdin", "-n", *media.LOCAL_INPUT,
+        "-i", str(encoded), "-map", "0:v:0", "-map", "0:a?", "-c", "copy", "-bsf:v", packet_times,
+        "-output_ts_offset", f"{origin:.15f}", "-movflags", "+faststart", str(output)], timeout=1800)
+    encoded.unlink()
+
+
 def _ai_clip(source, output):
     # select + passthrough retains actual frame PTS. The fps filter would fabricate
     # duplicate frames in subsecond/low-FPS/gapped media and is deliberately absent.
@@ -276,12 +303,9 @@ def _ai_clip(source, output):
     selected = tuple(i for i, time in enumerate(times) if i == 0 or int(time) != int(times[i-1]))
     if not selected:
         raise media.NoVideoError("실제 관찰창 안에 영상 프레임이 없습니다.")
-    tail = duration-times[selected[-1]]
-    if tail <= 0:
-        raise media.MediaError("마지막 실제 프레임의 표시 종료를 확인할 수 없습니다.")
     # No B-frame reordering: extend only the final real packet's display duration,
     # preserve every PTS/DTS, and restore the input clock for both video and audio.
-    packet_times = f"setts=pts=PTS:dts=DTS:duration=if(eq(N\\,{len(selected)-1})\\,ceil({tail:.15f}/TB)\\,DURATION)"
+    packet_times = _packet_times(len(selected)-1, duration-times[selected[-1]])
     media.command(["ffmpeg", "-v", "error", "-xerror", "-nostdin", "-n", *media.LOCAL_INPUT, "-i", str(source),
         "-map", "0:v:0", "-map", "0:a?", "-vf", "select=isnan(prev_selected_t)+gt(floor(t)\\,floor(prev_selected_t))",
         "-fps_mode", "passthrough", "-enc_time_base:v", "demux", "-c:v", "libx264", "-crf", "20",
@@ -328,8 +352,9 @@ def _prepare_clips(store, session, recording, windows, directory, guard):
             original = None
             try:
                 guard()
-                media.cut_clip(path, original_path, start, end, None, {"keep_audio": True})
-                original = _clip_file(store, original_path, start, "source_frames", tuple(t for t in source_times if start <= t < end))
+                requested_times = tuple(t for t in source_times if start <= t < end)
+                _source_clip(path, original_path, start, end, requested_times)
+                original = _clip_file(store, original_path, start, "source_frames", requested_times)
                 guard()
                 selected = _ai_clip(original_path, ai_path)
                 ai = _clip_file(store, ai_path, start, "one_actual_frame_per_second",

@@ -62,6 +62,8 @@ PA06 병합 `33be9a3` 이후 두 독립 subagent가 미커밋 제품 코드와 �
 | 재검증 GET 및 waiter 오류에 operation phase가 없어 예비키 전환 계약에서 빠짐 | P2 | GET은 processing, 공유 실패는 phase만 현재 요청 usage에 전달한다. 외국 actor/timing/credential usage를 복사하지 않는다. 소유자/대기자 두 요청 회귀 통과. |
 | 새 외부 준비가 이전 전체 준비시간/시작시각을 상속 | P2 | 새 시작·전체·전처리 시간을 기록하고 원입력 재사용 준비시간은 0으로 표시한다. 이전 준비는 별도 참조로 보존한다. |
 | GET 404 뒤 새 업로드도 reused=True로 집계 | P2 | 새 업로드 분기에서 hit=False, 새 upload ID의 reused=False 회귀 통과. |
+| 원본형 fractional cut 자체의 끝 누락을 고친 초기 tail 식이 유음 파일을 창 밖으로 늘림 | P2 | 실제 사전 gate에서 발견한 22.937ms 끝 축소를 원본형까지 보강했다. 유음/무음 mux 원점 차이는 실제 중간 파일을 측정하고 마지막 packet만 무손실 remux하여 처리한다. 원본형과 AI의 PTS/프레임 수/오디오 범위/whole gate·끝 탐색을 합성 4종과 Chromium에서 확인했다. 독립 4회귀 9.592초 통과. 실제 유료 호출 전 수정했다. |
+| 외부 원장 집계가 명시 null 계량에서 TypeError로 중단 | P2 | 알려진 비음수 정수만 합산하고 field별 불명 call 수를 별도 기록한다. 전부 불명이면 합계 None, 알려진 0은 0으로 보존한다. runner도 usage 자체 None의 원문과 전액예약을 유지한다. 정확히 cap에 닿는 요청 차단·정리 허용, null/음수/bool/0 합성 검증과 독립 재검토 통과. |
 
 모두 수용했다. 공유 업로드 최종 12개 통과, 해당 담당자는 마지막 수정 관련 3개도 독립 재실행하여 0.393초에 통과했다. 관찰 담당자는 큰 실제 원점 변화와 작은 encoder tick 보정이 분리되고 명시 관찰 span이 늘어나지 않는 것을 확인했다. 두 담당자 최종 미해결 P1/P2·blocker 없음. root는 구현 검증 중 서로 다른 항목군 attempt/새 claim의 업로드 실패 재시도와 정수 초 경계의 float 차이도 회귀로 보강했다.
 

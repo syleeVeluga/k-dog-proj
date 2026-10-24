@@ -30,7 +30,7 @@ class PreprocessV4Tests(unittest.TestCase):
     def setUpClass(cls):
         cls.media_temp = tempfile.TemporaryDirectory(prefix="kdog-s1-synthetic-")
         cls.samples = {}
-        for name, fps, audio in (("one", 8, True), ("two", 4, True), ("silent", 8, False), ("slow", 0.25, True), ("slow_silent", 0.25, False), ("mkv", 8, False)):
+        for name, fps, audio in (("one", 8, True), ("two", 4, True), ("silent", 8, False), ("thirty", 30, False), ("slow", 0.25, True), ("slow_silent", 0.25, False), ("mkv", 8, False)):
             path = Path(cls.media_temp.name) / (name + (".mkv" if name == "mkv" else ".mp4"))
             media.command(["ffmpeg", "-v", "error", "-nostdin", "-n", "-f", "lavfi", "-i", f"testsrc2=size=64x64:rate={fps}",
                 *(["-f", "lavfi", "-i", "sine=frequency=440:sample_rate=16000"] if audio else []),
@@ -265,13 +265,53 @@ class PreprocessV4Tests(unittest.TestCase):
     def test_silent_fractional_window_maps_actual_frames_to_source(self):
         self.assert_window_frame_mapping('silent',1.1,1.9,1.125)
 
+    def test_fractional_source_cut_keeps_requested_end_for_original_and_ai(self):
+        video = self.upload('thirty')
+        self.recording(video.video_id,start=1.602,end=4.392)
+        batch = self.run_batch()
+        clip = next(c for c in batch.clips if 'entry_whole' in c.window_ids)
+        self.assertEqual(clip.status,'complete')
+        self.assertEqual(len(clip.original.frame_times_seconds),83)
+        self.assertEqual(len(clip.ai.frame_times_seconds),3)
+        for derivative in (clip.original,clip.ai):
+            self.assertGreaterEqual(derivative.duration_seconds+derivative.source_time_offset_seconds,4.392-1e-6)
+            for local,source_time in zip(derivative.frame_times_seconds,derivative.source_frame_times_seconds):
+                self.assertAlmostEqual(local+derivative.source_time_offset_seconds,source_time,delta=0.002)
+        with self.store.connect() as db:
+            session = self.store.manifest(self.store.case(db,self.case_id)).sessions[0]
+        source = scoring_fixture.snapshot().model_copy(update={'batch':batch,'session':session})
+        for variant in ('original','ai'):
+            stage = scoring_fixture.group('바6').model_copy(update={'input_variant':variant})
+            constraints = scoring_ai_v4.context(source,stage,{'run_id':'synthetic'},'op')['response_constraints']
+            self.assertNotIn('바6',constraints['whole_interval_unavailable_item_codes'])
+            bound = constraints['evidence_intervals'][0]
+            self.assertAlmostEqual(bound['start_seconds']+getattr(clip,variant).source_time_offset_seconds,1.602,places=6)
+            self.assertAlmostEqual(bound['end_seconds']+getattr(clip,variant).source_time_offset_seconds,4.392,places=6)
+
+    def assert_audio_playback_end(self, name, start, end):
+        video = self.upload(name)
+        self.recording(video.video_id,start=start,end=end)
+        clip = next(c for c in self.run_batch().clips if 'entry_whole' in c.window_ids)
+        self.assertEqual(clip.status,'complete')
+        for derivative in (clip.original,clip.ai):
+            self.assertAlmostEqual(media.probe(self.store.path(derivative.ref))['duration_sec'],end-start,delta=0.002)
+            self.assertTrue(derivative.audio_ranges)
+            for local,source in zip(derivative.frame_times_seconds,derivative.source_frame_times_seconds):
+                self.assertAlmostEqual(local+derivative.source_time_offset_seconds,source,delta=0.002)
+
+    def test_audio_low_fps_cut_preserves_playback_end_without_overshoot(self):
+        self.assert_audio_playback_end('slow',1,4.1)
+
+    def test_audio_fractional_cut_preserves_playback_end_without_overshoot(self):
+        self.assert_audio_playback_end('one',1.1,1.9)
+
     def test_idempotent_completion_reuse_and_reviewer_verification(self):
         video = self.upload()
         self.recording(video.video_id)
         batch = self.run_batch()
         state = preprocess.status(self.store, self.case_id, self.session_id, "review")
         pointer = state.result_pointer
-        with patch.object(media, "cut_clip", side_effect=AssertionError("must reuse immutable media")):
+        with patch.object(preprocess, "_source_clip", side_effect=AssertionError("must reuse immutable media")):
             self.assertEqual(self.run_batch().batch_id, batch.batch_id)
             reused = self.run_batch("reuse-request", reuse=pointer)
         self.assertNotEqual(reused.batch_id, batch.batch_id)
