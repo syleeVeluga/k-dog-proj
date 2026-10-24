@@ -1,6 +1,6 @@
 """Pinned S1 execution, provider stages and explicit reuse identities."""
 from typing import Annotated, Literal, Self
-from pydantic import Field, model_validator
+from pydantic import Field, model_serializer, model_validator
 from .catalog_v4 import AUTO_CODES, ContractV4, Hash, ItemCode, SCORING_VERSION, Text
 from .media_v4 import MediaKey
 from .preprocess_v4 import BatchV4
@@ -47,7 +47,7 @@ class StageV4(ContractV4):
 
 
 class RunConfigV4(ContractV4):
-    version: Literal["ai-scoring-20261002-s1.1-1", "ai-scoring-20261007-rp02"] = "ai-scoring-20261007-rp02"
+    version: Literal["ai-scoring-20261002-s1.1-1", "ai-scoring-20261007-rp02", "ai-scoring-20261024-pa01"] = "ai-scoring-20261007-rp02"
     active_settings_version: Text | None = None
     settings_hash: Hash | None = None
     raw_observation_scope_confirmed: bool = False
@@ -55,9 +55,19 @@ class RunConfigV4(ContractV4):
     max_attempts: Annotated[int, Field(ge=1, le=3)] = 3
     max_ai_calls: Annotated[int, Field(ge=1, le=1000)] = 100
     max_schema_repairs: Annotated[int, Field(ge=0, le=1)] = 1
+    max_parallel_score_groups: Annotated[int, Field(strict=True, ge=1, le=4)] = 1
+
+    @model_serializer(mode="wrap")
+    def preserve_serial_contract(self, handler):
+        data = handler(self)
+        if self.version != "ai-scoring-20261024-pa01":
+            data.pop("max_parallel_score_groups", None)
+        return data
 
     @model_validator(mode="after")
     def groups(self) -> Self:
+        if self.version != "ai-scoring-20261024-pa01" and self.max_parallel_score_groups != 1:
+            raise ValueError("historical execution contracts are serial")
         keys = [(item.stage, item.key) for item in self.stages]
         if len(keys) != len(set(keys)):
             raise ValueError("duplicate execution stage")

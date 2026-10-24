@@ -134,6 +134,8 @@ def enqueue(store, case_id, session_id, value, user, config, *, reuse=(), enable
     manager(user)
     value = StartV4.model_validate_json(value.model_dump_json())
     config = RunConfigV4.model_validate(config)
+    if config.max_parallel_score_groups != 1:
+        raise HTTPException(422, "병렬 항목군 실행은 PA03 적용 전까지 지원하지 않습니다.")
     reuse = tuple(ReuseV4.model_validate(entry) for entry in reuse)
     if not enabled or not config.raw_observation_scope_confirmed:
         raise HTTPException(503, "S1 관찰 원자료 적용 범위를 확인한 활성 설정이 필요합니다.")
@@ -303,6 +305,7 @@ class DependenciesPending(Exception):
 
 
 def process(worker, row):
+    cycle_start, cycle_id = time.monotonic(), uid()
     snapshot = snapshot_for(row)
     config = RunConfigV4.model_validate_json(row["config_snapshot_json"])
     worker.check(row)
@@ -332,11 +335,29 @@ def process(worker, row):
             perform = lambda step, payload=payload, entry=entry: {**payload, "usage": gemini_keys.reused_usage(payload.get("usage", {}), entry.source_run_id)}
         else:
             perform = work
-        def timed(step, operation=perform, stage=group.stage):
-            started = time.monotonic()
-            result = operation(step)
+        def timed(step, operation=perform, stage=group.stage, reused=bool(entry)):
+            started, started_utc = time.monotonic(), now()
+            interval = {"clock_id": cycle_id, "start": started - cycle_start, "started_at_utc": started_utc,
+                        "queue_seconds": started - cycle_start, "reused": reused}
+            try:
+                result = operation(step)
+            except Exception as exc:
+                if isinstance(getattr(exc, "usage", None), dict):
+                    exc.usage["execution_interval"] = interval
+                raise
+            finally:
+                interval.update(end=time.monotonic() - cycle_start, finished_at_utc=now())
+                # Timing belongs to this immutable attempt, including late/stopped work.
+                # It does not adopt output or change the run/step lifecycle.
+                with worker.store.connect(write=True) as db:
+                    saved = db.execute("SELECT usage_json FROM steps WHERE step_id=? AND run_id=? AND claim_token=?",
+                        (step["step_id"], row["run_id"], step["claim_token"])).fetchone()
+                    if saved:
+                        db.execute("UPDATE steps SET usage_json=? WHERE step_id=?", (
+                            encode({**json.loads(saved[0]), "execution_interval": interval}), step["step_id"]))
             usage = result.setdefault("usage", {})
             usage.setdefault("timing", {})[{"calculate_v4": "calculation_seconds", "publish_v4": "publish_seconds"}.get(stage, "stage_seconds")] = time.monotonic() - started
+            usage["execution_interval"] = interval
             return result
         result = worker.stage(row, group.stage, group.key, validate, timed)
         complete = complete and result is not None

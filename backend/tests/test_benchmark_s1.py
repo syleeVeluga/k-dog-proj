@@ -56,6 +56,50 @@ def manifest(trials=()):
 
 
 class BenchmarkMetricsTests(unittest.TestCase):
+    def test_parallel_manifest_preserves_same_repeat_for_each_concurrency(self):
+        data = bench.template()
+        data.update(version=bench.PARALLEL_VERSION, sample_kind="synthetic", app_commit="synthetic",
+            planned_repetitions=1, planned_provider_call_budget=200,
+            conditions=[{"key": bench.PARALLEL_CONDITION}],
+            trials=[trial(condition=bench.PARALLEL_CONDITION, max_parallel_score_groups=n,
+                ai={"run_id": f"run-{n}", "input_hash": "1"*64, "config_hash": str(n)*64}).model_dump(mode="json") for n in range(1, 5)])
+        parsed = bench.BenchmarkManifest.model_validate_json(encode(data))
+        self.assertEqual([row.max_parallel_score_groups for row in parsed.trials], [1, 2, 3, 4])
+        data["trials"][1]["ai"]["run_id"] = "run-1"
+        with self.assertRaises(ValidationError):
+            bench.BenchmarkManifest.model_validate_json(encode(data))
+        self.assertEqual(len(bench.summarize(manifest())["conditions"]), 3)
+
+    def test_parallel_four_camera_comparison_rejects_mixed_inputs(self):
+        data = bench.template(parallel=True)
+        data.update(sample_kind="synthetic", app_commit="synthetic", planned_repetitions=1, planned_provider_call_budget=100,
+            trials=[trial(condition=bench.PARALLEL_CONDITION, max_parallel_score_groups=n,
+                ai={"run_id": f"run-{n}", "input_hash": "1"*64, "config_hash": str(n)*64}).model_dump(mode="json") for n in (1, 4)])
+        candidate = bench.BenchmarkManifest.model_validate_json(encode(data))
+        def inspect(store, item, user, stamps):
+            result, pair = self.fake_inspect(store, item, user, stamps)
+            result.update(run_state="succeeded", camera_count=4, file_sizes_bytes=[100]*4, max_parallel_score_groups=item.max_parallel_score_groups,
+                comparison_hash="same-input-and-model")
+            return result, pair
+        with patch.object(bench, "inspect_trial", side_effect=inspect), patch.object(bench, "_access"):
+            summary = bench.summarize(candidate)
+        self.assertEqual(summary["conditions"][0]["status"], "synthetic_only")
+        self.assertEqual(len(summary["conditions"][0]["repeat_groups"]), 2)
+        def partial(store, item, user, stamps):
+            result, pair = inspect(store, item, user, stamps)
+            result["run_state"] = "partial_failed"
+            return result, pair
+        with patch.object(bench, "inspect_trial", side_effect=partial), patch.object(bench, "_access"):
+            summary = bench.summarize(candidate)
+        self.assertEqual(summary["conditions"][0]["repeat_groups"], [])
+        self.assertEqual(summary["conditions"][0]["run_states"], {"partial_failed": 2})
+        def mixed(store, item, user, stamps):
+            result, pair = inspect(store, item, user, stamps)
+            result["comparison_hash"] = str(item.max_parallel_score_groups)
+            return result, pair
+        with patch.object(bench, "inspect_trial", side_effect=mixed), patch.object(bench, "_access"), self.assertRaises(ValueError):
+            bench.summarize(candidate)
+
     def test_wall_clock_is_not_sum_of_overlapping_stages(self):
         result=bench.timing(clock())
         self.assertEqual(result["server_receive_to_pdf_seconds"],100)

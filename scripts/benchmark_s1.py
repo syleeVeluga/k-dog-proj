@@ -32,6 +32,8 @@ from app.input_models_v4 import ManifestV4
 from app.storage import Store
 
 VERSION = "benchmark-20261002-s1.1-1"
+PARALLEL_VERSION = "benchmark-20261024-pa01"
+PARALLEL_CONDITION = "parallel_score_groups"
 CONDITIONS = ("original_1gb_x1", "original_1gb_x3", "compressed_200_300mb_x3")
 STAGES = ("pc_upload", "queue", "conversion", "probe_preprocess", "provider_upload", "provider_wait",
     "ai", "schema_repair", "calculation", "content", "html_pdf_publish")
@@ -139,7 +141,7 @@ class Pairing(ContractV4):
 
 
 class Condition(ContractV4):
-    key: Literal[*CONDITIONS]
+    key: Literal[*CONDITIONS, "parallel_score_groups"]
     # The operator states what 'about 1 GB' means before measuring. No invented tolerance.
     size_range_bytes: tuple[Annotated[int, Field(gt=0)], Annotated[int, Field(gt=0)]] | None = None
     missing_reason: Text = "실제 영상·동의·실행 로그 미수령"
@@ -154,7 +156,7 @@ class Condition(ContractV4):
 
 
 class Trial(ContractV4):
-    condition: Literal[*CONDITIONS]
+    condition: Literal[*CONDITIONS, "parallel_score_groups"]
     pair_id: Text
     repeat: Annotated[int, Field(ge=1)]
     case_id: Text
@@ -168,10 +170,11 @@ class Trial(ContractV4):
     fps_condition: Literal["source", "compression_fps_kept", "fps_reduced"]
     pc_upload_mode: Literal["one_pc", "three_pc_concurrent", "unmeasured"]
     provider_execution: Literal["serial", "parallel", "unmeasured"] = "serial"
+    max_parallel_score_groups: Annotated[int, Field(strict=True, ge=1, le=4)] = 1
 
 
 class BenchmarkManifest(ContractV4):
-    version: Literal["benchmark-20261002-s1.1-1"] = VERSION
+    version: Literal["benchmark-20261002-s1.1-1", "benchmark-20261024-pa01"] = VERSION
     sample_kind: Literal["synthetic", "field"]
     app_commit: Text
     environment: dict[str, Text]
@@ -182,9 +185,12 @@ class BenchmarkManifest(ContractV4):
 
     @model_validator(mode="after")
     def complete(self):
-        if sorted(row.key for row in self.conditions) != sorted(CONDITIONS):
+        expected = (PARALLEL_CONDITION,) if self.version == PARALLEL_VERSION else CONDITIONS
+        if sorted(row.key for row in self.conditions) != sorted(expected) or any(row.condition not in expected for row in self.trials):
             raise ValueError("all three required conditions must appear exactly once")
-        keys = [(row.condition, row.pair_id, row.repeat, row.cache, row.fps_condition) for row in self.trials]
+        if self.version == VERSION and any(row.max_parallel_score_groups != 1 for row in self.trials):
+            raise ValueError("S16 manifests cannot claim parallel comparison acceptance")
+        keys = [(row.condition, row.pair_id, row.repeat, row.cache, row.fps_condition, row.max_parallel_score_groups) for row in self.trials]
         if len(keys) != len(set(keys)) or len({row.ai.run_id for row in self.trials}) != len(self.trials):
             raise ValueError("a run cannot be counted as multiple trials")
         if self.trials and (self.planned_repetitions is None or self.planned_provider_call_budget is None):
@@ -198,12 +204,12 @@ class BenchmarkManifest(ContractV4):
         return self
 
 
-def template():
-    return {"version": VERSION, "sample_kind": "field", "app_commit": "측정할 앱 commit 입력",
+def template(*, parallel=False):
+    return {"version": PARALLEL_VERSION if parallel else VERSION, "sample_kind": "field", "app_commit": "측정할 앱 commit 입력",
         "environment": {key: "실측 전 기록" for key in ("server", "cpu", "memory", "network", "os")},
         "planned_repetitions": None, "planned_provider_call_budget": None,
         "conditions": [{"key": key, "size_range_bytes": [200_000_000, 300_000_000] if key == CONDITIONS[2] else None,
-            "missing_reason": "실제 영상·동의·실행 로그 미수령"} for key in CONDITIONS], "trials": []}
+            "missing_reason": "실제 영상·동의·실행 로그 미수령"} for key in ((PARALLEL_CONDITION,) if parallel else CONDITIONS)], "trials": []}
 
 
 def union_seconds(intervals):
@@ -302,6 +308,8 @@ def inspect_trial(store, trial, user, stamps):
         expected_input=FileV4(ref=source.input.manifest_ref, hash=source.input.manifest_hash), expected_revision=source.input_revision)
     stamps.update(run_v4.verify_files(store, source))
     config = RunConfigV4.model_validate_json(row["config_snapshot_json"])
+    if config.max_parallel_score_groups != trial.max_parallel_score_groups:
+        raise ValueError("declared concurrency differs from the pinned execution")
     pairing = _read(store, trial.pairing, Pairing, stamps)
     if (pairing.case_id, pairing.session_id) != (trial.case_id, trial.session_id):
         raise ValueError("pairing belongs to a different case or session")
@@ -344,6 +352,7 @@ def inspect_trial(store, trial, user, stamps):
         result_quality = quality(exported, trial.ai.run_id)
     usage = [json.loads(step["usage_json"]) for step in steps]
     result = {"run_state": row["status"], "camera_count": len(videos), "file_sizes_bytes": [video.size_bytes for video in videos],
+        "camera_ids": [video.camera_id for video in videos], "max_parallel_score_groups": config.max_parallel_score_groups,
         "source_metadata": source.batch.source_metadata, "catalog_and_rule_hashes": source.batch.asset_hashes,
         "configuration_hash": trial.ai.config_hash, "models": sorted({(stage.provider, stage.model) for stage in config.stages if stage.provider_call}),
         "prompt_hashes": sorted({hashlib.sha256(stage.prompt.encode()).hexdigest() for stage in config.stages if stage.provider_call}),
@@ -362,6 +371,10 @@ def inspect_trial(store, trial, user, stamps):
     # Paths/names/IDs embedded in probe metadata are private; emit only technical fields.
     safe_fields = {"duration_seconds", "fps", "width", "height", "video_codec", "has_audio", "conversion_tool", "conversion_settings_hash"}
     result["source_metadata"] = [{key: value for key, value in entry.model_dump(mode="json").items() if key in safe_fields} for entry in pairing.media]
+    comparison_config = config.model_dump(mode="json")
+    for key in ("version", "active_settings_version", "settings_hash", "max_parallel_score_groups"):
+        comparison_config.pop(key, None)
+    result["comparison_hash"] = analysis.digest({"input": source.model_dump(mode="json", exclude={"requested_by"}), "config": comparison_config})
     return result, pairing
 
 
@@ -395,21 +408,29 @@ def summarize(manifest, store=None, user=None):
     for condition in manifest.conditions:
         trials = [row for row in results if row["condition"] == condition.key]
         required_count = 1 if condition.key == CONDITIONS[0] else 3
-        accepted = [row for row in trials if row["camera_count"] == required_count and condition.size_range_bytes and
+        if manifest.version == PARALLEL_VERSION:
+            for pair in {row["pair"] for row in trials}:
+                if len({row["comparison_hash"] for row in trials if row["pair"] == pair}) != 1:
+                    raise ValueError("parallel comparison mixes pinned inputs or non-concurrency settings")
+            accepted = trials
+        else:
+            accepted = [row for row in trials if row["camera_count"] == required_count and condition.size_range_bytes and
             all(condition.size_range_bytes[0] <= size <= condition.size_range_bytes[1] for size in row["file_sizes_bytes"])]
-        timed = [row for row in accepted if row["timing"] and row["timing"]["server_receive_to_pdf_seconds"] is not None]
+        timed = [row for row in accepted if (manifest.version != PARALLEL_VERSION or row["run_state"] == "succeeded")
+            and row["timing"] and row["timing"]["server_receive_to_pdf_seconds"] is not None]
         # Do not merge cold/cache, FPS, PC-upload or provider concurrency conditions.
         groups = defaultdict(list)
         for row in timed:
-            groups[(row["pair"], row["cache"], row["fps_condition"], row["pc_upload_mode"], row["provider_execution"], row["configuration_hash"])].append(row)
+            groups[(row["pair"], row["cache"], row["fps_condition"], row["pc_upload_mode"], row["provider_execution"], row["configuration_hash"], row.get("max_parallel_score_groups", 1))].append(row)
         variations = []
         for key, values in groups.items():
             wall = [row["timing"]["server_receive_to_pdf_seconds"] for row in values]
             variations.append({"pair": key[0], "cache": key[1], "fps_condition": key[2], "pc_upload_mode": key[3],
-                "provider_execution": key[4], "configuration_hash": key[5], "n": len(wall), "min_seconds": min(wall),
+                "provider_execution": key[4], "configuration_hash": key[5], "max_parallel_score_groups": key[6], "n": len(wall), "min_seconds": min(wall),
                 "max_seconds": max(wall), "mean_seconds": statistics.mean(wall),
                 "sample_stdev_seconds": statistics.stdev(wall) if len(wall) > 1 else None})
         rows.append({"condition": condition.key, "status": "measured" if timed and manifest.sample_kind == "field" else "synthetic_only" if timed else "unmeasured",
+            "run_states": dict(Counter(row.get("run_state", "unrecorded") for row in trials)),
             "reason": None if timed else "file_count_or_size_condition_not_confirmed" if trials and not accepted else "complete_clock_trace_missing" if trials else condition.missing_reason,
             "size_range_bytes": condition.size_range_bytes, "trials": [row["trial"] for row in trials], "repeat_groups": variations})
     for trial in manifest.trials:
@@ -418,7 +439,7 @@ def summarize(manifest, store=None, user=None):
             verified_export(store, trial.export, user, stamps)
     if store:
         report_runs_v4.check_stamps(store, stamps)
-    return {"version": VERSION, "sample_kind": manifest.sample_kind, "app_commit": manifest.app_commit,
+    return {"version": manifest.version, "sample_kind": manifest.sample_kind, "app_commit": manifest.app_commit,
         "environment": manifest.environment, "conditions": rows, "trials": results, "real_measurement_complete": False,
         "accuracy_threshold": None, "note": "Recorded measurements are not accuracy approval or S16 field acceptance. Missing rows are never extrapolated."}
 
@@ -429,12 +450,13 @@ def main(argv=None):
     inputs.add_argument("--template", type=Path)
     inputs.add_argument("--schema", type=Path)
     inputs.add_argument("--manifest", type=Path)
+    parser.add_argument("--parallel", action="store_true", help="prepare a PA comparison template; does not satisfy S16")
     parser.add_argument("--data-dir", type=Path)
     parser.add_argument("--actor")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
     if args.template:
-        target, result = args.template, template()
+        target, result = args.template, template(parallel=args.parallel)
     elif args.schema:
         target, result = args.schema, {"manifest": BenchmarkManifest.model_json_schema(),
             "pairing_file": Pairing.model_json_schema(), "clock_file": ClockTrace.model_json_schema()}

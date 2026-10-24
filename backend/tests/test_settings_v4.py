@@ -12,6 +12,34 @@ from app.storage import Store
 
 
 class SettingsV4Tests(unittest.TestCase):
+    def test_parallel_contract_strictness_and_historical_hashes(self):
+        from app import analysis
+        from app.domain.runs_v4 import RunConfigV4
+        pipeline = settings.defaults()
+        original = pipeline.model_dump(mode="json")
+        original.pop("max_parallel_score_groups")
+        historical = settings.AiPipelineV4.model_validate_json(json.dumps(original))
+        self.assertEqual(historical.max_parallel_score_groups, 1)
+        self.assertEqual(historical.model_dump(mode="json"), original)
+        frozen = scoring_ai_v4.configuration(None, historical)
+        self.assertEqual(frozen.version, "ai-scoring-20261007-rp02")
+        self.assertNotIn("max_parallel_score_groups", frozen.model_dump())
+        raw = frozen.model_dump_json()
+        self.assertEqual(RunConfigV4.model_validate_json(raw).model_dump_json(), raw)
+        self.assertEqual(frozen.settings_hash, analysis.digest(original))
+        for value in (0, 5, None, True, False, 1.0, 1.5, "2"):
+            with self.subTest(value=value), self.assertRaises(ValidationError):
+                settings.AiPipelineV4.model_validate({**original, "max_parallel_score_groups": value})
+        for value in range(1, 5):
+            current = settings.AiPipelineV4.model_validate({**original, "max_parallel_score_groups": value})
+            config = scoring_ai_v4.configuration(None, current)
+            self.assertEqual(config.max_parallel_score_groups, value)
+            self.assertEqual(config.version, "ai-scoring-20261024-pa01")
+            self.assertNotEqual(config.settings_hash, frozen.settings_hash)
+        with self.assertRaises(HTTPException) as caught:
+            self.draft(max_parallel_score_groups=2)
+        self.assertEqual(caught.exception.status_code, 422)
+
     def test_generation_headroom_preserves_saved_settings_and_frozen_limits(self):
         from app.domain.runs_v4 import RunConfigV4
         pipeline=settings.defaults()

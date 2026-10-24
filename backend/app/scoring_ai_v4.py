@@ -151,7 +151,8 @@ def configuration(version, pipeline):
               "provider": "program", "provider_call": False, "prompt": "S1 source-defined calculation; D04 interpretation held", "response_schema": {"type": "object"}}
     from . import attachment_ai_v4
     stages.extend(({**common, "stage": "calculate_v4"}, attachment_ai_v4.configuration(common), {**common, "stage": "publish_v4"}))
-    return RunConfigV4.model_validate_json(encode({"version": VERSION, "active_settings_version": version,
+    execution = {"max_parallel_score_groups": pipeline.max_parallel_score_groups} if "max_parallel_score_groups" in pipeline.model_fields_set else {}
+    return RunConfigV4.model_validate_json(encode({"version": "ai-scoring-20261024-pa01" if execution else VERSION, **execution, "active_settings_version": version,
         "settings_hash": analysis.digest(pipeline.model_dump(mode="json")), "raw_observation_scope_confirmed": pipeline.raw_observation_scope_confirmed,
         "stages": stages, "max_attempts": pipeline.max_attempts, "max_ai_calls": pipeline.max_ai_calls, "max_schema_repairs": pipeline.max_schema_repairs}))
 

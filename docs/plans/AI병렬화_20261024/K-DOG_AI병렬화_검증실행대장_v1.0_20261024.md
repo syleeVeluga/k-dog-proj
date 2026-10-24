@@ -1,6 +1,6 @@
 # K-DOG AI 병렬화 검증·실행 대장
 
-버전: v1.0 · 2026-10-24 · 상태: 계획 문서 작성, 구현 미착수
+버전: v1.0 · 2026-10-24 · 상태: PA01 구현·검증·cold review 완료, 후속 PR 진행
 
 상위: [병렬화 계획](K-DOG_AI병렬화계획_v1.0_20261024.md)
 
@@ -8,7 +8,7 @@
 
 | PR | 구현 | 자동 검증 | cold review·조치 | 실제 공급자 | 운영 적용 | commit/실제 PR |
 | --- | --- | --- | --- | --- | --- | --- |
-| [PA01](K-DOG_PR-PA01_실행계약과측정_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | 대상 아님 | 미적용 | — |
+| [PA01](K-DOG_PR-PA01_실행계약과측정_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 2건 수정·재검토 완료 | 대상 아님 | 기본 1 유지 | 병합 준비 |
 | [PA02](K-DOG_PR-PA02_호출예약과공유제한_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | PA06 | 미적용 | — |
 | [PA03](K-DOG_PR-PA03_항목군병렬실행_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | PA06 | 미적용 | — |
 | [PA04](K-DOG_PR-PA04_운영설정과진행표시_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | PA06 | 미적용 | — |
@@ -16,6 +16,14 @@
 | [PA06](K-DOG_PR-PA06_실측과운영적용_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | 미실행 | 미적용 | — |
 
 ## 2. PR별 실행 기록 양식
+
+### PA01 실행 — 2026-10-24
+
+- 기준 `0335f60`, 브랜치 `veluga/pa01-execution-contracts`. Graft 호출 관계를 확인하고 설정/실행 계약, S1 회차 계량, benchmark 및 관련 회귀만 수정했다. AP01 구현, 실행 순서 유지, 외부 공급자 호출 0회, 운영 활성 설정 변경 없음.
+- 검증 환경: Windows, Python 3.14.2, Pydantic 2.13.5(backend 잠금 환경). `backend/`에서 `uv run --locked python -X utf8 -m unittest tests.test_settings_v4 tests.test_run_v4 tests.test_benchmark_s1 tests.test_report_runs_v4 -q`: 75개 통과, 178.589초(최초 회귀). cold review 수용 수정 후 `uv run --locked python -X utf8 -m unittest tests.test_settings_v4 tests.test_run_v4 tests.test_benchmark_s1 -q`: 54개 통과, 72.707초. `git diff --check` 통과.
+- strict N, 과거 serializer/hash, 새 판본, 실행 불변성·reuse·중지/복구 기존 회귀, 실패 계량, 겹친 구간의 union/span, N별 반복·4카메라·혼합 입력 거절·부분 실패 제외를 확인했다. 상세 발견/조치는 [Cold Review](K-DOG_AI병렬화_ColdReview_v1.0_20261024.md#pa01-구현-cold-review--2026-10-24) 참조.
+- 2026-10-24 버전 확인: Python 최신 안정 3.15.1([공식 릴리스](https://www.python.org/downloads/release/python-3151/)), Pydantic 최신 안정 2.14.1([PyPI](https://pypi.org/project/pydantic/), [변경점](https://docs.pydantic.dev/latest/changelog/)). 프로젝트 Python `>=3.14,<3.15`와 잠금 Pydantic 2.13.5를 유지했다. 이번 변경에 런타임/의존성 업그레이드는 불필요하며 [직렬화](https://docs.pydantic.dev/latest/concepts/serialization/) API와 strict 필드를 잠금 환경에서 검증했다. 신규 패키지·lockfile 변경 없음. Python 스레드 [공식 API](https://docs.python.org/3.14/library/concurrent.futures.html)는 PA03에서 적용한다.
+- 새 실측 참조가 사용자 지정 Downloads에 존재하고 원본 폴더가 있는 것은 확인했다. 실제 처리·유료 실험·발급은 PA06에서 수행하며 현재 인수 실측 수치는 모두 대기다.
 
 각 PR 착수 후 아래 항목을 해당 PR 기록에 추가한다. 미실행 항목을 통과로 채우지 않는다.
 
