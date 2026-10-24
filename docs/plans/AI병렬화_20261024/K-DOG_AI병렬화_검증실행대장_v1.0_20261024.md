@@ -1,6 +1,6 @@
 # K-DOG AI 병렬화 검증·실행 대장
 
-버전: v1.0 · 2026-10-24 · 상태: PA01 구현·검증·cold review 완료, 후속 PR 진행
+버전: v1.0 · 2026-10-24 · 상태: PA01~PA04 구현·검증·cold review 완료, 후속 PR 진행
 
 상위: [병렬화 계획](K-DOG_AI병렬화계획_v1.0_20261024.md)
 
@@ -10,12 +10,19 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | [PA01](K-DOG_PR-PA01_실행계약과측정_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 2건 수정·재검토 완료 | 대상 아님 | 기본 1 유지 | [PR #150](https://github.com/syleeVeluga/k-dog-proj/pull/150) 병합 `2b4ffdb` |
 | [PA02](K-DOG_PR-PA02_호출예약과공유제한_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P1 2건 수정·재검토 완료 | PA06 | 직렬 유지 | [PR #151](https://github.com/syleeVeluga/k-dog-proj/pull/151) 병합 `173bd83` |
-| [PA03](K-DOG_PR-PA03_항목군병렬실행_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, 추가 결함 없음 | PA06 | 기본 1, 명시 2~4 허용 | `79f86c0` / [PR #152](https://github.com/syleeVeluga/k-dog-proj/pull/152) |
-| [PA04](K-DOG_PR-PA04_운영설정과진행표시_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | PA06 | 미적용 | — |
+| [PA03](K-DOG_PR-PA03_항목군병렬실행_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, 추가 결함 없음 | PA06 | 기본 1, 명시 2~4 허용 | [PR #152](https://github.com/syleeVeluga/k-dog-proj/pull/152) 병합 `3275ce8` |
+| [PA04](K-DOG_PR-PA04_운영설정과진행표시_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 수정·재검토 완료 | PA06 | 개발자 명시 설정 | 병합 준비 |
 | [PA05](K-DOG_PR-PA05_장애복구와통합인수_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | PA06 | 미적용 | — |
 | [PA06](K-DOG_PR-PA06_실측과운영적용_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | 미실행 | 미적용 | — |
 
 ## 2. PR별 실행 기록 양식
+
+### PA04 실행 — 2026-10-24
+
+- 기준 `3275ce8`, 브랜치 `veluga/pa04-parallel-settings-progress`. 수정 파일: backend run view/domain/Worker 감사, frontend AiSettings/AiRuns/types, 관련 backend/e2e 및 합성 캡처. AP07과 AP09 표시 구현. 최초 시험에서 감사 actor FK 오류를 발견해 실제 실행/재시도 직원으로 수정했다.
+- `backend/`에서 `uv run --locked python -X utf8 -m unittest tests.test_parallel_execution_v4.ParallelExecutionTests.test_stop_retry_waits_for_old_children_and_rejects_late_outputs tests.test_settings_v4 tests.test_ai_api_v4 tests.test_run_progress_v4 -q`: 17개 통과, 81.482초. stop/예약 경쟁 8개 4.666초 통과. 최종 program 실제 계수·수습 회귀 2개 1.954초 통과.
+- `frontend/`의 `npm run build` 통과. `npm run test:e2e -- tests/analysis-status-v4.spec.ts tests/scoring-ai-v4.spec.ts tests/gemini-key-fallback.spec.ts`: 18개 통과, 2.4분. 기준 commit 별도 빌드의 기존 PC/모바일 캡처 시험 1개도 15.6초 통과. 전후 캡처와 병렬/설정 화면 7개를 PA04 문서에 연결하고 가독성·가로 넘침을 검수했다.
+- 2026-10-24 npm 공식 registry 확인: 최신 React 19.3.1, Playwright 1.64.1, Vite 8.3.5, TypeScript 7.0.2. 선택은 기존 pin React/ReactDOM 19.2.8, Playwright 1.63.0, Vite 8.2.2, TypeScript 7.0.2를 유지했다. 이번 표시 변경에 관련 없는 업그레이드를 하지 않았으며 Node 24.22.1이 선택된 Vite `^20.19.0 || >=22.12.0`, Playwright `>=20`과 호환됨을 registry engines/peer 및 실제 build/e2e로 확인했다. [React registry](https://www.npmjs.com/package/react), [Playwright](https://www.npmjs.com/package/@playwright/test), [Vite](https://www.npmjs.com/package/vite), [TypeScript](https://www.npmjs.com/package/typescript). 패키지/lockfile 변경 없음.
 
 ### PA03 실행 — 2026-10-24
 

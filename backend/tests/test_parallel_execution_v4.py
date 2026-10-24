@@ -93,6 +93,23 @@ class ParallelExecutionTests(unittest.TestCase):
         self.assertEqual(calls, {group.key: 2 if group.key == first else 1 for group in config.stages if group.stage == "score_v4"})
         self.assertEqual(downstream, [True])
 
+    def test_view_counts_completed_program_results_instead_of_planned_provider_flags(self):
+        from app import run_v4
+        config, worker = self.config(2, count=2, follow=False), Worker(self.store)
+        run_id = self.enqueue(config)
+        self.assertTrue(all(group.provider_call for group in config.stages))
+        def handler(snapshot, group, row):
+            def work(step):
+                if group.key == config.stages[0].key:
+                    return {"usage": {"program_merge": True}}
+                worker.reserve_call(row, step)
+                return {"usage": {}}
+            return lambda value: value, work
+        worker.v4_work = handler
+        worker.once()
+        view = run_v4.view(self.store, run_id, self.fixture.user)
+        self.assertEqual((view["program_groups"], view["reserved_calls"], view["max_parallel_score_groups"]), (1, 1, 2))
+
     def test_real_s1_handler_keeps_observation_and_calculation_meaning(self):
         expected = None
         class Provider:
@@ -137,7 +154,10 @@ class ParallelExecutionTests(unittest.TestCase):
             try:
                 self.fixture.action(run_id)
                 self.assertEqual(self.fixture.row(run_id)["status"], "stopped")
+                from app import run_v4
+                self.assertTrue(run_v4.view(self.store, run_id, self.fixture.user)["settling"])
                 self.fixture.action(run_id, retry=True)
+                self.assertTrue(run_v4.view(self.store, run_id, self.fixture.user)["settling"])
                 with self.assertRaises(HTTPException):
                     Worker(self.store).once()
                 self.assertFalse(running.done())
@@ -146,6 +166,7 @@ class ParallelExecutionTests(unittest.TestCase):
             running.result(timeout=10)
         self.assertEqual(len(sent), 2)
         self.assertEqual(self.fixture.row(run_id)["status"], "queued")
+        self.assertFalse(run_v4.view(self.store, run_id, self.fixture.user)["settling"])
         with self.store.connect() as db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM steps WHERE run_id=? AND status='succeeded'", (run_id,)).fetchone()[0], 0)
 

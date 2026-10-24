@@ -209,7 +209,7 @@ class Worker:
             usage = {**json.loads(saved[0]), **usage}
             if provider_error is not None:
                 if provider_error.http_status == 429:
-                    self.store.audit(db, usage.get("audit_actor", "system"), row["run_id"], "gemini.cooldown",
+                    self.store.audit(db, usage.get("audit_actor") or row.get("worker_actor") or json.loads(row["input_snapshot_json"])["requested_by"], row["run_id"], "gemini.cooldown",
                         {"retry_at": retry_at, "reason": "project_rate_limit", "step_id": step["step_id"]})
                 fallback = gemini_keys.request_fallback(self.store, db, row, step, provider_error, maximum, retry_at=retry_at)
                 usage.update(provider_error.usage)
@@ -245,6 +245,11 @@ class Worker:
         row = claim(self.store)
         if row is None:
             return False
+        with self.store.connect(write=True) as db:
+            from app.run_v4 import execution_actor
+            row["worker_actor"] = execution_actor(db, row["run_id"], json.loads(row["input_snapshot_json"])["requested_by"],
+                "report.s1.retry" if row["kind"] == "report_v4" else "run_v4.retry")
+            self.store.audit(db, row["worker_actor"], row["run_id"], "worker.cycle_started", {"claim_token": row["claim_token"]})
         try:
             with heartbeat(self.store, row):
                 self.process(row)
@@ -260,6 +265,9 @@ class Worker:
                         usage = {**json.loads(step["usage_json"]), "code": "worker_interrupted",
                                  "billing_uncertain": bool(step["call_reserved"])}
                         db.execute("UPDATE steps SET usage_json=?,updated_at=? WHERE step_id=?", (encode(usage), now(), step["step_id"]))
+        finally:
+            with self.store.connect(write=True) as db:
+                self.store.audit(db, row["worker_actor"], row["run_id"], "worker.cycle_drained", {"claim_token": row["claim_token"]})
         return True
 
     def run(self):

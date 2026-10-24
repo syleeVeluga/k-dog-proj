@@ -33,6 +33,7 @@ export function AiSettingsV4() {
   }
   function validate() {
     if (!config || !view) throw new Error('AI 설정을 불러오세요.');
+    if (!Number.isInteger(config.max_parallel_score_groups ?? 1) || (config.max_parallel_score_groups ?? 1) < 1 || (config.max_parallel_score_groups ?? 1) > 4) throw new Error('동시 분석 항목군은 1~4의 정수여야 합니다.');
     if (!Number.isInteger(config.max_ai_calls) || config.max_ai_calls < view.planned_provider_calls || config.max_ai_calls > 1000) throw new Error(`전체 호출 상한은 ${view.planned_provider_calls}~1000의 정수여야 합니다.`);
     if (!Number.isInteger(config.max_attempts) || config.max_attempts < 1 || config.max_attempts > 3 || ![0, 1].includes(config.max_schema_repairs)) throw new Error('시도 상한 1~3, 스키마 수리 상한 0~1을 확인하세요.');
     for (const value of Object.values(config.groups)) {
@@ -65,6 +66,8 @@ export function AiSettingsV4() {
           <label>출력 토큰 상한<input type="number" min={256} max={65536} value={stage.max_output_tokens} onChange={event => stageChange({ max_output_tokens: Number(event.target.value) })} /></label></div>
         <label>항목군 프롬프트<textarea aria-label="항목군 프롬프트" rows={9} maxLength={24000} value={stage.prompt} onChange={event => stageChange({ prompt: event.target.value })} /></label>
       </fieldset>
+      <label>동시 분석 항목군<select aria-label="동시 분석 항목군" value={config.max_parallel_score_groups ?? 1} onChange={event => change({ max_parallel_score_groups: Number(event.target.value) })}>{[1, 2, 3, 4].map(value => <option key={value} value={value}>{value}개</option>)}</select></label>
+      <p className="fine">기본 1개입니다. 활성화 후 새 실행부터 적용하며 진행 중인 실행은 고정한 값을 유지합니다. 공급자 요청·토큰 제한에 따라 대기할 수 있습니다.</p>
       <div className="form-grid"><label>전체 호출 상한<input type="number" min={view.planned_provider_calls} max={1000} value={config.max_ai_calls} onChange={event => change({ max_ai_calls: Number(event.target.value) })} /></label>
         <label>단계 시도 상한<input type="number" min={1} max={3} value={config.max_attempts} onChange={event => change({ max_attempts: Number(event.target.value) })} /></label>
         <label>스키마 수리 상한<input type="number" min={0} max={1} value={config.max_schema_repairs} onChange={event => change({ max_schema_repairs: Number(event.target.value) })} /></label></div>

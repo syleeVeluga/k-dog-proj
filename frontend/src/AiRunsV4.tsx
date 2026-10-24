@@ -37,7 +37,7 @@ export function AiRunsV4({ item, user }: { item: Case; user: User }) {
       remove: () => sessionStorage.removeItem(storageKey),
       failure,
       accept: (value, snapshot) => ({ data: { ...snapshot.data, runs: [value, ...snapshot.data.runs.filter(run => run.run_id !== value.run_id)] },
-        selectedId: value.run_id, clearPending: true, requestError: '', poll: active.has(value.status) }),
+        selectedId: value.run_id, clearPending: true, requestError: '', poll: active.has(value.status) || !!value.settling }),
       load: async (snapshot, signal) => {
         let current = snapshot;
         let recovered = false;
@@ -63,7 +63,7 @@ export function AiRunsV4({ item, user }: { item: Case; user: User }) {
           if (config.status === 'fulfilled') data.ready = config.value;
           if (media.status === 'fulfilled') data.preprocess = media.value;
           return { data, selectedId, clearPending: recovered, requestError: recovered ? '' : undefined,
-            verified: !failed, checked: list.status === 'fulfilled', poll: !!failed || !!current.pending || list.status === 'fulfilled' && list.value.some(run => active.has(run.status)),
+            verified: !failed, checked: list.status === 'fulfilled', poll: !!failed || !!current.pending || list.status === 'fulfilled' && list.value.some(run => active.has(run.status) || run.settling),
             error: failed?.status === 'rejected' ? failed.reason instanceof Error ? failed.reason.message : 'AI 상태 조회에 실패했습니다.' : '' };
         } catch (value) {
           const result = failure(value, current, 'load');
@@ -87,11 +87,16 @@ export function AiRunsV4({ item, user }: { item: Case; user: User }) {
     <h2>AI 분석</h2><p role="status">AI 초안: {control === '중지 요청 중' ? control : draft}</p>
     {selected && <section aria-label="현재 AI 분석 실행"><p>{selected.requested_by === user.username ? '내가 시작한 이번 실행' : `실행 직원: ${selected.requested_by}`} · 입력 {selected.input_revision}판</p>
       <GeminiExecution value={selected} />
+      <p>이번 실행의 동시 분석: 최대 {selected.max_parallel_score_groups ?? 1}개 항목군</p>
+      {selected.settling && <p role="status">이전 요청 응답과 임시 파일을 수습하고 있습니다. 이미 보낸 요청은 즉시 종료되지 않으며, 재시도는 수습 후 시작합니다.</p>}
+      {selected.provider_wait_until && active.has(selected.status) && <p role="status">공급자 제한 대기 · {new Date(selected.provider_wait_until).toLocaleString()} 이후 다시 확인합니다.</p>}
       {selected.outdated && <p className="warning">이전 입력 기준 실행입니다.</p>}{selected.settings_outdated && <p className="warning">현재 활성 설정과 다릅니다.</p>}
       {selected.progress.state_uncertain && <p>실행 상태 확인 필요 · 현재 단계를 확인할 수 없습니다. 상태를 다시 조회하세요.</p>}
       {selected.progress.current_stage && <p>현재 단계: {stages[selected.progress.current_stage]}</p>}
       <ol>{selected.progress.stages.map(stage => <li key={stage.stage}>{stages[stage.stage]} · {stage.keys.length ? `완료 ${stage.completed} / 예정 ${stage.keys.length} · 실패 ${stage.failed} · 실행 중 ${stage.running} · 대기 ${stage.waiting}` : '실행 계획에 없음'}
-        {stage.keys.some(key => key.reused) && ' · 명시 재사용'}</li>)}</ol>
+        {stage.keys.some(key => key.reused) && ' · 명시 재사용'}
+        {stage.keys.some(key => key.status === 'running') && <p>진행 항목군: {stage.keys.filter(key => key.status === 'running').map(key => key.key).join(', ')}</p>}</li>)}</ol>
+      <p className="fine">프로그램 처리 항목군 {selected.program_groups ?? 0}개 · 명시 재사용 {selected.steps.filter(step => step.stage === 'score_v4' && step.reused).length}개 · 공급자 호출 예약 {selected.reserved_calls}회</p>
       {selected.status === 'retry_wait' && <p>자동 재시도 예정: {selected.retry_at ? new Date(selected.retry_at).toLocaleString() : '시각 확인 필요'}</p>}
       <p>시작: {new Date(selected.created_at).toLocaleString()} · 기록 변경: {new Date(selected.updated_at).toLocaleString()}</p>
       {selected.failure_code && <p>일부 단계의 실행 조건 또는 응답을 확인해야 합니다. 아래 실행 사유와 재사용·재시도 경로를 확인하세요.</p>}

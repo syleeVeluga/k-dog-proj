@@ -31,6 +31,38 @@ async function ready(page: Page, item: any, path: string) {
 }
 async function open(page: Page, participant: string) { await openMenu(page, '독립 채점'); await page.getByRole('button', { name: `${participant} 독립 채점 열기`, exact: true }).click(); }
 
+test('고정 동시성·복수 진행·공유 대기와 중지 후 수습을 표시한다', async ({ page }, testInfo) => {
+  const { item, path } = await setup(page, 'PA04-PARALLEL'); await ready(page, item, path);
+  let current = { ...run(item, 'parallel-run', 'running', 'score_v4'), max_parallel_score_groups: 4,
+    program_groups: 1, settling: false, provider_wait_until: '2999-01-01T00:00:00Z' as string | null };
+  current.progress.stages[0] = { stage: 'score_v4', keys: [1, 2, 3, 4].map(n => ({ key: `항목군${n}`, status: 'running', attempt: 1, reused: false })), completed: 0, failed: 0, running: 4, waiting: 0 };
+  await page.route(`**${path}/runs-s1`, route => route.fulfill({ json: [current] }));
+  await open(page, 'PA04-PARALLEL');
+  const panel = page.getByRole('region', { name: 'AI 실행', exact: true });
+  const card = panel.getByRole('region', { name: '현재 AI 분석 실행', exact: true });
+  await expect(card.getByText('이번 실행의 동시 분석: 최대 4개 항목군', { exact: true })).toBeVisible();
+  await expect(card.getByText('진행 항목군: 항목군1, 항목군2, 항목군3, 항목군4', { exact: true })).toBeVisible();
+  await expect(card.getByText(/공급자 제한 대기/)).toBeVisible();
+  current.progress.stages[0].keys[3].status = 'succeeded';
+  current.progress.stages[0].keys[0].status = 'retry_wait';
+  Object.assign(current.progress.stages[0], { completed: 1, running: 2, waiting: 1 });
+  await panel.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true }).click();
+  await expect(card.getByText('진행 항목군: 항목군2, 항목군3', { exact: true })).toBeVisible();
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`parallel-progress-${width}.png`), fullPage: true });
+  }
+  current = { ...current, status: 'stopped', settling: true, provider_wait_until: null };
+  await panel.getByRole('button', { name: 'AI 실행 상태 새로고침', exact: true }).click();
+  await expect(card.getByText(/이전 요청 응답과 임시 파일을 수습/)).toBeVisible();
+  current = { ...current, status: 'queued' };
+  await expect(panel.getByText('AI 초안: 분석 대기', { exact: true })).toBeVisible();
+  await expect(card.getByText('이번 실행의 동시 분석: 최대 4개 항목군', { exact: true })).toBeVisible();
+  current = { ...current, settling: false };
+  await expect(card.getByText(/이전 요청 응답과 임시 파일을 수습/)).toHaveCount(0);
+});
+
 test('이전 성공보다 선택 실행을 우선하고 예정 단계부터 게시 완료까지 표시한다', async ({ page }, testInfo) => {
   const { item, path } = await setup(page, 'ES03-STAGES'); await ready(page, item, path);
   let current = run(item), reads = 0;

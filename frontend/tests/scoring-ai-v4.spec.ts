@@ -26,6 +26,8 @@ test('S1 AI settings use explicit raw scope, immutable activation, schema-only v
   await login(page, 'developer');
   const panel = page.getByRole('region', { name: 'AI 설정', exact: true });
   const initial: AiSettingsViewV4 = await (await page.request.get('/api/settings-s1')).json();
+  await expect(panel.getByLabel('동시 분석 항목군', { exact: true })).toHaveValue('1');
+  await panel.getByLabel('동시 분석 항목군', { exact: true }).selectOption('4');
   await expect(panel.getByText(new RegExp(`${Object.keys(initial.groups).length}개 항목군 · 기본 예정 공급자 호출 ${initial.planned_provider_calls}회`))).toBeVisible();
   await expect(panel.getByText(/실제 공급자 정확도·처리 시간은 S16/)).toBeVisible();
   const group = Object.keys(initial.groups).find(key => initial.groups[key].provider_call)!;
@@ -46,6 +48,7 @@ test('S1 AI settings use explicit raw scope, immutable activation, schema-only v
   const saved = page.waitForResponse(value => value.url().endsWith('/api/settings-s1') && value.request().method() === 'POST');
   await panel.getByRole('button', { name: '설정 초안 저장', exact: true }).click();
   const save = await saved; expect(save.status(), await save.text()).toBe(201); const version = (await save.json()).version;
+  expect((await (await page.request.get(`/api/settings-s1/${version}/diff`)).json()).config.max_parallel_score_groups).toBe(4);
   await expect(panel.getByText('활성 설정과의 차이', { exact: true })).toBeVisible();
   const trial = page.waitForResponse(value => value.url().endsWith(`/settings-s1/${version}/validate-s1`));
   await panel.getByRole('button', { name: '합성 스키마 검증 · 외부 호출 없음', exact: true }).click();

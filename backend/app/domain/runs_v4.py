@@ -175,6 +175,10 @@ class RunProgressV4(Model):
 
 
 class RunViewV4(GeminiAttemptView):
+    max_parallel_score_groups: Annotated[int, Field(ge=1, le=4)] = 1
+    settling: bool = False
+    provider_wait_until: str | None = None
+    program_groups: Annotated[int, Field(ge=0)] = 0
     run_id: MediaKey
     case_id: MediaKey
     session_id: MediaKey
