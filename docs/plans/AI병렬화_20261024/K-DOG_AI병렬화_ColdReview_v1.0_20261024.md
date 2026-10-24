@@ -4,6 +4,17 @@
 
 상위: [전체 계획](K-DOG_AI병렬화계획_v1.0_20261024.md) · 실행 상태: [검증·실행 대장](K-DOG_AI병렬화_검증실행대장_v1.0_20261024.md)
 
+## PA08 전처리 병렬화·검증 재사용 cold review — 2026-10-24
+
+기준 `bdd5789` 뒤 미커밋 제품/회귀를 두 독립 subagent가 읽기 전용 검토했다. 합성 자료·FFmpeg·Chromium만 사용했으며 실제 키/참가자/실측 DB/리포트는 열지 않았다.
+
+| 발견 | 분류 | 수용 수정·재검증 |
+| --- | --- | --- |
+| clock 검증 후 `_clip_file` 진입 전 PTS를 바꾼 파일이 새 hash/identity와 옛 clock으로 complete 채택 | P1 | clock 생성 전후 identity를 결속하고 remux 입력/최종 packet 검사·metadata/hash·발행까지 확인한다. 두 reviewer의 같은 원인 발견을 1건으로 합산. 실제 +20ms 교체는 HTTP409/완료 0, 독립 관련 3개 5.732초·5.610초 통과. |
+| 성공한 done snapshot 뒤 peer가 실패했는데 다음 wait 전 refill로 세 번째 작업 시작 | P2 | 자식 fatal에서 즉시 stop 선언, refill은 stop 시 미배정. 같은 probe가 배정/시작 각 3→2, 독립 새 회귀 2.712초 통과. |
+
+최종 전처리 29개 63.119초 통과. 합성 6종의 기준 대비 source PTS·offset·오디오·whole/evidence 의미와 기존 관찰 부족을 보존했다. VFR 지연 오디오의 검증 불일치 fallback도 동일 선택을 보존하며 original/AI 12파일의 Chromium 로드/끝 탐색 오류 0. 최종 미해결 P1/P2·제품 blocker 없음. 전체 회귀·배포·실제 실행과 문서 최종 검토는 수행 후 이어 기록한다.
+
 ## PA01 구현 cold review — 2026-10-24
 
 독립 subagent `pa01_contract_review`, `pa01_benchmark_review`가 읽기 전용 검토를 수행했다. 계획 검토와 구별되는 실제 diff 검토다.

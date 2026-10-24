@@ -1,8 +1,10 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 import json
 from pathlib import Path
 import shutil
 import tempfile
+from threading import Barrier, Event, Lock
 import unittest
 from unittest.mock import patch
 
@@ -416,10 +418,178 @@ class PreprocessV4Tests(unittest.TestCase):
 
         with patch.object(preprocess, "_ai_clip", side_effect=once):
             batch = self.run_batch()
-        self.assertEqual([clip.status for clip in batch.clips], ["partial", "complete"])
-        self.assertIsNotNone(batch.clips[0].original)
-        self.assertIsNone(batch.clips[0].ai)
+        self.assertCountEqual([clip.status for clip in batch.clips], ["partial", "complete"])
+        self.assertEqual({clip.video_id for clip in batch.clips}, {one.video_id, two.video_id})
+        failed = next(clip for clip in batch.clips if clip.status == "partial")
+        self.assertIsNotNone(failed.original)
+        self.assertIsNone(failed.ai)
         self.assertEqual(batch.status, "partial")
+
+    def test_shared_decode_checks_frames_once_and_hashes_each_file_once(self):
+        video = self.upload()
+        self.recording(video.video_id)
+        with patch.object(media, "command", wraps=media.command) as commands, \
+                patch.object(preprocess, "file_hash", wraps=preprocess.file_hash) as hashes:
+            batch = self.run_batch()
+        self.assertEqual(batch.clips[0].status, "complete")
+        arguments = [call.args[0] for call in commands.call_args_list]
+        encodes = [args for args in arguments if args[0] == "ffmpeg" and "libx264" in args]
+        self.assertEqual(len(encodes), 1)
+        self.assertEqual(encodes[0].count("libx264"), 2)
+        self.assertEqual(sum("-show_frames" in args for args in arguments), 3)
+        self.assertEqual(sum("-show_packets" in args for args in arguments), 2)
+        paths = [Path(call.args[0]) for call in hashes.call_args_list]
+        for ref in (batch.source_files[0].ref, batch.clips[0].original.ref, batch.clips[0].ai.ref):
+            self.assertEqual(paths.count(self.store.path(ref)), 1)
+
+    def test_shared_encoding_error_rechecks_original_and_completes_ai_separately(self):
+        video = self.upload()
+        self.recording(video.video_id)
+        real, failed = media.command, []
+        def command(arguments, **kwargs):
+            if arguments[0] == "ffmpeg" and arguments.count("libx264") == 2:
+                failed.append(True)
+                raise media.MediaError("synthetic shared output error")
+            return real(arguments, **kwargs)
+        with patch.object(media, "command", side_effect=command):
+            batch = self.run_batch()
+        self.assertEqual(failed, [True])
+        self.assertEqual(batch.clips[0].status, "complete")
+        self.assertIsNotNone(batch.clips[0].original)
+        self.assertIsNotNone(batch.clips[0].ai)
+
+    def test_parallel_clip_jobs_overlap_with_a_bound_of_two(self):
+        video = self.upload()
+        self.recording(video.video_id, start=0, end=2, baseline=(2, 4),
+            events=(self.event("free", "free_movement", video.video_id, 0.5, 1),))
+        real, release, ready, lock = preprocess._source_clip, Event(), Barrier(3), Lock()
+        counts = {"started":0, "active":0, "maximum":0}
+        def blocked(*args):
+            with lock:
+                counts["started"] += 1
+                counts["active"] += 1
+                counts["maximum"] = max(counts["maximum"], counts["active"])
+                first = counts["started"] <= 2
+            try:
+                if first:
+                    ready.wait(timeout=10)
+                    self.assertTrue(release.wait(timeout=10))
+                return real(*args)
+            finally:
+                with lock: counts["active"] -= 1
+        with patch.object(preprocess, "_source_clip", side_effect=blocked), ThreadPoolExecutor(max_workers=1) as runner:
+            future = runner.submit(self.run_batch)
+            try:
+                ready.wait(timeout=10)
+                self.assertEqual(counts["started"], 2)
+            finally:
+                release.set()
+            batch = future.result(timeout=30)
+        self.assertEqual(counts["started"], 3)
+        self.assertEqual(counts["maximum"], 2)
+        self.assertEqual([clip.status for clip in batch.clips], ["complete"]*3)
+
+    def test_fatal_child_drains_peer_before_failure_and_stops_new_jobs(self):
+        video = self.upload()
+        self.recording(video.video_id, start=0, end=2, baseline=(2, 4),
+            events=(self.event("free", "free_movement", video.video_id, 0.5, 1),))
+        ready, release, raised, lock = Barrier(3), Event(), Event(), Lock()
+        started = []
+        def blocked(*args):
+            with lock:
+                started.append(args)
+                first = len(started) == 1
+            ready.wait(timeout=10)
+            if first:
+                raised.set()
+                raise HTTPException(409, "synthetic lost claim")
+            self.assertTrue(release.wait(timeout=10))
+            raise HTTPException(409, "synthetic peer drained")
+        with patch.object(preprocess, "_source_clip", side_effect=blocked), ThreadPoolExecutor(max_workers=1) as runner:
+            future = runner.submit(self.run_batch)
+            try:
+                ready.wait(timeout=10)
+                self.assertTrue(raised.wait(timeout=10))
+                with self.assertRaises(TimeoutError): future.result(timeout=0.1)
+                with self.store.connect() as db:
+                    self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='preprocess_v4.failed'").fetchone()[0], 0)
+                self.assertEqual(len(started), 2)
+            finally:
+                release.set()
+            with self.assertRaises(HTTPException): future.result(timeout=10)
+        with self.store.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='preprocess_v4.completed'").fetchone()[0], 0)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='preprocess_v4.failed'").fetchone()[0], 1)
+        self.assertEqual(len(started), 2)
+
+    def test_derivative_change_during_hash_is_rejected_before_publication(self):
+        video = self.upload()
+        self.recording(video.video_id)
+        real = preprocess.file_hash
+        def changed(path):
+            value = real(path)
+            if str(path).endswith("-ai.mp4"):
+                raw = Path(path).read_bytes()
+                Path(path).write_bytes(raw[:-1] + bytes([raw[-1]^1]))
+            return value
+        with patch.object(preprocess, "file_hash", side_effect=changed):
+            with self.assertRaises(HTTPException): self.run_batch()
+        with self.store.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='preprocess_v4.completed'").fetchone()[0], 0)
+
+    def test_clock_cache_is_bound_to_the_file_before_metadata_hash(self):
+        video = self.upload("silent")
+        self.recording(video.video_id, start=0, end=3)
+        real = preprocess._clip_file
+        def shifted(store, path, *args):
+            replacement = path.with_name(path.stem+"-changed.mp4")
+            media.command(["ffmpeg", "-v", "error", "-nostdin", "-n", "-i", str(path),
+                "-c", "copy", "-output_ts_offset", "1", str(replacement)])
+            replacement.replace(path)
+            return real(store, path, *args)
+        with patch.object(preprocess, "_clip_file", side_effect=shifted):
+            with self.assertRaises(HTTPException) as error: self.run_batch()
+        self.assertEqual(error.exception.status_code, 409)
+        with self.store.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM changes WHERE action='preprocess_v4.completed'").fetchone()[0], 0)
+
+    def test_peer_failure_after_success_snapshot_prevents_refill(self):
+        video = self.upload()
+        self.recording(video.video_id, start=0, end=2, baseline=(2,4),
+            events=(self.event("free", "free_movement", video.video_id, 0.5, 1),))
+        real_source, real_wait = preprocess._source_clip, preprocess.wait
+        release, lock, started, submitted, snapshots = Event(), Lock(), [], [], []
+        class Pool(ThreadPoolExecutor):
+            def submit(self, *args, **kwargs):
+                submitted.append(True)
+                return super().submit(*args, **kwargs)
+        def source(*args):
+            with lock:
+                started.append(True)
+                second = len(started) == 2
+            if second:
+                self.assertTrue(release.wait(timeout=10))
+                raise HTTPException(409, "synthetic fatal peer")
+            return real_source(*args)
+        def snapshot(futures, **kwargs):
+            done, pending = real_wait(futures, **kwargs)
+            if not snapshots:
+                snapshots.append(True)
+                self.assertEqual(len(done), 1)
+                self.assertIsNone(next(iter(done)).exception())
+                release.set()
+                real_wait(pending, timeout=10)
+                self.assertTrue(any(f.exception() is not None for f in pending))
+            return done, pending
+        try:
+            with patch.object(preprocess, "ThreadPoolExecutor", Pool), \
+                    patch.object(preprocess, "_source_clip", side_effect=source), \
+                    patch.object(preprocess, "wait", side_effect=snapshot):
+                with self.assertRaises(HTTPException): self.run_batch()
+        finally:
+            release.set()
+        self.assertEqual(len(submitted), 2)
+        self.assertEqual(len(started), 2)
 
     def test_artifact_tamper_and_post_hash_source_race_cannot_be_adopted(self):
         video = self.upload()
