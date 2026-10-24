@@ -113,3 +113,35 @@
 [Cold Review](K-DOG_AI병렬화_ColdReview_v1.0_20261024.md)에서 4건을 발견해 모두 수용했다. 4카메라/N별 실측 계약, 즉시 중지와 자식 수습 경계, 실패 포함 성능 판정, 실측 리포트 비교 옵션·출처를 계획에 반영했다. 앱 구현·의존성·운영 DB·기존 결과는 변경하지 않았다. 계획 문서 PR만 병합 대상으로 삼는다.
 
 재검증: 문서 9개, staged/기존 추적 파일을 대상으로 하는 상대 링크 45개와 anchor 3개, PA01→PA06 선행 관계, AP01~AP09·FB01~FB11 연결을 통과했다. 외부 원본 매핑을 확인했고 참가자 이름/원본 경로/키는 staged 문서에 없었다. 신규 파일 직접 공백 검사와 `git diff --cached --check`를 통과했다. 실행 코드 변경이 없어 backend/e2e·공급자 호출은 수행하지 않았다.
+
+## PA05 배포 의존성 확인 — 2026-10-24
+
+공식 PyPI registry 25개를 실제 조회했다. 선택 버전은 기존 프로젝트/uv.lock의 pin이며 이번 병렬화의 API·배포 재현성을 유지하기 위해 관련 없는 업그레이드를 하지 않았다. 설치한 배포 후보의 Python 3.14.8에서 시작·실제 업무·재시작을 검증했다. 상세 registry 원장은 저장소 밖 검증 폴더에 보존한다.
+
+| 패키지·공식 registry | 최신 안정판 | 선택 pin |
+| --- | --- | --- |
+| [annotated-doc](https://pypi.org/pypi/annotated-doc/json) | 0.0.5 | 0.0.5 |
+| [annotated-types](https://pypi.org/pypi/annotated-types/json) | 0.8.0 | 0.8.0 |
+| [anyio](https://pypi.org/pypi/anyio/json) | 4.15.1 | 4.15.1 |
+| [certifi](https://pypi.org/pypi/certifi/json) | 2026.10.23 | 2026.7.22 |
+| [cffi](https://pypi.org/pypi/cffi/json) | 2.1.1 | 2.1.1 |
+| [charset-normalizer](https://pypi.org/pypi/charset-normalizer/json) | 3.5.2 | 3.5.1 |
+| [click](https://pypi.org/pypi/click/json) | 8.5.0 | 8.5.0 |
+| [cryptography](https://pypi.org/pypi/cryptography/json) | 50.0.2 | 50.0.2 |
+| [et-xmlfile](https://pypi.org/pypi/et-xmlfile/json) | 2.0.0 | 2.0.0 |
+| [fastapi](https://pypi.org/pypi/fastapi/json) | 0.162.0 | 0.141.1 |
+| [h11](https://pypi.org/pypi/h11/json) | 0.16.0 | 0.16.0 |
+| [httpcore](https://pypi.org/pypi/httpcore/json) | 1.0.9 | 1.0.9 |
+| [httpx](https://pypi.org/pypi/httpx/json) | 0.28.1 | 0.28.1 |
+| [idna](https://pypi.org/pypi/idna/json) | 3.20 | 3.19 |
+| [openpyxl](https://pypi.org/pypi/openpyxl/json) | 3.1.5 | 3.1.5 |
+| [pillow](https://pypi.org/pypi/pillow/json) | 13.0.0 | 12.3.0 |
+| [pycparser](https://pypi.org/pypi/pycparser/json) | 3.12 | 3.0 |
+| [pydantic](https://pypi.org/pypi/pydantic/json) | 2.14.1 | 2.13.5 |
+| [pydantic-core](https://pypi.org/pypi/pydantic-core/json) | 2.50.1 | 2.46.5 |
+| [pypdf](https://pypi.org/pypi/pypdf/json) | 6.21.2 | 6.19.0 |
+| [reportlab](https://pypi.org/pypi/reportlab/json) | 5.1.0 | 5.0.1 |
+| [starlette](https://pypi.org/pypi/starlette/json) | 1.9.0 | 1.6.0 |
+| [typing-extensions](https://pypi.org/pypi/typing-extensions/json) | 4.16.0 | 4.16.0 |
+| [typing-inspection](https://pypi.org/pypi/typing-inspection/json) | 0.4.4 | 0.4.4 |
+| [uvicorn](https://pypi.org/pypi/uvicorn/json) | 0.54.0 | 0.52.4 |

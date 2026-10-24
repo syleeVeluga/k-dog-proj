@@ -20,6 +20,21 @@ async function seed(request: APIRequestContext, event: string, people: [string, 
     expect((await request.post('/api/cases', { headers, data: { event_id: event, participant_id: id, dog_name: dog, sequence_no: sequence } })).status()).toBe(201);
 }
 
+test('목록 갱신이 지연되어도 같은 입력의 상세를 열면 선행 안내를 유지한다', async ({ page, request }) => {
+  await seed(request, 'PA05-PROGRESS', [['PA05-OPEN', '합성 진행견', 1]]);
+  await login(page);
+  await openMenu(page, '독립 채점');
+  const open = page.getByRole('button', { name: 'PA05-OPEN 독립 채점 열기', exact: true });
+  await expect(open).toBeVisible();
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/cases', async route => { await held; await route.continue(); });
+  try {
+    await open.click();
+    await expect(page.getByRole('region', { name: '선행 조건', exact: true }).getByRole('heading', { name: '채점을 시작하려면', exact: true })).toBeVisible();
+  } finally { release(); }
+});
+
 test('전처리·채점·리포트 목록은 같은 진행 단계와 다음 할 일을 보이고 선행 조건에서 이동한다', async ({ page, request }) => {
   await seed(request, 'U06-STAFF', [['L1', '초코', 1], ['L2', '콩이', 2]]);
   await login(page);

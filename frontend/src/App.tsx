@@ -198,7 +198,10 @@ export function App() {
       if (current !== selectionSequence.current || context !== routeRef.current) return;
       if (next) forgetEdits();
       caseRefreshVersion.current++;
-      setCases(values => values.some(row => row.case_id === value.case_id) ? values.map(row => row.case_id === value.case_id ? value : row) : [...values, value]);
+      setCases(values => values.some(row => row.case_id === value.case_id) ? values.map(row => row.case_id === value.case_id ? {
+        ...value, progress: value.progress ?? (row.input_revision === value.input_revision
+          && row.selected_session_id === value.selected_session_id ? row.progress : null),
+      } : row) : [...values, value]);
       if (!route.startsWith('recording/') && (!selected || (next && !participantTasks.includes(route)))) setListOrigin(route === 'preprocess' ? 'intake' : route);
       setSelected({ ...value, selected_session_id: item.selected_session_id });
       pinnedSession.current = !!item.pinSession;
