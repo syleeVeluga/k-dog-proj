@@ -3,6 +3,7 @@
 import hashlib
 import json
 import time
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from fastapi import HTTPException
 
 from .analysis import digest, file_stamp, owned_write, step_payload
@@ -134,8 +135,6 @@ def enqueue(store, case_id, session_id, value, user, config, *, reuse=(), enable
     manager(user)
     value = StartV4.model_validate_json(value.model_dump_json())
     config = RunConfigV4.model_validate(config)
-    if config.max_parallel_score_groups != 1:
-        raise HTTPException(422, "병렬 항목군 실행은 PA03 적용 전까지 지원하지 않습니다.")
     reuse = tuple(ReuseV4.model_validate(entry) for entry in reuse)
     if not enabled or not config.raw_observation_scope_confirmed:
         raise HTTPException(503, "S1 관찰 원자료 적용 범위를 확인한 활성 설정이 필요합니다.")
@@ -318,15 +317,13 @@ def process(worker, row):
     entries = tuple(ReuseV4.model_validate_json(encode(entry)) for entry in json.loads(row["reuse_manifest_json"]))
     with worker.store.connect() as db:
         validate_reuse(worker.store, db, snapshot, config, entries)
-    complete = True
-    for group in config.stages:
+    def execute(group):
         worker.check(row)
         entry = next((entry for entry in entries if (entry.stage, entry.key) == (group.stage, group.key)), None)
         try:
             validate, work = handler(snapshot, group, row)
         except DependenciesPending:
-            complete = False
-            continue
+            return False
         if entry:
             with worker.store.connect() as db:
                 source = db.execute("SELECT * FROM runs WHERE run_id=?", (entry.source_run_id,)).fetchone()
@@ -360,7 +357,48 @@ def process(worker, row):
             usage["execution_interval"] = interval
             return result
         result = worker.stage(row, group.stage, group.key, validate, timed)
-        complete = complete and result is not None
+        return result is not None
+
+    complete, errors = True, []
+    groups = iter(group for group in config.stages if group.stage == "score_v4")
+    with ThreadPoolExecutor(max_workers=config.max_parallel_score_groups, thread_name_prefix="s1-score") as pool:
+        pending = set()
+        exhausted = False
+        while pending or not exhausted:
+            if not errors:
+                try:
+                    worker.check(row)
+                except Exception as exc:
+                    errors.append(exc)
+            while not errors and not exhausted and len(pending) < config.max_parallel_score_groups:
+                group = next(groups, None)
+                if group is None:
+                    exhausted = True
+                else:
+                    pending.add(pool.submit(execute, group))
+            if errors:
+                exhausted = True
+                for future in pending:
+                    future.cancel()
+            if not pending:
+                break
+            done, pending = wait(pending, timeout=0.2, return_when=FIRST_COMPLETED)
+            for future in done:
+                if future.cancelled():
+                    continue
+                try:
+                    complete = future.result() and complete
+                except Exception as exc:
+                    errors.append(exc)
+    if errors:
+        raise errors[0]
+    with worker.store.connect() as db:
+        unsettled = db.execute("SELECT 1 FROM steps WHERE run_id=? AND stage='score_v4' "
+            "AND status IN ('running','retry_wait') LIMIT 1", (row["run_id"],)).fetchone()
+    if not unsettled:
+        for group in config.stages:
+            if group.stage != "score_v4":
+                complete = execute(group) and complete
     worker.check(row)
     assets(snapshot)
     stamps = verify_files(worker.store, snapshot)

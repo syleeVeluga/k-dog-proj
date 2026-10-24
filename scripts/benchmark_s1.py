@@ -236,6 +236,29 @@ def timing(trace):
         "scope": "server reception start to PDF publication; includes reception; stage sums are not wall-clock totals"}
 
 
+def concurrency_evidence(steps):
+    clocks, missing = defaultdict(list), 0
+    for step in steps:
+        if not step["call_reserved"]:
+            continue
+        usage = json.loads(step["usage_json"])
+        interval = usage.get("request_interval")
+        if not interval:
+            missing += 1
+            continue
+        if not isinstance(interval.get("clock_id"), str) or any(type(interval.get(key)) not in (int, float) or not math.isfinite(interval[key]) for key in ("start", "end")) or interval["end"] < interval["start"]:
+            raise ValueError("invalid provider interval evidence")
+        clocks[interval["clock_id"]].extend(((interval["start"], 1), (interval["end"], -1)))
+    maximum = 0
+    for events in clocks.values():
+        active = 0
+        for _, delta in sorted(events):
+            active += delta
+            maximum = max(maximum, active)
+    return {"actual_max_requests": maximum if clocks else None, "clock_count": len(clocks),
+        "missing_reserved_intervals": missing, "complete": bool(clocks) and not missing}
+
+
 def _read(store, pointer, model, stamps):
     return model.model_validate_json(report_runs_v4._read_file(store, pointer, stamps))
 
@@ -328,8 +351,13 @@ def inspect_trial(store, trial, user, stamps):
     with store.connect() as db:
         steps = [dict(step) for step in db.execute("SELECT * FROM steps WHERE run_id=? ORDER BY created_at,attempt", (row["run_id"],))]
     reserved = sum(bool(step["call_reserved"]) for step in steps)
-    if trial.provider_execution == "parallel":
-        raise ValueError("current S1 worker executes provider requests serially; parallel support is unmeasured")
+    concurrency = concurrency_evidence(steps)
+    if concurrency["actual_max_requests"] is not None and concurrency["actual_max_requests"] > config.max_parallel_score_groups:
+        raise ValueError("provider overlap exceeds pinned concurrency")
+    if trial.provider_execution == "parallel" and (not concurrency["complete"] or (concurrency["actual_max_requests"] or 0) < 2):
+        raise ValueError("parallel provider execution needs actual overlapping request evidence")
+    if trial.provider_execution == "serial" and (concurrency["actual_max_requests"] or 0) > 1:
+        raise ValueError("serial label conflicts with actual provider overlap")
     if (trial.cache == "cold") != (not json.loads(row["reuse_manifest_json"]) and source.batch.reuse_manifest is None):
         raise ValueError("cold and explicit reuse executions cannot be mislabeled")
     if trial.report:
@@ -352,7 +380,7 @@ def inspect_trial(store, trial, user, stamps):
         result_quality = quality(exported, trial.ai.run_id)
     usage = [json.loads(step["usage_json"]) for step in steps]
     result = {"run_state": row["status"], "camera_count": len(videos), "file_sizes_bytes": [video.size_bytes for video in videos],
-        "camera_ids": [video.camera_id for video in videos], "max_parallel_score_groups": config.max_parallel_score_groups,
+        "camera_ids": [video.camera_id for video in videos], "max_parallel_score_groups": config.max_parallel_score_groups, "concurrency": concurrency,
         "source_metadata": source.batch.source_metadata, "catalog_and_rule_hashes": source.batch.asset_hashes,
         "configuration_hash": trial.ai.config_hash, "models": sorted({(stage.provider, stage.model) for stage in config.stages if stage.provider_call}),
         "prompt_hashes": sorted({hashlib.sha256(stage.prompt.encode()).hexdigest() for stage in config.stages if stage.provider_call}),
@@ -416,7 +444,7 @@ def summarize(manifest, store=None, user=None):
         else:
             accepted = [row for row in trials if row["camera_count"] == required_count and condition.size_range_bytes and
             all(condition.size_range_bytes[0] <= size <= condition.size_range_bytes[1] for size in row["file_sizes_bytes"])]
-        timed = [row for row in accepted if (manifest.version != PARALLEL_VERSION or row["run_state"] == "succeeded")
+        timed = [row for row in accepted if (manifest.version != PARALLEL_VERSION or row["run_state"] == "succeeded" and row.get("concurrency", {}).get("complete"))
             and row["timing"] and row["timing"]["server_receive_to_pdf_seconds"] is not None]
         # Do not merge cold/cache, FPS, PC-upload or provider concurrency conditions.
         groups = defaultdict(list)

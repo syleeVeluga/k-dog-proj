@@ -56,6 +56,19 @@ def manifest(trials=()):
 
 
 class BenchmarkMetricsTests(unittest.TestCase):
+    def test_provider_overlap_uses_observed_intervals_and_separate_clock_origins(self):
+        def step(clock, start, end):
+            return {"call_reserved": 1, "usage_json": encode({"request_interval": {"clock_id": clock, "start": start, "end": end}})}
+        result = bench.concurrency_evidence([step("a", 0, 10), step("a", 5, 8), step("b", 0, 20)])
+        self.assertEqual(result["actual_max_requests"], 2)
+        self.assertEqual(result["clock_count"], 2)
+        self.assertTrue(result["complete"])
+        result = bench.concurrency_evidence([step("a", 0, 10), {"call_reserved": 1, "usage_json": "{}"}])
+        self.assertFalse(result["complete"])
+        self.assertEqual(result["missing_reserved_intervals"], 1)
+        with self.assertRaises(ValueError):
+            bench.concurrency_evidence([step("a", 10, 0)])
+
     def test_parallel_manifest_preserves_same_repeat_for_each_concurrency(self):
         data = bench.template()
         data.update(version=bench.PARALLEL_VERSION, sample_kind="synthetic", app_commit="synthetic",
@@ -79,12 +92,18 @@ class BenchmarkMetricsTests(unittest.TestCase):
         def inspect(store, item, user, stamps):
             result, pair = self.fake_inspect(store, item, user, stamps)
             result.update(run_state="succeeded", camera_count=4, file_sizes_bytes=[100]*4, max_parallel_score_groups=item.max_parallel_score_groups,
-                comparison_hash="same-input-and-model")
+                comparison_hash="same-input-and-model", concurrency={"complete": True})
             return result, pair
         with patch.object(bench, "inspect_trial", side_effect=inspect), patch.object(bench, "_access"):
             summary = bench.summarize(candidate)
         self.assertEqual(summary["conditions"][0]["status"], "synthetic_only")
         self.assertEqual(len(summary["conditions"][0]["repeat_groups"]), 2)
+        def unmeasured(store, item, user, stamps):
+            result, pair = inspect(store, item, user, stamps)
+            result["concurrency"] = {"complete": False}
+            return result, pair
+        with patch.object(bench, "inspect_trial", side_effect=unmeasured), patch.object(bench, "_access"):
+            self.assertEqual(bench.summarize(candidate)["conditions"][0]["repeat_groups"], [])
         def partial(store, item, user, stamps):
             result, pair = inspect(store, item, user, stamps)
             result["run_state"] = "partial_failed"
@@ -267,7 +286,7 @@ class BenchmarkPinnedSourceTests(unittest.TestCase):
 
     def test_parallel_provider_claim_is_not_inferred_from_multi_pc_upload(self):
         bad=self.trial.model_copy(update={"provider_execution":"parallel","pc_upload_mode":"three_pc_concurrent"})
-        with self.assertRaisesRegex(ValueError,"serially"):bench.inspect_trial(self.store,bad,self.user,{})
+        with self.assertRaisesRegex(ValueError,"overlapping request evidence"):bench.inspect_trial(self.store,bad,self.user,{})
 
     def test_only_confirmed_recording_offsets_can_be_used(self):
         from app.domain.recording_v4 import VideoOffsetV4

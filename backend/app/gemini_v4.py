@@ -6,7 +6,9 @@ import time
 
 from app.gemini import BASE, INTERACTION_TIMEOUT, ProviderError, interaction_request, interaction_text, request, video_processing
 from app.secrets import credential
-from app.storage import uid
+from app.storage import now, uid
+
+CLOCK_ID = uid()
 
 
 class GeminiScorerV4:
@@ -24,6 +26,8 @@ class GeminiScorerV4:
         names = []
         usage = {**metadata, "provider": "gemini", "model": config["model"],
                  "timing": {name: 0.0 for name in ("upload_seconds", "processing_seconds", "inference_seconds", "cleanup_seconds")}}
+        usage["request_interval"] = {"clock_id": CLOCK_ID, "start": time.monotonic(), "started_at_utc": now()}
+        usage["provider_intervals"] = []
 
         def audit(action, value):
             with self.store.connect(write=True) as db:
@@ -34,7 +38,9 @@ class GeminiScorerV4:
             try:
                 return function()
             finally:
-                usage["timing"][name] += time.monotonic() - started
+                ended = time.monotonic()
+                usage["timing"][name] += ended - started
+                usage["provider_intervals"].append({"clock_id": CLOCK_ID, "phase": name, "start": started, "end": ended})
 
         try:
             inputs = []
@@ -104,6 +110,9 @@ class GeminiScorerV4:
             raise
         except (KeyError, TypeError, ValueError):
             raise ProviderError("provider_response_invalid", uncertain=True, usage=usage) from None
+        except Exception as exc:
+            exc.usage = usage
+            raise
         finally:
             failures = []
             started = time.monotonic()
@@ -116,5 +125,6 @@ class GeminiScorerV4:
                     audit("remote.deleted", {"upload_id": upload_id})
             usage["timing"]["cleanup_seconds"] += time.monotonic() - started
             usage["remote_cleanup_pending"] = bool(failures)
+            usage["request_interval"].update(end=time.monotonic(), finished_at_utc=now())
             if failures:
                 audit("v4.remote_cleanup_failed", {"remote_file_names": failures, "credential_reference": reference})

@@ -173,8 +173,6 @@ def view(store):
 def save(store, value, actor):
     value = AiDraftV4.model_validate_json(value.model_dump_json())
     value.config = value.config.model_copy(update={"max_parallel_score_groups": value.config.max_parallel_score_groups})
-    if value.config.max_parallel_score_groups != 1:
-        raise HTTPException(422, "병렬 항목군 실행은 PA03 적용 전까지 지원하지 않습니다.")
     with store.connect() as db:
         _developer(db, actor)
     raw, version = value.config.model_dump_json().encode(), uid()
