@@ -11,7 +11,7 @@
 | [PA01](K-DOG_PR-PA01_실행계약과측정_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 2건 수정·재검토 완료 | 대상 아님 | 기본 1 유지 | [PR #150](https://github.com/syleeVeluga/k-dog-proj/pull/150) 병합 `2b4ffdb` |
 | [PA02](K-DOG_PR-PA02_호출예약과공유제한_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P1 2건 수정·재검토 완료 | PA06 | 직렬 유지 | [PR #151](https://github.com/syleeVeluga/k-dog-proj/pull/151) 병합 `173bd83` |
 | [PA03](K-DOG_PR-PA03_항목군병렬실행_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, 추가 결함 없음 | PA06 | 기본 1, 명시 2~4 허용 | [PR #152](https://github.com/syleeVeluga/k-dog-proj/pull/152) 병합 `3275ce8` |
-| [PA04](K-DOG_PR-PA04_운영설정과진행표시_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 수정·재검토 완료 | PA06 | 개발자 명시 설정 | 병합 준비 |
+| [PA04](K-DOG_PR-PA04_운영설정과진행표시_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 수정·재검토 완료 | PA06 | 개발자 명시 설정 | `6ccb4aa` / [PR #153](https://github.com/syleeVeluga/k-dog-proj/pull/153) |
 | [PA05](K-DOG_PR-PA05_장애복구와통합인수_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | PA06 | 미적용 | — |
 | [PA06](K-DOG_PR-PA06_실측과운영적용_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | 미실행 | 미적용 | — |
 
