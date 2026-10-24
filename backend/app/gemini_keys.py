@@ -38,6 +38,8 @@ def select(store, db, row, step, actor):
     metadata = {"credential_policy": POLICY, "credential_slot": slot, "credential_reference": reference,
                 "fallback_reason": reason, "step_id": step["step_id"], "attempt": step["attempt"],
                 "audit_actor": actor, "selected_at": now()}
+    if previous.get("fallback_retry_at"):
+        metadata["fallback_retry_at"] = previous["fallback_retry_at"]
     store.audit(db, actor, row["run_id"], "gemini.credential_selected", metadata)
     db.execute("UPDATE steps SET usage_json=? WHERE step_id=?", (encode(metadata), step["step_id"]))
     return key, metadata
@@ -60,7 +62,7 @@ def fallback_reason(exc):
     return None
 
 
-def request_fallback(store, db, row, step, exc, maximum):
+def request_fallback(store, db, row, step, exc, maximum, *, retry_at=None):
     reason = fallback_reason(exc)
     if not reason:
         return False
@@ -75,9 +77,16 @@ def request_fallback(store, db, row, step, exc, maximum):
         exc.usage["fallback_status"] = "backup_unavailable"
         return False
     exc.usage.update(fallback_reason=reason, fallback_status="backup_retry_wait")
+    previous = selection(db, row["run_id"])
+    if previous.get("credential_slot") == "backup":
+        if previous.get("fallback_retry_at"):
+            exc.usage["fallback_retry_at"] = previous["fallback_retry_at"]
+        return True
+    exc.usage["fallback_retry_at"] = retry_at
     store.audit(db, exc.usage["audit_actor"], row["run_id"], "gemini.fallback_requested",
                 {"credential_policy": POLICY, "credential_slot": "backup", "fallback_reason": reason,
                  "fallback_status": "backup_retry_wait",
+                 "fallback_retry_at": retry_at,
                  "step_id": step["step_id"], "attempt": step["attempt"], "selected_at": now()})
     return True
 

@@ -1,6 +1,6 @@
 # K-DOG PR-PA02 호출 예약과 공유 제한
 
-버전: v1.0 · 2026-10-24 · 상태: 미착수 · 선행: PA01
+버전: v1.0 · 2026-10-24 · 상태: 구현·검증·독립 cold review 완료, 병합 준비 · 선행: PA01
 
 상위: [병렬화 계획](K-DOG_AI병렬화계획_v1.0_20261024.md) · 이전: [PA01](K-DOG_PR-PA01_실행계약과측정_v1.0_20261024.md) · 다음: [PA03](K-DOG_PR-PA03_항목군병렬실행_v1.0_20261024.md) · 추적: AP02·AP03·AP06·AP09
 
@@ -54,3 +54,11 @@
 | 업로드 중 실패·DELETE 실패 | 원래 credential 참조로 정리 추적, 실패 은폐 없음 |
 
 barrier로 경쟁 시점을 맞추고 실제 송신 횟수를 transport에서 검증한다. S1·report·attachment의 기존 예산/재시도/행위자/점유 시험을 수행한다. 합격 후 PA03이 사용할 배정 전 검사·예약·cooldown·종료 경계를 기록한다. 범용 분산 limiter나 큐 시스템은 추가하지 않는다.
+
+## 2026-10-24 구현 기록
+
+- PA01 병합 `2b4ffdb` 기준, `veluga/pa02-call-reservation-limits`. 같은 token의 running attempt는 복구하지 않는다. 이전 token의 불변 출력 복구와 신규 INSERT의 경쟁은 최신 step ID·status·token 재확인으로 차단한다. 호출 예산은 기존 `BEGIN IMMEDIATE` 예약을 유지한다.
+- 429 `gemini.cooldown`은 프로젝트 관계를 알 수 없는 키를 포함해 설치 전체에 공유한다. `wait_for_provider`는 거래 밖에서 대기·중지를 검사하고 `reserve_call`이 쓰기 fence 안에서 다시 확인한다. 동시성은 RPM/TPM 보장이 아니다. quota를 키 교체로 우회하지 않는다.
+- run별 예비키 전환 결정은 한번만 감사 기록하며, 늦은 primary 실패는 최초 fallback 재시도 시각을 유지한다. 이미 선택한 요청의 credential과 요청별 업로드/정리 원장은 기존 경로를 유지한다. FB01~FB04·FB07~FB11 기존 회귀와 FB05 경쟁을 검증했다. 실제 키/프로젝트 접근은 PA06 대기다.
+- 중앙 Worker의 `once()`가 data directory의 OS 파일잠금 `worker-execution`을 결과 수습까지 보유한다. 기존 CLI의 프로세스 수명 `worker` 잠금도 유지한다. 네트워크 중 DB 거래를 보유하지 않는다. 프로세스 강제종료/복원 통합은 PA05에서 보강한다.
+- 독립 subagent 2명 검토에서 cooldown TOCTOU와 동시 recovery 재호출을 수용 수정했다. 재현 경쟁 시험을 추가했다. 정확한 검증·리뷰·PR는 실행 대장을 따른다. 기본 직렬 유지, 새 의존성/DB 열 없음.

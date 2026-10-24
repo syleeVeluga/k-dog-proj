@@ -8,14 +8,22 @@
 
 | PR | 구현 | 자동 검증 | cold review·조치 | 실제 공급자 | 운영 적용 | commit/실제 PR |
 | --- | --- | --- | --- | --- | --- | --- |
-| [PA01](K-DOG_PR-PA01_실행계약과측정_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 2건 수정·재검토 완료 | 대상 아님 | 기본 1 유지 | `48c75da` / [PR #150](https://github.com/syleeVeluga/k-dog-proj/pull/150) |
-| [PA02](K-DOG_PR-PA02_호출예약과공유제한_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | PA06 | 미적용 | — |
+| [PA01](K-DOG_PR-PA01_실행계약과측정_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 2건 수정·재검토 완료 | 대상 아님 | 기본 1 유지 | [PR #150](https://github.com/syleeVeluga/k-dog-proj/pull/150) 병합 `2b4ffdb` |
+| [PA02](K-DOG_PR-PA02_호출예약과공유제한_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P1 2건 수정·재검토 완료 | PA06 | 직렬 유지 | 병합 준비 |
 | [PA03](K-DOG_PR-PA03_항목군병렬실행_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | PA06 | 미적용 | — |
 | [PA04](K-DOG_PR-PA04_운영설정과진행표시_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | PA06 | 미적용 | — |
 | [PA05](K-DOG_PR-PA05_장애복구와통합인수_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | PA06 | 미적용 | — |
 | [PA06](K-DOG_PR-PA06_실측과운영적용_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | 미실행 | 미적용 | — |
 
 ## 2. PR별 실행 기록 양식
+
+### PA02 실행 — 2026-10-24
+
+- 기준 `2b4ffdb`(PA01 실제 병합), 브랜치 `veluga/pa02-call-reservation-limits`. 변경은 `worker.py`, `gemini_keys.py`, 새 `test_parallel_reservation_v4.py`와 문서다. AP02·AP03·AP06·AP09 기반 구현. 파일 소유와 cleanup credential은 요청별 기존 구현을 보존했다.
+- `backend/`에서 `uv run --locked python -X utf8 -m unittest tests.test_parallel_reservation_v4 tests.test_run_v4 tests.test_gemini_key_fallback tests.test_gemini_v4 tests.test_owned_run_write -q`: 72개 통과, 249.894초. 당시 시험 모듈에 fixture TestCase를 직접 import해 기존 run 시험이 중복 발견된 것을 수정했다. 수치는 그 실제 실행 건수이며 독립 시험 수로 부풀리지 않는다.
+- cold review 수용 수정 후 `uv run --locked python -X utf8 -m unittest tests.test_parallel_reservation_v4 -q`: 7개 통과, 3.611초. 마지막 예산 4자 경쟁·live 동일 branch·동시 recovery·설치 Worker 경계·공유 대기 중지·예약 직전 cooldown 경쟁·동시 fallback 결정을 확인했다. 독립 리뷰 재검토 추가 결함 없음.
+- 최종 수정 뒤 `uv run --locked python -X utf8 -m unittest tests.test_run_v4 tests.test_gemini_key_fallback.GeminiFallbackTests tests.test_gemini_v4 tests.test_owned_run_write -q`: 43개 통과, 108.155초. 최초 fallback 시각이 동시 오류로 재설정되지 않는 assertion 보강 후 새 7개 4.603초 통과. 문서 상대 링크 47개와 `git diff --check` 통과.
+- 버전/의존성: PA01과 동일 잠금 환경이며 2026-10-24 [Python threading](https://docs.python.org/3.14/library/threading.html), [Gemini 프로젝트별 rate limits](https://ai.google.dev/gemini-api/docs/rate-limits)를 확인했다. 최신/선택 버전은 위 PA01 기록과 동일, 설치·패키지·lockfile 변경 없다. 계정 quota는 추정하지 않았으며 실제 키 접근·프로젝트 관계 확인은 PA06이다.
 
 ### PA01 실행 — 2026-10-24
 
