@@ -137,3 +137,23 @@ class SceneSelectionV4Tests(unittest.TestCase):
         self.assertEqual([v.start_seconds for v in found[0].evidence],[5,6,7])
         payload['observations'][0]['value']=3
         with self.assertRaises(ValueError):scenes.events_from_ai(source,stage,payload,'runs/output.json','e'*64)
+
+    def test_ai_event_adapter_preserves_fractional_local_and_source_roundoff(self):
+        from app import scoring_ai_v4 as ai
+        from tests.test_scoring_ai_v4 import fractional_snapshot,group,response,basis
+        source,stage=fractional_snapshot(0.284,0.284),group('바14')
+        for start in (0.03,0.036):
+            with self.subTest(start=start):
+                view=basis('c2',start=start,end=start+0.3)
+                view['observed_seconds']=0.3
+                raw=response(stage,'바14',1,[basis('c2',start=0,end=30),view],
+                    whole_interval_observed=True,event_ids=['event'])
+                raw['events']=[{'event_id':'event','item_codes':['바14'],'views':[view],'note':'actual event'}]
+                payload={**ai.normalize(source,stage,raw),'response':raw,'usage':{}}
+                found=scenes.events_from_ai(source,stage,payload,'runs/output.json','e'*64)
+                actual=found[0].evidence[0]
+                self.assertLessEqual(actual.observed_seconds,actual.end_seconds-actual.start_seconds)
+                self.assertAlmostEqual(actual.observed_seconds,0.3,places=9)
+                raw['events'][0]['views'][0]['observed_seconds']=0.301
+                with self.assertRaises(ValueError):
+                    scenes.events_from_ai(source,stage,payload,'runs/output.json','e'*64)
