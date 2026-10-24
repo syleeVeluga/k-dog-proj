@@ -18,8 +18,8 @@ export async function openMenu(page: Page, label: string) {
 }
 
 export async function openPreprocessing(page: Page, id: string) {
+  await page.goto('/');
   await openMenu(page, '참가자 접수');
-  await page.reload();
   await page.getByLabel('검색', { exact: true }).fill(id);
   await page.getByLabel('행사 필터').selectOption('');
   await page.getByLabel('자료 상태 별 조회').selectOption('all');
