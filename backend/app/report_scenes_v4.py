@@ -67,14 +67,23 @@ def events_from_ai(snapshot, stage, payload, output_ref, output_hash):
     clips = {clip.clip_id: clip for clip in ai.clips_for(snapshot, stage)}
     videos = {video.video_id: video for video in snapshot.session.videos}
     result = []
-    for event in payload["response"].get("events", []):
+    for event in payload["events"]:
         evidence = []
         for view in event["views"]:
             clip = clips[view["clip_id"]]
             derivative = getattr(clip, stage.input_variant)
+            start = view["start_seconds"] + derivative.source_time_offset_seconds
+            end = view["end_seconds"] + derivative.source_time_offset_seconds
+            if abs(start - clip.source_start_seconds) <= 1e-9:
+                start = clip.source_start_seconds
+            if abs(end - clip.source_end_seconds) <= 1e-9:
+                end = clip.source_end_seconds
+            observed = view["observed_seconds"]
+            if 0 <= observed - (end - start) <= 1e-9:
+                observed = end - start
             evidence.append(EvidenceV4(video_id=clip.video_id, video_sha256=videos[clip.video_id].sha256, camera_id=clip.camera_id,
-                window_id=view["window_id"], start_seconds=view["start_seconds"]+derivative.source_time_offset_seconds,
-                end_seconds=view["end_seconds"]+derivative.source_time_offset_seconds, observed_seconds=view["observed_seconds"], note=view.get("note")))
+                window_id=view["window_id"], start_seconds=start,
+                end_seconds=end, observed_seconds=observed, note=view.get("note")))
         result.append(CommonEventV4(event_id=stage.key+":"+event["event_id"], item_codes=tuple(event["item_codes"]),
             evidence=tuple(evidence), source_ref=output_ref, source_hash=output_hash))
     return tuple(result)
