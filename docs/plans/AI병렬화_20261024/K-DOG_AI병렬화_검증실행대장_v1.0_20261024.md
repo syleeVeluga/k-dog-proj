@@ -12,10 +12,16 @@
 | [PA02](K-DOG_PR-PA02_호출예약과공유제한_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P1 2건 수정·재검토 완료 | PA06 | 직렬 유지 | [PR #151](https://github.com/syleeVeluga/k-dog-proj/pull/151) 병합 `173bd83` |
 | [PA03](K-DOG_PR-PA03_항목군병렬실행_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, 추가 결함 없음 | PA06 | 기본 1, 명시 2~4 허용 | [PR #152](https://github.com/syleeVeluga/k-dog-proj/pull/152) 병합 `3275ce8` |
 | [PA04](K-DOG_PR-PA04_운영설정과진행표시_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 수정·재검토 완료 | PA06 | 개발자 명시 설정 | [PR #153](https://github.com/syleeVeluga/k-dog-proj/pull/153) 병합 `0abdaa0` |
-| [PA05](K-DOG_PR-PA05_장애복구와통합인수_v1.0_20261024.md) | 완료 | backend 904개/skip 3, browser 181개 통과 | 2명 독립 검토, P2 인수 보강·UI 경쟁 수정 재검토 완료 | PA06 | 실측 후보 검증 완료 | [PR #155](https://github.com/syleeVeluga/k-dog-proj/pull/155), 제품 `e9a1529`·검증 `36512c7` |
-| [PA06](K-DOG_PR-PA06_실측과운영적용_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | 미실행 | 미적용 | — |
+| [PA05](K-DOG_PR-PA05_장애복구와통합인수_v1.0_20261024.md) | 완료 | backend 904개/skip 3, browser 181개 통과 | 2명 독립 검토, P2 인수 보강·UI 경쟁 수정 재검토 완료 | PA06 | 실측 후보 검증 완료 | [PR #155](https://github.com/syleeVeluga/k-dog-proj/pull/155) 병합 `c48d52d`, 제품 `e9a1529`·검증 `36512c7` |
+| [PA06](K-DOG_PR-PA06_실측과운영적용_v1.0_20261024.md) | 측정 도구 완료 | 관련 33개 통과 | 2명 독립 검토·수용 수정·재검토 완료 | 등록/접근 확인, 생성 실측 준비 | 기본 1 유지 | `c48d52d`에서 착수 |
 
 ## 2. PR별 실행 기록 양식
+
+### PA06 측정 도구 실행 — 2026-10-24
+
+- 기준 `c48d52d`(PA05 #155 실제 병합), 브랜치 `veluga/pa06-measurements-operations`. 읽기 전용 benchmark의 새 AI 요청→PDF clock, 공유 준비시간 분리, request/inference 실제 겹침과 scope별 중앙값·AI 표본 수를 보강했다. backend/app·frontend/src·resources 제품 실행 코드는 PA05 후보 `e9a1529`와 동일하다.
+- `backend/`에서 `uv run --locked python -X utf8 -m unittest tests.test_benchmark_s1 tests.test_benchmark_parallel_measurement -q`: 33개 통과, 7.333초. 독립 리뷰 33개 7.577초 통과. 새 의존성·DB schema 변경 없음. 운영 안내와 문서 링크 72개 및 `git diff --check` 통과.
+- 원본·키·실측 자료를 저장소 밖에 두고 사용자 승인한 별도 DB/전체 $50 상한을 사용한다. 모델 접근·4카메라/CSV/hash·새 자료 결측은 PA06 상세 기록 참조. 유료 실측·발급 수치는 아직 채우지 않았다. 합성 준비→가짜 REST의 N=4 실행→HTML/PDF/manifest→고정 증거 집계는 성공했으며 실제 성능 표본이 아니다.
 
 ### PA05 실행 — 2026-10-24
 
