@@ -29,7 +29,7 @@ def response(context):
 
 
 class BrowserGeminiFixture:
-    def __init__(self, store):
+    def __init__(self, store, *, concurrency=1):
         self.helper = test_run_v4.RunV4Tests()
         self.helper.store = store
         self.helper.setUp()
@@ -41,6 +41,7 @@ class BrowserGeminiFixture:
         secrets.change(store, "gemini", PRIMARY, "developer")
         secrets.change(store, "gemini", BACKUP, "developer", slot="backup")
         pipeline = settings_v4.defaults(); pipeline.raw_observation_scope_confirmed = True
+        pipeline.max_parallel_score_groups = concurrency
         with store.connect() as db:
             active = settings_v4.active(db)
         draft = settings_v4.save(store, model(settings_v4.AiDraftV4, expected_active=active, config=pipeline.model_dump(mode="json")), "developer")

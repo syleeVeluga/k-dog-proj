@@ -19,14 +19,17 @@ class GeminiAcceptanceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="kdog-gk04-") as temporary:
             root = Path(temporary)
             store = Store(root / "data")
-            fixture = BrowserGeminiFixture(store)
+            fixture = BrowserGeminiFixture(store, concurrency=4)
             self.addCleanup(fixture.close)
             fixture.advance(); fixture.advance()
             case_id, session_id, user = fixture.helper.case_id, fixture.helper.session_id, fixture.user
             score = run_v4.view(store, fixture.score["run_id"], user)
             report_id = fixture.report["run_id"]
             report = reports.view(store, report_id, user)
-            self.assertEqual((score["status"], score["reserved_calls"], score["credential_slot"]), ("succeeded", 44, "backup"))
+            primary_failures = sum(step["credential_slot"] == "primary" and step["call_reserved"] for step in score["steps"])
+            self.assertGreaterEqual(primary_failures, 1)
+            self.assertLessEqual(primary_failures, 4)
+            self.assertEqual((score["status"], score["reserved_calls"], score["credential_slot"], score["max_parallel_score_groups"]), ("succeeded", 43 + primary_failures, "backup", 4))
             self.assertEqual((report["status"], sum(step["provider_calls"] for step in report["steps"]), report["credential_slot"]), ("succeeded", 2, "backup"))
             attempts = [step for step in report["steps"] if step["provider_calls"]]
             self.assertEqual([step["credential_slot"] for step in attempts], ["primary", "backup"])

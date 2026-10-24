@@ -1,6 +1,6 @@
 # K-DOG AI 병렬화 검증·실행 대장
 
-버전: v1.0 · 2026-10-24 · 상태: PA01~PA04 구현·검증·cold review 완료, 후속 PR 진행
+버전: v1.0 · 2026-10-24 · 상태: PA01~PA05 구현·검증·cold review 완료, 후속 PR 진행
 
 상위: [병렬화 계획](K-DOG_AI병렬화계획_v1.0_20261024.md)
 
@@ -11,11 +11,20 @@
 | [PA01](K-DOG_PR-PA01_실행계약과측정_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 2건 수정·재검토 완료 | 대상 아님 | 기본 1 유지 | [PR #150](https://github.com/syleeVeluga/k-dog-proj/pull/150) 병합 `2b4ffdb` |
 | [PA02](K-DOG_PR-PA02_호출예약과공유제한_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P1 2건 수정·재검토 완료 | PA06 | 직렬 유지 | [PR #151](https://github.com/syleeVeluga/k-dog-proj/pull/151) 병합 `173bd83` |
 | [PA03](K-DOG_PR-PA03_항목군병렬실행_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, 추가 결함 없음 | PA06 | 기본 1, 명시 2~4 허용 | [PR #152](https://github.com/syleeVeluga/k-dog-proj/pull/152) 병합 `3275ce8` |
-| [PA04](K-DOG_PR-PA04_운영설정과진행표시_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 수정·재검토 완료 | PA06 | 개발자 명시 설정 | `6ccb4aa` / [PR #153](https://github.com/syleeVeluga/k-dog-proj/pull/153) |
-| [PA05](K-DOG_PR-PA05_장애복구와통합인수_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | PA06 | 미적용 | — |
+| [PA04](K-DOG_PR-PA04_운영설정과진행표시_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 수정·재검토 완료 | PA06 | 개발자 명시 설정 | [PR #153](https://github.com/syleeVeluga/k-dog-proj/pull/153) 병합 `0abdaa0` |
+| [PA05](K-DOG_PR-PA05_장애복구와통합인수_v1.0_20261024.md) | 완료 | backend 904개/skip 3, browser 181개 통과 | 2명 독립 검토, P2 인수 보강·UI 경쟁 수정 재검토 완료 | PA06 | 실측 후보 검증 완료 | [PR #155](https://github.com/syleeVeluga/k-dog-proj/pull/155), 제품 `e9a1529`·검증 `36512c7` |
 | [PA06](K-DOG_PR-PA06_실측과운영적용_v1.0_20261024.md) | 미착수 | 미실행 | 미실행 | 미실행 | 미적용 | — |
 
 ## 2. PR별 실행 기록 양식
+
+### PA05 실행 — 2026-10-24
+
+- 기준 `0abdaa0`(PA04 실제 병합), 브랜치 `veluga/pa05-parallel-recovery-acceptance`. AP02~AP07·AP09 통합 인수. 프로세스 종료/복원·정리 소유·혼합 credential 결과·N=4 실제 handler의 최종/리포트/reuse/복원을 연결했다. 최종 종료/복원 시험 2개 42.192초와 리뷰 담당 독립 2개 16.517초 통과.
+- `backend/`에서 `uv run --locked python -X utf8 -m unittest discover -s tests -v`: 904개 실행, 901개 통과·3개 명시 skip, 2344.100초. skip은 역사 원본 미확보 2개와 실제 macOS 로그인 Keychain 필요 1개다. 현 Windows의 backend 실패 0. 원본 S1 8개 자산 대조도 통과했고 G01/G04 계산 양식 미수령 대기는 유지한다.
+- 최초 `frontend/`의 `npm run test:e2e`: 180개 중 178개 통과·2개 실패, 1022.391초. 접수 초기 로딩 동기화와 상세 열기의 progress 삭제 경쟁을 조사했다. 새 gate 시험은 제품 수정 전 1개 실패를 재현했다. 같은 입력/회차의 진행 요약만 보존하는 수정 및 응답 대기 후 관련 8개 23.8초, build 통과. 두 번째 전체는 180/181 통과·도우미 reload 뒤 generic 404 1개 실패(1004.587초)였다. URL/원인은 미확정이다. 루트 이동 후 메뉴를 여는 시험 준비 변경 뒤 관련 30개 2.0분 통과, trace를 남긴 세 번째 전체는 180/181 통과(944.475초), 판정 조회 지연 glob이 `?purpose=open`을 매칭하지 못한 시험 결함 1개였다. pathname 매칭과 실제 요청 진입 대기를 보강해 관련 14개 38.9초, 최종 전체 181개 894.177초 전부 통과했다. 최종 build도 통과했다. 고정 자료에 repeat-each를 적용한 진단의 중복 409는 인수 표본으로 삼지 않는다.
+- 독립 subagent 2명의 복원/정리 P2를 수용 보강했고, 추가 App 경쟁 수정도 양쪽에서 재검토하여 실질 결함이 없었다. 정확한 발견과 인계는 Cold Review 기록을 따른다.
+- 최초 ZIP `2155849`에 이어 UI 수정 포함 `e9a1529` 후보 75,276,069 bytes, SHA-256 `b2da86644b4674e3dcb2aec0ca132cfc657e939a2088716f1e36a5a93d10b8f2`를 별도 새 경로에 설치·검증했다. 내장 Python 3.14.8, 외부 도구 없는 PATH, 한글/공백 경로, 무결성·변조 거절, 로그인·업무·재시작·supervisor 종료·재설치·자료/계정 보존·개발자 설정 경계를 통과했다. 실제 다른 PC/새 OS 인수로 확대하지 않는다. 외부 생성형 AI 호출 0회인 설치 시험이다.
+- N=4 합성 HTML/PDF 발급 및 전체 PDF 5쪽 PNG/HTML 1440·390px 시각 검수 완료. 출력 hash와 범위는 PA05 상세 기록 참조. 원본 participant 자료는 쓰지 않았다. 로그·배포물·합성 산출물은 저장소 밖 검증 폴더에 보존한다. 공식 PyPI 25개 최신/선택 버전은 이 문서의 배포 의존성 표에 기록했다.
 
 ### PA04 실행 — 2026-10-24
 
@@ -113,3 +122,35 @@
 [Cold Review](K-DOG_AI병렬화_ColdReview_v1.0_20261024.md)에서 4건을 발견해 모두 수용했다. 4카메라/N별 실측 계약, 즉시 중지와 자식 수습 경계, 실패 포함 성능 판정, 실측 리포트 비교 옵션·출처를 계획에 반영했다. 앱 구현·의존성·운영 DB·기존 결과는 변경하지 않았다. 계획 문서 PR만 병합 대상으로 삼는다.
 
 재검증: 문서 9개, staged/기존 추적 파일을 대상으로 하는 상대 링크 45개와 anchor 3개, PA01→PA06 선행 관계, AP01~AP09·FB01~FB11 연결을 통과했다. 외부 원본 매핑을 확인했고 참가자 이름/원본 경로/키는 staged 문서에 없었다. 신규 파일 직접 공백 검사와 `git diff --cached --check`를 통과했다. 실행 코드 변경이 없어 backend/e2e·공급자 호출은 수행하지 않았다.
+
+## PA05 배포 의존성 확인 — 2026-10-24
+
+공식 PyPI registry 25개를 실제 조회했다. 선택 버전은 기존 프로젝트/uv.lock의 pin이며 이번 병렬화의 API·배포 재현성을 유지하기 위해 관련 없는 업그레이드를 하지 않았다. 설치한 배포 후보의 Python 3.14.8에서 시작·실제 업무·재시작을 검증했다. 상세 registry 원장은 저장소 밖 검증 폴더에 보존한다.
+
+| 패키지·공식 registry | 최신 안정판 | 선택 pin |
+| --- | --- | --- |
+| [annotated-doc](https://pypi.org/pypi/annotated-doc/json) | 0.0.5 | 0.0.5 |
+| [annotated-types](https://pypi.org/pypi/annotated-types/json) | 0.8.0 | 0.8.0 |
+| [anyio](https://pypi.org/pypi/anyio/json) | 4.15.1 | 4.15.1 |
+| [certifi](https://pypi.org/pypi/certifi/json) | 2026.10.23 | 2026.7.22 |
+| [cffi](https://pypi.org/pypi/cffi/json) | 2.1.1 | 2.1.1 |
+| [charset-normalizer](https://pypi.org/pypi/charset-normalizer/json) | 3.5.2 | 3.5.1 |
+| [click](https://pypi.org/pypi/click/json) | 8.5.0 | 8.5.0 |
+| [cryptography](https://pypi.org/pypi/cryptography/json) | 50.0.2 | 50.0.2 |
+| [et-xmlfile](https://pypi.org/pypi/et-xmlfile/json) | 2.0.0 | 2.0.0 |
+| [fastapi](https://pypi.org/pypi/fastapi/json) | 0.162.0 | 0.141.1 |
+| [h11](https://pypi.org/pypi/h11/json) | 0.16.0 | 0.16.0 |
+| [httpcore](https://pypi.org/pypi/httpcore/json) | 1.0.9 | 1.0.9 |
+| [httpx](https://pypi.org/pypi/httpx/json) | 0.28.1 | 0.28.1 |
+| [idna](https://pypi.org/pypi/idna/json) | 3.20 | 3.19 |
+| [openpyxl](https://pypi.org/pypi/openpyxl/json) | 3.1.5 | 3.1.5 |
+| [pillow](https://pypi.org/pypi/pillow/json) | 13.0.0 | 12.3.0 |
+| [pycparser](https://pypi.org/pypi/pycparser/json) | 3.12 | 3.0 |
+| [pydantic](https://pypi.org/pypi/pydantic/json) | 2.14.1 | 2.13.5 |
+| [pydantic-core](https://pypi.org/pypi/pydantic-core/json) | 2.50.1 | 2.46.5 |
+| [pypdf](https://pypi.org/pypi/pypdf/json) | 6.21.2 | 6.19.0 |
+| [reportlab](https://pypi.org/pypi/reportlab/json) | 5.1.0 | 5.0.1 |
+| [starlette](https://pypi.org/pypi/starlette/json) | 1.9.0 | 1.6.0 |
+| [typing-extensions](https://pypi.org/pypi/typing-extensions/json) | 4.16.0 | 4.16.0 |
+| [typing-inspection](https://pypi.org/pypi/typing-inspection/json) | 0.4.4 | 0.4.4 |
+| [uvicorn](https://pypi.org/pypi/uvicorn/json) | 0.54.0 | 0.52.4 |

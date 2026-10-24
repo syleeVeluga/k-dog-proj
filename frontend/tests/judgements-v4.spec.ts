@@ -105,11 +105,15 @@ test('S1 basic calculation preserves input, automatic decisions, manual evidence
   // A delayed history request must freeze editing until that exact request has finished.
   let release: () => void = () => {};
   const gate = new Promise<void>(resolve => { release = resolve; });
-  await page.route(`**${resultPath}`, async route => { await gate; await route.continue(); });
+  const resultRequest = (url: URL) => url.pathname === resultPath;
+  let entered: () => void = () => {};
+  const intercepted = new Promise<void>(resolve => { entered = resolve; });
+  await page.route(resultRequest, async route => { entered(); await gate; await route.continue(); });
   await panel.getByRole('button', { name: '최신 기본 결과 불러오기', exact: true }).click();
+  await intercepted;
   await expect(ownerChoice).toBeDisabled();
   await expect(panel.getByRole('button', { name: '보존 결과 1판', exact: true })).toBeDisabled();
-  release(); await expect(ownerChoice).toBeEnabled(); await page.unroute(`**${resultPath}`);
+  release(); await expect(ownerChoice).toBeEnabled(); await page.unroute(resultRequest);
   await owner.getByLabel('보호자 교육태도 판단 이유', { exact: true }).fill('충돌 뒤에도 보존할 판단');
   await panel.getByLabel('기본 판정 수정 사유', { exact: true }).fill('동시 수정 충돌 검증');
   const other = await page.request.put(resultPath + '/judgements', { headers, data: { expected_revision: result.summary.revision, reason: '합성 다른 탭의 보류 수정',
