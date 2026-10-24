@@ -18,7 +18,8 @@ from .maintenance import file_hash, managed_path, runtime_lock
 from .recording_v4 import build_windows_v4, item_capture_gates_v4
 from .storage import encode, now, uid
 
-CUT_SETTINGS = {"version": "s1-cut-2-windows", "source_fps": "passthrough", "ai_fps": "first_actual_frame_per_second",
+CUT_SETTINGS = {"version": "s1-cut-3-window-clock", "source_fps": "passthrough", "ai_fps": "first_actual_frame_per_second",
+                "ai_timeline": "preserve_cut_clock_and_last_frame_display_end", "ai_b_frames": 0,
                 "video_codec": "libx264", "crf": 20, "audio": "continuous_aac", "pixel_format": "yuv420p"}
 
 
@@ -233,15 +234,20 @@ def verified_batch(store, case_id, session_id, pointer: FileV4, actor, *, expect
     return batch
 
 
-def _frame_times(path, *, raw=False):
+def _frame_clock(path):
     value = json.loads(media.command(["ffprobe", "-v", "error", *media.LOCAL_INPUT, "-select_streams", "v:0",
-        "-show_frames", "-show_format", "-show_entries", "frame=best_effort_timestamp_time:format=start_time",
+        "-show_frames", "-show_format", "-show_entries", "frame=best_effort_timestamp_time:format=start_time,duration",
         "-of", "json", str(path)], timeout=1800))
     origin = float(value.get("format", {}).get("start_time", 0))
-    # Preserve ffprobe's microsecond precision across subtraction at second boundaries.
-    times = tuple(round(float(frame["best_effort_timestamp_time"]) - (0 if raw else origin), 6) for frame in value.get("frames", [])
+    times = tuple(float(frame["best_effort_timestamp_time"]) for frame in value.get("frames", [])
                   if "best_effort_timestamp_time" in frame)
-    return times
+    return origin, times, float(value.get("format", {}).get("duration", 0))
+
+
+def _frame_times(path, *, raw=False):
+    origin, times, _ = _frame_clock(path)
+    # Preserve ffprobe's microsecond precision across subtraction at second boundaries.
+    return tuple(round(time - (0 if raw else origin), 6) for time in times)
 
 
 def _clip_file(store, path, start, policy, source_times):
@@ -265,10 +271,23 @@ def _clip_file(store, path, start, policy, source_times):
 def _ai_clip(source, output):
     # select + passthrough retains actual frame PTS. The fps filter would fabricate
     # duplicate frames in subsecond/low-FPS/gapped media and is deliberately absent.
+    origin, raw_times, duration = _frame_clock(source)
+    times = tuple(round(time-origin, 6) for time in raw_times)
+    selected = tuple(i for i, time in enumerate(times) if i == 0 or int(time) != int(times[i-1]))
+    if not selected:
+        raise media.NoVideoError("실제 관찰창 안에 영상 프레임이 없습니다.")
+    tail = duration-times[selected[-1]]
+    if tail <= 0:
+        raise media.MediaError("마지막 실제 프레임의 표시 종료를 확인할 수 없습니다.")
+    # No B-frame reordering: extend only the final real packet's display duration,
+    # preserve every PTS/DTS, and restore the input clock for both video and audio.
+    packet_times = f"setts=pts=PTS:dts=DTS:duration=if(eq(N\\,{len(selected)-1})\\,ceil({tail:.15f}/TB)\\,DURATION)"
     media.command(["ffmpeg", "-v", "error", "-xerror", "-nostdin", "-n", *media.LOCAL_INPUT, "-i", str(source),
         "-map", "0:v:0", "-map", "0:a?", "-vf", "select=isnan(prev_selected_t)+gt(floor(t)\\,floor(prev_selected_t))",
         "-fps_mode", "passthrough", "-enc_time_base:v", "demux", "-c:v", "libx264", "-crf", "20",
-        "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", str(output)], timeout=1800)
+        "-bf", "0", "-bsf:v", packet_times, "-pix_fmt", "yuv420p", "-c:a", "copy",
+        "-output_ts_offset", f"{origin:.15f}", "-movflags", "+faststart", str(output)], timeout=1800)
+    return selected
 
 
 def _prepare_clips(store, session, recording, windows, directory, guard):
@@ -312,15 +331,9 @@ def _prepare_clips(store, session, recording, windows, directory, guard):
                 media.cut_clip(path, original_path, start, end, None, {"keep_audio": True})
                 original = _clip_file(store, original_path, start, "source_frames", tuple(t for t in source_times if start <= t < end))
                 guard()
-                _ai_clip(original_path, ai_path)
-                selected, last_second = [], None
-                # FFmpeg rebases the input origin before applying its select filter.
-                for derived_time, source_time in zip(_frame_times(original_path), original.source_frame_times_seconds):
-                    second = int(derived_time)
-                    if second != last_second:
-                        selected.append(source_time)
-                        last_second = second
-                ai = _clip_file(store, ai_path, start, "one_actual_frame_per_second", tuple(selected))
+                selected = _ai_clip(original_path, ai_path)
+                ai = _clip_file(store, ai_path, start, "one_actual_frame_per_second",
+                                tuple(original.source_frame_times_seconds[i] for i in selected))
                 clips.append(PhysicalClipV4(**base, status="complete", original=original, ai=ai))
             except media.NoVideoError:
                 clips.append(PhysicalClipV4(**base, status="partial" if original else "no_frames", original=original,

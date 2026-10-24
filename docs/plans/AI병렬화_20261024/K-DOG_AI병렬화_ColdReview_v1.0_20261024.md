@@ -58,6 +58,7 @@ PA06 병합 `33be9a3` 이후 두 독립 subagent가 미커밋 제품 코드와 �
 | --- | --- | --- |
 | 만료 파일 GET 404 후 옛 remote와 새 upload ID가 섞여 응답 유실된 새 파일을 정리 완료로 기록할 수 있음 | P1 | 옛 remote/ID를 함께 비운 뒤 새 소유를 시작한다. 교체 finalize 응답 유실 회귀에서 실제 고아 1개와 이름 미확정 pending 1개를 보존한다. |
 | 무음 창의 normalized PTS와 raw playback PTS가 달라 실제 원본 4초를 1초로 역매핑 | P1 | 원본/AI 파일별 raw playback PTS와 source 쌍을 맞춘다. 저FPS·비정수 창의 실제 FFmpeg 및 로컬 브라우저 재현으로 확인한다. 후속 0.989ms 인코더 오차는 기존 cut anchor와 모든 프레임이 2ms 이내일 때만 정리하여 가짜 오디오 결측/whole-window 누락을 막는다. 최종 관련 4개 root 12.871초·독립 13.647초 통과. |
+| 창별 AI 파일이 마지막 선택 프레임의 짧은 원본 packet duration에서 끝나 기존 전체 관찰을 강제 null로 변경 | P1 | 동일 원본의 기존 6초 합친 clip과 새 3초 창을 실제 context로 대조하여 `바6`의 0..3초가 0..2.125초로 줄어드는 것을 재현했다. AI encode의 B-frame 재정렬을 끄고 setts의 PTS/DTS를 명시 보존하며 마지막 실제 packet 표시기간과 공통 A/V 시계를 유지한다. 실제 frame 수/PTS가 같고 브라우저 길이·초기 시각, whole gate와 자유행동 evidence 범위를 보존한다. 관련 75개와 새 회귀 1개, 독립 최종 5개/21.955초 통과. |
 | 재검증 GET 및 waiter 오류에 operation phase가 없어 예비키 전환 계약에서 빠짐 | P2 | GET은 processing, 공유 실패는 phase만 현재 요청 usage에 전달한다. 외국 actor/timing/credential usage를 복사하지 않는다. 소유자/대기자 두 요청 회귀 통과. |
 | 새 외부 준비가 이전 전체 준비시간/시작시각을 상속 | P2 | 새 시작·전체·전처리 시간을 기록하고 원입력 재사용 준비시간은 0으로 표시한다. 이전 준비는 별도 참조로 보존한다. |
 | GET 404 뒤 새 업로드도 reused=True로 집계 | P2 | 새 업로드 분기에서 hit=False, 새 upload ID의 reused=False 회귀 통과. |

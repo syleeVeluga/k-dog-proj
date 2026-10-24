@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from fastapi import HTTPException
 
-from app import media, preprocess_v4 as preprocess, uploads
+from app import media, preprocess_v4 as preprocess, scoring_ai_v4, uploads
 from app.domain.catalog_v4 import SEGMENTS, SURVEY_VERSION
 from app.domain.media_v4 import ConversionV4, MediaParentV4, UploadCreateV4, UploadLinkV4
 from app.domain.preprocess_v4 import PreprocessRequestV4
@@ -17,6 +17,7 @@ from app.input_models_v3 import CaseCreateV3
 from app.intake import create_case
 from app.maintenance import backup, clean, references, restore
 from app.storage import Store
+from tests import test_scoring_ai_v4 as scoring_fixture
 
 
 async def chunks(data):
@@ -64,10 +65,11 @@ class PreprocessV4Tests(unittest.TestCase):
         return uploads.link_receipt(self.store, receipt.upload_id, UploadLinkV4(case_id=self.case_id,
             session_id=self.session_id, camera_id=camera, expected_revision=self.current()["input_revision"]), "op")
 
-    def recording(self, reference, others=(), *, start=0.2, end=4.2, events=(), coverage=()):
+    def recording(self, reference, others=(), *, start=0.2, end=4.2, events=(), coverage=(), baseline=None):
         value = {"video_id": reference, "confirmed": True, "procedure_edition": "s1_confirmed", "procedure_note": "합성 검증",
             "segments": [{"segment": segment, "video_id": reference,
                 **({"start_sec": start, "end_sec": end} if segment == "entry" else
+                   {"start_sec": baseline[0], "end_sec": baseline[1]} if segment == "baseline" and baseline else
                    {"state": "not_performed", "reason": "합성 시험에서 생략"})} for segment, _, _ in SEGMENTS],
             "video_offsets": [{"video_id": video, "offset_seconds": offset, "confirmed": offset is not None, "note": "합성 오프셋"}
                               for video, offset in others], "events": list(events), "coverage": list(coverage)}
@@ -160,6 +162,29 @@ class PreprocessV4Tests(unittest.TestCase):
         self.assertEqual(windows["entry_free"].views[0].clip_ids, (event_clip.clip_id,))
         self.assertEqual(batch.status, "complete")
 
+    def test_window_split_preserves_full_observation_and_final_real_frame_display(self):
+        video = self.upload('silent')
+        self.recording(video.video_id,start=0,end=3,baseline=(3,6),
+            events=(self.event('free','free_movement',video.video_id,1,2),))
+        batch = self.run_batch()
+        with self.store.connect() as db:
+            session = self.store.manifest(self.store.case(db,self.case_id)).sessions[0]
+        source = scoring_fixture.snapshot().model_copy(update={'batch':batch,'session':session})
+        whole = next(c for c in batch.clips if 'entry_whole' in c.window_ids)
+        self.assertEqual(whole.ai.frame_times_seconds,(0,1,2))
+        self.assertEqual(whole.ai.source_frame_times_seconds,(0,1,2))
+        self.assertAlmostEqual(media.probe(self.store.path(whole.ai.ref))['duration_sec'],3,delta=0.002)
+        info = scoring_ai_v4.context(source,scoring_fixture.group('바6'),{'run_id':'synthetic'},'op')
+        self.assertNotIn('바6',info['response_constraints']['whole_interval_unavailable_item_codes'])
+        bounds = info['response_constraints']['evidence_intervals']
+        self.assertEqual([(b['start_seconds'],b['end_seconds']) for b in bounds],[(0,3)])
+        free = scoring_ai_v4.context(source,scoring_fixture.group('보6'),{'run_id':'synthetic'},'op')
+        bounds = [b for b in free['response_constraints']['evidence_intervals'] if b['window_id']=='entry_free']
+        self.assertEqual([(b['start_seconds'],b['end_seconds']) for b in bounds],[(0,1)])
+        event_clip = next(c for c in batch.clips if 'entry_free' in c.window_ids)
+        self.assertEqual(event_clip.ai.source_frame_times_seconds,(1,))
+        self.assertAlmostEqual(media.probe(self.store.path(event_clip.ai.ref))['duration_sec'],1,delta=0.002)
+
     def test_three_cameras_offsets_quality_and_audio_are_not_summed(self):
         one, two, third = self.upload(), self.upload("two", "CAM2"), self.upload("silent", "CAM3")
         events = (self.event("hidden", "body_not_visible", one.video_id, 1, 2),
@@ -230,7 +255,9 @@ class PreprocessV4Tests(unittest.TestCase):
             for local, source in zip(derivative.frame_times_seconds,derivative.source_frame_times_seconds):
                 self.assertAlmostEqual(local+derivative.source_time_offset_seconds,source,delta=0.002)
             self.assertEqual(derivative.audio_ranges,())
-        self.assertEqual(clip.ai.frame_times_seconds[0],0)
+        self.assertEqual(clip.ai.frame_times_seconds[0],clip.original.frame_times_seconds[0])
+        self.assertEqual(clip.ai.source_time_offset_seconds,clip.original.source_time_offset_seconds)
+        self.assertGreaterEqual(clip.ai.duration_seconds,clip.original.duration_seconds-0.002)
 
     def test_silent_low_fps_window_maps_first_actual_frame_to_source(self):
         self.assert_window_frame_mapping('slow_silent',1,4.1,4)
@@ -286,13 +313,14 @@ class PreprocessV4Tests(unittest.TestCase):
                     before_count = db.execute("SELECT COUNT(*) FROM changes WHERE action='preprocess_v4.completed'").fetchone()[0]
 
                 def interrupted(*args):
-                    real(*args)
+                    selected = real(*args)
                     with self.store.connect(write=True) as db:
                         if change == "deleted":
                             db.execute("UPDATE cases SET deletion_requested=1 WHERE case_id=?", (self.case_id,))
                         else:
                             row = self.store.case(db, self.case_id)
                             self.store.save(db, row, self.store.manifest(row), "op", "synthetic.edit")
+                    return selected
 
                 with patch.object(preprocess, "_ai_clip", side_effect=interrupted):
                     if change == "revised":
@@ -309,9 +337,10 @@ class PreprocessV4Tests(unittest.TestCase):
         real = preprocess._ai_clip
 
         def expired(*args):
-            real(*args)
+            selected = real(*args)
             with self.store.connect(write=True) as db:
                 self.store.audit(db, "op", self.case_id, "preprocess_v4.started", {"session_id": self.session_id, "claim_token": "new-occupant"})
+            return selected
 
         with patch.object(preprocess, "_ai_clip", side_effect=expired):
             with self.assertRaises(HTTPException) as error:
