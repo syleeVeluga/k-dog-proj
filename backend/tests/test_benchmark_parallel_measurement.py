@@ -61,4 +61,3 @@ class Pa06MeasurementTests(unittest.TestCase):
         self.assertEqual(value['inference']['missing_reserved_intervals'],1)
         base['usage_json']=json.dumps({'provider_intervals':[{'clock_id':'a','phase':'inference_seconds','start':5,'end':4}]})
         with self.assertRaises(ValueError):bench.concurrency_evidence([base],inference=True)
-
