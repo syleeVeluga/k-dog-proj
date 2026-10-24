@@ -1,6 +1,6 @@
 # K-DOG PR-PA04 운영 설정과 진행 표시
 
-버전: v1.0 · 2026-10-24 · 상태: 미착수 · 선행: PA03
+버전: v1.0 · 2026-10-24 · 상태: 구현·검증·독립 cold review 완료, 병합 준비 · 선행: PA03
 
 상위: [병렬화 계획](K-DOG_AI병렬화계획_v1.0_20261024.md) · 이전: [PA03](K-DOG_PR-PA03_항목군병렬실행_v1.0_20261024.md) · 다음: [PA05](K-DOG_PR-PA05_장애복구와통합인수_v1.0_20261024.md) · 추적: AP07
 
@@ -28,3 +28,11 @@
 5. `frontend/`에서 build와 관련 e2e, backend 설정/권한/API 시험을 통과한다. UI 변경 전후 PC·모바일 synthetic 스크린샷을 PR에 첨부한다.
 
 실제 참가자 정보가 들어간 화면은 저장소에 넣지 않는다. 공통 권한 정책과 S1 source/판본 검증의 변화가 없음을 리뷰에 남긴다.
+
+## 2026-10-24 구현 기록
+
+- 기준 `3275ce8`, 브랜치 `veluga/pa04-parallel-settings-progress`. 개발자 설정에 동시 항목군 1~4를 추가하고 기본 1·신규 실행 적용을 표시한다. 서버 strict 검증과 기존 developer 권한을 유지한다.
+- 실행 상세는 snapshot N, 복수 running 항목군, 공급자 제한 대기, 실제 성공 program_merge·명시 reuse·호출 예약을 구별한다. 현재 활성 설정으로 과거 run의 N을 바꾸지 않는다.
+- Worker 회차 시작/drained 감사는 실제 원 실행/재시도 행위자로 기록한다. stopped/queued의 마지막 회차·수습 기록과 설치 실행 잠금을 함께 확인해 실제 수습 중일 때 표시·polling을 유지한다. 즉시 HTTP 종료라고 안내하지 않는다. 사용자에게 token·SQL·파일 경로·관찰값은 노출하지 않는다.
+- 독립 리뷰의 프로그램 결과 계수 지적을 수용해 계획 provider flag 대신 실제 완료 program_merge를 집계하고 회귀를 추가했다. 두 리뷰 모두 재검토에서 추가 결함 없음.
+- PC/모바일 전후 합성 캡처는 [변경 전 PC](evidence/PA04-before-analysis-progress-1440.png), [변경 후 PC](evidence/PA04-after-analysis-progress-1440.png), [변경 전 모바일](evidence/PA04-before-analysis-progress-390.png), [변경 후 모바일](evidence/PA04-after-analysis-progress-390.png)에 보존한다. [병렬 PC](evidence/PA04-after-parallel-progress-1440.png), [병렬 모바일](evidence/PA04-after-parallel-progress-390.png), [개발자 설정](evidence/PA04-after-ai-settings-s1-360.png)도 검수했다. 변경 전은 기준 commit frontend를 외부 임시 폴더에서 별도로 빌드해 동일 기존 e2e로 촬영했다.

@@ -226,9 +226,28 @@ def view(store, run_id, user):
         config = RunConfigV4.model_validate_json(row["config_snapshot_json"])
         snapshot = snapshot_for(row)
         progress, retry_at = _progress(row, config, raw_steps)
+        from .worker import provider_wait_until
+        from .maintenance import runtime_lock
+        waiting = provider_wait_until(db, row)
+        cycle = db.execute("SELECT target,detail_json FROM changes WHERE action='worker.cycle_started' ORDER BY rowid DESC LIMIT 1").fetchone()
+        settling = False
+        if cycle and cycle["target"] == run_id and row["status"] in ("stopped", "queued"):
+            token = json.loads(cycle["detail_json"])["claim_token"]
+            drained = db.execute("SELECT 1 FROM changes WHERE target=? AND action='worker.cycle_drained' "
+                "AND json_extract(detail_json,'$.claim_token')=?", (run_id, token)).fetchone()
+            if not drained:
+                try:
+                    with runtime_lock(store, "worker-execution"):
+                        pass
+                except HTTPException:
+                    settling = True
         from . import settings_v4
         return {"run_id": run_id, "case_id": row["case_id"], "session_id": row["session_id"], "kind": "s1", "input_revision": row["input_revision"],
             **gemini_keys.view(db, run_id),
+            "max_parallel_score_groups": config.max_parallel_score_groups, "settling": settling,
+            "provider_wait_until": waiting if waiting > now() else None,
+            "program_groups": sum(step["stage"] == "score_v4" and step["status"] == "succeeded"
+                and bool(json.loads(step["usage_json"]).get("program_merge")) for step in raw_steps),
             "requested_by": snapshot.requested_by, "created_at": row["created_at"], "retry_at": retry_at, "progress": progress,
             "status": row["status"], "updated_at": row["updated_at"], "outdated": row["input_revision"] != case["input_revision"] or row["session_id"] != case["selected_session_id"],
             "settings_outdated": config.active_settings_version is not None and config.active_settings_version != settings_v4.active(db),

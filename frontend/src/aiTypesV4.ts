@@ -5,7 +5,7 @@ export type AiStageV4 = {
   model: 'gemini-3.8-flash'; prompt: string; input_variant: 'ai' | 'original'; processing_mode: 'static' | 'agentic';
   fps: number | null; media_resolution: 'low' | 'medium' | 'high'; thinking_level: 'low' | 'medium' | 'high'; max_output_tokens: number;
 };
-export type AiPipelineV4 = { groups: Record<string, AiStageV4>; raw_observation_scope_confirmed: boolean; max_attempts: number; max_ai_calls: number; max_schema_repairs: number };
+export type AiPipelineV4 = { groups: Record<string, AiStageV4>; raw_observation_scope_confirmed: boolean; max_attempts: number; max_ai_calls: number; max_schema_repairs: number; max_parallel_score_groups?: number };
 export type AiGroupV4 = { windows: string[]; codes: string[]; usage: string; modality: string; whole: boolean; opportunity_codes: string[]; pending: boolean; provider_call: boolean };
 export type AiTrialV4 = { trial_id: string; version: string; group: string; mode: 'schema'; created_at: string; status: 'schema_valid'; sample: 'synthetic-s1'; usage: { provider_calls: number }; output: unknown };
 export type AiSettingsViewV4 = {
@@ -20,6 +20,7 @@ export type AiStepV4 = GeminiExecutionState & {
   reused: boolean; timing: Record<string, number>; token_meters: Record<string, number>; input_tokens: number | null; output_tokens: number | null; total_tokens: number | null; cost_usd: number | null;
 };
 export type AiRunV4 = GeminiExecutionState & {
+  max_parallel_score_groups?: number; settling?: boolean; provider_wait_until?: string | null; program_groups?: number;
   run_id: string; case_id: string; session_id: string; kind: 's1'; input_revision: number; status: string; updated_at: string;
   outdated: boolean; failure_code: string | null; result_available: boolean; steps: AiStepV4[];
   planned_provider_calls: number; reserved_calls: number; max_ai_calls: number; judgement_status: 'policy_pending_D04' | 'implemented_professor_test_pending';
