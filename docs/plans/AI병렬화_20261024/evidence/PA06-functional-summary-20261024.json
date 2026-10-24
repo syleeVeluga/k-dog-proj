@@ -1,0 +1,115 @@
+{
+  "version": "pa06-functional-summary-20261024",
+  "source_alias": "PA06-20261024-B",
+  "scope": "User requested one complete analysis and report; N=4 means concurrent score groups, not four full repeats.",
+  "runtime_commit": "3a68f04401719f2c795b308784ac96f04f9b9c82",
+  "package": {
+    "bytes": 75282660,
+    "sha256": "8d3e6f35a3ed9ba6d8b79c5f89df478ec59a06469e4d1ea9b1251f9275f821e2",
+    "python": "3.14.8",
+    "ffmpeg": "9.0.2",
+    "verified_current_windows": true,
+    "fresh_os_or_second_pc": false
+  },
+  "original_source_files_unchanged": 11,
+  "retained_raw_cameras": 4,
+  "adopted_cameras": [
+    "CAM1",
+    "CAM2",
+    "CAM4"
+  ],
+  "withheld_camera": {
+    "camera": "CAM3",
+    "reason": "Changing displayed-time drift; offset unconfirmed; original and CSV value retained."
+  },
+  "trials": [
+    {
+      "label": "initial_stopped",
+      "n": 1,
+      "started": 1,
+      "valid_ai": 0,
+      "issued": 0,
+      "adopted_cameras": 4,
+      "ai_seconds": 4151.082046699987,
+      "app_reserved_calls": 12,
+      "metered_generations": 11,
+      "app_billing_uncertain_attempts": 1,
+      "tariff_estimate_usd": 1.079943
+    },
+    {
+      "label": "single_parallel_delivered",
+      "n": 4,
+      "full_completed_analyses": 1,
+      "issued": 1,
+      "adopted_cameras": 3,
+      "score_groups_succeeded": 43,
+      "ai_seconds": 2495.552364400006,
+      "ai_request_to_pdf_seconds": 2590.7737350000098,
+      "post_ai_to_pdf_seconds": 95.22137060000387,
+      "command_including_download_seconds": 2600.0522598,
+      "actual_max_requests": 4,
+      "actual_max_inferences": 4,
+      "concurrency_complete": true,
+      "app_reserved_calls": 32,
+      "metered_generations": 32,
+      "schema_repairs": {
+        "scoring": 3,
+        "report_content": 1,
+        "all_passed_on_attempt": 2
+      },
+      "app_billing_uncertain_attempts": 0,
+      "tariff_estimate_usd": 2.695992
+    }
+  ],
+  "preparation": {
+    "original_shared_preparation_seconds": 1011.9941171999963,
+    "original_preprocess_seconds": 986.8831175999949,
+    "original_command_seconds": 1014.992709,
+    "corrected_shared_preparation_seconds": 726.9792486000078,
+    "corrected_preprocess_seconds": 722.439945399994,
+    "corrected_command_seconds": 728.9885664
+  },
+  "first_preparation_to_pdf_seconds_including_stop_and_decisions": 8878.958722,
+  "budget": {
+    "cap_usd": 50.0,
+    "accounted_usd": 3.775935,
+    "generation_states": {
+      "metered_tariff_estimate": 43
+    },
+    "invoice_confirmed": false
+  },
+  "all_app_reserved_calls": 44,
+  "all_app_billing_uncertain_attempts": 1,
+  "actual_backup_generation_calls": 0,
+  "actual_fallback_observed": false,
+  "primary_and_backup_model_access_checked": true,
+  "project_relationship_rpm_tpm": "not supplied; not inferred",
+  "remote_uploads": 134,
+  "remote_deletions": 134,
+  "remote_cleanup_pending": 0,
+  "other_operational_db_activity_before_and_after": {
+    "reserved_calls": 69,
+    "active_runs": 0
+  },
+  "qa": {
+    "pdf_pages_rendered_and_visually_reviewed": 6,
+    "pdf_clipping_overlap_or_unreadable_glyphs": false,
+    "html_widths": [
+      1440,
+      390
+    ],
+    "html_horizontal_overflow": false,
+    "html_external_requests": 0,
+    "html_replacement_characters": 0,
+    "nonblocking_presentation_notes": [
+      "Repeated summary phrases in some cards; existing rendering behavior.",
+      "At 390px the two-digit action ordinals wrap vertically; action text remains fully visible."
+    ]
+  },
+  "benchmark_admission": "not_admitted_unconfirmed_CAM3_synchronization",
+  "speed_comparison_approved": false,
+  "independent_human_accuracy_validation": false,
+  "operating_default_n": 1,
+  "private_default_restored_n": 1,
+  "broader_source_expert_and_field_acceptance_closed": false
+}

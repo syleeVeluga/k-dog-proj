@@ -74,13 +74,15 @@ class Interval(ContractV4):
 
 class ClockTrace(ContractV4):
     """One observer clock, in elapsed seconds; cross-machine clocks cannot be mixed."""
-    version: Literal["benchmark-clock-1"] = "benchmark-clock-1"
+    version: Literal["benchmark-clock-1", "benchmark-clock-20261024-pa06"] = "benchmark-clock-1"
     ai_run_id: Text
     report_run_id: Text | None = None
     clock_id: Text
     observer: Text
     started_at_utc: Text
-    server_receive_start: Seconds
+    server_receive_start: Seconds | None = None
+    ai_request_start: Seconds | None = None
+    shared_preparation_seconds: Seconds | None = None
     pdf_published: Seconds | None = None
     stages: tuple[Interval, ...]
 
@@ -90,9 +92,19 @@ class ClockTrace(ContractV4):
         stamp = datetime.fromisoformat(self.started_at_utc)
         if stamp.utcoffset() is None or stamp.utcoffset().total_seconds() != 0:
             raise ValueError("clock origin must be UTC with an explicit offset")
-        if self.pdf_published is not None and self.pdf_published < self.server_receive_start:
+        if self.version == "benchmark-clock-1":
+            if self.server_receive_start is None or self.ai_request_start is not None or self.shared_preparation_seconds is not None:
+                raise ValueError("historical clock requires server reception and cannot relabel shared preparation")
+            origin = self.server_receive_start
+        else:
+            if self.ai_request_start is None or self.server_receive_start is not None:
+                raise ValueError("parallel trial clock measures AI request, separately from shared reception/preparation")
+            if any(row.stage in ("pc_upload", "conversion", "probe_preprocess") for row in self.stages):
+                raise ValueError("shared preparation cannot be repeated inside each AI trial")
+            origin = self.ai_request_start
+        if self.pdf_published is not None and self.pdf_published < origin:
             raise ValueError("publication precedes server reception")
-        if any(row.stage != "pc_upload" and row.start < self.server_receive_start or self.pdf_published is not None and row.end > self.pdf_published for row in self.stages):
+        if any(row.stage != "pc_upload" and row.start < origin or self.pdf_published is not None and row.end > self.pdf_published for row in self.stages):
             raise ValueError("stage is outside the measured pipeline interval")
         return self
 
@@ -225,7 +237,13 @@ def timing(trace):
     grouped = {stage: [(row.start, row.end) for row in trace.stages if row.stage == stage] for stage in STAGES}
     ai = [entry for stage in ("provider_upload", "provider_wait", "ai", "schema_repair") for entry in grouped[stage]]
     all_intervals = [(row.start, row.end) for row in trace.stages]
-    return {"server_receive_to_pdf_seconds": None if trace.pdf_published is None else trace.pdf_published-trace.server_receive_start,
+    scope = "ai_request_to_pdf" if trace.version == "benchmark-clock-20261024-pa06" else "server_receive_to_pdf"
+    origin = trace.ai_request_start if scope == "ai_request_to_pdf" else trace.server_receive_start
+    return {"measurement_scope": scope,
+        "measured_wall_seconds": None if trace.pdf_published is None else trace.pdf_published-origin,
+        "server_receive_to_pdf_seconds": None if trace.pdf_published is None or trace.server_receive_start is None else trace.pdf_published-trace.server_receive_start,
+        "ai_request_to_pdf_seconds": None if trace.pdf_published is None or trace.ai_request_start is None else trace.pdf_published-trace.ai_request_start,
+        "shared_preparation_seconds": trace.shared_preparation_seconds,
         "pc_upload_to_pdf_seconds": trace.pdf_published-min(left for left, _ in grouped["pc_upload"]) if trace.pdf_published is not None and grouped["pc_upload"] else None,
         "ai_span_seconds": max(right for _, right in ai)-min(left for left, _ in ai) if ai else None,
         "ai_active_union_seconds": union_seconds(ai) if ai else None,
@@ -233,30 +251,36 @@ def timing(trace):
         "stage_union_seconds": union_seconds(all_intervals),
         "by_stage": {stage: {"measured": bool(values), "sum_seconds": sum(right-left for left, right in values) if values else None,
             "union_seconds": union_seconds(values) if values else None, "interval_count": len(values)} for stage, values in grouped.items()},
-        "scope": "server reception start to PDF publication; includes reception; stage sums are not wall-clock totals"}
+        "scope": ("AI request to PDF publication; shared preparation excluded; stage sums are not wall-clock totals" if scope == "ai_request_to_pdf" else
+            "server reception start to PDF publication; includes reception; stage sums are not wall-clock totals")}
 
 
-def concurrency_evidence(steps):
+def concurrency_evidence(steps, *, inference=False):
     clocks, missing = defaultdict(list), 0
     for step in steps:
         if not step["call_reserved"]:
             continue
         usage = json.loads(step["usage_json"])
-        interval = usage.get("request_interval")
-        if not interval:
+        observed = ([interval for interval in usage.get("provider_intervals", []) if interval.get("phase") == "inference_seconds"]
+            if inference else [usage["request_interval"]] if usage.get("request_interval") else [])
+        if not observed:
             missing += 1
             continue
-        if not isinstance(interval.get("clock_id"), str) or any(type(interval.get(key)) not in (int, float) or not math.isfinite(interval[key]) for key in ("start", "end")) or interval["end"] < interval["start"]:
-            raise ValueError("invalid provider interval evidence")
-        clocks[interval["clock_id"]].extend(((interval["start"], 1), (interval["end"], -1)))
+        for interval in observed:
+            if not isinstance(interval.get("clock_id"), str) or any(type(interval.get(key)) not in (int, float) or not math.isfinite(interval[key]) for key in ("start", "end")) or interval["end"] < interval["start"]:
+                raise ValueError("invalid provider interval evidence")
+            clocks[interval["clock_id"]].extend(((interval["start"], 1), (interval["end"], -1)))
     maximum = 0
     for events in clocks.values():
         active = 0
         for _, delta in sorted(events):
             active += delta
             maximum = max(maximum, active)
-    return {"actual_max_requests": maximum if clocks else None, "clock_count": len(clocks),
+    result = {"actual_max_inferences" if inference else "actual_max_requests": maximum if clocks else None, "clock_count": len(clocks),
         "missing_reserved_intervals": missing, "complete": bool(clocks) and not missing}
+    if not inference:
+        result["inference"] = concurrency_evidence(steps, inference=True)
+    return result
 
 
 def _read(store, pointer, model, stamps):
@@ -411,6 +435,8 @@ def summarize(manifest, store=None, user=None):
     stamps, results, pairs, intervals, frame_rates = {}, [], {}, {}, {}
     for index, trial in enumerate(manifest.trials):
         result, pairing = inspect_trial(store, trial, user, stamps)
+        if manifest.version == VERSION and result["timing"] and result["timing"]["measurement_scope"] != "server_receive_to_pdf":
+            raise ValueError("historical S16 conditions require server reception to PDF timing")
         pair = (trial.case_id, trial.session_id, pairing.same_content_id)
         if trial.pair_id in pairs and pairs[trial.pair_id] != pair:
             raise ValueError("a comparison pair must describe the same case, session and confirmed content")
@@ -445,17 +471,19 @@ def summarize(manifest, store=None, user=None):
             accepted = [row for row in trials if row["camera_count"] == required_count and condition.size_range_bytes and
             all(condition.size_range_bytes[0] <= size <= condition.size_range_bytes[1] for size in row["file_sizes_bytes"])]
         timed = [row for row in accepted if (manifest.version != PARALLEL_VERSION or row["run_state"] == "succeeded" and row.get("concurrency", {}).get("complete"))
-            and row["timing"] and row["timing"]["server_receive_to_pdf_seconds"] is not None]
+            and row["timing"] and row["timing"]["measured_wall_seconds"] is not None]
         # Do not merge cold/cache, FPS, PC-upload or provider concurrency conditions.
         groups = defaultdict(list)
         for row in timed:
-            groups[(row["pair"], row["cache"], row["fps_condition"], row["pc_upload_mode"], row["provider_execution"], row["configuration_hash"], row.get("max_parallel_score_groups", 1))].append(row)
+            groups[(row["pair"], row["cache"], row["fps_condition"], row["pc_upload_mode"], row["provider_execution"], row["configuration_hash"], row.get("max_parallel_score_groups", 1), row["timing"]["measurement_scope"])].append(row)
         variations = []
         for key, values in groups.items():
-            wall = [row["timing"]["server_receive_to_pdf_seconds"] for row in values]
+            wall = [row["timing"]["measured_wall_seconds"] for row in values]
+            ai = [row["timing"]["ai_span_seconds"] for row in values if row["timing"]["ai_span_seconds"] is not None]
             variations.append({"pair": key[0], "cache": key[1], "fps_condition": key[2], "pc_upload_mode": key[3],
                 "provider_execution": key[4], "configuration_hash": key[5], "max_parallel_score_groups": key[6], "n": len(wall), "min_seconds": min(wall),
-                "max_seconds": max(wall), "mean_seconds": statistics.mean(wall),
+                "max_seconds": max(wall), "mean_seconds": statistics.mean(wall), "median_seconds": statistics.median(wall),
+                "measurement_scope": key[7], "ai_n": len(ai), "ai_median_seconds": statistics.median(ai) if ai else None,
                 "sample_stdev_seconds": statistics.stdev(wall) if len(wall) > 1 else None})
         rows.append({"condition": condition.key, "status": "measured" if timed and manifest.sample_kind == "field" else "synthetic_only" if timed else "unmeasured",
             "run_states": dict(Counter(row.get("run_state", "unrecorded") for row in trials)),
