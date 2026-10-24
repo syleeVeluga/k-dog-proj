@@ -4,6 +4,22 @@
 
 상위: [전체 계획](K-DOG_AI병렬화계획_v1.0_20261024.md) · 실행 상태: [검증·실행 대장](K-DOG_AI병렬화_검증실행대장_v1.0_20261024.md)
 
+## PA08 전처리 병렬화·검증 재사용 cold review — 2026-10-24
+
+기준 `bdd5789` 뒤 미커밋 제품/회귀를 두 독립 subagent가 읽기 전용 검토했다. 합성 자료·FFmpeg·Chromium만 사용했으며 실제 키/참가자/실측 DB/리포트는 열지 않았다.
+
+| 발견 | 분류 | 수용 수정·재검증 |
+| --- | --- | --- |
+| clock 검증 후 `_clip_file` 진입 전 PTS를 바꾼 파일이 새 hash/identity와 옛 clock으로 complete 채택 | P1 | clock 생성 전후 identity를 결속하고 remux 입력/최종 packet 검사·metadata/hash·발행까지 확인한다. 두 reviewer의 같은 원인 발견을 1건으로 합산. 실제 +20ms 교체는 HTTP409/완료 0, 독립 관련 3개 5.732초·5.610초 통과. |
+| 성공한 done snapshot 뒤 peer가 실패했는데 다음 wait 전 refill로 세 번째 작업 시작 | P2 | 자식 fatal에서 즉시 stop 선언, refill은 stop 시 미배정. 같은 probe가 배정/시작 각 3→2, 독립 새 회귀 2.712초 통과. |
+| Windows metadata 시각을 복원하면 내용이 다른 파일도 같은 fingerprint로 취급 | P1 | root의 same-size/mtime 복원 재현 뒤 중간 ChangeTime 보강도 reviewer의 FILE_BASIC_INFO 전체 복원으로 거절했다. 최종은 Windows identity에 실제 SHA-256을 넣어 모든 clock/remux/hash/발행 검사에서 내용에 결속한다. 전체 timestamp 복원 반례 포함 4개 root 5.297초·독립 5.120초/5.001초 통과. 제품 native API는 제거하고 hash 1회 생략 주장은 철회했다. |
+
+중간 전처리 29개 63.119초 뒤 Windows 내용 결속 최종 31개 69.252초를 통과했다. 합성 6종의 기준 대비 source PTS·offset·오디오·whole/evidence 의미와 기존 관찰 부족을 보존했다. VFR 지연 오디오의 검증 불일치 fallback도 동일 선택을 보존하며 original/AI 12파일의 Chromium 로드/끝 탐색 오류 0. 최종 제품 `c5ebf12` 전체 backend 937개(934통과/3명시 skip)·관련 browser 36개·현재 Windows 내장 런타임 배포 검증을 통과했다. 최종 미해결 P1/P2·제품 blocker 없음.
+
+외부 준비/실행 helper 발견은 제품과 구별한다. 최초 helper 1P1/2P2(기존 누적 원장 유실, 카메라별/대표 음성 gate 누락, 이미 완료된 준비를 새 시간으로 오인)를 수용·재검토했다. 실제 최초 N4가 41/43개 관찰 성공 뒤 부분 실패한 후, 공식 재사용 복구 helper/집계의 추가 1P1/2P2(최초 PA08 비용까지 결속한 원장 하한, 미발급 nullable clock, 운영 활동 검사의 최초 실행~복구 전체 연결)를 수정·재검토했다. 실제 성공 41개는 입력/설정/파일 hash를 재검증해 재사용하고 실패한 두 그룹만 다시 관찰하며 후속 서술/리포트 호출은 별도다. 원래 실패·비용·개입 포함 전체 시간을 보존한다. 두 reviewer는 실제 키/DB/참가자/리포트를 열지 않았고 재검토에 미해결 P1/P2는 없었다. 최종 실제 발급은 최초 실패 보존·공식 재사용/복구 후 최신 51분기 성공으로 완료했다. PDF 5페이지를 전부 렌더링·직접 검수했고 HTML 1440/390px에서 오프라인 넘침·대체 문자·외부 요청 0을 확인했다. 반복 문구와 모바일 일부 두 자리 번호 줄바꿈은 비차단 표현상 한계로 기록한다. 개인 자료와 전달본은 저장소 밖에 보존하며 [PA08 비식별 요약](evidence/PA08-functional-summary-20261024.json)을 따른다. 정식 반복 속도 비교·P50/P95·일반 SLA·독립 사람 정확도·CAM3 동기화·G01/G04·기존 전문가/현장 인수를 승인한 기록은 아니다. 문서 최종 검토는 별도로 기록한다.
+
+최종 문서 4개와 비식별 JSON도 같은 두 독립 subagent가 검토했고 미해결 P1/P2·병합 blocker는 없었다. root가 전처리+분석 시간의 단순 합산을 연속 전체 벽시계로 오인할 수 있는 문구를 정정했다. 최초 분석 시작→PDF 2344.415초에는 복구 전 검토/개입이 포함되며, 전처리와 합산한 3304.402초에는 최초 등록/복사와 두 단계 사이의 사전 gate·대기를 포함하지 않는다. 최초 실패와 41개 재사용/2개 복구, 29+5회 generation과 누적 108회/$6.176145, 알려진 계량과 앱 과금 불확실 이력을 구별했다. Git index 상대 링크 48개와 anchor 3개·diff 검사를 통과했고 실제 DB/키/원본/개인 리포트는 reviewer가 열지 않았다.
+
 ## PA01 구현 cold review — 2026-10-24
 
 독립 subagent `pa01_contract_review`, `pa01_benchmark_review`가 읽기 전용 검토를 수행했다. 계획 검토와 구별되는 실제 diff 검토다.

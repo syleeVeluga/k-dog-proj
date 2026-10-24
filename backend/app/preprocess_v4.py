@@ -3,7 +3,9 @@
 import hashlib
 import json
 import os
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
+from threading import Event
 
 from fastapi import HTTPException
 
@@ -18,9 +20,10 @@ from .maintenance import file_hash, managed_path, runtime_lock
 from .recording_v4 import build_windows_v4, item_capture_gates_v4
 from .storage import encode, now, uid
 
-CUT_SETTINGS = {"version": "s1-cut-4-window-end", "source_fps": "passthrough", "ai_fps": "first_actual_frame_per_second",
+CUT_SETTINGS = {"version": "s1-cut-5-shared-decode", "source_fps": "passthrough", "ai_fps": "first_actual_frame_per_second",
                 "timeline": "preserve_cut_clock_and_last_frame_display_end", "b_frames": 0,
-                "video_codec": "libx264", "crf": 20, "audio": "continuous_aac", "pixel_format": "yuv420p"}
+                "video_codec": "libx264", "crf": 20, "audio": "continuous_aac", "pixel_format": "yuv420p",
+                "parallel_clip_jobs": 2, "codec_threads": 2}
 
 
 def _digest(value):
@@ -136,7 +139,8 @@ def _verify_files(store, files):
         for pointer in files:
             path = managed_path(store, pointer.ref)
             identities[pointer.ref] = _file_identity(path)
-            if file_hash(path) != pointer.hash or identities[pointer.ref] != _file_identity(path):
+            digest = identities[pointer.ref][-1] if os.name == "nt" else file_hash(path)
+            if digest != pointer.hash or identities[pointer.ref] != _file_identity(path):
                 raise HTTPException(409, "원본 또는 전처리 파일의 해시가 변경되었습니다.")
     except OSError:
         raise HTTPException(409, "원본 또는 전처리 파일을 확인할 수 없습니다.") from None
@@ -145,7 +149,10 @@ def _verify_files(store, files):
 
 def _file_identity(path):
     value = path.stat()
-    return value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns
+    identity = value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns
+    # Windows creation/change timestamps can both be restored by a writer.
+    # Cached frame evidence therefore remains bound to actual file content.
+    return (*identity, file_hash(path)) if os.name == "nt" else identity
 
 
 def _assert_files(store, identities):
@@ -250,10 +257,25 @@ def _frame_times(path, *, raw=False):
     return tuple(round(time - (0 if raw else origin), 6) for time in times)
 
 
-def _clip_file(store, path, start, policy, source_times):
+def _check_identity(path, expected):
+    if _file_identity(path) != expected:
+        raise HTTPException(409, "전처리 파일 검증 이후 파일이 변경되었습니다.")
+
+
+def _checked_clock(path):
+    identity = _file_identity(path)
+    clock = _frame_clock(path)
+    _check_identity(path, identity)
+    return *clock, identity
+
+
+def _clip_file(store, path, start, policy, source_times, clock=None, identities=None):
+    clock = clock or _checked_clock(path)
+    identity = clock[3]
+    _check_identity(path, identity)
     info = media.probe(path)
     # Playback uses the output container's PTS, including a delayed first frame.
-    times = _frame_times(path, raw=True)
+    times = clock[1]
     if not times:
         raise media.NoVideoError("실제 관찰창 안에 영상 프레임이 없습니다.")
     if len(times) != len(source_times):
@@ -262,10 +284,16 @@ def _clip_file(store, path, start, policy, source_times):
     offset = start if all(abs(local + start - source) <= 0.002 for local, source in zip(times, source_times)) else source_times[0] - times[0]
     if offset < 0 or any(abs(local + offset - source) > 0.002 for local, source in zip(times, source_times)):
         raise media.MediaError("파생 영상과 원본의 실제 프레임 시각이 일치하지 않습니다.")
-    return ClipFileV4(ref=path.relative_to(store.root).as_posix(), hash=file_hash(path), size_bytes=path.stat().st_size,
+    digest = identity[-1] if os.name == "nt" else file_hash(path)
+    result = ClipFileV4(ref=path.relative_to(store.root).as_posix(), hash=digest, size_bytes=path.stat().st_size,
         duration_seconds=info["duration_sec"], source_time_offset_seconds=offset, frame_times_seconds=times,
         source_frame_times_seconds=source_times,
         audio_ranges=_ranges((value["start_sec"], value["end_sec"]) for value in info["audio_ranges"]), fps_policy=policy)
+    if _file_identity(path) != identity:
+        raise HTTPException(409, "전처리 파일 검증 중 파일이 변경되었습니다.")
+    if identities is not None:
+        identities[result.ref] = identity
+    return result
 
 
 def _packet_times(last_index, tail):
@@ -274,48 +302,102 @@ def _packet_times(last_index, tail):
     return f"setts=pts=PTS:dts=DTS:duration=if(eq(N\\,{last_index})\\,ceil({tail:.15f}/TB)\\,DURATION)"
 
 
-def _source_clip(source, output, start, end, source_times):
-    if not source_times:
-        raise media.NoVideoError("실제 관찰창 안에 영상 프레임이 없습니다.")
-    encoded = output.with_name(output.stem+"-frames"+output.suffix)
-    media.command(["ffmpeg", "-v", "error", "-xerror", "-nostdin", "-n", *media.LOCAL_INPUT,
-        "-ss", f"{start:.15f}", "-i", str(source), "-t", f"{end-start:.15f}",
-        "-map", "0:v:0", "-map", "0:a?", "-fps_mode", "passthrough", "-enc_time_base:v", "demux",
-        "-c:v", "libx264", "-crf", "20", "-bf", "0",
-        "-pix_fmt", "yuv420p", "-c:a", "aac", str(encoded)], timeout=1800)
-    origin, times, _ = _frame_clock(encoded)
-    if not times:
-        raise media.NoVideoError("실제 관찰창 안에 영상 프레임이 없습니다.")
-    # Audio may anchor zero while silent MP4 starts at its first video frame.
-    # Measure that actual mux clock before setting the final packet duration.
-    packet_times = _packet_times(len(times)-1, end-start-(times[-1]-origin))
+def _finish_clip(encoded, output, clock, duration):
+    origin, times, _ = clock[:3]
+    _check_identity(encoded, clock[3])
+    packet_times = _packet_times(len(times)-1, duration-(times[-1]-origin))
     media.command(["ffmpeg", "-v", "error", "-xerror", "-nostdin", "-n", *media.LOCAL_INPUT,
         "-i", str(encoded), "-map", "0:v:0", "-map", "0:a?", "-c", "copy", "-bsf:v", packet_times,
         "-output_ts_offset", f"{origin:.15f}", "-movflags", "+faststart", str(output)], timeout=1800)
+    _check_identity(encoded, clock[3])
+    # B-frames are disabled: compare every final video packet with the frames
+    # decoded before remux. A second full decode cannot add frame evidence.
+    identity = _file_identity(output)
+    value = json.loads(media.command(["ffprobe", "-v", "error", *media.LOCAL_INPUT, "-select_streams", "v:0",
+        "-show_packets", "-show_format", "-show_entries", "packet=pts_time:format=start_time,duration",
+        "-of", "json", str(output)], timeout=1800))
+    _check_identity(output, identity)
+    final_times = tuple(float(packet["pts_time"]) for packet in value.get("packets", []) if "pts_time" in packet)
+    if len(final_times) != len(times) or any(abs(a-b) > 0.002 for a, b in zip(final_times, times)):
+        raise media.MediaError("재포장 이후 실제 프레임 시각이 달라졌습니다.")
     encoded.unlink()
+    return float(value["format"].get("start_time", 0)), final_times, float(value["format"]["duration"]), identity
 
 
-def _ai_clip(source, output):
+def _source_clip(source, output, start, end, source_times, ai_output=None, has_audio=False):
+    if not source_times:
+        raise media.NoVideoError("실제 관찰창 안에 영상 프레임이 없습니다.")
+    encoded = output.with_name(output.stem+"-frames"+output.suffix)
+    command = ["ffmpeg", "-v", "error", "-xerror", "-nostdin", "-n", "-filter_threads", "1", *media.LOCAL_INPUT,
+        "-threads", "2", "-ss", f"{start:.15f}", "-i", str(source), "-t", f"{end-start:.15f}",
+        "-map", "0:v:0", "-map", "0:a?", "-fps_mode", "passthrough", "-enc_time_base:v", "demux",
+        "-c:v", "libx264", "-threads:v", "2", "-crf", "20", "-bf", "0",
+        "-pix_fmt", "yuv420p", "-c:a", "aac", str(encoded)]
+    paired = ai_output.with_name(ai_output.stem+"-frames"+ai_output.suffix) if ai_output else None
+    if paired:
+        # Share the input decoder. The actual original mux clock below remains
+        # authoritative; unusual audio origins use the checked fallback.
+        shift = 0 if has_audio else source_times[0]-start
+        select = f"select=isnan(prev_selected_t)+gt(floor(t-{shift:.15f})\\,floor(prev_selected_t-{shift:.15f}))"
+        command += ["-t", f"{end-start:.15f}", "-map", "0:v:0", "-map", "0:a?", "-vf", select,
+            "-fps_mode", "passthrough", "-enc_time_base:v", "demux", "-c:v", "libx264", "-threads:v", "2",
+            "-crf", "20", "-bf", "0", "-pix_fmt", "yuv420p", "-c:a", "aac", str(paired)]
+    try:
+        media.command(command, timeout=1800)
+    except media.MediaError:
+        # Retry the independent original path: a shared-process error does not
+        # establish that either partially written output is complete.
+        if not paired:
+            raise
+        encoded.unlink(missing_ok=True)
+        paired.unlink(missing_ok=True)
+        return _source_clip(source, output, start, end, source_times)
+    clock = _checked_clock(encoded)
+    times = clock[1]
+    if not times:
+        raise media.NoVideoError("실제 관찰창 안에 영상 프레임이 없습니다.")
+    if len(times) != len(source_times):
+        raise media.MediaError("원본 프레임과 파생 영상 프레임의 연결을 확인할 수 없습니다.")
+    return _finish_clip(encoded, output, clock, end-start), (paired, clock) if paired else None
+
+
+def _ai_clip(source, output, clock=None, paired=None):
     # select + passthrough retains actual frame PTS. The fps filter would fabricate
     # duplicate frames in subsecond/low-FPS/gapped media and is deliberately absent.
-    origin, raw_times, duration = _frame_clock(source)
+    clock = clock or _checked_clock(source)
+    _check_identity(source, clock[3])
+    origin, raw_times, duration = clock[:3]
     times = tuple(round(time-origin, 6) for time in raw_times)
     selected = tuple(i for i, time in enumerate(times) if i == 0 or int(time) != int(times[i-1]))
     if not selected:
         raise media.NoVideoError("실제 관찰창 안에 영상 프레임이 없습니다.")
+    if paired:
+        encoded, original_encoded_clock = paired
+        try:
+            paired_clock = _checked_clock(encoded)
+            expected = tuple(original_encoded_clock[1][i] for i in selected)
+            actual = paired_clock[1]
+        except media.MediaError:
+            actual, expected = (), (None,)
+        if len(actual) == len(expected) and all(abs(a-b) <= 0.000002 for a,b in zip(actual, expected)):
+            return selected, _finish_clip(encoded, output, paired_clock, duration)
+        encoded.unlink(missing_ok=True)
     # No B-frame reordering: extend only the final real packet's display duration,
     # preserve every PTS/DTS, and restore the input clock for both video and audio.
     packet_times = _packet_times(len(selected)-1, duration-times[selected[-1]])
-    media.command(["ffmpeg", "-v", "error", "-xerror", "-nostdin", "-n", *media.LOCAL_INPUT, "-i", str(source),
+    _check_identity(source, clock[3])
+    media.command(["ffmpeg", "-v", "error", "-xerror", "-nostdin", "-n", "-filter_threads", "1", *media.LOCAL_INPUT,
+        "-threads", "2", "-i", str(source),
         "-map", "0:v:0", "-map", "0:a?", "-vf", "select=isnan(prev_selected_t)+gt(floor(t)\\,floor(prev_selected_t))",
         "-fps_mode", "passthrough", "-enc_time_base:v", "demux", "-c:v", "libx264", "-crf", "20",
-        "-bf", "0", "-bsf:v", packet_times, "-pix_fmt", "yuv420p", "-c:a", "copy",
+        "-bf", "0", "-threads:v", "2", "-bsf:v", packet_times, "-pix_fmt", "yuv420p", "-c:a", "copy",
         "-output_ts_offset", f"{origin:.15f}", "-movflags", "+faststart", str(output)], timeout=1800)
-    return selected
+    _check_identity(source, clock[3])
+    return selected, _checked_clock(output)
 
 
 def _prepare_clips(store, session, recording, windows, directory, guard):
-    clips, unavailable = [], {}
+    jobs, unavailable = [], {}
     for video in session.videos:
         guard()
         if not isinstance(video, StoredMediaV4):
@@ -327,7 +409,8 @@ def _prepare_clips(store, session, recording, windows, directory, guard):
             continue
         path = managed_path(store, video.storage_ref)
         try:
-            duration = media.probe(path)["duration_sec"]
+            info = media.probe(path)
+            duration = info["duration_sec"]
             source_times = _frame_times(path)
         except media.MediaError:
             unavailable[video.video_id] = "failed"
@@ -348,25 +431,71 @@ def _prepare_clips(store, session, recording, windows, directory, guard):
             members = tuple(members)
             base = {"clip_id": clip_id, "video_id": video.video_id, "camera_id": video.camera_id,
                     "source_start_seconds": start, "source_end_seconds": end, "offset_seconds": offset, "window_ids": members}
-            original_path, ai_path = directory / (clip_id + ".mp4"), directory / (clip_id + "-ai.mp4")
-            original = None
-            try:
-                guard()
-                requested_times = tuple(t for t in source_times if start <= t < end)
-                _source_clip(path, original_path, start, end, requested_times)
-                original = _clip_file(store, original_path, start, "source_frames", requested_times)
-                guard()
-                selected = _ai_clip(original_path, ai_path)
-                ai = _clip_file(store, ai_path, start, "one_actual_frame_per_second",
-                                tuple(original.source_frame_times_seconds[i] for i in selected))
-                clips.append(PhysicalClipV4(**base, status="complete", original=original, ai=ai))
-            except media.NoVideoError:
-                clips.append(PhysicalClipV4(**base, status="partial" if original else "no_frames", original=original,
-                                             reason="ai_no_frames" if original else "no_actual_frames_in_window"))
-            except media.MediaError:
-                clips.append(PhysicalClipV4(**base, status="partial" if original else "failed", original=original,
-                                             reason="ai_encoding_failed" if original else "source_decode_failed"))
-    return tuple(clips), unavailable
+            jobs.append((path, base, tuple(t for t in source_times if start <= t < end), info["audio_status"] == "present"))
+
+    stopped = Event()
+    def active_guard():
+        if stopped.is_set():
+            raise HTTPException(409, "전처리 자식 작업 수습 중입니다.")
+        guard()
+
+    def prepare(job):
+        path, base, requested_times, has_audio = job
+        start, end, clip_id = base["source_start_seconds"], base["source_end_seconds"], base["clip_id"]
+        original_path, ai_path = directory / (clip_id + ".mp4"), directory / (clip_id + "-ai.mp4")
+        original, identities = None, {}
+        try:
+            active_guard()
+            clock, paired = _source_clip(path, original_path, start, end, requested_times, ai_path, has_audio)
+            original = _clip_file(store, original_path, start, "source_frames", requested_times, clock, identities)
+            active_guard()
+            selected, ai_clock = _ai_clip(original_path, ai_path, clock, paired)
+            ai = _clip_file(store, ai_path, start, "one_actual_frame_per_second",
+                            tuple(original.source_frame_times_seconds[i] for i in selected), ai_clock, identities)
+            clip = PhysicalClipV4(**base, status="complete", original=original, ai=ai)
+        except media.NoVideoError:
+            clip = PhysicalClipV4(**base, status="partial" if original else "no_frames", original=original,
+                                 reason="ai_no_frames" if original else "no_actual_frames_in_window")
+        except media.MediaError:
+            clip = PhysicalClipV4(**base, status="partial" if original else "failed", original=original,
+                                 reason="ai_encoding_failed" if original else "source_decode_failed")
+        except BaseException:
+            stopped.set()
+            raise
+        return clip, identities
+
+    # Submit only two jobs; on lost claim/input/actor, stop assigning and drain
+    # both children before execute publishes failure or releases the OS lock.
+    results = {}
+    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="s1-preprocess") as pool:
+        pending, remaining = {}, iter(enumerate(jobs))
+        def submit():
+            if stopped.is_set():
+                return
+            value = next(remaining, None)
+            if value is not None:
+                index, job = value
+                active_guard()
+                pending[pool.submit(prepare, job)] = index
+        try:
+            submit()
+            submit()
+            while pending:
+                done, _ = wait(pending, return_when=FIRST_COMPLETED)
+                for future in done:
+                    results[pending.pop(future)] = future.result()
+                for _ in done:
+                    submit()
+        except BaseException:
+            stopped.set()
+            for future in pending:
+                future.cancel()
+            raise
+    clips, identities = [], {}
+    for _, (clip, verified) in sorted(results.items()):
+        clips.append(clip)
+        identities.update(verified)
+    return tuple(clips), unavailable, identities
 
 
 def _window_results(session, recording, windows, clips, unavailable, request):
@@ -451,7 +580,7 @@ def execute(store, case_id, session_id, actor, request: PreprocessRequestV4) -> 
             initial = dict(row)
         if pointer:
             return verified_batch(store, case_id, session_id, pointer, actor)
-        _verify_files(store, files)
+        source_identities = _verify_files(store, files)
         assets = _assets()
         encoder = media.command(["ffmpeg", "-version"], timeout=30).splitlines()[0]
         compatibility = _compatibility(initial, session, files, request, assets, encoder)
@@ -490,9 +619,11 @@ def execute(store, case_id, session_id, actor, request: PreprocessRequestV4) -> 
                 if old.compatibility_hash != compatibility:
                     raise HTTPException(409, "재사용 원본·카메라·오프셋·FPS·규칙 설정이 다릅니다.")
                 clips, results = old.clips, old.windows
+                identities = _verify_files(store, (*files, *_artifacts(old)))
             else:
                 progress("clips")
-                clips, unavailable = _prepare_clips(store, session, recording, windows, directory, guard)
+                clips, unavailable, artifact_identities = _prepare_clips(store, session, recording, windows, directory, guard)
+                identities = {**source_identities, **artifact_identities}
                 progress("windows")
                 results = _window_results(session, recording, windows, clips, unavailable, request)
             progress("verify_save")
@@ -504,7 +635,7 @@ def execute(store, case_id, session_id, actor, request: PreprocessRequestV4) -> 
                 cut_settings=CUT_SETTINGS,
                 source_files=files, source_metadata=metadata, recording=recording, clips=clips, windows=results,
                 reuse_manifest=request.reuse)
-            identities = _verify_files(store, (*files, *_artifacts(batch)))
+            _assert_files(store, identities)
             if assets != _assets():
                 raise HTTPException(409, "전처리 중 규칙 파일이 변경되었습니다.")
             with store.connect(write=True) as db:
