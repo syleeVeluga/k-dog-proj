@@ -18,7 +18,7 @@ from .maintenance import file_hash, managed_path, runtime_lock
 from .recording_v4 import build_windows_v4, item_capture_gates_v4
 from .storage import encode, now, uid
 
-CUT_SETTINGS = {"version": "s1-cut-1", "source_fps": "passthrough", "ai_fps": "first_actual_frame_per_second",
+CUT_SETTINGS = {"version": "s1-cut-2-windows", "source_fps": "passthrough", "ai_fps": "first_actual_frame_per_second",
                 "video_codec": "libx264", "crf": 20, "audio": "continuous_aac", "pixel_format": "yuv420p"}
 
 
@@ -233,23 +233,31 @@ def verified_batch(store, case_id, session_id, pointer: FileV4, actor, *, expect
     return batch
 
 
-def _frame_times(path):
+def _frame_times(path, *, raw=False):
     value = json.loads(media.command(["ffprobe", "-v", "error", *media.LOCAL_INPUT, "-select_streams", "v:0",
         "-show_frames", "-show_format", "-show_entries", "frame=best_effort_timestamp_time:format=start_time",
         "-of", "json", str(path)], timeout=1800))
     origin = float(value.get("format", {}).get("start_time", 0))
-    return tuple(float(frame["best_effort_timestamp_time"]) - origin for frame in value.get("frames", [])
-                 if "best_effort_timestamp_time" in frame)
+    # Preserve ffprobe's microsecond precision across subtraction at second boundaries.
+    times = tuple(round(float(frame["best_effort_timestamp_time"]) - (0 if raw else origin), 6) for frame in value.get("frames", [])
+                  if "best_effort_timestamp_time" in frame)
+    return times
 
 
 def _clip_file(store, path, start, policy, source_times):
-    info, times = media.probe(path), _frame_times(path)
+    info = media.probe(path)
+    # Playback uses the output container's PTS, including a delayed first frame.
+    times = _frame_times(path, raw=True)
     if not times:
         raise media.NoVideoError("실제 관찰창 안에 영상 프레임이 없습니다.")
     if len(times) != len(source_times):
         raise media.MediaError("원본 프레임과 파생 영상 프레임의 연결을 확인할 수 없습니다.")
+    # Keep the seek/audio clock when frame differences are only encoder ticks.
+    offset = start if all(abs(local + start - source) <= 0.002 for local, source in zip(times, source_times)) else source_times[0] - times[0]
+    if offset < 0 or any(abs(local + offset - source) > 0.002 for local, source in zip(times, source_times)):
+        raise media.MediaError("파생 영상과 원본의 실제 프레임 시각이 일치하지 않습니다.")
     return ClipFileV4(ref=path.relative_to(store.root).as_posix(), hash=file_hash(path), size_bytes=path.stat().st_size,
-        duration_seconds=info["duration_sec"], source_time_offset_seconds=start, frame_times_seconds=times,
+        duration_seconds=info["duration_sec"], source_time_offset_seconds=offset, frame_times_seconds=times,
         source_frame_times_seconds=source_times,
         audio_ranges=_ranges((value["start_sec"], value["end_sec"]) for value in info["audio_ranges"]), fps_policy=policy)
 
@@ -281,11 +289,20 @@ def _prepare_clips(store, session, recording, windows, directory, guard):
         except media.MediaError:
             unavailable[video.video_id] = "failed"
             continue
-        requested = [(max(0.0, a + offset), min(duration, b + offset), window.window_id)
-                     for window in windows for a, b in _spans(window)]
-        for start, end in union((a, b) for a, b, _ in requested):
+        # Keep each logical observation window separate. Disjoint events in one
+        # window retain their intervening context; only the original spans count
+        # as observation in _window_results and scoring validation.
+        requested = {}
+        for window in windows:
+            spans = _spans(window)
+            if not spans:
+                continue
+            bounds = max(0.0, min(a for a, _ in spans) + offset), min(duration, max(b for _, b in spans) + offset)
+            if bounds[0] < bounds[1]:
+                requested.setdefault(bounds, []).append(window.window_id)
+        for (start, end), members in requested.items():
             clip_id = uid()
-            members = tuple(dict.fromkeys(key for a, b, key in requested if a < end and b > start))
+            members = tuple(members)
             base = {"clip_id": clip_id, "video_id": video.video_id, "camera_id": video.camera_id,
                     "source_start_seconds": start, "source_end_seconds": end, "offset_seconds": offset, "window_ids": members}
             original_path, ai_path = directory / (clip_id + ".mp4"), directory / (clip_id + "-ai.mp4")
@@ -297,7 +314,8 @@ def _prepare_clips(store, session, recording, windows, directory, guard):
                 guard()
                 _ai_clip(original_path, ai_path)
                 selected, last_second = [], None
-                for derived_time, source_time in zip(original.frame_times_seconds, original.source_frame_times_seconds):
+                # FFmpeg rebases the input origin before applying its select filter.
+                for derived_time, source_time in zip(_frame_times(original_path), original.source_frame_times_seconds):
                     second = int(derived_time)
                     if second != last_second:
                         selected.append(source_time)
@@ -328,8 +346,8 @@ def _window_results(session, recording, windows, clips, unavailable, request):
             for clip in found:
                 if clip.original:
                     visual.extend(intersection(spans, [(clip.source_start_seconds - offset, clip.source_end_seconds - offset)]))
-                    audio.extend(intersection(spans, [(value.start_seconds + clip.source_start_seconds - offset,
-                        value.end_seconds + clip.source_start_seconds - offset) for value in clip.original.audio_ranges]))
+                    audio.extend(intersection(spans, [(value.start_seconds + clip.original.source_time_offset_seconds - offset,
+                        value.end_seconds + clip.original.source_time_offset_seconds - offset) for value in clip.original.audio_ranges]))
             events = [event for event in recording.events if event.video_id == video.video_id and event.event_id in window.event_ids
                       and event.kind in ("occlusion", "body_not_visible", "audio_loss")]
             losses = [recording.event_times(event) for event in events if event.kind == "audio_loss" and
@@ -507,7 +525,8 @@ def status(store, case_id, session_id, actor) -> PreprocessStatusV4:
     except HTTPException as exc:
         ready, message = False, exc.detail
     state = "ready" if ready else "not_ready"
-    outdated = bool(batch and (batch.input_revision != row["input_revision"] or batch.asset_hashes != _assets()))
+    outdated = bool(batch and (batch.input_revision != row["input_revision"] or batch.asset_hashes != _assets()
+                              or batch.cut_settings != CUT_SETTINGS))
     if batch:
         state, message = batch.status, "전처리 완료" if not outdated else "입력이 변경되었습니다. 다시 전처리하세요."
     if records and records[0][0] == "preprocess_v4.failed":

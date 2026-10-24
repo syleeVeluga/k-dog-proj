@@ -1,6 +1,6 @@
 # K-DOG AI 병렬화 검증·실행 대장
 
-버전: v1.0 · 2026-10-24 · 상태: PA01~PA05 구현·검증·cold review 완료, 후속 PR 진행
+버전: v1.0 · 2026-10-24 · 상태: PA01~PA06 완료, 후속 PA07 검증 진행
 
 상위: [병렬화 계획](K-DOG_AI병렬화계획_v1.0_20261024.md)
 
@@ -14,6 +14,7 @@
 | [PA04](K-DOG_PR-PA04_운영설정과진행표시_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 수정·재검토 완료 | PA06 | 개발자 명시 설정 | [PR #153](https://github.com/syleeVeluga/k-dog-proj/pull/153) 병합 `0abdaa0` |
 | [PA05](K-DOG_PR-PA05_장애복구와통합인수_v1.0_20261024.md) | 완료 | backend 904개/skip 3, browser 181개 통과 | 2명 독립 검토, P2 인수 보강·UI 경쟁 수정 재검토 완료 | PA06 | 실측 후보 검증 완료 | [PR #155](https://github.com/syleeVeluga/k-dog-proj/pull/155) 병합 `c48d52d`, 제품 `e9a1529`·검증 `36512c7` |
 | [PA06](K-DOG_PR-PA06_실측과운영적용_v1.0_20261024.md) | 완료 | 관련 33개 통과·실제 발급/검수 완료 | 2명 독립 검토·수용 수정·재검토 완료 | CAM3 보류 후 N4 전체 분석/리포트 1회 완료, 비교 채택 0 | 기본 1 유지·실측 DB도 N1 복귀 | [PR #156](https://github.com/syleeVeluga/k-dog-proj/pull/156), 실행 `3a68f04` |
+| [PA07](K-DOG_PR-PA07_관찰구간과업로드재사용_v1.0_20261024.md) | 완료 | 전체 회귀·배포 검증 진행 | 2명 독립 검토, P1 2건·P2 3건 수정·재검토 완료 | 기존 $50 내 같은 자료 N4 1회 대기 | 기본 1 유지 | `veluga/group-video-reuse` |
 
 ## 2. PR별 실행 기록 양식
 

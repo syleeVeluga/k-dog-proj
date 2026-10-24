@@ -29,7 +29,7 @@ class PreprocessV4Tests(unittest.TestCase):
     def setUpClass(cls):
         cls.media_temp = tempfile.TemporaryDirectory(prefix="kdog-s1-synthetic-")
         cls.samples = {}
-        for name, fps, audio in (("one", 8, True), ("two", 4, True), ("silent", 8, False), ("slow", 0.25, True), ("mkv", 8, False)):
+        for name, fps, audio in (("one", 8, True), ("two", 4, True), ("silent", 8, False), ("slow", 0.25, True), ("slow_silent", 0.25, False), ("mkv", 8, False)):
             path = Path(cls.media_temp.name) / (name + (".mkv" if name == "mkv" else ".mp4"))
             media.command(["ffmpeg", "-v", "error", "-nostdin", "-n", "-f", "lavfi", "-i", f"testsrc2=size=64x64:rate={fps}",
                 *(["-f", "lavfi", "-i", "sine=frequency=440:sample_rate=16000"] if audio else []),
@@ -130,13 +130,16 @@ class PreprocessV4Tests(unittest.TestCase):
             self.assertIsNone(windows[key].window.start_seconds)
         self.assertEqual(windows["walk_whole"].window.status, "confirmed")
 
-    def test_overlapping_logical_windows_merge_physical_clips_and_keep_actual_pts_audio(self):
+    def test_logical_windows_have_separate_clips_and_keep_actual_pts_audio(self):
         video = self.upload()
         self.recording(video.video_id, events=(self.event("free-a", "free_movement", video.video_id, 1, 2),
                                               self.event("free-b", "free_movement", video.video_id, 3, 3.5)))
         batch = self.run_batch()
-        self.assertEqual(len(batch.clips), 1)
-        clip = batch.clips[0]
+        self.assertEqual(len(batch.clips), 2)
+        clip = next(clip for clip in batch.clips if "entry_whole" in clip.window_ids)
+        event_clip = next(clip for clip in batch.clips if "entry_free" in clip.window_ids)
+        self.assertEqual((event_clip.source_start_seconds, event_clip.source_end_seconds), (1, 3.5))
+        self.assertNotEqual(clip.clip_id, event_clip.clip_id)
         self.assertEqual(clip.status, "complete")
         self.assertEqual(clip.original.fps_policy, "source_frames")
         self.assertEqual(clip.ai.fps_policy, "one_actual_frame_per_second")
@@ -154,7 +157,7 @@ class PreprocessV4Tests(unittest.TestCase):
         self.assertAlmostEqual(windows["entry_whole"].audio_available_seconds, 4, places=2)
         self.assertIsNone(windows["entry_whole"].audio_listened_seconds)
         self.assertIsNone(windows["entry_whole"].vocal_seconds)
-        self.assertEqual(windows["entry_free"].views[0].clip_ids, (clip.clip_id,))
+        self.assertEqual(windows["entry_free"].views[0].clip_ids, (event_clip.clip_id,))
         self.assertEqual(batch.status, "complete")
 
     def test_three_cameras_offsets_quality_and_audio_are_not_summed(self):
@@ -214,6 +217,26 @@ class PreprocessV4Tests(unittest.TestCase):
         self.assertEqual(batch.clips[0].status, "no_frames")
         self.assertIsNone(batch.clips[0].original)
         self.assertIsNone(batch.clips[0].ai)
+
+    def assert_window_frame_mapping(self, name, start, end, first_source):
+        video = self.upload(name)
+        self.recording(video.video_id,start=0,end=5,
+            events=(self.event('free-cut','free_movement',video.video_id,start,end),))
+        batch = self.run_batch()
+        clip = next(c for c in batch.clips if 'entry_free' in c.window_ids)
+        self.assertEqual(clip.status,'complete')
+        for derivative in (clip.original,clip.ai):
+            self.assertAlmostEqual(derivative.source_frame_times_seconds[0],first_source,places=5)
+            for local, source in zip(derivative.frame_times_seconds,derivative.source_frame_times_seconds):
+                self.assertAlmostEqual(local+derivative.source_time_offset_seconds,source,delta=0.002)
+            self.assertEqual(derivative.audio_ranges,())
+        self.assertEqual(clip.ai.frame_times_seconds[0],0)
+
+    def test_silent_low_fps_window_maps_first_actual_frame_to_source(self):
+        self.assert_window_frame_mapping('slow_silent',1,4.1,4)
+
+    def test_silent_fractional_window_maps_actual_frames_to_source(self):
+        self.assert_window_frame_mapping('silent',1.1,1.9,1.125)
 
     def test_idempotent_completion_reuse_and_reviewer_verification(self):
         video = self.upload()

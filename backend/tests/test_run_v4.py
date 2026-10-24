@@ -12,7 +12,7 @@ from unittest.mock import patch
 from fastapi import HTTPException
 
 from app import analysis, preprocess_v4, run_v4, scoring_ai_v4, settings_v4, uploads
-from app.domain.preprocess_v4 import BatchV4
+from app.domain.preprocess_v4 import BatchV4, FileV4
 from app.domain.runs_v4 import ActionV4, ReuseV4, RunConfigV4, RunViewV4, StartV4
 from app.domain.media_v4 import PreservedMediaRegistrationV4
 from app.gemini import ProviderError
@@ -55,7 +55,8 @@ class RunV4Tests(unittest.TestCase):
             files, metadata = preprocess_v4._source_snapshot(self.store, db, self.case_id, session, "operator")
         batch = sample.batch.model_dump(mode="json")
         batch.update(case_id=self.case_id, session_id=self.session_id, input_revision=row["input_revision"],
-            input={"ref": row["manifest_ref"], "hash": row["manifest_hash"]}, source_files=[file.model_dump(mode="json") for file in files], source_metadata=list(metadata))
+            input={"ref": row["manifest_ref"], "hash": row["manifest_hash"]}, source_files=[file.model_dump(mode="json") for file in files],
+            source_metadata=list(metadata), cut_settings=preprocess_v4.CUT_SETTINGS)
         batch["request"]["expected_revision"] = row["input_revision"]
         for clip in batch["clips"]:
             for kind in ("original", "ai"):
@@ -136,6 +137,19 @@ class RunV4Tests(unittest.TestCase):
         self.assertEqual(step["status"], "failed")
         interval = json.loads(step["usage_json"])["execution_interval"]
         self.assertGreaterEqual(interval["end"], interval["start"])
+
+    def test_new_cut_policy_requires_new_preprocessing_but_preserves_pinned_requests(self):
+        run = self.enqueue()
+        with patch.object(preprocess_v4, "CUT_SETTINGS", {**preprocess_v4.CUT_SETTINGS, "version":"next-window-policy"}):
+            self.assertTrue(preprocess_v4.status(self.store,self.case_id,self.session_id,self.user.username).outdated)
+            with self.assertRaises(HTTPException) as error:
+                self.enqueue(value=self.request.model_copy(update={"request_id":uid()}))
+            self.assertEqual(error.exception.status_code,409)
+            self.assertEqual(self.enqueue()["run_id"],run["run_id"])
+            pinned = preprocess_v4.verified_batch(self.store,self.case_id,self.session_id,
+                FileV4(ref=self.batch_ref,hash=self.batch_hash),self.user.username,
+                expected_input=self.batch.input,expected_revision=self.batch.input_revision)
+            self.assertEqual(pinned,self.batch)
 
     def test_admission_idempotency_immutable_pin_and_private_operational_status(self):
         result = self.enqueue()

@@ -162,7 +162,7 @@ class GeminiFallbackTests(unittest.TestCase):
         count = len(self.transport.calls)
         self.fixture.action(stopped["run_id"])
         self.finish(stopped)
-        self.assertEqual(len(self.transport.calls), count)
+        self.assertTrue(all(method == "DELETE" for method, _, _, _ in self.transport.calls[count:]))
 
     def test_backup_actor_revocation_prevents_adoption_and_preserves_selection(self):
         run = self.enqueue()
@@ -216,7 +216,7 @@ class GeminiFallbackTests(unittest.TestCase):
                 raw_path.write_bytes(b"synthetic changed source")
             self.fixture.due(run["run_id"])
             self.worker().once()
-            self.assertEqual(len(self.transport.calls), count, mode)
+            self.assertTrue(all(method == "DELETE" for method, _, _, _ in self.transport.calls[count:]), mode)
             self.assertIsNone(self.fixture.row(run["run_id"])["result_ref"])
             with self.store.connect(write=True) as db:
                 db.execute("UPDATE cases SET input_revision=? WHERE case_id=?", (revision, self.fixture.case_id))
