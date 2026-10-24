@@ -54,7 +54,8 @@ def apply(profile, assessment):
     if tuple(item.key for item in response.cards) != tuple(item.key for item in profile.cards):
         raise ValueError("narrative must cover each pinned card exactly once")
     if len(response.actions) > context["action_capacity"] or context["action_capacity"] and not response.actions:
-        raise ValueError("narrative action count differs from available evidence")
+        minimum = 1 if context["action_capacity"] else 0
+        raise ValueError(f"narrative actions require {minimum}..{context['action_capacity']} entries; received {len(response.actions)}")
     facts = {item.fact_id: item for item in profile.facts}
     type_names = set((*ATTACHMENT_TYPES, *OWNER_TYPES))
 
@@ -68,8 +69,11 @@ def apply(profile, assessment):
             raise ValueError("narrative card references another final type")
         supported_types = {facts[value].value for value in item.fact_ids if facts[value].kind == "final_type" and facts[value].value}
         plain = PLACEHOLDER.sub("", item.text)
-        if any(character.isdecimal() for character in plain) or any(term in item.text for term in assessment.instruction_snapshot["forbidden_terms"]):
-            raise ValueError("narrative contains unpinned number or forbidden claim")
+        if any(character.isdecimal() for character in plain):
+            raise ValueError("narrative contains a literal number outside a pinned numeric slot")
+        for term in assessment.instruction_snapshot["forbidden_terms"]:
+            if term in item.text:
+                raise ValueError(f"narrative contains forbidden term even in a negation or disclaimer: {term}")
         if any(term in item.text for term in type_names - supported_types):
             raise ValueError("narrative contains contradictory type")
         if "%" in item.text or "퍼센트" in item.text or re.search(r"\]\]\s*(?:점|회|배|명|개|국면|분|초|세|등급|비율|백분율)", item.text):

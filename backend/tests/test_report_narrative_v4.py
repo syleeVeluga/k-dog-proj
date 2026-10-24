@@ -63,6 +63,17 @@ class NarrativeContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             narrative.normalize(self.profile, raw, "gemini-3.8-flash")
 
+    def test_repair_errors_distinguish_action_count_number_and_forbidden_disclaimer(self):
+        raw = generated(self.context)
+        raw["actions"] = []
+        with self.assertRaisesRegex(ValueError, f"actions require 1..{self.context['action_capacity']} entries; received 0"):
+            narrative.normalize(self.profile, raw, "gemini-3.8-flash")
+        for text,message in (("관찰 1개를 살펴보세요.", "literal number"), ("이것은 진단이 아닙니다.", "forbidden term.*진단")):
+            raw = generated(self.context)
+            raw["summary"][0]["text"] = text
+            with self.subTest(text=text), self.assertRaisesRegex(ValueError, message):
+                narrative.normalize(self.profile, raw, "gemini-3.8-flash")
+
     def test_numeric_slot_rejects_model_added_units(self):
         for suffix in ("%", "퍼센트", "점", " 회", "배", "명", "개", "국면", "분", "초", "세", "등급", "비율"):
             raw = generated(self.context)
