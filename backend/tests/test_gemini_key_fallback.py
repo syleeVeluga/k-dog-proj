@@ -41,8 +41,9 @@ class SyntheticGemini:
             return {}, {"X-Goog-Upload-URL": gemini.BASE + "/upload-" + project}
         if "/upload-" in url:
             data = options["data"].read()
-            self.calls[-1][3]["synthetic_hash"] = hashlib.sha256(data).hexdigest()
-            return {"file": {"name": "files/project-" + project, "uri": gemini.BASE + "/v1beta/files/project-" + project, "state": "ACTIVE"}}, {}
+            options["synthetic_hash"] = hashlib.sha256(data).hexdigest()
+            name = "files/project-" + project + "-" + uid()
+            return {"file": {"name": name, "uri": gemini.BASE + "/v1beta/" + name, "state": "ACTIVE"}}, {}
         context = json.loads(options["data"]["input"][-1]["text"])
         if self.hook:
             self.hook(key, context)
