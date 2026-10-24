@@ -13,7 +13,7 @@
 | [PA03](K-DOG_PR-PA03_항목군병렬실행_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, 추가 결함 없음 | PA06 | 기본 1, 명시 2~4 허용 | [PR #152](https://github.com/syleeVeluga/k-dog-proj/pull/152) 병합 `3275ce8` |
 | [PA04](K-DOG_PR-PA04_운영설정과진행표시_v1.0_20261024.md) | 완료 | 통과 | 2명 독립 검토, P2 수정·재검토 완료 | PA06 | 개발자 명시 설정 | [PR #153](https://github.com/syleeVeluga/k-dog-proj/pull/153) 병합 `0abdaa0` |
 | [PA05](K-DOG_PR-PA05_장애복구와통합인수_v1.0_20261024.md) | 완료 | backend 904개/skip 3, browser 181개 통과 | 2명 독립 검토, P2 인수 보강·UI 경쟁 수정 재검토 완료 | PA06 | 실측 후보 검증 완료 | [PR #155](https://github.com/syleeVeluga/k-dog-proj/pull/155) 병합 `c48d52d`, 제품 `e9a1529`·검증 `36512c7` |
-| [PA06](K-DOG_PR-PA06_실측과운영적용_v1.0_20261024.md) | 측정 도구 완료 | 관련 33개 통과 | 2명 독립 검토·수용 수정·재검토 완료 | 등록/접근 확인, 생성 실측 준비 | 기본 1 유지 | `c48d52d`에서 착수 |
+| [PA06](K-DOG_PR-PA06_실측과운영적용_v1.0_20261024.md) | 측정 도구 완료 | 관련 33개 통과 | 2명 독립 검토·수용 수정·재검토 완료 | 등록/접근·전처리 완료, N1 전체 분석 진행 | 기본 1 유지 | [초안 PR #156](https://github.com/syleeVeluga/k-dog-proj/pull/156), 실행 `3a68f04` |
 
 ## 2. PR별 실행 기록 양식
 
@@ -93,9 +93,9 @@
 | 항목 | 상태/근거 |
 | --- | --- |
 | 원본 경로·목록 확인 | 폴더 및 파일 11개 존재 확인, 상세는 외부 참조 |
-| 원본 hash·영상/CSV·음성·설문·동기화 검증 | 미실행 |
-| 입력 등록·전처리 | 미실행 |
-| AI 분석·계산·애착·최종본 고정 | 미실행 |
+| 원본 hash·영상/CSV·음성·설문·동기화 검증 | 11개 hash 고정/재확인, 4카메라 CSV/offset·무음·설문 미제공 확인 |
+| 입력 등록·전처리 | 완료: 4클립·31관찰창, 공유 전처리 986.883초 |
+| AI 분석·계산·애착·최종본 고정 | 사용자 조정 범위 N1-R1 전체 분석 진행 중 |
 | 전달용 run/final/report 연결 | 미선정 |
 | HTML/PDF 발급·출력 hash 확인 | 미실행 |
 | HTML 열람·PDF 전체 페이지 검수 | 미실행 |
@@ -160,3 +160,5 @@
 | [typing-extensions](https://pypi.org/pypi/typing-extensions/json) | 4.16.0 | 4.16.0 |
 | [typing-inspection](https://pypi.org/pypi/typing-inspection/json) | 0.4.4 | 0.4.4 |
 | [uvicorn](https://pypi.org/pypi/uvicorn/json) | 0.54.0 | 0.52.4 |
+
+2026-10-24 사용자 범위 조정: 실제 지정 폴더는 현재 PA06-B와 같으며 N1-R1 한 번의 전체 분석과 최종 리포트 검수까지 완료한다. 원래 N2/N3/N4·3회 반복 목표는 이번 실제 실행에 적용하지 않고 비교 성능 미승인으로 구분한다. 별도 DB·전체 $50 상한·기본값 1은 유지한다.
