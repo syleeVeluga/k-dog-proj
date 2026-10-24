@@ -106,6 +106,38 @@ class RunV4Tests(unittest.TestCase):
         with self.store.connect(write=True) as db:
             db.execute("UPDATE steps SET retry_at='2000-01-01T00:00:00Z' WHERE run_id=? AND status='retry_wait'", (run_id,))
 
+    def test_execution_interval_is_scoped_to_a_processing_cycle(self):
+        run_id = self.enqueue()["run_id"]
+        self.worker().once()
+        with self.store.connect() as db:
+            step = db.execute("SELECT usage_json FROM steps WHERE run_id=?", (run_id,)).fetchone()
+        interval = json.loads(step[0])["execution_interval"]
+        self.assertGreaterEqual(interval["end"], interval["start"])
+        self.assertEqual(interval["queue_seconds"], interval["start"])
+        self.assertTrue(interval["clock_id"])
+        self.assertTrue(interval["started_at_utc"])
+        self.assertFalse(interval["reused"])
+
+    def test_parallel_admission_is_explicitly_unsupported_before_executor(self):
+        config = self.config.model_copy(update={"version": "ai-scoring-20261024-pa01", "max_parallel_score_groups": 2})
+        with self.assertRaises(HTTPException) as caught:
+            self.enqueue(config=config)
+        self.assertEqual(caught.exception.status_code, 422)
+
+    def test_failed_non_provider_exception_preserves_execution_interval(self):
+        from app.media import MediaError
+        run_id = self.enqueue()["run_id"]
+        def handler(snapshot, stage, row):
+            def work(step):
+                raise MediaError("synthetic media failure")
+            return lambda payload: payload, work
+        self.worker(handler).once()
+        with self.store.connect() as db:
+            step = db.execute("SELECT status,usage_json FROM steps WHERE run_id=?", (run_id,)).fetchone()
+        self.assertEqual(step["status"], "failed")
+        interval = json.loads(step["usage_json"])["execution_interval"]
+        self.assertGreaterEqual(interval["end"], interval["start"])
+
     def test_admission_idempotency_immutable_pin_and_private_operational_status(self):
         result = self.enqueue()
         self.assertEqual(self.enqueue()["run_id"], result["run_id"])
